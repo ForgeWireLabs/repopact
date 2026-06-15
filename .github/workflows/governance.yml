@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -18,4 +20,10 @@ jobs:
       - run: python scripts/generate_dashboard.py
       - name: Ensure dashboard is current
         run: git diff --exit-code -- audits/reports/dashboard.md
-
+      # Frozen-surface backstop (INV-6). The binding gate is human operator
+      # approval, which for this repo is PR review; this step surfaces frozen
+      # changes for the reviewer rather than blocking the merge mechanically.
+      - name: Report frozen-surface changes
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        run: python scripts/check_frozen_surface.py --base "origin/${{ github.base_ref }}"

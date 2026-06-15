@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "002",
+  "title": "Extract Governance Primitives From ForgeWire",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": ["work", "evidence", "tooling"],
+  "depends_on": ["000", "001"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Binding invariants with escalation exist as a validated record type", "state": "satisfied", "evidence": ["20260615-governance-primitives"]},
+    {"id": "AC-2", "text": "A frozen surface is declared, schema-validated, and has a diff-time backstop", "state": "satisfied", "evidence": ["20260615-governance-primitives"]},
+    {"id": "AC-3", "text": "Decisions and policies are first-class durable record types with front-matter validation", "state": "satisfied", "evidence": ["20260615-governance-primitives"]},
+    {"id": "AC-4", "text": "Roles are parameterized in owners.json and the optional disjoint-scope rule exists", "state": "satisfied", "evidence": ["20260615-governance-primitives"]},
+    {"id": "AC-5", "text": "Mandatory per-contract _audit triples are relaxed to registry-driven coverage (derive over declare)", "state": "satisfied", "evidence": ["20260615-governance-primitives"]},
+    {"id": "AC-6", "text": "Validation and the full test suite pass; the dashboard regenerates from source records", "state": "satisfied", "evidence": ["20260615-governance-primitives"]}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

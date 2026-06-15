@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "invariants.schema.json",
+  "type": "object",
+  "required": ["version", "invariants"],
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "invariants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "statement", "rationale", "escalation", "enforced_by"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^INV-[0-9]+$"},
+          "statement": {"type": "string", "minLength": 1},
+          "rationale": {"type": "string", "minLength": 1},
+          "escalation": {"type": "string", "minLength": 1},
+          "enforced_by": {
+            "description": "Machine rule that enforces this invariant, or null when only human review can.",
+            "type": ["string", "null"]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "$schema": "../schemas/invariants.schema.json",
+  "version": 1,
+  "invariants": [
+    {
+      "id": "INV-1",
+      "statement": "No critical state exists only in conversation; authority, intent, decisions, evidence, and history live in versioned files.",
+      "rationale": "A new contributor or agent must be able to recover project state without a prior conversation.",
+      "escalation": "If a task would leave load-bearing state only in chat, stop and record it as a durable file first.",
+      "enforced_by": null
+    },
+    {
+      "id": "INV-2",
+      "statement": "A completed work item has zero pending acceptance criteria.",
+      "rationale": "Completion must mean the declared outcome was actually reached.",
+      "escalation": "Move the item back to active or waive the criterion with rationale; never relabel.",
+      "enforced_by": "scripts/validate_repo.py:validate_work (completed item has pending criterion)"
+    },
+    {
+      "id": "INV-3",
+      "statement": "A satisfied acceptance criterion has linked evidence.",
+      "rationale": "Confidence is not evidence; completion requires proof.",
+      "escalation": "Produce an evidence run and link it, or set the criterion to pending or waived.",
+      "enforced_by": "scripts/validate_repo.py:validate_work (satisfied without evidence)"
+    },
+    {
+      "id": "INV-4",
+      "statement": "Completed work is never rewritten to make history appear cleaner.",
+      "rationale": "Rejected alternatives and failures are assets; laundering them destroys recoverability.",
+      "escalation": "Add a new record (work item, decision, or evidence) that supersedes; do not edit closed history.",
+      "enforced_by": null
+    },
+    {
+      "id": "INV-5",
+      "statement": "The deepest applicable AGENTS.md refines its parents but cannot weaken them.",
+      "rationale": "Authority is local, but local authority cannot escape repository-wide guarantees.",
+      "escalation": "A change that needs to weaken a parent contract requires operator approval and a decision record.",
+      "enforced_by": null
+    },
+    {
+      "id": "INV-6",
+      "statement": "Changes to the declared frozen surface require explicit human operator approval.",
+      "rationale": "Some paths and symbols are load-bearing; silent edits to them cause disproportionate damage.",
+      "escalation": "Flag the intended change, name the protected entry, and obtain operator sign-off before implementing.",
+      "enforced_by": "scripts/check_frozen_surface.py"
+    },
+    {
+      "id": "INV-7",
+      "statement": "Derived artifacts are generated from source records, never hand-edited as if they were sources.",
+      "rationale": "Hand-maintained mirrors of derivable state rot faster than humans can reconcile them.",
+      "escalation": "Regenerate the artifact; if it cannot be derived, promote its inputs to a source record instead.",
+      "enforced_by": ".github/workflows/governance.yml (dashboard diff check)"
+    }
+  ]
+}

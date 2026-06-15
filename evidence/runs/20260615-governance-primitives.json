@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-governance-primitives",
+  "timestamp": "2026-06-15T12:00:00-05:00",
+  "work_item": "002",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Governance validation passed with invariant, frozen-surface, role, decision, policy, and coverage rules active."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Full governance test suite passed, including new invariant/frozen/role/decision/policy/disjoint coverage."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md from source records."
+    }
+  ],
+  "artifacts": [
+    "governance/invariants.json",
+    "governance/frozen-surface.json",
+    "decisions/0001-repository-as-pact.md",
+    "governance/policies/001-derived-artifacts-are-generated.md",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "local_repository": "C:\\Projects\\repopact",
+    "python": "3.13",
+    "platform": "win32"
+  }
+}

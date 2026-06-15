@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "000",
+  "title": "Bootstrap Repository Kernel",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": ["work", "evidence", "tooling"],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Repository invariants are documented", "state": "satisfied", "evidence": ["20260614-194016-final"]},
+    {"id": "AC-2", "text": "Invalid work-item state fails validation", "state": "satisfied", "evidence": ["20260614-194016-final"]},
+    {"id": "AC-3", "text": "Missing audit companions fail validation", "state": "satisfied", "evidence": ["20260614-194016-final"]},
+    {"id": "AC-4", "text": "Dashboard regenerates from source records", "state": "satisfied", "evidence": ["20260614-194016-final"]},
+    {"id": "AC-5", "text": "Unit tests and CI exercise validation", "state": "satisfied", "evidence": ["20260614-194016-final"]}
+  ],
+  "created": "2026-06-14",
+  "updated": "2026-06-14"
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260614-193818-bootstrap",
+  "timestamp": "2026-06-14T19:38:18-05:00",
+  "work_item": "000",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "6 lifecycle and governance tests passed."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py",
+      "exit_code": 0,
+      "summary": "Generated audits/reports/dashboard.md."
+    }
+  ],
+  "artifacts": ["audits/reports/dashboard.md"],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4",
+    "git": "2.53.0.windows.3"
+  }
+}

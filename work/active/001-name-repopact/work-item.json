@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "001",
+  "title": "Name and Publish RepoPact",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": ["work", "evidence", "tooling"],
+  "depends_on": ["000"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Current project identity uses RepoPact", "state": "pending", "evidence": []},
+    {"id": "AC-2", "text": "Canonical local checkout is C:\\Projects\\repopact", "state": "pending", "evidence": []},
+    {"id": "AC-3", "text": "Governance validation and tests pass from the canonical location", "state": "pending", "evidence": []},
+    {"id": "AC-4", "text": "Initial commit exists on branch main", "state": "pending", "evidence": []},
+    {"id": "AC-5", "text": "Public GitHub repository exists and main is pushed", "state": "pending", "evidence": []}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

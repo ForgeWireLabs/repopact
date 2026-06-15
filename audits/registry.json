@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "scopes": [
+    {
+      "path": ".",
+      "owner": "governance-owner",
+      "contract": "AGENTS.md",
+      "last_reviewed": "2026-06-14",
+      "next_review": "2026-09-14",
+      "alignment": "current",
+      "notes": "Initial repository-level governance contract."
+    },
+    {
+      "path": "scripts",
+      "owner": "tooling-owner",
+      "contract": "scripts/AGENTS.md",
+      "last_reviewed": "2026-06-14",
+      "next_review": "2026-09-14",
+      "alignment": "current",
+      "notes": "Validator behavior matches the declared tooling constraints."
+    }
+  ]
+}

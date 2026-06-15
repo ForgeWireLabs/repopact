@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "scopes": [
+    {"id": "governance", "paths": ["AGENTS.md", "governance/**", "schemas/**"], "owner": "governance-owner"},
+    {"id": "work", "paths": ["work/**"], "owner": "work-coordinator"},
+    {"id": "evidence", "paths": ["evidence/**"], "owner": "evidence-owner"},
+    {"id": "tooling", "paths": ["scripts/**", "tests/**", ".github/**"], "owner": "tooling-owner"}
+  ]
+}
+

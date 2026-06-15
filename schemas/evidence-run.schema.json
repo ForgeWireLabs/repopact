@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence-run.schema.json",
+  "type": "object",
+  "required": ["id", "timestamp", "work_item", "result", "commands", "artifacts", "environment"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "work_item": {"type": "string", "pattern": "^[0-9]{3,}$"},
+    "result": {"enum": ["passed", "failed", "partial", "blocked"]},
+    "commands": {"type": "array", "items": {"type": "object", "required": ["command", "exit_code"], "properties": {"command": {"type": "string"}, "exit_code": {"type": "integer"}, "summary": {"type": "string"}}}},
+    "artifacts": {"type": "array", "items": {"type": "string"}},
+    "environment": {"type": "object"}
+  }
+}
+

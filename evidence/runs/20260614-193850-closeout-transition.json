@@ -1,0 +1,19 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260614-193850-closeout-transition",
+  "timestamp": "2026-06-14T19:38:50-05:00",
+  "work_item": "000",
+  "result": "failed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "summary": "Four tests assumed work item 000 remained active after its lifecycle transition."
+    }
+  ],
+  "artifacts": [],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4"
+  }
+}

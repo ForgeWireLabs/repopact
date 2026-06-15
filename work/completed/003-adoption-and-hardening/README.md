@@ -1,6 +1,6 @@
 # 003 — Adoption surface and primitive hardening
 
-> **Status**: 📋 **Planning — backlog captured 2026-06-15.** The governance kernel (000), publication (001), and governance primitives (002 ✅) make RepoPact self-consistent: it validates, tests, runs CI, and dogfoods its own records. This item captures everything between *"a repo that governs itself"* and *"a standard another repo can adopt."* Eight deliverables across three tiers; none blocks the kernel, three block adoption.
+> **Status**: ✅ **CLOSED 2026-06-15.** All eight deliverables shipped; evidence `20260615-adoption-and-hardening`. The governance kernel (000), publication (001), and governance primitives (002) made RepoPact self-consistent; this item closes the gap between *"a repo that governs itself"* and *"a standard another repo can adopt"* — bootstrap, templates, Apache-2.0 license, schema-enforced validation, audit findings, symbol-level frozen surface, spec version, and dependency-cycle detection.
 > **Owners**: Governance (lead), Tooling.
 > **Depends on**: Work item 002 ✅ (binding invariants, frozen surface, decisions/policies, parameterized roles, derive-over-declare).
 > **Frozen surface**: `governance/invariants.json`, `governance/charter.md`, `schemas/**`, `.github/workflows/**` — changes here need operator approval (`INV-6`). Several items below touch `schemas/**` and are expected, reviewed changes.
@@ -39,14 +39,14 @@ Close the gap between what RepoPact claims and what RepoPact checks/installs.
 
 | ID | Tier | Item | Why it matters | Status | Anchor / evidence |
 |----|------|------|----------------|--------|-------------------|
-| **B1** | Blocks adoption | No bootstrap path | Adoption today means hand-copying files; ForgeWire shipped `_audit_template/` + `agents-md-template.md`, RepoPact ships neither. | 📋 | no `init` script, no skeleton in repo |
-| **B2** | Blocks adoption | No record templates | Authors must hand-write JSON to match schemas for work items, decisions, policies, evidence. | 📋 | no `templates/` directory |
-| **B3** | Blocks adoption | No LICENSE | Repo is public; without a license, adoption is legally ambiguous. | 📋 | no `LICENSE` at root |
-| **H1** | Half-built | Audit finding is a stub | `record-types.md` describes "audit finding" but it has no schema, no validation, no example. | 📋 | `audits/findings/` contains only `.gitkeep` |
-| **H2** | Half-built | Symbol-level frozen surface unenforced | `frozen-surface.json` accepts a `symbols` array; the checker matches paths only, so a frozen *symbol* change is not caught. | 📋 | `scripts/check_frozen_surface.py` has no symbol handling |
-| **H3** | Half-built | Schemas are docs, not enforcement | `validate_repo.py` re-implements every check in Python and never loads `schemas/*.json`; schema and validator can silently drift. | 📋 | `validate_repo.py` imports `json` only, not the schema files |
-| **N1** | Nice-to-have | No spec version | Adopters cannot say "we are on RepoPact v1"; schemas have `$id` but no version. | 📋 | no version constant or `VERSION` |
-| **N2** | Nice-to-have | No dependency-cycle check | `depends_on` existence is validated; cycles are not. | 📋 | `validate_work` checks membership only |
+| **B1** | Blocks adoption | No bootstrap path | Adoption today means hand-copying files; ForgeWire shipped `_audit_template/` + `agents-md-template.md`, RepoPact ships neither. | ✅ | no `init` script, no skeleton in repo |
+| **B2** | Blocks adoption | No record templates | Authors must hand-write JSON to match schemas for work items, decisions, policies, evidence. | ✅ | no `templates/` directory |
+| **B3** | Blocks adoption | No LICENSE | Repo is public; without a license, adoption is legally ambiguous. | ✅ | no `LICENSE` at root |
+| **H1** | Half-built | Audit finding is a stub | `record-types.md` describes "audit finding" but it has no schema, no validation, no example. | ✅ | `audits/findings/` contains only `.gitkeep` |
+| **H2** | Half-built | Symbol-level frozen surface unenforced | `frozen-surface.json` accepts a `symbols` array; the checker matches paths only, so a frozen *symbol* change is not caught. | ✅ | `scripts/check_frozen_surface.py` has no symbol handling |
+| **H3** | Half-built | Schemas are docs, not enforcement | `validate_repo.py` re-implements every check in Python and never loads `schemas/*.json`; schema and validator can silently drift. | ✅ | `validate_repo.py` imports `json` only, not the schema files |
+| **N1** | Nice-to-have | No spec version | Adopters cannot say "we are on RepoPact v1"; schemas have `$id` but no version. | ✅ | no version constant or `VERSION` |
+| **N2** | Nice-to-have | No dependency-cycle check | `depends_on` existence is validated; cycles are not. | ✅ | `validate_work` checks membership only |
 
 ---
 

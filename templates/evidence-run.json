@@ -1,0 +1,12 @@
+{
+  "$schema": "../schemas/evidence-run.schema.json",
+  "id": "YYYYMMDD-HHMMSS-short-name",
+  "timestamp": "YYYY-MM-DDTHH:MM:SS-05:00",
+  "work_item": "NNN",
+  "result": "passed",
+  "commands": [
+    {"command": "python scripts/validate_repo.py", "exit_code": 0, "summary": "What this command proved."}
+  ],
+  "artifacts": [],
+  "environment": {"python": "3.13", "platform": "win32"}
+}

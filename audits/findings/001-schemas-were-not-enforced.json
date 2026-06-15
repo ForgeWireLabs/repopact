@@ -1,0 +1,10 @@
+{
+  "$schema": "../../schemas/audit-finding.schema.json",
+  "id": "001",
+  "scope": "tooling",
+  "observed": "schemas/*.json existed but validate_repo.py never loaded them; structural rules were re-implemented in Python, so schema and validator could drift silently.",
+  "risk": "medium",
+  "reconciliation": "Decision 0003 took a jsonschema dependency; records are now validated against their schemas for structure, with the validator authoritative for cross-record semantics.",
+  "state": "reconciled",
+  "created": "2026-06-15"
+}

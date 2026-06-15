@@ -11,7 +11,7 @@
 | Work item | Intent, decisions-in-flight, dependencies, acceptance | Raw execution logs |
 | Evidence run | Commands, results, artifacts, environment | Product priorities |
 | Audit registry | Coverage, ownership, review cadence | Implementation plans |
-| Audit finding | Observed drift, risk, reconciliation | Canonical architecture |
+| Audit finding (`audits/findings/`) | Observed drift, risk, reconciliation | Canonical architecture |
 | Dashboard | Derived overview | Source-of-truth state |
 
 Derived reports may be regenerated. Source records must be edited intentionally.

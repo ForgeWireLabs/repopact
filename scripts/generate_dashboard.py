@@ -13,6 +13,17 @@ def _count_markdown_records(directory: Path) -> int:
     return sum(1 for path in directory.glob("*.md") if path.name.upper() != "README.MD")
 
 
+def _count_json_records(directory: Path) -> int:
+    if not directory.is_dir():
+        return 0
+    return len(list(directory.glob("*.json")))
+
+
+def _spec_version(root: Path) -> str:
+    path = root / "VERSION"
+    return path.read_text(encoding="utf-8").strip() if path.is_file() else "unknown"
+
+
 def _overdue_scopes(root: Path, today: date) -> list[tuple[str, str]]:
     try:
         entries = load_json(root / "audits" / "registry.json").get("scopes", [])
@@ -40,6 +51,7 @@ def generate(root: Path) -> str:
     frozen_count = len(load_json(root / "governance" / "frozen-surface.json").get("protected", []))
     decision_count = _count_markdown_records(root / "decisions")
     policy_count = _count_markdown_records(root / "governance" / "policies")
+    finding_count = _count_json_records(root / "audits" / "findings")
     overdue = _overdue_scopes(root, today)
 
     lines = [
@@ -47,6 +59,7 @@ def generate(root: Path) -> str:
         "",
         "> Generated from source records. Do not edit manually.",
         f"> Generated: {today.isoformat()}",
+        f"> RepoPact spec version: {_spec_version(root)}",
         "",
         "## Health",
         "",
@@ -56,6 +69,7 @@ def generate(root: Path) -> str:
         f"| Frozen-surface entries | {frozen_count} |",
         f"| Scope contracts | {len(contracts)} |",
         f"| Audit registry entries | {len(audit_entries)} |",
+        f"| Audit findings | {finding_count} |",
         f"| Decision records | {decision_count} |",
         f"| Policy records | {policy_count} |",
         f"| Evidence runs | {evidence_count} |",

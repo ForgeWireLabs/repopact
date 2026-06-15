@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "audit-finding.schema.json",
+  "type": "object",
+  "required": ["id", "scope", "observed", "risk", "reconciliation", "state", "created"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[0-9]{3,}$"},
+    "scope": {"type": "string", "minLength": 1},
+    "observed": {"type": "string", "minLength": 1},
+    "risk": {"enum": ["low", "medium", "high"]},
+    "reconciliation": {"type": "string", "minLength": 1},
+    "state": {"enum": ["open", "reconciled", "accepted"]},
+    "created": {"type": "string", "format": "date"}
+  }
+}

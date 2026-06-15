@@ -2,6 +2,7 @@
 
 > Generated from source records. Do not edit manually.
 > Generated: 2026-06-15
+> RepoPact spec version: 1.0.0
 
 ## Health
 
@@ -11,18 +12,19 @@
 | Frozen-surface entries | 4 |
 | Scope contracts | 2 |
 | Audit registry entries | 2 |
+| Audit findings | 1 |
 | Decision records | 3 |
 | Policy records | 1 |
-| Evidence runs | 6 |
+| Evidence runs | 7 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| active | 1 |
+| active | 0 |
 | blocked | 0 |
 | deferred | 0 |
-| completed | 3 |
+| completed | 4 |
 
 ## Audit freshness
 
@@ -30,4 +32,4 @@ All audit scopes are within their review cadence.
 
 ## Active items
 
-- 003: Adoption Surface and Primitive Hardening (active)
+No active or blocked work.

@@ -11,6 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import check_frozen_surface  # noqa: E402
+import init_repo  # noqa: E402
 from validate_repo import validate  # noqa: E402
 
 
@@ -155,6 +157,57 @@ class RepositoryValidationTests(unittest.TestCase):
         self.add_active_item("900")
         self.add_active_item("901")
         self.assertTrue(any("active scope conflict" in v for v in self.problems()))
+
+    # --- schema layer (decision 0003) --------------------------------------
+
+    def test_schema_rejects_bad_invariant_id(self) -> None:
+        path = self.root / "governance" / "invariants.json"
+        self.write_json(path, lambda d: d["invariants"][0].__setitem__("id", "BAD"))
+        self.assertTrue(any(v.startswith("schema ") for v in self.problems()))
+
+    # --- audit findings -----------------------------------------------------
+
+    def test_audit_finding_state_must_be_valid(self) -> None:
+        path = next((self.root / "audits" / "findings").glob("*.json"))
+        self.write_json(path, lambda d: d.__setitem__("state", "nope"))
+        self.assertTrue(any("schema" in v and "state" in v for v in self.problems()))
+
+    # --- spec version -------------------------------------------------------
+
+    def test_version_must_be_semver(self) -> None:
+        (self.root / "VERSION").write_text("v1\n", encoding="utf-8")
+        self.assertTrue(any("must be semantic" in v for v in self.problems()))
+
+    # --- dependency cycles --------------------------------------------------
+
+    def test_dependency_cycle_detected(self) -> None:
+        self.add_active_item("900")
+        self.add_active_item("901")
+        a = self.manifest("900")
+        b = self.manifest("901")
+        self.write_json(a, lambda d: d.__setitem__("depends_on", ["901"]))
+        self.write_json(b, lambda d: d.__setitem__("depends_on", ["900"]))
+        self.assertTrue(any("dependency cycle" in v for v in self.problems()))
+
+    # --- frozen-surface symbol matching (pure function) --------------------
+
+    def test_symbol_hits_detects_protected_symbol(self) -> None:
+        protected = [{"glob": "x", "reason": "r", "symbols": ["SecretToken"]}]
+        patch = "+    value = SecretToken()\n-    old = 1"
+        hits = check_frozen_surface.symbol_hits(patch, protected)
+        self.assertEqual([("SecretToken", "r")], hits)
+
+    def test_symbol_hits_ignores_context_lines(self) -> None:
+        protected = [{"glob": "x", "reason": "r", "symbols": ["SecretToken"]}]
+        patch = "     unchanged = SecretToken()"  # context line, not +/-
+        self.assertEqual([], check_frozen_surface.symbol_hits(patch, protected))
+
+    # --- bootstrap (003 B1) -------------------------------------------------
+
+    def test_bootstrap_produces_valid_repo(self) -> None:
+        target = Path(self.temp.name) / "seeded"
+        init_repo.bootstrap(target)
+        self.assertEqual([], [p.message for p in validate(target)])
 
 
 if __name__ == "__main__":

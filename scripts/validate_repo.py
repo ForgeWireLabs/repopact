@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
+import jsonschema
+
 from frontmatter import FrontMatterError, parse_file
 from repo_model import STATUSES, discover_evidence_ids, discover_work_items, load_json
 
@@ -34,12 +36,28 @@ def validate_dates(value: object, field: str, path: Path, problems: list[Problem
         problems.append(Problem(path, f"{field} must be an ISO date"))
 
 
-def registered_contracts(root: Path) -> set[Path]:
-    """Contract directories declared in the audit registry.
+# --- schema layer (decision 0003) ------------------------------------------
 
-    Coverage is declared once, in the registry, rather than re-asserted as a
-    hand-maintained _audit triple beside every contract (INV-7).
-    """
+_SCHEMA_CACHE: dict[tuple[str, str], dict] = {}
+
+
+def load_schema(root: Path, name: str) -> dict:
+    key = (str(root), name)
+    if key not in _SCHEMA_CACHE:
+        _SCHEMA_CACHE[key] = load_json(root / "schemas" / name)
+    return _SCHEMA_CACHE[key]
+
+
+def check_schema(instance: object, schema: dict, path: Path, problems: list[Problem]) -> None:
+    """Structural validation. Schemas are authoritative for shape; the validator
+    functions below are authoritative for cross-record semantics (decision 0003)."""
+    validator = jsonschema.Draft202012Validator(schema)
+    for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.path)):
+        location = "/".join(str(part) for part in error.path) or "<root>"
+        problems.append(Problem(path, f"schema {location}: {error.message}"))
+
+
+def registered_contracts(root: Path) -> set[Path]:
     try:
         data = load_json(root / "audits" / "registry.json")
     except (OSError, ValueError, json.JSONDecodeError):
@@ -60,15 +78,23 @@ def validate_contracts(root: Path, problems: list[Problem]) -> None:
     for contract in contracts:
         if contract.parent == root:
             continue
-        # Every nested contract must be registered for audit coverage.
         if contract.parent.resolve() not in covered:
             problems.append(Problem(contract, "nested contract is not registered in audits/registry.json"))
-        # An _audit companion is optional, but if present it must be complete.
         audit = contract.parent / "_audit"
         if audit.is_dir():
             for name in ("README.md", "inventory.md", "alignment-report.md"):
                 if not (audit / name).is_file():
                     problems.append(Problem(contract, f"incomplete _audit companion, missing _audit/{name}"))
+
+
+def validate_version(root: Path, problems: list[Problem]) -> None:
+    path = root / "VERSION"
+    if not path.is_file():
+        problems.append(Problem(path, "missing VERSION file"))
+        return
+    version = path.read_text(encoding="utf-8").strip()
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+        problems.append(Problem(path, f"VERSION '{version}' must be semantic (MAJOR.MINOR.PATCH)"))
 
 
 def validate_invariants(root: Path, problems: list[Problem]) -> None:
@@ -78,26 +104,16 @@ def validate_invariants(root: Path, problems: list[Problem]) -> None:
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         problems.append(Problem(path, str(exc)))
         return
-    invariants = data.get("invariants")
-    if not isinstance(invariants, list) or not invariants:
-        problems.append(Problem(path, "invariants must be a non-empty list"))
-        return
+    check_schema(data, load_schema(root, "invariants.schema.json"), path, problems)
     seen: set[str] = set()
-    for entry in invariants:
-        if not isinstance(entry, dict):
-            problems.append(Problem(path, "each invariant must be an object"))
-            continue
+    for entry in data.get("invariants", []):
         inv_id = str(entry.get("id", ""))
-        if not re.fullmatch(r"INV-[0-9]+", inv_id):
-            problems.append(Problem(path, f"invariant id '{inv_id}' must match INV-<n>"))
-        elif inv_id in seen:
+        if inv_id in seen:
             problems.append(Problem(path, f"duplicate invariant id '{inv_id}'"))
         seen.add(inv_id)
         for field in ("statement", "rationale", "escalation"):
             if not str(entry.get(field, "")).strip():
                 problems.append(Problem(path, f"invariant {inv_id} is missing {field}"))
-        if "enforced_by" not in entry:
-            problems.append(Problem(path, f"invariant {inv_id} must declare enforced_by (string or null)"))
 
 
 def validate_frozen_surface(root: Path, problems: list[Problem]) -> None:
@@ -107,14 +123,9 @@ def validate_frozen_surface(root: Path, problems: list[Problem]) -> None:
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         problems.append(Problem(path, str(exc)))
         return
-    protected = data.get("protected")
-    if not isinstance(protected, list):
-        problems.append(Problem(path, "protected must be a list"))
-        return
-    for entry in protected:
-        if not isinstance(entry, dict) or not str(entry.get("glob", "")).strip():
-            problems.append(Problem(path, "each protected entry needs a non-empty glob"))
-        elif not str(entry.get("reason", "")).strip():
+    check_schema(data, load_schema(root, "frozen-surface.schema.json"), path, problems)
+    for entry in data.get("protected", []):
+        if not str(entry.get("reason", "")).strip():
             problems.append(Problem(path, f"protected entry '{entry.get('glob')}' needs a reason"))
 
 
@@ -137,9 +148,33 @@ def validate_owners(root: Path, problems: list[Problem]) -> tuple[set[str], bool
         for scope in role.get("scopes", []):
             if scope not in scope_ids:
                 problems.append(Problem(path, f"role '{role.get('id')}' references unknown scope '{scope}'"))
-    concurrency = data.get("concurrency", {})
-    enforce_disjoint = bool(concurrency.get("enforce_disjoint_active_scopes", False))
+    enforce_disjoint = bool(data.get("concurrency", {}).get("enforce_disjoint_active_scopes", False))
     return scope_ids, enforce_disjoint
+
+
+def validate_findings(root: Path, owner_scopes: set[str], problems: list[Problem]) -> None:
+    directory = root / "audits" / "findings"
+    if not directory.is_dir():
+        return
+    schema = load_schema(root, "audit-finding.schema.json")
+    seen: dict[str, Path] = {}
+    for path in sorted(directory.glob("*.json")):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            problems.append(Problem(path, str(exc)))
+            continue
+        check_schema(data, schema, path, problems)
+        finding_id = str(data.get("id", ""))
+        if finding_id and not path.name.startswith(f"{finding_id}-"):
+            problems.append(Problem(path, "filename prefix must match finding id"))
+        if finding_id in seen:
+            problems.append(Problem(path, f"duplicate finding id also used by {seen[finding_id]}"))
+        elif finding_id:
+            seen[finding_id] = path
+        scope = data.get("scope")
+        if scope and scope not in owner_scopes:
+            problems.append(Problem(path, f"unknown scope '{scope}'"))
 
 
 def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, problems: list[Problem]) -> set[str]:
@@ -150,6 +185,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         problems.append(Problem(root, str(exc)))
         return set()
 
+    schema = load_schema(root, "work-item.schema.json")
     seen: dict[str, Path] = {}
     for item in items:
         manifest = item.directory / "work-item.json"
@@ -157,6 +193,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         if missing:
             problems.append(Problem(manifest, f"missing fields: {', '.join(sorted(missing))}"))
             continue
+        check_schema(item.data, schema, manifest, problems)
 
         expected_status = item.directory.parent.name
         if item.status != expected_status or item.status not in STATUSES:
@@ -180,23 +217,14 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         validate_dates(item.data["created"], "created", manifest, problems)
         validate_dates(item.data["updated"], "updated", manifest, problems)
 
-        criteria = item.data.get("acceptance_criteria")
-        if not isinstance(criteria, list) or not criteria:
-            problems.append(Problem(manifest, "acceptance_criteria must be a non-empty list"))
-            continue
         criterion_ids: set[str] = set()
-        for criterion in criteria:
-            if not isinstance(criterion, dict):
-                problems.append(Problem(manifest, "each acceptance criterion must be an object"))
-                continue
+        for criterion in item.data.get("acceptance_criteria", []):
             criterion_id = str(criterion.get("id", ""))
             if not criterion_id or criterion_id in criterion_ids:
                 problems.append(Problem(manifest, "acceptance criterion IDs must be present and unique"))
             criterion_ids.add(criterion_id)
             state = criterion.get("state")
             linked = criterion.get("evidence", [])
-            if state not in ("pending", "satisfied", "waived"):
-                problems.append(Problem(manifest, f"criterion {criterion_id} has invalid state '{state}'"))
             if state == "satisfied" and not linked:
                 problems.append(Problem(manifest, f"criterion {criterion_id} is satisfied without evidence"))
             for evidence_id in linked:
@@ -211,13 +239,43 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
             if dependency not in all_ids:
                 problems.append(Problem(item.directory / "work-item.json", f"unknown dependency '{dependency}'"))
 
+    detect_dependency_cycles(items, all_ids, problems)
     if enforce_disjoint:
         validate_disjoint_scopes(items, problems)
     return all_ids
 
 
+def detect_dependency_cycles(items: list, known_ids: set[str], problems: list[Problem]) -> None:
+    graph: dict[str, list[str]] = {}
+    location: dict[str, Path] = {}
+    for item in items:
+        graph[item.item_id] = [d for d in item.data.get("depends_on", []) if d in known_ids]
+        location[item.item_id] = item.directory / "work-item.json"
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color = {node: WHITE for node in graph}
+    reported: set[frozenset[str]] = set()
+
+    def visit(node: str, stack: list[str]) -> None:
+        color[node] = GRAY
+        stack.append(node)
+        for nxt in graph.get(node, []):
+            if color.get(nxt) == GRAY:
+                cycle = stack[stack.index(nxt):]
+                key = frozenset(cycle)
+                if key not in reported:
+                    reported.add(key)
+                    problems.append(Problem(location[node], f"dependency cycle: {' -> '.join(cycle + [nxt])}"))
+            elif color.get(nxt) == WHITE:
+                visit(nxt, stack)
+        stack.pop()
+        color[node] = BLACK
+
+    for node in graph:
+        if color[node] == WHITE:
+            visit(node, [])
+
+
 def validate_disjoint_scopes(items: list, problems: list[Problem]) -> None:
-    """No two non-terminal items may share an owner or affected scope."""
     active = [item for item in items if item.status in ("active", "blocked")]
     for i, left in enumerate(active):
         left_scopes = {left.data.get("owner_scope")} | set(left.data.get("affected_scopes", []))
@@ -232,6 +290,7 @@ def validate_disjoint_scopes(items: list, problems: list[Problem]) -> None:
 
 
 def validate_evidence(root: Path, work_ids: set[str], problems: list[Problem]) -> None:
+    schema = load_schema(root, "evidence-run.schema.json")
     seen: dict[str, Path] = {}
     for path in sorted((root / "evidence" / "runs").glob("*.json")):
         try:
@@ -244,6 +303,7 @@ def validate_evidence(root: Path, work_ids: set[str], problems: list[Problem]) -
         if missing:
             problems.append(Problem(path, f"missing evidence fields: {', '.join(sorted(missing))}"))
             continue
+        check_schema(data, schema, path, problems)
         evidence_id = str(data["id"])
         if evidence_id != path.stem:
             problems.append(Problem(path, "evidence id must match filename"))
@@ -256,15 +316,6 @@ def validate_evidence(root: Path, work_ids: set[str], problems: list[Problem]) -
             problems.append(Problem(path, "timestamp must be ISO 8601"))
         if data["work_item"] not in work_ids:
             problems.append(Problem(path, f"unknown work_item '{data['work_item']}'"))
-        if data["result"] not in ("passed", "failed", "partial", "blocked"):
-            problems.append(Problem(path, f"invalid result '{data['result']}'"))
-        commands = data["commands"]
-        if not isinstance(commands, list) or not commands:
-            problems.append(Problem(path, "commands must be a non-empty list"))
-        else:
-            for command in commands:
-                if not isinstance(command, dict) or "command" not in command or not isinstance(command.get("exit_code"), int):
-                    problems.append(Problem(path, "each command needs command text and integer exit_code"))
 
 
 def validate_audit_registry(root: Path, problems: list[Problem]) -> None:
@@ -324,11 +375,9 @@ def validate_decisions(root: Path, problems: list[Problem]) -> None:
         except FrontMatterError:
             continue
         validate_dates(front.get("date"), "date", path, problems)
-        supersedes = front.get("supersedes", [])
-        if isinstance(supersedes, list):
-            for target in supersedes:
-                if target not in ids:
-                    problems.append(Problem(path, f"supersedes unknown decision '{target}'"))
+        for target in front.get("supersedes", []) if isinstance(front.get("supersedes"), list) else []:
+            if target not in ids:
+                problems.append(Problem(path, f"supersedes unknown decision '{target}'"))
 
 
 def validate_policies(root: Path, problems: list[Problem]) -> None:
@@ -338,10 +387,12 @@ def validate_policies(root: Path, problems: list[Problem]) -> None:
 
 def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
+    validate_version(root, problems)
     validate_contracts(root, problems)
     validate_invariants(root, problems)
     validate_frozen_surface(root, problems)
     owner_scopes, enforce_disjoint = validate_owners(root, problems)
+    validate_findings(root, owner_scopes, problems)
     work_ids = validate_work(root, owner_scopes, enforce_disjoint, problems)
     validate_evidence(root, work_ids, problems)
     validate_audit_registry(root, problems)

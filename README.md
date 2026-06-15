@@ -41,15 +41,33 @@ intent -> scoped authority -> work item -> implementation -> evidence -> audit -
 ## Quick start
 
 ```powershell
+pip install -r requirements.txt
 python scripts/validate_repo.py
 python scripts/generate_dashboard.py
 python -m unittest discover -s tests -v
 python scripts/check_frozen_surface.py --base origin/main
 ```
 
+Records are validated against `schemas/*.json` (structure) and by the validator
+(cross-record semantics). See decision
+[`0003`](decisions/0003-validate-records-against-json-schemas.md).
+
 Begin with [`AGENTS.md`](AGENTS.md), then read
 [`governance/charter.md`](governance/charter.md) and
 [`governance/workflow.md`](governance/workflow.md).
+
+## Adopt into a new repository
+
+```powershell
+python scripts/init_repo.py --target ../your-repo   # seed a valid RepoPact
+python scripts/new.py work-item "Title of the work" # stamp records from templates/
+```
+
+`init_repo.py` writes the minimal valid source records, copies the schemas and
+tooling, and validates the result. Templates for every record type live in
+[`templates/`](templates/). RepoPact is licensed under Apache-2.0 (see
+[`LICENSE`](LICENSE) and decision [`0002`](decisions/0002-license-apache-2.0.md));
+its spec version is in [`VERSION`](VERSION).
 
 ## Status is a filesystem transition
 

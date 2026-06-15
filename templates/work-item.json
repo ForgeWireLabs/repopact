@@ -1,0 +1,14 @@
+{
+  "$schema": "../schemas/work-item.schema.json",
+  "id": "NNN",
+  "title": "Title Of The Work",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Observable outcome that proves the work is done", "state": "pending", "evidence": []}
+  ],
+  "created": "YYYY-MM-DD",
+  "updated": "YYYY-MM-DD"
+}

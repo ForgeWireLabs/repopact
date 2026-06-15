@@ -60,6 +60,7 @@ particular role set.
 Run before proposing completion:
 
 ```powershell
+pip install -r requirements.txt
 python scripts/validate_repo.py
 python -m unittest discover -s tests -v
 ```

@@ -50,6 +50,8 @@ python -m unittest discover -s tests -v
 python scripts/check_frozen_surface.py --base origin/main
 ```
 
+![RepoPact validating itself and generating its dashboard](docs/assets/repopact-governance.svg)
+
 Records are validated against `schemas/*.json` (structure) and by the validator
 (cross-record semantics). See decision
 [`0003`](decisions/0003-validate-records-against-json-schemas.md).

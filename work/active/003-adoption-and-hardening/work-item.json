@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "003",
+  "title": "Adoption Surface and Primitive Hardening",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["002"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "B1 Bootstrap path: an init/scaffold drops RepoPact into a new repository", "state": "pending", "evidence": []},
+    {"id": "AC-2", "text": "B2 Record templates exist for work item, decision, policy, and evidence run", "state": "pending", "evidence": []},
+    {"id": "AC-3", "text": "B3 A LICENSE is present and declared", "state": "pending", "evidence": []},
+    {"id": "AC-4", "text": "H1 Audit finding is a real record type with schema, validation, and an example", "state": "pending", "evidence": []},
+    {"id": "AC-5", "text": "H2 Symbol-level frozen surface is enforced by check_frozen_surface.py", "state": "pending", "evidence": []},
+    {"id": "AC-6", "text": "H3 Schemas-as-enforcement resolved: validator checks against schemas or a decision records them as reference-only", "state": "pending", "evidence": []},
+    {"id": "AC-7", "text": "N1 The standard carries an explicit spec version", "state": "pending", "evidence": []},
+    {"id": "AC-8", "text": "N2 Work-item depends_on is checked for dependency cycles", "state": "pending", "evidence": []}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

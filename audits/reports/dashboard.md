@@ -11,7 +11,7 @@
 | Frozen-surface entries | 4 |
 | Scope contracts | 2 |
 | Audit registry entries | 2 |
-| Decision records | 1 |
+| Decision records | 3 |
 | Policy records | 1 |
 | Evidence runs | 6 |
 
@@ -19,7 +19,7 @@
 
 | Status | Count |
 | --- | ---: |
-| active | 0 |
+| active | 1 |
 | blocked | 0 |
 | deferred | 0 |
 | completed | 3 |
@@ -30,4 +30,4 @@ All audit scopes are within their review cadence.
 
 ## Active items
 
-No active or blocked work.
+- 003: Adoption Surface and Primitive Hardening (active)

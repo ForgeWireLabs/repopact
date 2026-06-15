@@ -23,6 +23,8 @@ filesystem state machine, is what turns a folder convention into a contract.
 intent -> scoped authority -> work item -> implementation -> evidence -> audit -> history
 ```
 
+![RepoPact core loop over a filesystem state machine](docs/assets/repopact-flow.svg)
+
 ## Primitives
 
 1. **Charter & invariants**: principles (judgment) and binding invariants

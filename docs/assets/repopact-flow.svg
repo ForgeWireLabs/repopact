@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 480" width="1120" height="480" role="img" aria-label="RepoPact core loop: intent to scoped authority to work item to implementation to evidence to audit to history, over a filesystem state machine">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#111d33"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+    <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#818cf8"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#64748b"/>
+    </marker>
+    <style>
+      text{font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+      .node{fill:#0e1729;stroke:#334155;stroke-width:1.5;}
+      .gated{stroke:url(#spark);stroke-width:2.5;}
+      .lbl{fill:#e2e8f0;font-size:18px;font-weight:600;text-anchor:middle;}
+      .sub{fill:#94a3b8;font-size:12.5px;text-anchor:middle;}
+      .cap{fill:#64748b;font-size:13px;font-weight:600;letter-spacing:1.5px;}
+    </style>
+  </defs>
+
+  <rect width="1120" height="480" fill="url(#bg)"/>
+  <rect x="6" y="6" width="1108" height="468" rx="14" fill="none" stroke="#1e2a42"/>
+
+  <text x="40" y="50" class="cap">REPOPACT · CORE LOOP</text>
+
+  <!-- core loop: 7 stages in two rows to stay legible -->
+  <!-- row 1 -->
+  <g>
+    <rect class="node" x="40"  y="78" width="150" height="70" rx="10"/>
+    <text class="lbl" x="115" y="110">Intent</text>
+    <text class="sub" x="115" y="132">charter &amp; goals</text>
+
+    <rect class="node" x="240" y="78" width="170" height="70" rx="10"/>
+    <text class="lbl" x="325" y="110">Scoped authority</text>
+    <text class="sub" x="325" y="132">who may change what</text>
+
+    <rect class="node" x="460" y="78" width="150" height="70" rx="10"/>
+    <text class="lbl" x="535" y="110">Work item</text>
+    <text class="sub" x="535" y="132">plan + machine state</text>
+
+    <rect class="node" x="660" y="78" width="170" height="70" rx="10"/>
+    <text class="lbl" x="745" y="110">Implementation</text>
+    <text class="sub" x="745" y="132">bounded change</text>
+  </g>
+  <g stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" fill="none">
+    <path d="M190 113 H236"/>
+    <path d="M410 113 H456"/>
+    <path d="M610 113 H656"/>
+  </g>
+  <!-- connector down to row 2 -->
+  <path d="M745 148 V178 H935 V210" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- row 2 (gated stages accented amber) -->
+  <g>
+    <rect class="node gated" x="850" y="210" width="170" height="70" rx="10"/>
+    <text class="lbl" x="935" y="242">Evidence</text>
+    <text class="sub" x="935" y="264">immutable, criteria-linked</text>
+
+    <rect class="node gated" x="620" y="210" width="150" height="70" rx="10"/>
+    <text class="lbl" x="695" y="242">Audit</text>
+    <text class="sub" x="695" y="264">declared vs. reality</text>
+
+    <rect class="node" x="400" y="210" width="150" height="70" rx="10"/>
+    <text class="lbl" x="475" y="242">History</text>
+    <text class="sub" x="475" y="264">moves with the work</text>
+  </g>
+  <g stroke="#64748b" stroke-width="2" marker-end="url(#arrow)" fill="none">
+    <path d="M850 245 H774"/>
+    <path d="M620 245 H554"/>
+  </g>
+
+  <text x="1040" y="200" class="sub" text-anchor="end" fill="#fbbf24">amber = escalation / evidence-gated</text>
+
+  <!-- filesystem state machine strip -->
+  <text x="40" y="340" class="cap">FILESYSTEM STATE MACHINE</text>
+  <g>
+    <rect class="node" x="40"  y="360" width="150" height="56" rx="10"/>
+    <text class="lbl" x="115" y="394" style="font-size:16px">active</text>
+    <rect class="node" x="240" y="360" width="150" height="56" rx="10"/>
+    <text class="lbl" x="315" y="394" style="font-size:16px">blocked</text>
+    <rect class="node" x="440" y="360" width="150" height="56" rx="10"/>
+    <text class="lbl" x="515" y="394" style="font-size:16px">deferred</text>
+    <rect class="node gated" x="640" y="360" width="150" height="56" rx="10"/>
+    <text class="lbl" x="715" y="394" style="font-size:16px">completed</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#arrow)" fill="none">
+    <path d="M190 388 H236"/>
+    <path d="M390 388 H436"/>
+    <path d="M590 388 H636"/>
+  </g>
+  <text x="860" y="384" class="sub" text-anchor="start">reasoning, decisions &amp; evidence</text>
+  <text x="860" y="402" class="sub" text-anchor="start">travel with the work item</text>
+</svg>

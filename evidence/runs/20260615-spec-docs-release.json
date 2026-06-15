@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-spec-docs-release",
+  "timestamp": "2026-06-15T16:30:00-05:00",
+  "work_item": "004",
+  "result": "passed",
+  "commands": [
+    {"command": "python scripts/validate_repo.py", "exit_code": 0, "summary": "Governance validation passed with the docs scope, SPEC, and updated owners/registry."},
+    {"command": "python -m unittest discover -s tests", "exit_code": 0, "summary": "24 tests passed, including SPEC-generator idempotency."},
+    {"command": "python scripts/generate_spec.py", "exit_code": 0, "summary": "Generated SPEC.md catalog and invariant blocks from schemas + invariants."},
+    {"command": "python scripts/generate_dashboard.py", "exit_code": 0, "summary": "Regenerated dashboard (spec version 0.1.0)."},
+    {"command": "gh repo edit --enable-discussions", "exit_code": 0, "summary": "Enabled GitHub Discussions."},
+    {"command": "gh issue create --label \"good first issue\" (x5)", "exit_code": 0, "summary": "Filed five tightly-scoped good-first-issues, #2-#6."},
+    {"command": "gh release create v0.1.0-alpha --prerelease", "exit_code": 0, "summary": "Published the first public pre-release at the merged main commit."}
+  ],
+  "artifacts": [
+    "SPEC.md",
+    "scripts/generate_spec.py",
+    "docs/adopt-repopact.md",
+    "docs/concepts.md",
+    "docs/guides/",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "ROADMAP.md",
+    "https://github.com/ForgeWireLabs/repopact/releases/tag/v0.1.0-alpha",
+    "https://github.com/ForgeWireLabs/repopact/discussions",
+    "https://github.com/ForgeWireLabs/repopact/issues/2"
+  ],
+  "environment": {
+    "local_repository": "C:\\Projects\\repopact",
+    "python": "3.12",
+    "jsonschema": "4.26.0",
+    "platform": "win32"
+  }
+}

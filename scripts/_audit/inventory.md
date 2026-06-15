@@ -9,3 +9,5 @@
 | scripts/check_frozen_surface.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Diff-time backstop for INV-6: path and symbol matching; best-effort outside git. |
 | scripts/init_repo.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Bootstraps a valid RepoPact into a target directory (003 B1). |
 | scripts/new.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Stamps work item / decision / policy records from templates (003 B2). |
+| scripts/generate_spec.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Generates SPEC.md catalog + invariant blocks from schemas and invariants (004). |
+| scripts/demo.sh / scripts/demo.ps1 | tooling-owner | 2026-06-15 | current | 2026-09-15 | Scripted demo of the init -> work -> evidence loop (004). |

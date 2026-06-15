@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import check_frozen_surface  # noqa: E402
+import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
 from validate_repo import validate  # noqa: E402
 
@@ -208,6 +209,16 @@ class RepositoryValidationTests(unittest.TestCase):
         target = Path(self.temp.name) / "seeded"
         init_repo.bootstrap(target)
         self.assertEqual([], [p.message for p in validate(target)])
+
+    # --- SPEC generator determinism (004) ----------------------------------
+
+    def test_spec_generation_is_idempotent(self) -> None:
+        text = (ROOT / "SPEC.md").read_text(encoding="utf-8")
+        once = generate_spec.render(text)
+        twice = generate_spec.render(once)
+        self.assertEqual(once, twice)
+        self.assertIn("work-item.schema.json", once)
+        self.assertIn("INV-1", once)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "004",
+  "title": "Specification, Documentation, and First Public Milestone",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": ["tooling", "docs"],
+  "depends_on": ["003"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "SPEC.md is a normative reference with a generated record-type catalog and invariant list (generate_spec.py), checked for freshness in CI", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]},
+    {"id": "AC-2", "text": "Diataxis docs set exists under a registered docs scope: tutorial, concepts, and how-to guides", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]},
+    {"id": "AC-3", "text": "OSS hygiene present: CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, issue and PR templates", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]},
+    {"id": "AC-4", "text": "Community surfaces: ROADMAP, example pointer, runnable demo, Discussions enabled, and >=5 good-first-issue items", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]},
+    {"id": "AC-5", "text": "Honest versioning: VERSION set to 0.1.0 and a v0.1.0-alpha pre-release published (decisions 0004, 0005)", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]},
+    {"id": "AC-6", "text": "Validation and tests pass; SPEC.md and the dashboard regenerate cleanly", "state": "satisfied", "evidence": ["20260615-spec-docs-release"]}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

@@ -1,15 +1,16 @@
 {
   "version": 2,
   "scopes": [
-    {"id": "governance", "paths": ["AGENTS.md", "governance/**", "schemas/**", "decisions/**"], "owner": "governance-owner"},
+    {"id": "governance", "paths": ["AGENTS.md", "governance/**", "schemas/**", "decisions/**", "SPEC.md"], "owner": "governance-owner"},
     {"id": "work", "paths": ["work/**"], "owner": "work-coordinator"},
     {"id": "evidence", "paths": ["evidence/**"], "owner": "evidence-owner"},
-    {"id": "tooling", "paths": ["scripts/**", "tests/**", ".github/**"], "owner": "tooling-owner"}
+    {"id": "tooling", "paths": ["scripts/**", "tests/**", ".github/**"], "owner": "tooling-owner"},
+    {"id": "docs", "paths": ["docs/**"], "owner": "docs-owner"}
   ],
   "roles": [
     {
       "id": "governance-owner",
-      "description": "Maintains the charter, invariants, frozen surface, schemas, decisions, and the root contract.",
+      "description": "Maintains the charter, invariants, frozen surface, schemas, decisions, SPEC, and the root contract.",
       "scopes": ["governance"]
     },
     {
@@ -26,6 +27,11 @@
       "id": "tooling-owner",
       "description": "Owns validators, generators, tests, and CI automation.",
       "scopes": ["tooling"]
+    },
+    {
+      "id": "docs-owner",
+      "description": "Owns the Diataxis documentation set under docs/ (tutorial, how-to guides, explanation).",
+      "scopes": ["docs"]
     }
   ],
   "concurrency": {

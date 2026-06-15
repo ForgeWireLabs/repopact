@@ -19,8 +19,9 @@ jobs:
       - run: python scripts/validate_repo.py
       - run: python -m unittest discover -s tests -v
       - run: python scripts/generate_dashboard.py
-      - name: Ensure dashboard is current
-        run: git diff --exit-code -- audits/reports/dashboard.md
+      - run: python scripts/generate_spec.py
+      - name: Ensure derived artifacts are current
+        run: git diff --exit-code -- audits/reports/dashboard.md SPEC.md
       # Frozen-surface backstop (INV-6). The binding gate is human operator
       # approval, which for this repo is PR review; this step surfaces frozen
       # changes for the reviewer rather than blocking the merge mechanically.

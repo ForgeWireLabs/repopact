@@ -1,0 +1,26 @@
+{
+  "$schema": "../schemas/frozen-surface.schema.json",
+  "version": 1,
+  "protected": [
+    {
+      "glob": "governance/invariants.json",
+      "reason": "Invariants are the pact itself; weakening one requires operator approval (INV-6).",
+      "symbols": []
+    },
+    {
+      "glob": "governance/charter.md",
+      "reason": "The charter records principles and non-goals that orient every other record.",
+      "symbols": []
+    },
+    {
+      "glob": "schemas/**",
+      "reason": "Record schemas are load-bearing contracts that every validator and producer depends on.",
+      "symbols": []
+    },
+    {
+      "glob": ".github/workflows/**",
+      "reason": "CI is the enforcement substrate; changes need human review.",
+      "symbols": []
+    }
+  ]
+}

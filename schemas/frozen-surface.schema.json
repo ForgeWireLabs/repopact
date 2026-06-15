@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frozen-surface.schema.json",
+  "type": "object",
+  "required": ["version", "protected"],
+  "properties": {
+    "version": {"type": "integer", "minimum": 1},
+    "protected": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["glob", "reason"],
+        "properties": {
+          "glob": {"type": "string", "minLength": 1},
+          "reason": {"type": "string", "minLength": 1},
+          "symbols": {"type": "array", "items": {"type": "string"}}
+        }
+      }
+    }
+  }
+}

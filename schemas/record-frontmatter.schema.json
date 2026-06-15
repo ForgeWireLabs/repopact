@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "record-frontmatter.schema.json",
+  "description": "Front matter contract shared by durable narrative records (decisions, policies). Parsed from the leading --- block of a Markdown file.",
+  "type": "object",
+  "definitions": {
+    "decision": {
+      "type": "object",
+      "required": ["id", "title", "status", "date"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9]{4,}$"},
+        "title": {"type": "string", "minLength": 1},
+        "status": {"enum": ["proposed", "accepted", "superseded", "deprecated"]},
+        "date": {"type": "string", "format": "date"},
+        "supersedes": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": ["id", "title", "status", "applies_to"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[0-9]{3,}$"},
+        "title": {"type": "string", "minLength": 1},
+        "status": {"enum": ["active", "retired"]},
+        "applies_to": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

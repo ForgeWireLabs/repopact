@@ -9,17 +9,17 @@
 | --- | ---: |
 | Scope contracts | 2 |
 | Audit registry entries | 2 |
-| Evidence runs | 4 |
+| Evidence runs | 5 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| active | 1 |
+| active | 0 |
 | blocked | 0 |
 | deferred | 0 |
-| completed | 1 |
+| completed | 2 |
 
 ## Active items
 
-- 001: Name and Publish RepoPact (active)
+No active or blocked work.

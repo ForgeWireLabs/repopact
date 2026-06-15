@@ -24,9 +24,14 @@ This is a practical naming review, not formal trademark clearance.
 
 ## Acceptance criteria
 
-- [ ] Current project identity uses RepoPact.
-- [ ] Canonical local checkout is `C:\Projects\repopact`.
-- [ ] Governance validation and tests pass from the canonical location.
-- [ ] Initial commit exists on branch `main`.
-- [ ] Public GitHub repository exists and `main` is pushed.
+- [x] Current project identity uses RepoPact.
+- [x] Canonical local checkout is `C:\Projects\repopact`.
+- [x] Governance validation and tests pass from the canonical location.
+- [x] Initial commit exists on branch `main`.
+- [x] Public GitHub repository exists and `main` is pushed.
 
+## Closeout
+
+Completed 2026-06-15. Published as
+[`ForgeWireLabs/repopact`](https://github.com/ForgeWireLabs/repopact).
+Evidence: `20260615-repopact-publication`.

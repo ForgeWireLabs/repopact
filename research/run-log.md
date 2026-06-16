@@ -131,3 +131,34 @@ its existing workflows/ownership/contracts into a RepoPact.
 
 **Next.** Validate + dashboard; commit; then the operator-gated release (merge,
 PyPI + GitHub, push proving ground).
+
+## Run 005 — forgewire kernel re-integration (real repo) — 2026-06-15 21:30
+
+**Goal.** Operator request: do the forgewire adoption *for real* on the actual repo,
+on a branch, with a structured/explainable mapping doc for review. Also: operator
+flagged that forgewire is RepoPact's **progenitor**, so this is confirmatory and a
+real deliverable — not independent generality evidence (see
+[`threats-to-validity.md`](threats-to-validity.md), T1).
+
+**Actions.**
+
+1. Confirmed real forgewire clean on `main`; branched `adopt-repopact`.
+2. Ran `repopact adopt --target .` for real: 26 records created, **zero existing
+   files modified**; `repopact validate` passed.
+3. **F-008 found:** the generated `evidence/runs/*.json` was matched by forgewire's
+   `.gitignore` `runs/` rule (`git check-ignore` confirmed) — would validate locally
+   but break on clone/CI. Added a scoped negation so the records are tracked.
+4. Wrote `REPOPACT-ADOPTION.md`: artifact→record mapping table, the F-008 fix, how to
+   verify, owner next-steps (promote thesis to invariants, map todos to work items,
+   wire `validate` into CI), and how to undo.
+5. Committed on the branch (`72c21f4da`), unpushed/unmerged, for review.
+
+**Result.** Kernel re-integrated into its source repo, structured and explainable.
+**F-008 (major)** surfaced and mitigated. forgewire recorded as confirmatory (T1).
+
+**Capture.** [`captures/005-forgewire-reintegration.md`](captures/005-forgewire-reintegration.md)
+
+**Findings.** F-008 (major; mitigated in branch, adopt hardening open).
+
+**Net.** Independent (clean-room) brownfield evidence remains the open gap. forgewire
+proves the `adopt` engineering and the re-integration deliverable, not generality.

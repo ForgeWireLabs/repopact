@@ -16,7 +16,8 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-004 | H5 | holds | Validator rejects a work item whose `status` disagrees with its directory | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-005 | H4 | holds | `check-frozen` flags a committed change to a protected path; `--ack` is required to pass | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-006 | H1,H6 | holds | A reader reconstructed the entire 001 work item — intent, decision, proof — from the tree alone | [002](captures/002-proving-ground-workflow.md) | n/a |
-| F-007 | H7 | holds | `repopact adopt` converted a real 4569-commit repo (forgewire; 19 contracts, 7 CODEOWNERS scopes, 4 CI gates) into a conformant RepoPact, non-destructively | [004](captures/004-brownfield-forgewire.md) | shipped (WI 008, dec 0008) |
+| F-007 | H7 | holds* | `repopact adopt` converted a real 4569-commit repo (forgewire; 19 contracts, 7 CODEOWNERS scopes, 4 CI gates) into a conformant RepoPact, non-destructively. *Confirmatory only — forgewire is RepoPact's progenitor (see validity caveat). | [004](captures/004-brownfield-forgewire.md) | shipped (WI 008, dec 0008) |
+| F-008 | H7 | major | An existing repo's `.gitignore` (`runs/`) silently un-tracks RepoPact's `evidence/runs/*.json`: validates locally, breaks on clone/CI | [005](captures/005-forgewire-reintegration.md) | mitigated in forgewire branch; adopt hardening open |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -120,3 +121,42 @@ plus brownfield proof (forgewire) together support the 1.0 declaration.
 **Status:** **shipped.** `scripts/adopt_repo.py` + `repopact adopt` (work item 008,
 decision 0008), 4 regression tests, re-verifiable via capture
 [004](captures/004-brownfield-forgewire.md).
+
+> **Validity caveat (recorded 2026-06-15, operator note).** RepoPact was *distilled
+> from* forgewire's own practices (tiered `AGENTS.md`, the `_audit` system, todos,
+> logs, history, trackers). forgewire therefore validates as **confirmatory**
+> evidence — the architecture meeting its progenitor — and demonstrates `adopt` as an
+> engineering capability, but it is **not independent** evidence of generality, and
+> must not be cited as such. The reintegration of the RepoPact kernel back into
+> forgewire is a real deliverable; the *generality* claim still needs a repository
+> that did **not** inspire RepoPact. See [`threats-to-validity.md`](threats-to-validity.md).
+
+## F-008 — an existing `.gitignore` can silently swallow RepoPact records
+
+**Hypothesis tested:** H7 (brownfield adoptability), real-repo reintegration.
+
+**Observed.** Adopting the real forgewire repo on a branch, `repopact adopt` wrote
+`evidence/runs/<ts>-adopt.json` and validation passed — but the file was matched by
+forgewire's pre-existing `.gitignore` rule `runs/` (intended for runtime/ML audit
+data). `git check-ignore` confirmed it. The work item references that evidence id, so
+the repo **validates on the author's disk but would fail on a fresh clone or in CI**,
+where the ignored evidence is absent.
+
+**Why it matters.** This is silent and serious: the most dangerous failure is one that
+passes locally and breaks for everyone else. It is also a genuinely *structural* (not
+lineage-dependent) collision — the kind only a real brownfield adoption surfaces.
+
+**Resolution.**
+- *Immediate (forgewire branch):* a scoped negation (`!evidence/runs/`,
+  `!evidence/runs/*.json`) tracks the records while preserving the original `runs/`
+  intent. Documented in `REPOPACT-ADOPTION.md`.
+- *Upstream (open):* `repopact adopt` should run `git check-ignore` on each record it
+  writes and warn (or offer to add the negation) when an adopter's `.gitignore` would
+  swallow a governance record. Candidate work item 009.
+
+## Independent-adoption gap (open)
+
+H7 is demonstrated but its **generality** is not yet independently established. The
+honest next datum is `repopact adopt` against a repo with no lineage to RepoPact —
+ideally an external OSS project with its own CODEOWNERS and CI. Until then, the 1.0
+brownfield claim rests on a progenitor adoption and should be worded accordingly.

@@ -77,6 +77,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "spec":
         import generate_spec
         spec = root / "SPEC.md"
+        if not spec.is_file():
+            print(
+                f"No SPEC.md at {root}. `spec` regenerates the derived blocks of an "
+                "existing SPEC.md (it is a maintainer command for repositories that "
+                "publish a RepoPact specification); an adopter repository does not "
+                "need one.",
+                file=sys.stderr,
+            )
+            return 1
         spec.write_text(generate_spec.render(spec.read_text(encoding="utf-8"), root), encoding="utf-8")
         print("Generated SPEC.md derived blocks")
         return 0

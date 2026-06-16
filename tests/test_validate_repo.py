@@ -233,6 +233,40 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual(1, len(stamped))
         self.assertEqual([], [p.message for p in validate(self.root)])
 
+    # --- proving-ground hardening (007) -------------------------------------
+
+    def test_cli_spec_fails_cleanly_without_spec_file(self) -> None:
+        """F-001: `spec` must not traceback on a repo that has no SPEC.md."""
+        target = Path(self.temp.name) / "no-spec"
+        init_repo.bootstrap(target)
+        self.assertFalse((target / "SPEC.md").exists())
+        self.assertEqual(1, repopact_cli.main(["spec", "--root", str(target)]))
+
+    def test_check_frozen_detects_working_tree_change(self) -> None:
+        """F-002: an uncommitted change to a protected path must be detected."""
+        import subprocess
+
+        repo = Path(self.temp.name) / "frz"
+        (repo / "governance").mkdir(parents=True)
+        (repo / "governance" / "frozen-surface.json").write_text(
+            json.dumps({"version": 1, "protected": [
+                {"glob": "governance/invariants.json", "reason": "the pact"}]}),
+            encoding="utf-8")
+        (repo / "governance" / "invariants.json").write_text(
+            json.dumps({"version": 1, "invariants": []}), encoding="utf-8")
+        try:
+            run = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True,
+                                            capture_output=True, text=True)
+            run("init"); run("config", "user.email", "t@t"); run("config", "user.name", "t")
+            run("add", "-A"); run("commit", "-m", "init")
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git unavailable")
+        # modify the protected file in the working tree only, no commit
+        (repo / "governance" / "invariants.json").write_text(
+            json.dumps({"version": 1, "invariants": [{"changed": True}]}), encoding="utf-8")
+        hits = check_frozen_surface.violations(repo, "HEAD")
+        self.assertEqual([("governance/invariants.json", "the pact")], hits)
+
 
 if __name__ == "__main__":
     unittest.main()

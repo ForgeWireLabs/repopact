@@ -4,7 +4,16 @@ A human-curated forward view. The authoritative status of in-flight work is the
 derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file
 adds editorial intent (what we mean to do next and why) that is not derivable.
 
-## Now — shipped in v0.1.0-alpha
+## Now — shipped in v1.0.0
+
+- **Adopter evidence + 1.0**: an independent proving-ground project
+  (`repopact-proving-ground`) adopted RepoPact from the published wheel and
+  exercised every primitive, including adversarial cases. Five of six hypotheses
+  held outright; the two defects found (`spec` crash, `check-frozen` working-tree
+  blindness) were fixed and re-verified. Recorded in [`research/`](research/);
+  1.0 declared in decision `0007`. Work item `007`.
+
+## Earlier — shipped in v0.1.0-alpha
 
 - **Governance core**: binding invariants + escalation, frozen surface, decisions,
   policies, parameterized roles (work items `001`–`002`).
@@ -15,20 +24,20 @@ adds editorial intent (what we mean to do next and why) that is not derivable.
 
 ## Next
 
+- **PyPI distribution**: publish the `repopact` wheel so `pip install repopact`
+  works for anyone (Trusted Publishing from CI preferred).
 - **Animated demo**: record `scripts/demo.sh` as an asciinema cast / GIF and embed
   it in the README (the script is ready; the recording is a manual pass).
-- **Conformance fixtures**: a corpus of valid/invalid repositories so alternative
-  implementations can self-test against the SPEC.
-- **`repopact` console entry point**: package so `repopact init` works without the
-  `python scripts/...` prefix.
+- **Multi-adopter evidence**: invite external projects to adopt RepoPact and
+  contribute their proving-ground-style evidence, broadening the 1.0 base.
 
 ## Later
 
 - **Alternative validator** in a compiled language, proving the SPEC is
   implementation-independent.
 - **GitHub Action** that runs the gates as a reusable workflow.
-- **1.0**: declared only after external adopters have produced evidence that the
-  record formats and rules hold up (confidence is not evidence).
+- **Conformance test kit** packaged for third-party implementations (the
+  `tests/fixtures/` corpus shipped in `006` is the seed).
 
 ## How to influence it
 

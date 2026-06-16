@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "007",
+  "title": "Proving-ground hardening: spec and check-frozen",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": [
+    "tooling",
+    "governance"
+  ],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "F-001: `repopact spec` exits cleanly (no traceback) on a repository without a SPEC.md, and the behavior is regression-tested.",
+      "state": "satisfied",
+      "evidence": [
+        "20260615-203707-proving-ground-hardening"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "F-002: `check-frozen` detects uncommitted working-tree and staged changes to protected paths, while preserving the committed-diff CI guarantee, and the behavior is regression-tested.",
+      "state": "satisfied",
+      "evidence": [
+        "20260615-203707-proving-ground-hardening"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "text": "The design choice behind F-001 (`spec` is a maintainer command) is recorded as a decision.",
+      "state": "satisfied",
+      "evidence": [
+        "20260615-203707-proving-ground-hardening"
+      ]
+    }
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

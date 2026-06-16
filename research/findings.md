@@ -17,7 +17,8 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-005 | H4 | holds | `check-frozen` flags a committed change to a protected path; `--ack` is required to pass | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-006 | H1,H6 | holds | A reader reconstructed the entire 001 work item — intent, decision, proof — from the tree alone | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-007 | H7 | holds* | `repopact adopt` converted a real 4569-commit repo (forgewire; 19 contracts, 7 CODEOWNERS scopes, 4 CI gates) into a conformant RepoPact, non-destructively. *Confirmatory only — forgewire is RepoPact's progenitor (see validity caveat). | [004](captures/004-brownfield-forgewire.md) | shipped (WI 008, dec 0008) |
-| F-008 | H7 | major | An existing repo's `.gitignore` (`runs/`) silently un-tracks RepoPact's `evidence/runs/*.json`: validates locally, breaks on clone/CI | [005](captures/005-forgewire-reintegration.md) | mitigated in forgewire branch; adopt hardening open |
+| F-008 | H7 | major | An existing repo's `.gitignore` (`runs/`) silently un-tracks RepoPact's `evidence/runs/*.json`: validates locally, breaks on clone/CI | [005](captures/005-forgewire-reintegration.md) | **fixed** — `adopt` now warns (WI 010); mitigated in forgewire branch |
+| F-009 | H7 | holds | `repopact adopt` brought a clean-room OSS repo (pallets/flask; no RepoPact lineage, 5 workflows) to a conformant RepoPact — independent generality evidence | [006](captures/006-independent-oss-adoption-flask.md) | n/a (WI 010) |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -152,11 +153,14 @@ lineage-dependent) collision — the kind only a real brownfield adoption surfac
   intent. Documented in `REPOPACT-ADOPTION.md`.
 - *Upstream (open):* `repopact adopt` should run `git check-ignore` on each record it
   writes and warn (or offer to add the negation) when an adopter's `.gitignore` would
-  swallow a governance record. Candidate work item 009.
+  swallow a governance record. **Done** in work item 010: `adopt` now runs
+  `git check-ignore` on every record it writes and prints a warning with suggested
+  `.gitignore` negations; regression-tested (`test_adopt_warns_on_gitignored_records`).
 
-## Independent-adoption gap (open)
+## Independent-adoption gap (partially closed)
 
-H7 is demonstrated but its **generality** is not yet independently established. The
-honest next datum is `repopact adopt` against a repo with no lineage to RepoPact —
-ideally an external OSS project with its own CODEOWNERS and CI. Until then, the 1.0
-brownfield claim rests on a progenitor adoption and should be worded accordingly.
+H7's **generality** now has one independent datum: **F-009** — `adopt` brought
+pallets/flask (no RepoPact lineage) to a conformant RepoPact. This exercises the
+sparse + workflows path. Still open: an *independent* repo that also has CODEOWNERS
+and nested contracts, to show those mappings generalize beyond the progenitor
+(forgewire). Tracked in [`threats-to-validity.md`](threats-to-validity.md) T1.

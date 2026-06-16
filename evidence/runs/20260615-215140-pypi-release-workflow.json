@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-215140-pypi-release-workflow",
+  "timestamp": "2026-06-15T21:51:40-05:00",
+  "work_item": "009",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "cat .github/workflows/release.yml",
+      "exit_code": 0,
+      "summary": "Trusted-Publishing workflow present: build job + publish job with environment 'pypi' and id-token: write, using pypa/gh-action-pypi-publish. No stored token."
+    },
+    {
+      "command": "python -m build",
+      "exit_code": 0,
+      "summary": "Distribution builds cleanly (wheel + sdist), confirming the artifact the workflow uploads."
+    }
+  ],
+  "artifacts": [".github/workflows/release.yml"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

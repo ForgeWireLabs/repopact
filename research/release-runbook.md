@@ -33,17 +33,23 @@ gh release create v1.0.0 dist/repopact-1.0.0-py3-none-any.whl dist/repopact-1.0.
 
 ## 3. PyPI — recommended: Trusted Publishing (no stored token)
 
-1. Create the project/owner on PyPI and add a **Trusted Publisher** for the
-   `ForgeWireLabs/repopact` GitHub repo + release workflow.
-2. Add a release workflow (`.github/workflows/release.yml`) that builds and runs
-   `pypa/gh-action-pypi-publish` on tag push. **This path is on RepoPact's frozen
-   surface (`.github/workflows/**`), so adding it requires operator approval (INV-6)
-   and a `check-frozen --ack`.** Draft proposed separately.
+**DONE:** the workflow `.github/workflows/release.yml` exists (build + Trusted
+Publishing publish job, OIDC, no stored token); it was approved through the frozen
+surface (`check-frozen --ack`) and decided in `0009`. Work item `009`.
 
-   Alternative (manual, token-based):
+**Operator action remaining (cannot be automated from this repo):**
+
+1. On PyPI, register a **Trusted Publisher** for the project: owner `ForgeWireLabs`,
+   repo `repopact`, workflow `release.yml`, environment `pypi` (a *pending* publisher
+   is fine before the first upload).
+2. Then publish the matching GitHub release (or run the workflow via
+   `workflow_dispatch`) — the workflow uploads to PyPI automatically. The current
+   `VERSION` is `1.0.1`, so cut `v1.0.1`.
+
+   Manual fallback (token-based, no workflow):
    ```
    python -m pip install twine
-   python -m twine upload dist/repopact-1.0.0*
+   python -m twine upload dist/repopact-1.0.1*
    ```
    using a PyPI API token. Verify with `pip install repopact` in a clean venv.
 

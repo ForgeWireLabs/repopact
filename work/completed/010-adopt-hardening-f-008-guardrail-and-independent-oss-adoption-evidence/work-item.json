@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "010",
+  "title": "Adopt hardening (F-008 guardrail) and independent OSS adoption evidence",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["008"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "F-008: `repopact adopt` detects records an existing .gitignore would swallow and warns with suggested negations; regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260615-215134-adopt-hardening"]
+    },
+    {
+      "id": "AC-2",
+      "text": "Independent (non-progenitor) brownfield evidence: adopting a clean-room OSS repo (pallets/flask) yields a conformant RepoPact.",
+      "state": "satisfied",
+      "evidence": ["20260615-215134-adopt-hardening"]
+    }
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

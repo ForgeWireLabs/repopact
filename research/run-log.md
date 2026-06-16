@@ -162,3 +162,30 @@ real deliverable — not independent generality evidence (see
 
 **Net.** Independent (clean-room) brownfield evidence remains the open gap. forgewire
 proves the `adopt` engineering and the re-integration deliverable, not generality.
+
+## Run 006 — adopt hardening + independent OSS adoption — 2026-06-15 21:51
+
+**Goal.** Operator directives: harden `adopt` against F-008 now, and get *independent*
+(non-progenitor) brownfield evidence now.
+
+**Actions.**
+
+1. **Hardening (WI 010).** `adopt` now runs `git check-ignore` on every record it
+   writes and prints a warning naming any an existing `.gitignore` would swallow,
+   with suggested negations. Regression test added (a `runs/` collision is flagged).
+2. **Independent evidence (F-009).** Cloned **pallets/flask** (no RepoPact lineage),
+   ran the hardened `adopt`: 5 workflows → policies, root contract synthesized,
+   history → evidence; **validated as conformant**. The guardrail correctly stayed
+   silent (Flask has no `runs/` collision). Full suite 35/35.
+
+**Result.** F-008 **fixed** (guardrail); F-009 **holds** (independent datum). T1
+partially retired — the workflows/sparse path now has non-circular evidence; the
+CODEOWNERS/nested-contract generality still rests on forgewire.
+
+**Capture.** [`captures/006-independent-oss-adoption-flask.md`](captures/006-independent-oss-adoption-flask.md)
+
+**Findings.** F-008 (fixed), F-009 (holds).
+
+**Next.** Complete work items 009 (PyPI Trusted Publishing workflow) and 010; land on
+main; the one remaining manual step is the operator registering the PyPI trusted
+publisher, after which a release auto-publishes.

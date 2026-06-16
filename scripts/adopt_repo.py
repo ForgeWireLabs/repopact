@@ -33,6 +33,7 @@ class Report:
         self.dry_run = dry_run
         self.created: list[str] = []
         self.skipped: list[str] = []
+        self.gitignored: list[str] = []  # created records an existing .gitignore would swallow (F-008)
 
     def write(self, path: Path, text: str, root: Path) -> None:
         rel = str(path.relative_to(root)).replace("\\", "/")
@@ -140,6 +141,25 @@ def git_stats(root: Path) -> dict[str, object]:
         "latest_tag": tag,
         "contributors": n_contrib,
     }
+
+
+def gitignored_records(root: Path, rels: list[str]) -> list[str]:
+    """Which of the generated records would an existing .gitignore swallow (F-008)?
+
+    A record that is ignored validates on the author's disk but is missing on a fresh
+    clone or in CI, silently breaking the adopted repository. Best-effort: returns []
+    outside a git checkout or if git is unavailable.
+    """
+    if not rels:
+        return []
+    try:
+        result = subprocess.run(["git", "check-ignore", "--stdin"], cwd=root,
+                                input="\n".join(rels), capture_output=True, text=True)
+    except OSError:
+        return []
+    if result.returncode not in (0, 1):  # 0 = some ignored, 1 = none ignored
+        return []
+    return [line.strip().replace("\\", "/") for line in result.stdout.splitlines() if line.strip()]
 
 
 def _slug(text: str) -> str:
@@ -313,7 +333,24 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
               "makes those bindings explicit and machine-checkable.\n\n## Decision\n\n"
               "Adopt RepoPact; existing workflows become binding gates (INV-2) and ownership becomes\n"
               "scopes/roles. Existing files were preserved; RepoPact records were added around them.\n", target)
+
+    rep.gitignored = gitignored_records(target, rep.created)
     return rep
+
+
+def _print_report(rep: Report) -> None:
+    verb = "Would create" if rep.dry_run else "Created"
+    print(f"{verb} {len(rep.created)} record(s); skipped {len(rep.skipped)} existing file(s).")
+    for rel in rep.created:
+        print(f"  + {rel}")
+    if rep.gitignored:
+        print("\nWARNING: the repository's .gitignore would un-track these RepoPact records (F-008):")
+        for rel in rep.gitignored:
+            print(f"  ! {rel}")
+        print("They validate locally but would be MISSING on a fresh clone or in CI. Add negations, e.g.:")
+        for rel in sorted({f"!/{r.rsplit('/', 1)[0]}/" for r in rep.gitignored if "/" in r}):
+            print(f"  {rel}")
+        print("  (then re-include the files, e.g. `!/evidence/runs/*.json`).")
 
 
 def main() -> int:
@@ -323,11 +360,7 @@ def main() -> int:
     args = parser.parse_args()
     target = args.target.resolve()
     rep = adopt(target, dry_run=args.dry_run)
-
-    verb = "Would create" if args.dry_run else "Created"
-    print(f"{verb} {len(rep.created)} record(s); skipped {len(rep.skipped)} existing file(s).")
-    for rel in rep.created:
-        print(f"  + {rel}")
+    _print_report(rep)
     if args.dry_run:
         print("\nDry run: nothing written. Re-run without --dry-run to apply.")
         return 0

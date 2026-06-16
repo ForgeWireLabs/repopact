@@ -17,10 +17,14 @@ trackers. Consequently:
 - The greenfield proving ground (`unitconv`) was author-built specifically to
   exercise RepoPact, so it shares the same author-as-evaluator bias.
 
-**Mitigation (planned).** Adopt at least one repository with **no lineage to
-RepoPact** — preferably an external open-source project that has its own CODEOWNERS
-and CI — and report the result whether it holds or cracks. Until that datum exists,
-the brownfield/generality claim is worded as "demonstrated on the progenitor."
+**Mitigation (in progress).** Adopt repositories with **no lineage to RepoPact** and
+report the result whether it holds or cracks.
+- *Done:* pallets/flask (F-009, capture 006) — an unrelated OSS project reached a
+  conformant RepoPact via `adopt`. This independently exercises the workflows + sparse
+  path.
+- *Still open:* an independent repo that also has CODEOWNERS and nested contracts, so
+  those mappings are shown to generalize beyond the progenitor (forgewire). Until then
+  the CODEOWNERS/nested-contract generality rests on forgewire and is worded as such.
 
 ## T2 — Single evaluator, single session
 

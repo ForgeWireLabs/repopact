@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "012",
+  "title": "Plan import sources: section roadmaps and GitHub issues",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["011"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "import-plan parses section-based roadmap/backlog files without checkboxes: `##` headings (Now/Next/Later/Done/Blocked) classify the lifecycle of their bullets.",
+      "state": "satisfied",
+      "evidence": ["20260616-093218-plan-import-sources"]
+    },
+    {
+      "id": "AC-2",
+      "text": "import-plan can import GitHub issues (opt-in --issues, best-effort via gh): open -> active, closed -> completed/waived; safe no-op when gh or a remote is absent.",
+      "state": "satisfied",
+      "evidence": ["20260616-093218-plan-import-sources"]
+    }
+  ],
+  "created": "2026-06-16",
+  "updated": "2026-06-16"
+}

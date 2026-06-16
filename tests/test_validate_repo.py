@@ -385,6 +385,24 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertFalse(list(repo.glob("work/active/*-search")))
         self.assertTrue(rep.created)
 
+    def test_import_plan_section_roadmap_without_checkboxes(self) -> None:
+        repo = Path(self.temp.name) / "roadmapped"
+        init_repo.bootstrap(repo)
+        (repo / "ROADMAP.md").write_text(
+            "# Roadmap\n\n## Now\n- Ship the API\n\n## Later\n- Mobile app\n\n"
+            "## Done\n- Initial release\n", encoding="utf-8")
+        plan_import.import_plan(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+        self.assertTrue(list((repo / "work" / "active").glob("*-ship-the-api")))
+        self.assertTrue(list((repo / "work" / "deferred").glob("*-mobile-app")))
+        self.assertTrue(list((repo / "work" / "completed").glob("*-initial-release")))
+
+    def test_section_lifecycle_keywords(self) -> None:
+        self.assertEqual("active", plan_import._section_lifecycle("Now — in progress"))
+        self.assertEqual("deferred", plan_import._section_lifecycle("Later / future"))
+        self.assertEqual("completed", plan_import._section_lifecycle("Shipped"))
+        self.assertIsNone(plan_import._section_lifecycle("Overview"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -117,22 +117,81 @@ def collect_from_dir(plan_dir: Path, root: Path) -> list[PlanItem]:
     return items
 
 
+# Section-heading keyword -> lifecycle, for roadmap/backlog files without checkboxes.
+_SECTION_LIFECYCLE = (
+    ("completed", ("done", "complete", "shipped", "released", "delivered")),
+    ("deferred", ("later", "future", "someday", "deferred", "icebox", "parking", "wishlist")),
+    ("blocked", ("blocked", "on hold", "waiting")),
+    ("active", ("now", "next", "in progress", "doing", "active", "todo", "to do", "planned", "backlog")),
+)
+
+
+def _section_lifecycle(heading: str) -> str | None:
+    low = heading.lower()
+    for lifecycle, keywords in _SECTION_LIFECYCLE:
+        if any(k in low for k in keywords):
+            return lifecycle
+    return None
+
+
+def _clean_inline(text: str) -> str:
+    return re.sub(r"[`*_]", "", text).strip()
+
+
 def collect_from_checklist(path: Path, root: Path) -> list[PlanItem]:
+    """Parse a roadmap/checklist file. Checkbox lines use their checkbox state;
+    plain top-level bullets inherit the lifecycle of their `##` section heading."""
     items: list[PlanItem] = []
     rel = str(path.relative_to(root)).replace("\\", "/")
+    section: str | None = None
     for raw in _read_md(path).splitlines():
-        m = re.match(r"\s*[-*]\s+\[([ xX])\]\s+(.+?)\s*$", raw)
-        if not m:
+        heading = re.match(r"#{1,3}\s+(.+?)\s*$", raw)
+        if heading:
+            section = _section_lifecycle(heading.group(1))
             continue
-        checked = m.group(1).lower() == "x"
-        text = m.group(2).strip()
-        lifecycle = "completed" if checked else "active"
-        items.append(PlanItem(lifecycle, adopt_repo._slug(text)[:60] or "item", text,
-                              f"- [{ 'x' if checked else ' ' }] {text}\n", rel))
+        box = re.match(r"[-*]\s+\[([ xX])\]\s+(.+?)\s*$", raw)   # top-level checkbox
+        if box:
+            text = _clean_inline(box.group(2))
+            lifecycle = "completed" if box.group(1).lower() == "x" else (section or "active")
+            items.append(PlanItem(lifecycle, adopt_repo._slug(text)[:60] or "item", text, raw.strip() + "\n", rel))
+            continue
+        bullet = re.match(r"[-*]\s+(.+?)\s*$", raw)              # top-level plain bullet (no checkbox)
+        if bullet and section is not None:                       # only inside a recognized section
+            text = _clean_inline(bullet.group(1))
+            items.append(PlanItem(section, adopt_repo._slug(text)[:60] or "item", text, raw.strip() + "\n", rel))
     return items
 
 
-def discover(root: Path) -> list[PlanItem]:
+def collect_from_github(root: Path, limit: int = 200) -> list[PlanItem]:
+    """Import GitHub issues as plan items (opt-in). open -> active, closed -> completed.
+    Best-effort: returns [] if gh is unavailable or there is no GitHub remote."""
+    import json as _json
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["gh", "issue", "list", "--state", "all", "--limit", str(limit),
+             "--json", "number,title,body,state,url"],
+            cwd=root, capture_output=True, text=True)
+    except OSError:
+        return []
+    if result.returncode != 0:
+        return []
+    try:
+        issues = _json.loads(result.stdout or "[]")
+    except ValueError:
+        return []
+    items: list[PlanItem] = []
+    for issue in issues:
+        lifecycle = "completed" if str(issue.get("state", "")).upper() == "CLOSED" else "active"
+        title = str(issue.get("title", "")).strip() or f"issue-{issue.get('number')}"
+        body = str(issue.get("body") or "")
+        narrative = f"{issue.get('url', '')}\n\n{body}\n"
+        items.append(PlanItem(lifecycle, adopt_repo._slug(title)[:60] or "issue", title,
+                              narrative, f"github:#{issue.get('number')}"))
+    return items
+
+
+def discover(root: Path, import_issues: bool = False) -> list[PlanItem]:
     items: list[PlanItem] = []
     for name in PLAN_DIR_NAMES:
         d = root / name
@@ -142,6 +201,8 @@ def discover(root: Path) -> list[PlanItem]:
         f = root / fname
         if f.is_file():
             items.extend(collect_from_checklist(f, root))
+    if import_issues:
+        items.extend(collect_from_github(root))
     return items
 
 
@@ -173,11 +234,12 @@ def _allocate(num: str | None, used: set[str]) -> str:
     return f"{n:03d}"
 
 
-def import_plan(root: Path, today: date | None = None, dry_run: bool = False) -> adopt_repo.Report:
+def import_plan(root: Path, today: date | None = None, dry_run: bool = False,
+                import_issues: bool = False) -> adopt_repo.Report:
     today = today or date.today()
     rep = adopt_repo.Report(dry_run)
     used_ids, used_slugs = _existing(root)
-    for item in discover(root):
+    for item in discover(root, import_issues=import_issues):
         if item.slug in used_slugs:        # idempotent: already imported (or name clash) -> skip
             rep.skipped.append(f"work/* /{item.slug} (already present)")
             continue
@@ -217,9 +279,10 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Import existing plan items into the RepoPact work/ ledger")
     parser.add_argument("--target", type=Path, default=Path.cwd())
     parser.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
+    parser.add_argument("--issues", action="store_true", help="Also import GitHub issues (needs gh + a GitHub remote)")
     args = parser.parse_args()
     root = args.target.resolve()
-    rep = import_plan(root, dry_run=args.dry_run)
+    rep = import_plan(root, dry_run=args.dry_run, import_issues=args.issues)
     _print(rep)
     if args.dry_run:
         print("\nDry run: nothing written.")

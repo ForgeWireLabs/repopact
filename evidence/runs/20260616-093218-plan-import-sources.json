@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260616-093218-plan-import-sources",
+  "timestamp": "2026-06-16T09:32:18-05:00",
+  "work_item": "012",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "41 tests pass, including section-roadmap parsing (Now/Later/Done -> active/deferred/completed) and section-keyword mapping."
+    },
+    {
+      "command": "python scripts/plan_import.py --target . --issues --dry-run",
+      "exit_code": 0,
+      "summary": "On repopact: imported items from ROADMAP.md sections AND GitHub issues (gh) in one pass; both new sources exercised end-to-end."
+    }
+  ],
+  "artifacts": ["research/captures/008-plan-import-sources.md"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

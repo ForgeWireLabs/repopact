@@ -217,3 +217,22 @@ backlog is reflected in `work/` without overstating proven completion.
 
 **Next.** Land on main (1.1.0). Then full ForgeLink integration (upgrade its older
 RepoPact, import any plan items) — the operator's stated next task.
+
+## Run 008 — plan-import sources broadened — 2026-06-16 09:32
+
+**Goal.** Operator: "add now" the remaining trackers — section roadmaps (no checkboxes)
+and GitHub issues.
+
+**Actions.** Extended `import-plan` (WI 012): `##` section headings classify the
+lifecycle of their bullets (Now/Next→active, Later→deferred, Done/Shipped→completed,
+Blocked→blocked); opt-in `--issues` imports GitHub issues via `gh` (open→active,
+closed→completed/waived), a safe no-op without gh/remote. Top-level bullets only.
+2 new tests (41/41). Verified end-to-end on repopact: one `--issues` pass drew from
+ROADMAP.md sections and GitHub issues together.
+
+**Result.** `import-plan` now covers four source kinds (dirs, checklists, section
+roadmaps, issues). VERSION → 1.2.0.
+
+**Capture.** [`captures/008-plan-import-sources.md`](captures/008-plan-import-sources.md)
+
+**Next.** Apply `import-plan` to real forgewire (branch, review); then ForgeLink.

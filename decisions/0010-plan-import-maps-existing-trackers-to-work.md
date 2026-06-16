@@ -58,5 +58,7 @@ properties are load-bearing:
 - An adopted repo's `work/` reflects its real backlog immediately after import.
 - Imported completed items are visibly `waived`, so the dashboard never overstates
   proven completion.
-- Section-only roadmaps (no checkboxes) and external trackers (GitHub issues) are not
-  yet imported; they are the natural next sources.
+- Section-only roadmaps (no checkboxes) and GitHub issues were the natural next
+  sources; both were added in work item `012` (section `##` headings classify their
+  bullets' lifecycle; `--issues` imports via `gh`). Non-GitHub trackers (Jira/Linear)
+  and nested sub-tasks remain future adapters.

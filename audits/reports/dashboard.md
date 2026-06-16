@@ -2,7 +2,7 @@
 
 > Generated from source records. Do not edit manually.
 > Generated: 2026-06-16
-> RepoPact spec version: 1.1.0
+> RepoPact spec version: 1.2.0
 
 ## Health
 
@@ -15,7 +15,7 @@
 | Audit findings | 1 |
 | Decision records | 10 |
 | Policy records | 1 |
-| Evidence runs | 15 |
+| Evidence runs | 16 |
 
 ## Work
 
@@ -24,7 +24,7 @@
 | active | 0 |
 | blocked | 0 |
 | deferred | 0 |
-| completed | 12 |
+| completed | 13 |
 
 ## Audit freshness
 

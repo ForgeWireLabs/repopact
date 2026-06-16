@@ -307,3 +307,25 @@ audit coexistence now have an independent datum); CODEOWNERS/nested-contract gen
 still rests on forgewire.
 
 **Capture.** [`captures/011-skillforge-adoption.md`](captures/011-skillforge-adoption.md)
+
+## Run 012 — tracking import + takeover — 2026-06-16 10:53
+
+**Goal.** Operator (mid-takeover): SkillForge also plans via `tracking/`, which RepoPact
+didn't adapt to — correct that — and provide the takeover that removes side-by-side
+old/new methods.
+
+**Actions.** (1) `track_import.py`, folded into `import-plan`: `tracking/` →
+`decisions/` (DEC-NNN → free 4-digit id), `audits/findings/` (RISK-NNN → numeric id per
+schema, original kept in `source`/observed; P-severity & status mapped), `work/`
+(milestones). `status.md`/`work-log.md`/companions deliberately not fabricated.
+(2) `takeover` command (CLI-wired, drafted before the redirect): retire a fully-migrated
+plan dir, archive (default) or `--delete`, gated on validation + per-item provenance;
+mixed/partial sources reported for review. 5 new tests (50/50).
+(3) Applied to real SkillForge: tracking → 3 decisions + 5 findings + 6 milestones;
+`takeover` archived `todos/` → `archive/todos/`; `tracking/` kept for review; validates,
+doctor healthy. Branch `adopt-repopact` (commit 7fb28c7), unmerged.
+
+**Result.** **F-013 holds.** Governance-folder planning is adapted; takeover yields one
+ledger without losing un-captured content. VERSION → 1.4.0.
+
+**Capture.** [`captures/012-tracking-and-takeover.md`](captures/012-tracking-and-takeover.md)

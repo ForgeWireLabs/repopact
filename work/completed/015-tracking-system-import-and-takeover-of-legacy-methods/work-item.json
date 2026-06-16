@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "015",
+  "title": "Tracking-system import and takeover of legacy methods",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["011", "014"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "import-plan maps a tracking/ governance system to the right record types: decisions.md -> decisions/, risks.md -> audits/findings/ (numeric id, RISK-NNN preserved in source), milestones.md -> work/ items; status.md/work-log.md are not fabricated. Non-destructive, idempotent, regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260616-105305-tracking-and-takeover"]
+    },
+    {
+      "id": "AC-2",
+      "text": "`repopact takeover` retires a legacy plan dir (archive by default, --delete optional) only when the repo validates and every item is migrated (source provenance); refuses un-migrated dirs and reports mixed-content sources for review. Regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260616-105305-tracking-and-takeover"]
+    },
+    {
+      "id": "AC-3",
+      "text": "Proven on real SkillForge: tracking/ imported (3 decisions, 5 findings, 6 milestones); todos/ archived to archive/todos/; repository validates and doctor is healthy.",
+      "state": "satisfied",
+      "evidence": ["20260616-105305-tracking-and-takeover"]
+    }
+  ],
+  "created": "2026-06-16",
+  "updated": "2026-06-16"
+}

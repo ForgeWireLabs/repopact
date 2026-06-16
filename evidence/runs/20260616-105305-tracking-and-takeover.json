@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260616-105305-tracking-and-takeover",
+  "timestamp": "2026-06-16T10:53:05-05:00",
+  "work_item": "015",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "50 tests pass, incl. tracking import (decisions/findings/milestones validate, idempotent) and takeover (archives migrated dir, refuses un-migrated, aborts when invalid)."
+    },
+    {
+      "command": "import-plan; takeover (on SkillForge)",
+      "exit_code": 0,
+      "summary": "Real SkillForge: tracking/ -> 3 decisions + 5 findings + 6 milestone work items; takeover archived the fully-migrated todos/ to archive/todos/; tracking/ROADMAP/CHANGELOG kept for review; repository validates, doctor healthy."
+    }
+  ],
+  "artifacts": ["research/captures/012-tracking-and-takeover.md"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

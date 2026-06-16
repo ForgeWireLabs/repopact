@@ -28,6 +28,8 @@ py-modules = [
   "init_repo",
   "adopt_repo",
   "plan_import",
+  "track_import",
+  "takeover",
   "doctor",
   "new",
   "check_frozen_surface",

@@ -34,6 +34,11 @@ def main(argv: list[str] | None = None) -> int:
     p_doc.add_argument("--root", type=Path, default=Path.cwd())
     p_doc.add_argument("--fix", action="store_true", help="Apply safe, non-destructive repairs")
 
+    p_take = sub.add_parser("takeover", help="Retire legacy planning sources RepoPact has fully imported")
+    p_take.add_argument("--root", type=Path, default=Path.cwd())
+    p_take.add_argument("--delete", action="store_true", help="Delete instead of archiving under archive/")
+    p_take.add_argument("--dry-run", action="store_true", help="Report the plan without changing files")
+
     p_val = sub.add_parser("validate", help="Validate the repository")
     p_val.add_argument("--root", type=Path, default=Path.cwd())
 
@@ -106,6 +111,14 @@ def main(argv: list[str] | None = None) -> int:
             print("repopact doctor: healthy.")
             return 0
         return 1 if errs or problems else 0
+
+    if args.command == "takeover":
+        import takeover
+        report = takeover.takeover(root, delete=args.delete, dry_run=args.dry_run)
+        rc = takeover._print(report, args.dry_run)
+        if args.dry_run:
+            print("\nDry run: nothing changed.")
+        return rc
 
     if args.command == "import-plan":
         import plan_import

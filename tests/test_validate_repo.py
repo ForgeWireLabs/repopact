@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import adopt_repo  # noqa: E402
 import plan_import  # noqa: E402
+import takeover  # noqa: E402
 import doctor  # noqa: E402
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
@@ -385,6 +386,85 @@ class RepositoryValidationTests(unittest.TestCase):
         rep = plan_import.import_plan(repo, dry_run=True)
         self.assertFalse(list(repo.glob("work/active/*-search")))
         self.assertTrue(rep.created)
+
+    # --- tracking import (015) ----------------------------------------------
+
+    def _seed_repo_with_tracking(self) -> Path:
+        repo = Path(self.temp.name) / "tracked"
+        init_repo.bootstrap(repo)
+        (repo / "tracking").mkdir()
+        (repo / "tracking" / "decisions.md").write_text(
+            "# Decision Log\n\n## DEC-001: Use Markdown Foundation\nDate: 2026-06-16  \nStatus: accepted  \n\n"
+            "Decision: keep it repo-native.\n", encoding="utf-8")
+        (repo / "tracking" / "risks.md").write_text(
+            "# Risk Register\n\n| ID | Risk | Severity | Status | Owner | Mitigation |\n"
+            "| --- | --- | --- | --- | --- | --- |\n"
+            "| RISK-001 | Tracking can drift from repo state. | P2 | open | Steward | Validate regularly. |\n",
+            encoding="utf-8")
+        (repo / "tracking" / "milestones.md").write_text(
+            "# Milestones\n\n## M0: MVP\nStatus: shipped\n\nEvidence: it works.\n\n"
+            "## M1: Next thing\nStatus: in progress\n\nRemaining: lots.\n", encoding="utf-8")
+        return repo
+
+    def test_tracking_import_maps_to_record_types_and_validates(self) -> None:
+        repo = self._seed_repo_with_tracking()
+        plan_import.import_plan(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+        # decision record created (DEC-001 -> a 4-digit id, 0001 is unused in a fresh bootstrap)
+        self.assertTrue(list((repo / "decisions").glob("*-use-markdown-foundation.md")))
+        # risk -> audit finding: numeric id (schema), RISK-001 kept in source, P2 -> medium, open
+        finding = list((repo / "audits" / "findings").glob("*.json"))
+        self.assertEqual(1, len(finding))
+        data = json.loads(finding[0].read_text(encoding="utf-8"))
+        self.assertRegex(data["id"], r"^[0-9]{3,}$")
+        self.assertEqual(("medium", "open", "governance"), (data["risk"], data["state"], data["scope"]))
+        self.assertTrue(data["source"].endswith("RISK-001"))
+        self.assertIn("[RISK-001]", data["observed"])
+        # milestones -> work items (shipped -> completed/waived, else active/pending)
+        self.assertTrue(list((repo / "work" / "completed").glob("*-milestone-mvp")))
+        self.assertTrue(list((repo / "work" / "active").glob("*-milestone-next-thing")))
+
+    def test_tracking_import_is_idempotent(self) -> None:
+        repo = self._seed_repo_with_tracking()
+        plan_import.import_plan(repo)
+        before = len(list(repo.glob("decisions/*.md"))) + len(list(repo.glob("audits/findings/*.json")))
+        plan_import.import_plan(repo)
+        after = len(list(repo.glob("decisions/*.md"))) + len(list(repo.glob("audits/findings/*.json")))
+        self.assertEqual(before, after)
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    # --- takeover (015) -----------------------------------------------------
+
+    def test_takeover_archives_fully_migrated_plan_dir(self) -> None:
+        repo = Path(self.temp.name) / "tk"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        plan_import.import_plan(repo)                       # migrate todos -> work/
+        report = takeover.takeover(repo)                    # archive (default)
+        self.assertIn("todos", report["retired"])
+        self.assertFalse((repo / "todos").exists())
+        self.assertTrue((repo / "archive" / "todos" / "12-search" / "README.md").is_file())
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_takeover_refuses_unmigrated_dir(self) -> None:
+        repo = Path(self.temp.name) / "tk2"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        # do NOT import; takeover must not retire an un-migrated source
+        report = takeover.takeover(repo)
+        self.assertEqual([], report["retired"])
+        self.assertTrue((repo / "todos").exists())
+        self.assertTrue(any(s["dir"] == "todos" for s in report["skipped"]))
+
+    def test_takeover_aborts_when_invalid(self) -> None:
+        repo = Path(self.temp.name) / "tk3"
+        init_repo.bootstrap(repo)
+        (repo / "AGENTS.md").unlink()                       # make it invalid
+        report = takeover.takeover(repo)
+        self.assertFalse(report["validated"])
+        self.assertEqual([], report["retired"])
 
     # --- doctor (013) -------------------------------------------------------
 

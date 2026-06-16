@@ -13,6 +13,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import adopt_repo  # noqa: E402
 import plan_import  # noqa: E402
+import doctor  # noqa: E402
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
@@ -384,6 +385,38 @@ class RepositoryValidationTests(unittest.TestCase):
         rep = plan_import.import_plan(repo, dry_run=True)
         self.assertFalse(list(repo.glob("work/active/*-search")))
         self.assertTrue(rep.created)
+
+    # --- doctor (013) -------------------------------------------------------
+
+    def _seed_drifted_repo(self) -> Path:
+        repo = Path(self.temp.name) / "drifted"
+        init_repo.bootstrap(repo)
+        (repo / "AGENTS.md").unlink()                          # missing root contract
+        reg = json.loads((repo / "audits" / "registry.json").read_text(encoding="utf-8"))
+        reg["scopes"].append({"path": "docs", "owner": "x", "contract": "docs/AGENTS.md",
+                              "last_reviewed": "2026-06-16", "next_review": "2026-09-16",
+                              "alignment": "current", "notes": "stale"})
+        (repo / "audits" / "registry.json").write_text(json.dumps(reg), encoding="utf-8")
+        (repo / "service").mkdir()
+        (repo / "service" / "AGENTS.md").write_text("# service\n", encoding="utf-8")  # unregistered
+        return repo
+
+    def test_doctor_diagnoses_drift(self) -> None:
+        codes = {f.code for f in doctor.diagnose(self._seed_drifted_repo())}
+        self.assertIn("no-root-contract", codes)
+        self.assertIn("registry-stale", codes)
+        self.assertIn("contract-unregistered", codes)
+
+    def test_doctor_fix_makes_repo_valid(self) -> None:
+        repo = self._seed_drifted_repo()
+        doctor.fix(repo)
+        self.assertEqual([], [f.code for f in doctor.diagnose(repo) if f.severity == "error"])
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_doctor_healthy_on_clean_repo(self) -> None:
+        repo = Path(self.temp.name) / "clean"
+        init_repo.bootstrap(repo)
+        self.assertEqual([], [f for f in doctor.diagnose(repo) if f.severity == "error"])
 
     def test_import_plan_section_roadmap_without_checkboxes(self) -> None:
         repo = Path(self.temp.name) / "roadmapped"

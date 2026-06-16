@@ -30,6 +30,10 @@ def main(argv: list[str] | None = None) -> int:
     p_imp.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
     p_imp.add_argument("--issues", action="store_true", help="Also import GitHub issues (needs gh + a GitHub remote)")
 
+    p_doc = sub.add_parser("doctor", help="Diagnose (and optionally --fix) RepoPact drift")
+    p_doc.add_argument("--root", type=Path, default=Path.cwd())
+    p_doc.add_argument("--fix", action="store_true", help="Apply safe, non-destructive repairs")
+
     p_val = sub.add_parser("validate", help="Validate the repository")
     p_val.add_argument("--root", type=Path, default=Path.cwd())
 
@@ -84,6 +88,24 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = args.root.resolve()
+
+    if args.command == "doctor":
+        import doctor, validate_repo
+        if args.fix:
+            for a in (doctor.fix(root) or ["nothing to fix"]):
+                print(f"  ~ {a}")
+        findings = doctor.diagnose(root)
+        problems = validate_repo.validate(root)
+        errs = [f for f in findings if f.severity == "error"]
+        warns = [f for f in findings if f.severity == "warn"]
+        for f in errs + warns:
+            print(f"{f.severity.upper():5} [{f.code}] {f.message}")
+        for p in problems:
+            print(f"INVALID {p.path.relative_to(root)}: {p.message}")
+        if not errs and not warns and not problems:
+            print("repopact doctor: healthy.")
+            return 0
+        return 1 if errs or problems else 0
 
     if args.command == "import-plan":
         import plan_import

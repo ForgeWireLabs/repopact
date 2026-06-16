@@ -261,3 +261,29 @@ first evidence about adoption *over time* (vs. one-shot adopt).
 
 **Net.** Both operator tasks delivered on review branches. The standout new datum is
 F-011 — drift-over-time is real and currently unmanaged.
+
+## Run 010 — repopact doctor (resolves F-011) — 2026-06-16 10:03
+
+**Goal.** Operator: build `repopact doctor` now. Turn the F-011 manual reconciliation
+into a tool.
+
+**Actions.** Built `repopact doctor [--root] [--fix]` (WI 013, decision 0011): read-only
+drift diagnosis (missing root contract, stale registry scopes, unregistered nested
+contracts, incomplete `_audit` triplets, schema skew, gitignored records) + safe `--fix`.
+3 regression tests (44/44). Verified on a synthetic drifted repo (diagnose → fix →
+valid) and on the **real ForgeLink** and **forgewire**.
+
+**Key safety finding (from the real ForgeLink run).** ForgeLink's `work-item.schema.json`
+carries an intentional `preflight` extension. A naive schema refresh would have
+clobbered it. So `--fix` only *adds missing* schemas and reports a differing schema as a
+`schema-differs` warning for human review — never overwrites it. Only already-invalid
+registry entries are removed; every other fix is additive.
+
+**Result.** **F-011 fixed.** Adoption now has a longitudinal drift/repair surface.
+VERSION → 1.3.0.
+
+**Capture.** [`captures/010-repopact-doctor.md`](captures/010-repopact-doctor.md)
+
+**Net.** The toolchain now spans the full adoption lifecycle: `adopt` (onboard),
+`import-plan` (populate), `validate`/`check-frozen` (gate), `doctor` (keep healthy
+over time).

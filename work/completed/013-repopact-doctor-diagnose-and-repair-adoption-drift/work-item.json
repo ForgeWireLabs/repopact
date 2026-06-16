@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "013",
+  "title": "repopact doctor: diagnose and repair adoption drift",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["008"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "`repopact doctor` diagnoses adoption drift (missing root contract, stale registry scopes, unregistered nested contracts, incomplete _audit triplets, schema skew, gitignored records); read-only by default, exits non-zero on errors.",
+      "state": "satisfied",
+      "evidence": ["20260616-100320-repopact-doctor"]
+    },
+    {
+      "id": "AC-2",
+      "text": "`--fix` applies safe, non-destructive repairs (never overwriting a differing/extended schema) and the repaired repo validates; regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260616-100320-repopact-doctor"]
+    },
+    {
+      "id": "AC-3",
+      "text": "Proven on real repos: a drifted synthetic repo is repaired to valid; ForgeLink reports healthy with its intentional preflight schema extension flagged for review, not clobbered.",
+      "state": "satisfied",
+      "evidence": ["20260616-100320-repopact-doctor"]
+    }
+  ],
+  "created": "2026-06-16",
+  "updated": "2026-06-16"
+}

@@ -20,7 +20,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-008 | H7 | major | An existing repo's `.gitignore` (`runs/`) silently un-tracks RepoPact's `evidence/runs/*.json`: validates locally, breaks on clone/CI | [005](captures/005-forgewire-reintegration.md) | **fixed** — `adopt` now warns (WI 010); mitigated in forgewire branch |
 | F-009 | H7 | holds | `repopact adopt` brought a clean-room OSS repo (pallets/flask; no RepoPact lineage, 5 workflows) to a conformant RepoPact — independent generality evidence | [006](captures/006-independent-oss-adoption-flask.md) | n/a (WI 010) |
 | F-010 | H7 | major | `adopt` left `work/` empty beside the team's real `todos/` (operator-reported); the ledger didn't reflect actual planning | [007](captures/007-plan-import-forgewire.md) | **fixed** — `repopact import-plan` (WI 011, dec 0010) |
-| F-011 | H7 | major | An older adopter (ForgeLink) drifted *invalid* as the standard evolved (stale registry paths, missing root contract); nothing detected or guided the upgrade | [009](captures/009-forgelink-upgrade.md) | reconciled manually on a branch; a `repopact upgrade`/`doctor` is the open need |
+| F-011 | H7 | major | An older adopter (ForgeLink) drifted *invalid* as the standard evolved (stale registry paths, missing root contract); nothing detected or guided the upgrade | [009](captures/009-forgelink-upgrade.md) | **fixed** — `repopact doctor [--fix]` (WI 013, dec 0011), proven on real ForgeLink [010](captures/010-repopact-doctor.md) |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 

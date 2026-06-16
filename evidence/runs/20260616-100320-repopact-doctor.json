@@ -1,0 +1,26 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260616-100320-repopact-doctor",
+  "timestamp": "2026-06-16T10:03:20-05:00",
+  "work_item": "013",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "44 tests pass, incl. doctor diagnoses drift, --fix makes a drifted repo valid, and a clean repo is healthy."
+    },
+    {
+      "command": "python scripts/doctor.py --root <drifted>; then --fix",
+      "exit_code": 0,
+      "summary": "On a synthetic drifted repo: diagnosed missing root contract, stale registry, unregistered contract, incomplete _audit; --fix repaired all; re-validates."
+    },
+    {
+      "command": "python scripts/doctor.py --root C:/Projects/ForgeLink",
+      "exit_code": 0,
+      "summary": "On real ForgeLink: 0 errors; one schema-differs WARNING correctly flags the intentional preflight extension for review rather than clobbering it."
+    }
+  ],
+  "artifacts": ["research/captures/010-repopact-doctor.md"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

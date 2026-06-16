@@ -113,14 +113,10 @@ def parse_codeowners(root: Path) -> dict[str, list[str]]:
 
 
 def find_nested_contracts(root: Path) -> list[Path]:
-    out: list[Path] = []
-    for path in root.rglob("AGENTS.md"):
-        if path.parent == root:
-            continue
-        if any(part in {".git", ".venv", "node_modules", "__pycache__"} for part in path.parts):
-            continue
-        out.append(path)
-    return sorted(out)
+    """Nested AGENTS.md contracts, using the validator's own discovery (which excludes
+    tooling caches and test fixtures) so adopt/doctor stay consistent with validation."""
+    import repo_model
+    return [c for c in repo_model.iter_contracts(root) if c.parent != root]
 
 
 def git_stats(root: Path) -> dict[str, object]:

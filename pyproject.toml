@@ -28,6 +28,7 @@ py-modules = [
   "init_repo",
   "adopt_repo",
   "plan_import",
+  "doctor",
   "new",
   "check_frozen_surface",
   "frontmatter",

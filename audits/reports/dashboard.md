@@ -2,7 +2,7 @@
 
 > Generated from source records. Do not edit manually.
 > Generated: 2026-06-16
-> RepoPact spec version: 1.0.1
+> RepoPact spec version: 1.1.0
 
 ## Health
 
@@ -13,9 +13,9 @@
 | Scope contracts | 3 |
 | Audit registry entries | 3 |
 | Audit findings | 1 |
-| Decision records | 9 |
+| Decision records | 10 |
 | Policy records | 1 |
-| Evidence runs | 14 |
+| Evidence runs | 15 |
 
 ## Work
 
@@ -24,7 +24,7 @@
 | active | 0 |
 | blocked | 0 |
 | deferred | 0 |
-| completed | 11 |
+| completed | 12 |
 
 ## Audit freshness
 

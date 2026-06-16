@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 import adopt_repo  # noqa: E402
+import plan_import  # noqa: E402
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
@@ -331,6 +332,58 @@ class RepositoryValidationTests(unittest.TestCase):
             self.skipTest("git unavailable")
         self.assertTrue(any("evidence/runs/" in r for r in rep.gitignored),
                         f"expected an evidence record flagged as gitignored, got {rep.gitignored}")
+
+    # --- plan import (011) --------------------------------------------------
+
+    def _seed_adopted_repo_with_plans(self) -> Path:
+        repo = Path(self.temp.name) / "planned"
+        init_repo.bootstrap(repo)
+        # a todos/ tree: one active item, one completed item, one deferred item
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Add search\nPlan body.\n", encoding="utf-8")
+        (repo / "todos" / "completed" / "03-login").mkdir(parents=True)
+        (repo / "todos" / "completed" / "03-login" / "README.md").write_text("# Login\nDone earlier.\n", encoding="utf-8")
+        (repo / "todos" / "deferred" / "20-i18n").mkdir(parents=True)
+        (repo / "todos" / "deferred" / "20-i18n" / "README.md").write_text("# i18n\nLater.\n", encoding="utf-8")
+        # a flat checklist file
+        (repo / "TODO.md").write_text("- [ ] wire up metrics\n- [x] choose a license\n", encoding="utf-8")
+        return repo
+
+    def test_import_plan_populates_and_validates(self) -> None:
+        repo = self._seed_adopted_repo_with_plans()
+        plan_import.import_plan(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+        # directory items mapped to the right lifecycle
+        self.assertTrue((repo / "work" / "active" / "012-search").is_dir())
+        self.assertTrue((repo / "work" / "completed" / "003-login").is_dir())
+        self.assertTrue((repo / "work" / "deferred" / "020-i18n").is_dir())
+        # checklist items mapped by checkbox state
+        self.assertTrue(list((repo / "work" / "active").glob("*-wire-up-metrics")))
+        self.assertTrue(list((repo / "work" / "completed").glob("*-choose-a-license")))
+
+    def test_import_plan_completed_items_are_waived_not_fabricated(self) -> None:
+        repo = self._seed_adopted_repo_with_plans()
+        plan_import.import_plan(repo)
+        manifest = json.loads((repo / "work" / "completed" / "003-login" / "work-item.json").read_text(encoding="utf-8"))
+        self.assertEqual("waived", manifest["acceptance_criteria"][0]["state"])
+        self.assertEqual([], manifest["acceptance_criteria"][0]["evidence"])  # no fabricated evidence
+        self.assertEqual("todos/completed/03-login", manifest["source"])
+
+    def test_import_plan_is_idempotent(self) -> None:
+        repo = self._seed_adopted_repo_with_plans()
+        plan_import.import_plan(repo)
+        before = len(list(repo.glob("work/*/*/work-item.json")))
+        rep = plan_import.import_plan(repo)  # second run
+        after = len(list(repo.glob("work/*/*/work-item.json")))
+        self.assertEqual(before, after)
+        self.assertEqual([], rep.created)
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_import_plan_dry_run_writes_nothing(self) -> None:
+        repo = self._seed_adopted_repo_with_plans()
+        rep = plan_import.import_plan(repo, dry_run=True)
+        self.assertFalse(list(repo.glob("work/active/*-search")))
+        self.assertTrue(rep.created)
 
 
 if __name__ == "__main__":

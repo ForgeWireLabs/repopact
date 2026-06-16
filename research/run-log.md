@@ -189,3 +189,31 @@ CODEOWNERS/nested-contract generality still rests on forgewire.
 **Next.** Complete work items 009 (PyPI Trusted Publishing workflow) and 010; land on
 main; the one remaining manual step is the operator registering the PyPI trusted
 publisher, after which a release auto-publishes.
+
+## Run 007 — plan import (todos -> work/) — 2026-06-16 09:19
+
+**Goal.** Operator-reported F-010: `adopt` leaves `work/` empty beside the team's real
+`todos/`. Build import of existing plan items into the ledger, organized and honest.
+
+**Actions.**
+
+1. Built `repopact import-plan` (`plan_import.py`): detects plan directories
+   (`todos/`/`tasks/`/… with `completed/`/`deferred/`/`blocked/` lifecycle folders) and
+   markdown checklist files; standalone command for already-adopted repos. Decision 0010.
+2. Honesty rule: completed source items → `status: completed` + criterion **waived**
+   (no fabricated evidence); active/deferred/blocked → `pending`. Non-destructive
+   (source preserved, `source` field records origin), idempotent (skip by slug),
+   ID collisions remapped (00-→200, reserved 000 avoided).
+3. 4 regression tests; full suite **39/39**.
+4. Proven on real forgewire: dry-run detected 75 items; real import on the adopted
+   export populated `work/` (21 active, 54 completed/waived, 1 deferred) and **validates**.
+
+**Result.** **F-010 fixed.** The hollow-ledger problem is closed; an adopted repo's
+backlog is reflected in `work/` without overstating proven completion.
+
+**Capture.** [`captures/007-plan-import-forgewire.md`](captures/007-plan-import-forgewire.md)
+
+**Findings.** F-010 (fixed).
+
+**Next.** Land on main (1.1.0). Then full ForgeLink integration (upgrade its older
+RepoPact, import any plan items) — the operator's stated next task.

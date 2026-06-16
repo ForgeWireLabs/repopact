@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260616-091930-plan-import",
+  "timestamp": "2026-06-16T09:19:30-05:00",
+  "work_item": "011",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "39 tests pass, including 4 plan-import regressions: populates+validates, completed->waived (no fabricated evidence), idempotent, dry-run writes nothing."
+    },
+    {
+      "command": "python scripts/plan_import.py --target <forgewire-export>",
+      "exit_code": 0,
+      "summary": "Imported forgewire's todos/ into work/: 21 active, 54 completed (waived), 1 deferred; ID collisions remapped (00-foundation->200); repository validates as conformant."
+    }
+  ],
+  "artifacts": ["research/captures/007-plan-import-forgewire.md"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

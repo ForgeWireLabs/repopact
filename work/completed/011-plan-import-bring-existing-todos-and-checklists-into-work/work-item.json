@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "011",
+  "title": "Plan import: bring existing todos and checklists into work/",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["008"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "`repopact import-plan` imports plan items from todo-style directories (incl. completed/deferred/blocked lifecycle folders) and from markdown checklist files into work/, runnable standalone on an already-adopted repo.",
+      "state": "satisfied",
+      "evidence": ["20260616-091930-plan-import"]
+    },
+    {
+      "id": "AC-2",
+      "text": "Import is honest (completed items become waived, no fabricated evidence), non-destructive (source preserved, origin recorded), and idempotent (re-run is a no-op); regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260616-091930-plan-import"]
+    },
+    {
+      "id": "AC-3",
+      "text": "Proven on real data: forgewire's ~75-item todos/ tree imports into a populated work/ that validates as conformant.",
+      "state": "satisfied",
+      "evidence": ["20260616-091930-plan-import"]
+    }
+  ],
+  "created": "2026-06-16",
+  "updated": "2026-06-16"
+}

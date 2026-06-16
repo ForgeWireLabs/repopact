@@ -19,6 +19,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-007 | H7 | holds* | `repopact adopt` converted a real 4569-commit repo (forgewire; 19 contracts, 7 CODEOWNERS scopes, 4 CI gates) into a conformant RepoPact, non-destructively. *Confirmatory only — forgewire is RepoPact's progenitor (see validity caveat). | [004](captures/004-brownfield-forgewire.md) | shipped (WI 008, dec 0008) |
 | F-008 | H7 | major | An existing repo's `.gitignore` (`runs/`) silently un-tracks RepoPact's `evidence/runs/*.json`: validates locally, breaks on clone/CI | [005](captures/005-forgewire-reintegration.md) | **fixed** — `adopt` now warns (WI 010); mitigated in forgewire branch |
 | F-009 | H7 | holds | `repopact adopt` brought a clean-room OSS repo (pallets/flask; no RepoPact lineage, 5 workflows) to a conformant RepoPact — independent generality evidence | [006](captures/006-independent-oss-adoption-flask.md) | n/a (WI 010) |
+| F-010 | H7 | major | `adopt` left `work/` empty beside the team's real `todos/` (operator-reported); the ledger didn't reflect actual planning | [007](captures/007-plan-import-forgewire.md) | **fixed** — `repopact import-plan` (WI 011, dec 0010) |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -156,6 +157,22 @@ lineage-dependent) collision — the kind only a real brownfield adoption surfac
   swallow a governance record. **Done** in work item 010: `adopt` now runs
   `git check-ignore` on every record it writes and prints a warning with suggested
   `.gitignore` negations; regression-tested (`test_adopt_warns_on_gitignored_records`).
+
+## F-010 — adoption left the work ledger hollow
+
+**Hypothesis tested:** H7 (brownfield adoptability), operator-reported.
+
+**Observed.** After adopting forgewire, `work/` held only the `000-adopt` item while the
+team's ~75 real plan items stayed in `todos/`. The governed ledger did not reflect the
+actual backlog, so it understated the project and split planning across two trees.
+
+**Resolution (fixed).** New command `repopact import-plan` (work item 011, decision
+0010) detects plan directories (`todos/`, `tasks/`, … with `completed/`/`deferred/`/
+`blocked/` lifecycle folders) and markdown checklist files, and imports them into
+`work/` by lifecycle. Completed items become `waived` (no fabricated evidence);
+imports are non-destructive (source preserved, origin recorded in a `source` field) and
+idempotent. Proven on forgewire (75 items → populated, conformant `work/`); 4 regression
+tests.
 
 ## Independent-adoption gap (partially closed)
 

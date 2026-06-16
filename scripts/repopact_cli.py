@@ -25,6 +25,10 @@ def main(argv: list[str] | None = None) -> int:
     p_adopt.add_argument("--target", type=Path, required=True)
     p_adopt.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
 
+    p_imp = sub.add_parser("import-plan", help="Import existing plan items (todos, checklists) into work/")
+    p_imp.add_argument("--root", type=Path, default=Path.cwd())
+    p_imp.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
+
     p_val = sub.add_parser("validate", help="Validate the repository")
     p_val.add_argument("--root", type=Path, default=Path.cwd())
 
@@ -79,6 +83,21 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = args.root.resolve()
+
+    if args.command == "import-plan":
+        import plan_import
+        rep = plan_import.import_plan(root, dry_run=args.dry_run)
+        plan_import._print(rep)
+        if args.dry_run:
+            print("\nDry run: nothing written.")
+            return 0
+        import validate_repo
+        problems = validate_repo.validate(root)
+        for p in problems:
+            print(f"ERROR {p.path.relative_to(root)}: {p.message}")
+        print("\nwork/ ledger imported; repository validates." if not problems
+              else f"\nImport produced {len(problems)} validation error(s).")
+        return 1 if problems else 0
 
     if args.command == "validate":
         import validate_repo

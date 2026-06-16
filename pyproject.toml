@@ -27,6 +27,7 @@ py-modules = [
   "generate_spec",
   "init_repo",
   "adopt_repo",
+  "plan_import",
   "new",
   "check_frozen_surface",
   "frontmatter",

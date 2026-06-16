@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "009",
+  "title": "PyPI trusted-publishing release workflow",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "governance"],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A release workflow publishes to PyPI via Trusted Publishing (OIDC, no stored token), triggered on GitHub release publish.",
+      "state": "satisfied",
+      "evidence": ["20260615-215140-pypi-release-workflow"]
+    },
+    {
+      "id": "AC-2",
+      "text": "The distribution builds cleanly (wheel + sdist) as the workflow expects, and the design is recorded as a decision.",
+      "state": "satisfied",
+      "evidence": ["20260615-215140-pypi-release-workflow"]
+    }
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

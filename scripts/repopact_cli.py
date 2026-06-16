@@ -64,10 +64,7 @@ def main(argv: list[str] | None = None) -> int:
         import adopt_repo
         target = args.target.resolve()
         rep = adopt_repo.adopt(target, dry_run=args.dry_run)
-        verb = "Would create" if args.dry_run else "Created"
-        print(f"{verb} {len(rep.created)} record(s); skipped {len(rep.skipped)} existing file(s).")
-        for rel in rep.created:
-            print(f"  + {rel}")
+        adopt_repo._print_report(rep)
         if args.dry_run:
             print("\nDry run: nothing written. Re-run without --dry-run to apply.")
             return 0

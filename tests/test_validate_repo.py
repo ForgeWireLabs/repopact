@@ -317,6 +317,21 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertFalse((repo / "governance").exists())
         self.assertTrue(rep.created)
 
+    def test_adopt_warns_on_gitignored_records(self) -> None:
+        """F-008: a .gitignore that swallows evidence records must be flagged."""
+        import subprocess
+        repo = self._seed_existing_repo()
+        try:
+            run = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True, text=True)
+            run("init")
+            # the classic collision: a broad `runs/` rule that also matches evidence/runs/
+            (repo / ".gitignore").write_text("runs/\n", encoding="utf-8")
+            rep = adopt_repo.adopt(repo)
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git unavailable")
+        self.assertTrue(any("evidence/runs/" in r for r in rep.gitignored),
+                        f"expected an evidence record flagged as gitignored, got {rep.gitignored}")
+
 
 if __name__ == "__main__":
     unittest.main()

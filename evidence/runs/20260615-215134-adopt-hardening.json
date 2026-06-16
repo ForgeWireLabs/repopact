@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-215134-adopt-hardening",
+  "timestamp": "2026-06-15T21:51:34-05:00",
+  "work_item": "010",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "35 tests pass, including test_adopt_warns_on_gitignored_records (F-008 guardrail flags a runs/ collision)."
+    },
+    {
+      "command": "git clone --depth 50 https://github.com/pallets/flask; python scripts/adopt_repo.py --target <flask>",
+      "exit_code": 0,
+      "summary": "Independent (non-progenitor) adoption: pallets/flask -> conformant RepoPact (5 workflows mapped, root contract synthesized). F-009 holds."
+    }
+  ],
+  "artifacts": [
+    "research/captures/006-independent-oss-adoption-flask.md"
+  ],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

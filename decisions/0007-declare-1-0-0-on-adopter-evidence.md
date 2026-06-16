@@ -25,6 +25,12 @@ alone (H6). The two defects found — `spec` crashing on a fresh repo (F-001) an
 `check-frozen` being blind to working-tree changes (F-002) — are fixed under work
 item `007` with regression tests.
 
+Greenfield proof alone was judged insufficient for "ready." Work item `008` added
+brownfield adoption (`repopact adopt`) and proved **H7** on a real, mature,
+RepoPact-naive repository (forgewire, 4569 commits): its CODEOWNERS, four CI
+workflows, and 19 nested `AGENTS.md` contracts were mapped into RepoPact records
+non-destructively, and the result validated. All seven hypotheses now hold.
+
 ## Decision
 
 - Set `VERSION` to **`1.0.0`**.

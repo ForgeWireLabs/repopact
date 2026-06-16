@@ -16,6 +16,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-004 | H5 | holds | Validator rejects a work item whose `status` disagrees with its directory | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-005 | H4 | holds | `check-frozen` flags a committed change to a protected path; `--ack` is required to pass | [002](captures/002-proving-ground-workflow.md) | n/a |
 | F-006 | H1,H6 | holds | A reader reconstructed the entire 001 work item — intent, decision, proof — from the tree alone | [002](captures/002-proving-ground-workflow.md) | n/a |
+| F-007 | H7 | holds | `repopact adopt` converted a real 4569-commit repo (forgewire; 19 contracts, 7 CODEOWNERS scopes, 4 CI gates) into a conformant RepoPact, non-destructively | [004](captures/004-brownfield-forgewire.md) | shipped (WI 008, dec 0008) |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -99,3 +100,23 @@ Recorded as **holds** (evidence *for* the design), captured in
 - **F-006 (H1, H6).** Starting from only the repository, work item 001's intent,
   the pivot-unit decision, and the passing evidence run were all recoverable from
   `work/`, `decisions/`-style narrative, and `evidence/runs/` — no chat history.
+
+## F-007 — brownfield adoption of a real repository holds
+
+**Hypothesis tested:** H7 (brownfield adoptability).
+
+**Observed.** `repopact adopt` run against an export of the real **forgewire**
+repository (4569 commits, GTK/HTTP app, no prior RepoPact) created 27 records and
+skipped 52 existing files, then the tree **validated as a conformant RepoPact**. It
+registered **19 nested `AGENTS.md` contracts**, derived **7 scopes** from CODEOWNERS
+teams, and mapped **4 CI workflows** to binding-gate policies plus invariant `INV-2`
+and a frozen-surface entry. No existing file was modified; `--dry-run` is read-only.
+
+**Why it matters.** This is the capability the operator flagged as the real
+readiness bar: an existing project's ownership, enforcement, and contracts become
+first-class RepoPact records without a rewrite. Greenfield proof (the proving ground)
+plus brownfield proof (forgewire) together support the 1.0 declaration.
+
+**Status:** **shipped.** `scripts/adopt_repo.py` + `repopact adopt` (work item 008,
+decision 0008), 4 regression tests, re-verifiable via capture
+[004](captures/004-brownfield-forgewire.md).

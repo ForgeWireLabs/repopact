@@ -12,6 +12,10 @@ adds editorial intent (what we mean to do next and why) that is not derivable.
   held outright; the two defects found (`spec` crash, `check-frozen` working-tree
   blindness) were fixed and re-verified. Recorded in [`research/`](research/);
   1.0 declared in decision `0007`. Work item `007`.
+- **Brownfield adoption**: `repopact adopt` brings an *existing* repo under RepoPact,
+  mapping CODEOWNERS → scopes, CI workflows → binding gates, and nested `AGENTS.md`
+  → registered contracts, non-destructively. Proven on the real forgewire repo
+  (4569 commits, 19 contracts). Work item `008`, decision `0008`.
 
 ## Earlier — shipped in v0.1.0-alpha
 

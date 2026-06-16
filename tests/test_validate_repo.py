@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import adopt_repo  # noqa: E402
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
@@ -266,6 +267,55 @@ class RepositoryValidationTests(unittest.TestCase):
             json.dumps({"version": 1, "invariants": [{"changed": True}]}), encoding="utf-8")
         hits = check_frozen_surface.violations(repo, "HEAD")
         self.assertEqual([("governance/invariants.json", "the pact")], hits)
+
+    # --- brownfield adoption (008) ------------------------------------------
+
+    def _seed_existing_repo(self) -> Path:
+        """A minimal pre-existing project: CODEOWNERS, a CI workflow, a nested contract."""
+        repo = Path(self.temp.name) / "existing"
+        (repo / ".github" / "workflows").mkdir(parents=True)
+        (repo / "core").mkdir()
+        (repo / "docs" / "_audit").mkdir(parents=True)
+        (repo / "README.md").write_text("# Existing\n", encoding="utf-8")
+        (repo / "CODEOWNERS").write_text(
+            "# owners\n/core/   @backend-team\n/docs/   @docs-team\n", encoding="utf-8")
+        (repo / ".github" / "workflows" / "ci.yml").write_text(
+            "name: Python CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+        (repo / "docs" / "AGENTS.md").write_text("# Docs contract\n", encoding="utf-8")
+        (repo / "docs" / "_audit" / "inventory.md").write_text("# Inventory\n", encoding="utf-8")
+        return repo
+
+    def test_adopt_existing_repo_validates(self) -> None:
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_adopt_is_non_destructive(self) -> None:
+        repo = self._seed_existing_repo()
+        original = (repo / "README.md").read_text(encoding="utf-8")
+        adopt_repo.adopt(repo)
+        # existing files are preserved verbatim
+        self.assertEqual(original, (repo / "README.md").read_text(encoding="utf-8"))
+        self.assertEqual("# Docs contract\n", (repo / "docs" / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_adopt_maps_workflows_and_codeowners(self) -> None:
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        owners = json.loads((repo / "governance" / "owners.json").read_text(encoding="utf-8"))
+        scope_ids = {s["id"] for s in owners["scopes"]}
+        self.assertIn("backend-team", scope_ids)
+        self.assertIn("docs-team", scope_ids)
+        # the workflow becomes a binding-gate policy and a frozen path
+        policies = list((repo / "governance" / "policies").glob("*-ci-*.md"))
+        self.assertEqual(1, len(policies))
+        frozen = json.loads((repo / "governance" / "frozen-surface.json").read_text(encoding="utf-8"))
+        self.assertIn(".github/workflows/**", [p["glob"] for p in frozen["protected"]])
+
+    def test_adopt_dry_run_writes_nothing(self) -> None:
+        repo = self._seed_existing_repo()
+        rep = adopt_repo.adopt(repo, dry_run=True)
+        self.assertFalse((repo / "governance").exists())
+        self.assertTrue(rep.created)
 
 
 if __name__ == "__main__":

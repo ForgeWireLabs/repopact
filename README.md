@@ -72,9 +72,25 @@ repopact new work-item "Title of the work"                   # stamp records fro
 repopact validate
 ```
 
-`repopact` dispatches `init`, `validate`, `new`, `dashboard`, `spec`, and
+`repopact` dispatches `init`, `adopt`, `validate`, `new`, `dashboard`, `spec`, and
 `check-frozen` against the current repository. The loose-script form still works
 (`python scripts/init_repo.py --target ...`) for repos that vendor the scripts.
+
+### Adopt an *existing* repository
+
+For a project that already has CODEOWNERS, CI workflows, and nested `AGENTS.md`
+contracts, `adopt` maps those existing signals into RepoPact records without
+overwriting anything:
+
+```powershell
+repopact adopt --target ../existing-repo --dry-run   # preview the plan, write nothing
+repopact adopt --target ../existing-repo             # create records, then validate
+```
+
+CODEOWNERS becomes scopes and roles; each `.github/workflows/*` becomes a binding-gate
+policy (plus invariant `INV-2` and a frozen-surface entry); every nested `AGENTS.md`
+is registered as a contract; git history seeds the first evidence run. It is
+idempotent — re-running skips records that already exist.
 
 `init_repo.py` writes the minimal valid source records, copies the schemas and
 tooling, and validates the result. Templates for every record type live in

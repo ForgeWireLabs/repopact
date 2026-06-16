@@ -100,3 +100,34 @@ product. All six hypotheses now hold. Evidence supports the 1.0 declaration.
 
 **Next.** Commit the branch; open PR; cut `v1.0.0` (GitHub release + PyPI). Release
 mechanics need operator credentials — see the release checklist handed to the operator.
+
+## Run 004 — brownfield adoption — 2026-06-15 21:15
+
+**Goal.** Test H7 (brownfield adoptability), added after the operator identified that
+greenfield-only proof was insufficient: an existing repo must be adoptable, turning
+its existing workflows/ownership/contracts into a RepoPact.
+
+**Actions.**
+
+1. Built `scripts/adopt_repo.py` + `repopact adopt --target <repo> [--dry-run]`
+   (work item 008, decision 0008). Non-destructive; maps CODEOWNERS → scopes,
+   workflows → binding-gate policies + `INV-2` + frozen surface, nested `AGENTS.md`
+   → registry (stubbing `_audit` triplets), git history → first evidence run.
+2. 4 regression tests on a synthetic existing repo → green (full suite 34/34).
+3. Read-only `--dry-run` against the **real forgewire** (4569 commits): would create
+   27 records, skip 52 existing files.
+4. Exported forgewire's working tree (`git archive`, no `.git`), ran real `adopt`:
+   **validated as a conformant RepoPact** — 19 nested contracts registered, 7
+   CODEOWNERS scopes, 4 CI gates mapped.
+
+**Result.** **F-007 holds.** H7 confirmed on a real, mature, RepoPact-naive project.
+
+**Capture.** [`captures/004-brownfield-forgewire.md`](captures/004-brownfield-forgewire.md)
+
+**Findings.** F-007 (holds / shipped).
+
+**Net.** All seven hypotheses now hold. Greenfield (proving ground) + brownfield
+(forgewire) evidence together support declaring 1.0.0.
+
+**Next.** Validate + dashboard; commit; then the operator-gated release (merge,
+PyPI + GitHub, push proving ground).

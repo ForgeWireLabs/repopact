@@ -35,6 +35,10 @@ the product an adopter receives.
   rejected.
 - **H6 — Recoverability.** A reader (human or agent) with *only* the repository —
   no chat history — can reconstruct what was done, why, and with what proof.
+- **H7 — Brownfield adoptability.** An *existing, RepoPact-naive* project — with its
+  own CODEOWNERS, CI workflows, nested contracts, and history — can be brought under
+  RepoPact, non-destructively, into a state that validates. (Added 2026-06-15 after
+  the operator identified greenfield-only proof as insufficient for "ready".)
 
 ## Falsification criteria
 
@@ -47,6 +51,8 @@ The architecture is **disproven, in whole or part**, if any of:
 5. A status/directory mismatch, dependency cycle, or scope conflict is accepted (¬H5).
 6. Reconstructing project state from the tree alone requires information that lives
    only outside the repository (¬H6).
+7. An existing real-world repository cannot be adopted into a valid RepoPact without
+   either discarding its existing governance or hand-authoring records (¬H7).
 
 A finding that the architecture *holds* under an adversarial case is recorded with
 equal weight; the aim is calibration, not advocacy.

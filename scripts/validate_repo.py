@@ -11,7 +11,7 @@ from pathlib import Path
 import jsonschema
 
 from frontmatter import FrontMatterError, parse_file
-from repo_model import STATUSES, discover_evidence_ids, discover_work_items, load_json
+from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
 REQUIRED_WORK_FIELDS = {
@@ -71,7 +71,7 @@ def registered_contracts(root: Path) -> set[Path]:
 
 
 def validate_contracts(root: Path, problems: list[Problem]) -> None:
-    contracts = sorted(root.rglob("AGENTS.md"))
+    contracts = iter_contracts(root)
     if root / "AGENTS.md" not in contracts:
         problems.append(Problem(root, "missing root AGENTS.md"))
     covered = registered_contracts(root)

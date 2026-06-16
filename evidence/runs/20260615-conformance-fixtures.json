@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-conformance-fixtures",
+  "timestamp": "2026-06-15T18:15:00-05:00",
+  "work_item": "006",
+  "result": "passed",
+  "commands": [
+    {"command": "python scripts/validate_repo.py", "exit_code": 0, "summary": "Main repo validates; fixtures correctly excluded from the contract scan."},
+    {"command": "python -m unittest discover -s tests", "exit_code": 0, "summary": "28 tests passed, including test_conformance (valid accepted; 5 invalid overlays rejected with declared messages)."}
+  ],
+  "artifacts": [
+    "tests/fixtures/valid/",
+    "tests/fixtures/invalid/",
+    "tests/test_conformance.py",
+    "https://github.com/ForgeWireLabs/repopact/issues/4"
+  ],
+  "environment": {
+    "local_repository": "C:\\Projects\\repopact",
+    "python": "3.12",
+    "jsonschema": "4.26.0",
+    "platform": "win32"
+  }
+}

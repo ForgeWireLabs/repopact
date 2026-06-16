@@ -1,0 +1,12 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260101-seed",
+  "timestamp": "2026-01-01T00:00:00-05:00",
+  "work_item": "001",
+  "result": "passed",
+  "commands": [
+    {"command": "python scripts/validate_repo.py", "exit_code": 0, "summary": "Validation passed."}
+  ],
+  "artifacts": [],
+  "environment": {"python": "3.13"}
+}

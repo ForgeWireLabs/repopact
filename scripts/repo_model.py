@@ -8,6 +8,23 @@ from typing import Any
 
 STATUSES = ("active", "blocked", "deferred", "completed")
 
+# Directories that are not part of the governed tree: tooling caches and, notably,
+# test fixtures, which are self-contained sub-repositories validated on their own.
+IGNORED_PARTS = {
+    ".git", "__pycache__", "node_modules", ".venv", ".pytest_cache",
+    "build", "dist", "fixtures",
+}
+
+
+def iter_contracts(root: Path) -> list[Path]:
+    """All AGENTS.md under root, excluding ignored subtrees (relative to root)."""
+    result: list[Path] = []
+    for path in sorted(root.rglob("AGENTS.md")):
+        if any(part in IGNORED_PARTS for part in path.relative_to(root).parts):
+            continue
+        result.append(path)
+    return result
+
 
 @dataclass(frozen=True)
 class WorkItem:

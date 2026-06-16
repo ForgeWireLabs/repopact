@@ -1,0 +1,13 @@
+{
+  "$schema": "../schemas/invariants.schema.json",
+  "version": 1,
+  "invariants": [
+    {
+      "id": "INV-1",
+      "statement": "No critical state exists only in conversation; it lives in versioned files.",
+      "rationale": "State must be recoverable without a prior conversation.",
+      "escalation": "Record load-bearing state as a file before proceeding.",
+      "enforced_by": null
+    }
+  ]
+}

@@ -130,3 +130,8 @@ python scripts/validate_repo.py
 A conformant alternative implementation must produce an equivalent accept/reject
 decision on the same repository. RepoPact governs its own development, so this
 repository is the canonical conformance example.
+
+A machine-checkable corpus lives in [`tests/fixtures/`](tests/fixtures/): a valid
+baseline that must be accepted, and one invalid overlay per rule above that must be
+rejected with a declared message. `tests/test_conformance.py` exercises it; an
+alternative implementation can target the same fixtures.

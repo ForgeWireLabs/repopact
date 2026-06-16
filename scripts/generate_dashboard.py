@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import date
 from pathlib import Path
 
-from repo_model import STATUSES, discover_evidence_ids, discover_work_items, load_json
+from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
 def _count_markdown_records(directory: Path) -> int:
@@ -44,7 +44,7 @@ def generate(root: Path) -> str:
     today = date.today()
     items = discover_work_items(root)
     counts = Counter(item.status for item in items)
-    contracts = list(root.rglob("AGENTS.md"))
+    contracts = iter_contracts(root)
     evidence_count = len(discover_evidence_ids(root))
     audit_entries = load_json(root / "audits" / "registry.json").get("scopes", [])
     invariant_count = len(load_json(root / "governance" / "invariants.json").get("invariants", []))

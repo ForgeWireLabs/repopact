@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "006",
+  "title": "Conformance Fixtures",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["governance"],
+  "depends_on": ["004"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "tests/fixtures/valid is a self-contained valid repository the validator accepts", "state": "satisfied", "evidence": ["20260615-conformance-fixtures"]},
+    {"id": "AC-2", "text": "One invalid overlay per major rule, each rejected with its declared message", "state": "satisfied", "evidence": ["20260615-conformance-fixtures"]},
+    {"id": "AC-3", "text": "Fixtures do not vendor schemas (canonical schemas injected at test time, no drift); the validator ignores fixtures when scanning the main repo", "state": "satisfied", "evidence": ["20260615-conformance-fixtures"]},
+    {"id": "AC-4", "text": "SPEC.md §9 references the corpus; validation and tests pass", "state": "satisfied", "evidence": ["20260615-conformance-fixtures"]}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

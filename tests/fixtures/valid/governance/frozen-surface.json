@@ -1,0 +1,11 @@
+{
+  "$schema": "../schemas/frozen-surface.schema.json",
+  "version": 1,
+  "protected": [
+    {
+      "glob": "governance/invariants.json",
+      "reason": "Invariants are the pact; weakening requires operator approval.",
+      "symbols": []
+    }
+  ]
+}

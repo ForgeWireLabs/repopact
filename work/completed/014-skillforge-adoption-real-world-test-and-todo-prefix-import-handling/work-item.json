@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "014",
+  "title": "SkillForge adoption (real-world test) and TODO-prefix import handling",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling"],
+  "depends_on": ["011", "013"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A third independent real adopter (SkillForge Academy, a Tauri app) runs the full lifecycle adopt -> import-plan -> doctor to a conformant RepoPact, non-destructively (existing AGENTS.md/todos/tracking/audits preserved).",
+      "state": "satisfied",
+      "evidence": ["20260616-102316-skillforge-adoption"]
+    },
+    {
+      "id": "AC-2",
+      "text": "import-plan tolerates flat tracker-prefixed todo files: `_split_num` strips a leading TODO-/TASK-/ISSUE- prefix (TODO-001-foo -> 001/foo); regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260616-102316-skillforge-adoption"]
+    }
+  ],
+  "created": "2026-06-16",
+  "updated": "2026-06-16"
+}

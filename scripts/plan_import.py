@@ -65,7 +65,9 @@ def _first_heading(text: str, fallback: str) -> str:
 
 
 def _split_num(name: str) -> tuple[str | None, str]:
-    m = re.match(r"(\d+)[-_ ]+(.*)$", name)
+    # Tolerate a leading tracker prefix like TODO-, TASK-, ISSUE-, STORY- before the
+    # number (common in flat todo files: "TODO-001-foo" -> num 001, slug "foo").
+    m = re.match(r"(?:[A-Za-z]{2,}[-_ ])?(\d+)[-_ ]+(.*)$", name)
     if m:
         return m.group(1), adopt_repo._slug(m.group(2))
     return None, adopt_repo._slug(name)

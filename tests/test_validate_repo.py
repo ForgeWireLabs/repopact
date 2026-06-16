@@ -430,6 +430,11 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(list((repo / "work" / "deferred").glob("*-mobile-app")))
         self.assertTrue(list((repo / "work" / "completed").glob("*-initial-release")))
 
+    def test_split_num_strips_tracker_prefix(self) -> None:
+        self.assertEqual(("001", "true-cert-factory"), plan_import._split_num("TODO-001-true-cert-factory"))
+        self.assertEqual(("12", "search"), plan_import._split_num("12-search"))
+        self.assertEqual((None, "freeform-note"), plan_import._split_num("freeform note"))
+
     def test_section_lifecycle_keywords(self) -> None:
         self.assertEqual("active", plan_import._section_lifecycle("Now — in progress"))
         self.assertEqual("deferred", plan_import._section_lifecycle("Later / future"))

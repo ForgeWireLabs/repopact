@@ -22,9 +22,13 @@ report the result whether it holds or cracks.
 - *Done:* pallets/flask (F-009, capture 006) — an unrelated OSS project reached a
   conformant RepoPact via `adopt`. This independently exercises the workflows + sparse
   path.
+- *Done:* SkillForge Academy (F-012, capture 011) — an independent, different-domain
+  real app (Tauri cert-learning) ran the full adopt+import-plan+doctor lifecycle to
+  conformant, non-destructively. Adds an independent datum for flat-todo + sectioned-
+  roadmap import and for coexistence with a homegrown audit/tracking system.
 - *Still open:* an independent repo that also has CODEOWNERS and nested contracts, so
-  those mappings are shown to generalize beyond the progenitor (forgewire). Until then
-  the CODEOWNERS/nested-contract generality rests on forgewire and is worded as such.
+  those mappings are shown to generalize beyond the progenitor (forgewire). SkillForge
+  has neither, so the CODEOWNERS/nested-contract generality still rests on forgewire.
 
 ## T2 — Single evaluator, single session
 

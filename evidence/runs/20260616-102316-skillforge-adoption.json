@@ -1,0 +1,21 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260616-102316-skillforge-adoption",
+  "timestamp": "2026-06-16T10:23:16-05:00",
+  "work_item": "014",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "45 tests pass, incl. _split_num strips tracker prefixes (TODO-001-foo -> 001/foo)."
+    },
+    {
+      "command": "adopt; import-plan; doctor (on SkillForge / apex-a-plus-academy)",
+      "exit_code": 0,
+      "summary": "Full lifecycle on a real Tauri app: adopt -> valid; import-plan mapped todos/TODO-001..007 -> work/active/001..007 and ROADMAP Shipped/Next sections -> 8 completed + active items (14 active, 9 completed total); doctor healthy; existing AGENTS.md/todos/tracking/audits preserved."
+    }
+  ],
+  "artifacts": ["research/captures/011-skillforge-adoption.md"],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

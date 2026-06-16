@@ -287,3 +287,23 @@ VERSION → 1.3.0.
 **Net.** The toolchain now spans the full adoption lifecycle: `adopt` (onboard),
 `import-plan` (populate), `validate`/`check-frozen` (gate), `doctor` (keep healthy
 over time).
+
+## Run 011 — SkillForge real-world adoption — 2026-06-16 10:23
+
+**Goal.** Operator: one more real-world test — adopt RepoPact into SkillForge Academy
+(local dir `apex-a-plus-academy`), an independent Tauri cert-learning app.
+
+**Actions.** Branch `adopt-repopact`. Ran the full lifecycle: `adopt` (kept their
+`AGENTS.md`; release workflow → policy; their `audits/*.md` coexist with the added
+registry) → `import-plan` (flat `todos/TODO-001..007` → `work/active/001..007`;
+ROADMAP `Shipped`→8 completed/waived, `Next`→active; 14 active / 9 completed) →
+`doctor` (healthy). `todos/`/`tracking/` preserved. Validates. Committed `f3ed89c`,
+unmerged for review. The flat `TODO-NNN` files motivated a one-line importer fix
+(`_split_num` strips `TODO-`/`TASK-`/`ISSUE-` prefixes; regression-tested, 45/45).
+
+**Result.** **F-012 holds.** Third independent adopter, different domain, full
+lifecycle to conformant. Threats T1 further narrowed (flat-todo + roadmap + homegrown-
+audit coexistence now have an independent datum); CODEOWNERS/nested-contract generality
+still rests on forgewire.
+
+**Capture.** [`captures/011-skillforge-adoption.md`](captures/011-skillforge-adoption.md)

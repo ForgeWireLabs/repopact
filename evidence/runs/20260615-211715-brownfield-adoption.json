@@ -1,0 +1,28 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-211715-brownfield-adoption",
+  "timestamp": "2026-06-15T21:17:15-05:00",
+  "work_item": "008",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "34 tests pass, including 4 new adopt regressions: validates, non-destructive, maps workflows/CODEOWNERS, dry-run writes nothing."
+    },
+    {
+      "command": "python scripts/adopt_repo.py --target <forgewire> --dry-run",
+      "exit_code": 0,
+      "summary": "Read-only dry-run on the real forgewire repo (4569 commits): would create 27 records, skip 52 existing files."
+    },
+    {
+      "command": "git archive HEAD | tar -x; python scripts/adopt_repo.py --target <forgewire-export>",
+      "exit_code": 0,
+      "summary": "Real adoption of the forgewire working tree: 19 nested contracts registered, 7 CODEOWNERS scopes, 4 CI workflows mapped to binding-gate policies; result validates as a conformant RepoPact."
+    }
+  ],
+  "artifacts": [
+    "research/captures/004-brownfield-forgewire.md"
+  ],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

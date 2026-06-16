@@ -11,6 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import adopt_repo  # noqa: E402
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
@@ -232,6 +233,89 @@ class RepositoryValidationTests(unittest.TestCase):
         stamped = list((self.root / "work" / "active").glob("*-cli-probe/work-item.json"))
         self.assertEqual(1, len(stamped))
         self.assertEqual([], [p.message for p in validate(self.root)])
+
+    # --- proving-ground hardening (007) -------------------------------------
+
+    def test_cli_spec_fails_cleanly_without_spec_file(self) -> None:
+        """F-001: `spec` must not traceback on a repo that has no SPEC.md."""
+        target = Path(self.temp.name) / "no-spec"
+        init_repo.bootstrap(target)
+        self.assertFalse((target / "SPEC.md").exists())
+        self.assertEqual(1, repopact_cli.main(["spec", "--root", str(target)]))
+
+    def test_check_frozen_detects_working_tree_change(self) -> None:
+        """F-002: an uncommitted change to a protected path must be detected."""
+        import subprocess
+
+        repo = Path(self.temp.name) / "frz"
+        (repo / "governance").mkdir(parents=True)
+        (repo / "governance" / "frozen-surface.json").write_text(
+            json.dumps({"version": 1, "protected": [
+                {"glob": "governance/invariants.json", "reason": "the pact"}]}),
+            encoding="utf-8")
+        (repo / "governance" / "invariants.json").write_text(
+            json.dumps({"version": 1, "invariants": []}), encoding="utf-8")
+        try:
+            run = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True,
+                                            capture_output=True, text=True)
+            run("init"); run("config", "user.email", "t@t"); run("config", "user.name", "t")
+            run("add", "-A"); run("commit", "-m", "init")
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git unavailable")
+        # modify the protected file in the working tree only, no commit
+        (repo / "governance" / "invariants.json").write_text(
+            json.dumps({"version": 1, "invariants": [{"changed": True}]}), encoding="utf-8")
+        hits = check_frozen_surface.violations(repo, "HEAD")
+        self.assertEqual([("governance/invariants.json", "the pact")], hits)
+
+    # --- brownfield adoption (008) ------------------------------------------
+
+    def _seed_existing_repo(self) -> Path:
+        """A minimal pre-existing project: CODEOWNERS, a CI workflow, a nested contract."""
+        repo = Path(self.temp.name) / "existing"
+        (repo / ".github" / "workflows").mkdir(parents=True)
+        (repo / "core").mkdir()
+        (repo / "docs" / "_audit").mkdir(parents=True)
+        (repo / "README.md").write_text("# Existing\n", encoding="utf-8")
+        (repo / "CODEOWNERS").write_text(
+            "# owners\n/core/   @backend-team\n/docs/   @docs-team\n", encoding="utf-8")
+        (repo / ".github" / "workflows" / "ci.yml").write_text(
+            "name: Python CI\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n", encoding="utf-8")
+        (repo / "docs" / "AGENTS.md").write_text("# Docs contract\n", encoding="utf-8")
+        (repo / "docs" / "_audit" / "inventory.md").write_text("# Inventory\n", encoding="utf-8")
+        return repo
+
+    def test_adopt_existing_repo_validates(self) -> None:
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_adopt_is_non_destructive(self) -> None:
+        repo = self._seed_existing_repo()
+        original = (repo / "README.md").read_text(encoding="utf-8")
+        adopt_repo.adopt(repo)
+        # existing files are preserved verbatim
+        self.assertEqual(original, (repo / "README.md").read_text(encoding="utf-8"))
+        self.assertEqual("# Docs contract\n", (repo / "docs" / "AGENTS.md").read_text(encoding="utf-8"))
+
+    def test_adopt_maps_workflows_and_codeowners(self) -> None:
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        owners = json.loads((repo / "governance" / "owners.json").read_text(encoding="utf-8"))
+        scope_ids = {s["id"] for s in owners["scopes"]}
+        self.assertIn("backend-team", scope_ids)
+        self.assertIn("docs-team", scope_ids)
+        # the workflow becomes a binding-gate policy and a frozen path
+        policies = list((repo / "governance" / "policies").glob("*-ci-*.md"))
+        self.assertEqual(1, len(policies))
+        frozen = json.loads((repo / "governance" / "frozen-surface.json").read_text(encoding="utf-8"))
+        self.assertIn(".github/workflows/**", [p["glob"] for p in frozen["protected"]])
+
+    def test_adopt_dry_run_writes_nothing(self) -> None:
+        repo = self._seed_existing_repo()
+        rep = adopt_repo.adopt(repo, dry_run=True)
+        self.assertFalse((repo / "governance").exists())
+        self.assertTrue(rep.created)
 
 
 if __name__ == "__main__":

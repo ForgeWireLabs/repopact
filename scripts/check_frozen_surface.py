@@ -21,13 +21,38 @@ from pathlib import Path
 from repo_model import load_json
 
 
+# Each entry is a diff range/flags that exposes a class of change: committed branch
+# changes (base...HEAD), plus all uncommitted working-tree and staged changes vs
+# HEAD. Unioning them means the CI gate (clean tree) still sees exactly the branch's
+# commits, while a local pre-commit run also catches edits that have not been
+# committed yet (finding F-002 from the proving ground).
+def _ranges(base: str) -> list[list[str]]:
+    return [[f"{base}...HEAD"], ["HEAD"]]
+
+
 def changed_files(root: Path, base: str) -> list[str] | None:
-    return _git(root, ["diff", "--name-only", f"{base}...HEAD"])
+    seen: dict[str, None] = {}
+    saw_any = False
+    for rng in _ranges(base):
+        out = _git(root, ["diff", "--name-only", *rng])
+        if out is None:
+            continue
+        saw_any = True
+        for line in out:
+            seen.setdefault(line, None)
+    return list(seen) if saw_any else None
 
 
 def diff_text(root: Path, base: str) -> str | None:
-    out = _git(root, ["diff", "--unified=0", f"{base}...HEAD"])
-    return "\n".join(out) if out is not None else None
+    parts: list[str] = []
+    saw_any = False
+    for rng in _ranges(base):
+        out = _git(root, ["diff", "--unified=0", *rng])
+        if out is None:
+            continue
+        saw_any = True
+        parts.append("\n".join(out))
+    return "\n".join(parts) if saw_any else None
 
 
 def _git(root: Path, args: list[str]) -> list[str] | None:

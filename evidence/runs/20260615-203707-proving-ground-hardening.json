@@ -1,0 +1,29 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260615-203707-proving-ground-hardening",
+  "timestamp": "2026-06-15T20:37:07-05:00",
+  "work_item": "007",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "30 tests pass, including new regressions test_cli_spec_fails_cleanly_without_spec_file (F-001) and test_check_frozen_detects_working_tree_change (F-002)."
+    },
+    {
+      "command": "python scripts/repopact_cli.py spec --root <adopter-repo-without-SPEC.md>",
+      "exit_code": 1,
+      "summary": "F-001 fixed: prints maintainer-command guidance and exits 1 instead of raising FileNotFoundError."
+    },
+    {
+      "command": "python scripts/check_frozen_surface.py --root <repo-with-uncommitted-protected-change> --base HEAD",
+      "exit_code": 1,
+      "summary": "F-002 fixed: a working-tree edit to a protected path is now detected (exit 1), not just committed changes."
+    }
+  ],
+  "artifacts": [
+    "research/findings.md",
+    "research/captures/002-proving-ground-workflow.md"
+  ],
+  "environment": {"python": "3.12", "platform": "win32"}
+}

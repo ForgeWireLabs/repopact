@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "008",
+  "title": "Brownfield adoption: convert an existing repo into a RepoPact",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "governance"],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "`repopact adopt` ingests an existing repo's CODEOWNERS, CI workflows, and nested AGENTS.md contracts into RepoPact records, non-destructively (existing files preserved).",
+      "state": "satisfied",
+      "evidence": ["20260615-211715-brownfield-adoption"]
+    },
+    {
+      "id": "AC-2",
+      "text": "Adopting a real existing repository (forgewire, 4569 commits, 19 contracts, 4 CI gates) produces a tree that validates as a conformant RepoPact.",
+      "state": "satisfied",
+      "evidence": ["20260615-211715-brownfield-adoption"]
+    },
+    {
+      "id": "AC-3",
+      "text": "`adopt` offers a read-only --dry-run and is idempotent (re-running skips already-present records); behavior is regression-tested.",
+      "state": "satisfied",
+      "evidence": ["20260615-211715-brownfield-adoption"]
+    }
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

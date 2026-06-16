@@ -32,11 +32,11 @@ def _next_numeric(paths: list[Path], width: int, start: int) -> str:
     return str(max(used + [start - 1]) + 1).zfill(width)
 
 
-def new_work_item(title: str, today: date) -> Path:
+def new_work_item(title: str, today: date, root: Path = ROOT) -> Path:
     slug = slugify(title)
-    existing = list((ROOT / "work").glob("*/*/work-item.json"))
+    existing = list((root / "work").glob("*/*/work-item.json"))
     item_id = _next_numeric([p.parent for p in existing], 3, 1)
-    directory = ROOT / "work" / "active" / f"{item_id}-{slug}"
+    directory = root / "work" / "active" / f"{item_id}-{slug}"
     directory.mkdir(parents=True)
     manifest = {
         "$schema": "../../../schemas/work-item.schema.json",
@@ -48,19 +48,19 @@ def new_work_item(title: str, today: date) -> Path:
     import json
     (manifest_path := directory / "work-item.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (directory / "README.md").write_text(
-        (ROOT / "templates" / "work-item.README.md").read_text(encoding="utf-8")
+        (root / "templates" / "work-item.README.md").read_text(encoding="utf-8")
         .replace("NNN", item_id).replace("Title Of The Work", title), encoding="utf-8")
     return manifest_path
 
 
-def new_markdown(kind: str, title: str, today: date) -> Path:
+def new_markdown(kind: str, title: str, today: date, root: Path = ROOT) -> Path:
     slug = slugify(title)
     if kind == "decision":
-        directory, width, template = ROOT / "decisions", 4, "decision.md"
+        directory, width, template = root / "decisions", 4, "decision.md"
     else:
-        directory, width, template = ROOT / "governance" / "policies", 3, "policy.md"
+        directory, width, template = root / "governance" / "policies", 3, "policy.md"
     record_id = _next_numeric(list(directory.glob("*.md")), width, 1)
-    text = (ROOT / "templates" / template).read_text(encoding="utf-8")
+    text = (root / "templates" / template).read_text(encoding="utf-8")
     text = text.replace("NNNN", record_id).replace("NNN", record_id)
     text = text.replace("YYYY-MM-DD", today.isoformat())
     text = text.replace("Decision Title", title).replace("Policy Title", title)

@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "005",
+  "title": "repopact Console Entry Point",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["docs"],
+  "depends_on": ["003", "004"],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "A pyproject.toml exposes a `repopact` console script dispatching init/validate/new/dashboard/spec/check-frozen", "state": "satisfied", "evidence": ["20260615-repopact-cli"]},
+    {"id": "AC-2", "text": "pip/pipx install . then `repopact init --target X` produces a repository that passes validation (issue #2)", "state": "satisfied", "evidence": ["20260615-repopact-cli"]},
+    {"id": "AC-3", "text": "Installed subcommands operate on the target repository (cwd/--root), not the install location; seed schemas/templates ship in the wheel with no source duplication", "state": "satisfied", "evidence": ["20260615-repopact-cli"]},
+    {"id": "AC-4", "text": "Validation and tests pass; loose-script usage (python scripts/*.py) is unchanged", "state": "satisfied", "evidence": ["20260615-repopact-cli"]}
+  ],
+  "created": "2026-06-15",
+  "updated": "2026-06-15"
+}

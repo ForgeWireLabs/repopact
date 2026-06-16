@@ -62,10 +62,19 @@ Begin with [`AGENTS.md`](AGENTS.md), then read
 
 ## Adopt into a new repository
 
+Install the CLI, then bootstrap:
+
 ```powershell
-python scripts/init_repo.py --target ../your-repo   # seed a valid RepoPact
-python scripts/new.py work-item "Title of the work" # stamp records from templates/
+pipx install git+https://github.com/ForgeWireLabs/repopact   # or: pip install .
+repopact init --target ../your-repo                          # seed a valid RepoPact
+cd ../your-repo
+repopact new work-item "Title of the work"                   # stamp records from templates/
+repopact validate
 ```
+
+`repopact` dispatches `init`, `validate`, `new`, `dashboard`, `spec`, and
+`check-frozen` against the current repository. The loose-script form still works
+(`python scripts/init_repo.py --target ...`) for repos that vendor the scripts.
 
 `init_repo.py` writes the minimal valid source records, copies the schemas and
 tooling, and validates the result. Templates for every record type live in

@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repopact"
+dynamic = ["version"]
+description = "A repository-native standard for durable agent work: binding invariants, evidence-gated work items, and drift audits."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+dependencies = ["jsonschema>=4.20"]
+
+[project.urls]
+Homepage = "https://github.com/ForgeWireLabs/repopact"
+Repository = "https://github.com/ForgeWireLabs/repopact"
+
+[project.scripts]
+repopact = "repopact_cli:main"
+
+[tool.setuptools]
+py-modules = [
+  "repopact_cli",
+  "repo_model",
+  "validate_repo",
+  "generate_dashboard",
+  "generate_spec",
+  "init_repo",
+  "new",
+  "check_frozen_surface",
+  "frontmatter",
+]
+
+[tool.setuptools.package-dir]
+"" = "scripts"
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION" }
+
+# Seed content shipped so `repopact init` works from an installed wheel. These
+# reference the canonical top-level files (one source of truth — no duplication).
+[tool.setuptools.data-files]
+"share/repopact/schemas" = ["schemas/*.json"]
+"share/repopact/templates" = ["templates/*"]

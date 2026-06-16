@@ -34,17 +34,17 @@ def _required(schema: dict) -> list[str]:
     return list(schema.get("required", []))
 
 
-def catalog_block() -> str:
+def catalog_block(root: Path = ROOT) -> str:
     lines = [
         "| Record | Location | Schema | Required fields |",
         "| --- | --- | --- | --- |",
     ]
     for filename, name, location, _purpose in RECORDS:
-        schema = load_json(ROOT / "schemas" / filename)
+        schema = load_json(root / "schemas" / filename)
         required = ", ".join(f"`{f}`" for f in _required(schema)) or "—"
         lines.append(f"| {name} | `{location}` | [`{filename}`](schemas/{filename}) | {required} |")
     # Decision and policy front matter come from the shared definitions schema.
-    fm = load_json(ROOT / "schemas" / "record-frontmatter.schema.json")
+    fm = load_json(root / "schemas" / "record-frontmatter.schema.json")
     for kind, location in (("decision", "decisions/NNNN-slug.md"),
                            ("policy", "governance/policies/NNN-slug.md")):
         required = ", ".join(f"`{f}`" for f in fm["definitions"][kind].get("required", [])) or "—"
@@ -55,8 +55,8 @@ def catalog_block() -> str:
     return "\n".join(lines)
 
 
-def invariants_block() -> str:
-    data = load_json(ROOT / "governance" / "invariants.json")
+def invariants_block(root: Path = ROOT) -> str:
+    data = load_json(root / "governance" / "invariants.json")
     lines = ["| ID | Statement | Enforced by |", "| --- | --- | --- |"]
     for inv in data.get("invariants", []):
         enforced = inv.get("enforced_by") or "human review (escalation)"
@@ -74,17 +74,17 @@ def replace_block(text: str, name: str, content: str) -> str:
     return pattern.sub(lambda m: m.group(1) + content + m.group(2), text)
 
 
-def render(text: str) -> str:
-    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+def render(text: str, root: Path = ROOT) -> str:
+    version = (root / "VERSION").read_text(encoding="utf-8").strip()
     text = replace_block(text, "version", f"This document specifies **RepoPact {version}**.")
-    text = replace_block(text, "catalog", catalog_block())
-    text = replace_block(text, "invariants", invariants_block())
+    text = replace_block(text, "catalog", catalog_block(root))
+    text = replace_block(text, "invariants", invariants_block(root))
     return text
 
 
 def main() -> None:
     spec = ROOT / "SPEC.md"
-    spec.write_text(render(spec.read_text(encoding="utf-8")), encoding="utf-8")
+    spec.write_text(render(spec.read_text(encoding="utf-8"), ROOT), encoding="utf-8")
     print("Generated SPEC.md derived blocks")
 
 

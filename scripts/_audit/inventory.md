@@ -11,3 +11,4 @@
 | scripts/new.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Stamps work item / decision / policy records from templates (003 B2). |
 | scripts/generate_spec.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Generates SPEC.md catalog + invariant blocks from schemas and invariants (004). |
 | scripts/demo.sh / scripts/demo.ps1 | tooling-owner | 2026-06-15 | current | 2026-09-15 | Scripted demo of the init -> work -> evidence loop (004). |
+| scripts/repopact_cli.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | `repopact` console entry point dispatching init/validate/new/dashboard/spec/check-frozen (005, issue #2). |

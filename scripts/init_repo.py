@@ -1,8 +1,9 @@
-"""Bootstrap RepoPact into a new repository (work item 003, B1).
+"""Bootstrap RepoPact into a new repository (work item 003 B1; CLI in 005).
 
 Writes the minimal set of valid source records into a target directory and copies
-the schemas and tooling, then validates the result. The goal: ``init_repo.py
---target ../newrepo`` yields a directory that passes ``validate_repo.py``.
+the schemas, templates, and tooling, then validation passes. Works both from a
+source checkout and from an installed wheel, where seed data ships under
+``<sys.prefix>/share/repopact`` and the modules live in site-packages.
 """
 
 from __future__ import annotations
@@ -14,8 +15,24 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-SOURCE = Path(__file__).resolve().parents[1]
+HERE = Path(__file__).resolve().parent          # directory holding the tooling modules
+CHECKOUT = HERE.parent                          # repo root when running from a checkout
 LIFECYCLE = ("active", "blocked", "deferred", "completed")
+MODULES = (
+    "repo_model.py", "validate_repo.py", "generate_dashboard.py", "generate_spec.py",
+    "init_repo.py", "new.py", "check_frozen_surface.py", "frontmatter.py", "repopact_cli.py",
+)
+
+
+def _seed_dir(name: str) -> Path:
+    """Locate seed content (schemas/templates) in a checkout or an installed wheel."""
+    checkout = CHECKOUT / name
+    if checkout.is_dir():
+        return checkout
+    installed = Path(sys.prefix) / "share" / "repopact" / name
+    if installed.is_dir():
+        return installed
+    raise FileNotFoundError(f"cannot locate seed '{name}' (looked in {checkout} and {installed})")
 
 
 def _write(path: Path, text: str) -> None:
@@ -32,13 +49,18 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
     next_review = (today + timedelta(days=90)).isoformat()
     target.mkdir(parents=True, exist_ok=True)
 
-    # Tooling and schemas come from the installed RepoPact.
-    shutil.copytree(SOURCE / "schemas", target / "schemas", dirs_exist_ok=True)
+    # Tooling, schemas, and templates come from the installed RepoPact (or checkout).
+    shutil.copytree(_seed_dir("schemas"), target / "schemas", dirs_exist_ok=True)
+    shutil.copytree(_seed_dir("templates"), target / "templates", dirs_exist_ok=True)
     (target / "scripts").mkdir(exist_ok=True)
-    for script in SOURCE.glob("scripts/*.py"):
-        shutil.copy2(script, target / "scripts" / script.name)
+    for name in MODULES:
+        src = HERE / name
+        if src.is_file():
+            shutil.copy2(src, target / "scripts" / name)
 
-    _write(target / "VERSION", (SOURCE / "VERSION").read_text(encoding="utf-8"))
+    _write(target / "VERSION", (CHECKOUT / "VERSION").read_text(encoding="utf-8")
+           if (CHECKOUT / "VERSION").is_file() else "0.1.0\n")
+    _write(target / "requirements.txt", "jsonschema>=4.20\n")
     _write(target / "AGENTS.md",
            "# Agent Contract\n\n"
            "The repository is the durable coordination surface. The invariants in\n"
@@ -94,7 +116,8 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
         (target / empty).mkdir(parents=True, exist_ok=True)
 
     _write(target / "README.md",
-           "# Repository\n\nBootstrapped with RepoPact. Run `python scripts/validate_repo.py`.\n")
+           "# Repository\n\nBootstrapped with RepoPact. Run `repopact validate` "
+           "(or `python scripts/validate_repo.py`).\n")
     return target
 
 

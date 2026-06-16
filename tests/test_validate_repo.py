@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import check_frozen_surface  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
+import repopact_cli  # noqa: E402
 from validate_repo import validate  # noqa: E402
 
 
@@ -219,6 +220,18 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual(once, twice)
         self.assertIn("work-item.schema.json", once)
         self.assertIn("INV-1", once)
+
+    # --- CLI dispatch (005) -------------------------------------------------
+
+    def test_cli_validate_returns_zero_on_valid_repo(self) -> None:
+        self.assertEqual(0, repopact_cli.main(["validate", "--root", str(self.root)]))
+
+    def test_cli_new_stamps_a_valid_record(self) -> None:
+        rc = repopact_cli.main(["new", "work-item", "Cli Probe", "--root", str(self.root)])
+        self.assertEqual(0, rc)
+        stamped = list((self.root / "work" / "active").glob("*-cli-probe/work-item.json"))
+        self.assertEqual(1, len(stamped))
+        self.assertEqual([], [p.message for p in validate(self.root)])
 
 
 if __name__ == "__main__":

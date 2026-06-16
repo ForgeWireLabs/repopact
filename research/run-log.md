@@ -236,3 +236,28 @@ roadmaps, issues). VERSION → 1.2.0.
 **Capture.** [`captures/008-plan-import-sources.md`](captures/008-plan-import-sources.md)
 
 **Next.** Apply `import-plan` to real forgewire (branch, review); then ForgeLink.
+
+## Run 009 — real forgewire import + ForgeLink upgrade — 2026-06-16
+
+**forgewire (operator: "yes").** Branched real forgewire; ran `import-plan`: `todos/`
+→ `work/` (22 active, 53 completed/waived, 1 deferred); `todos/` preserved; validates.
+Committed on branch `import-plan-todos` (`1a1ea75c7`), unmerged for review.
+
+**ForgeLink upgrade (operator: commit WIP, reconcile + refresh to 1.2.0).** The real
+ForgeLink ran an older RepoPact that **no longer validated** (4 errors: missing root
+`AGENTS.md`; `registry.json` referencing a removed `docs/` scope and a renamed
+`todos/001`; an unregistered `work/001` contract). Branched `adopt-repopact-1-2-0`;
+added the root contract, repaired the registry, refreshed vendored tooling to 1.2.0,
+generated the dashboard, included the WIP (`work/001-production-readiness`, requirements
+edit); left `.local/` untracked. Validates as conformant 1.2.0. Committed `d56ea4b`,
+unmerged for review.
+
+**Finding F-011 (major).** Longitudinal adoption gap: an older adopter drifted invalid
+and nothing in RepoPact detected or guided the upgrade. The architecture needs a
+reconcile/upgrade story (`repopact upgrade`/`doctor`). Recorded for the paper as the
+first evidence about adoption *over time* (vs. one-shot adopt).
+
+**Capture.** [`captures/009-forgelink-upgrade.md`](captures/009-forgelink-upgrade.md)
+
+**Net.** Both operator tasks delivered on review branches. The standout new datum is
+F-011 — drift-over-time is real and currently unmanaged.

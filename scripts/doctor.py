@@ -115,6 +115,47 @@ def _gitignored_records(root: Path) -> list[Finding]:
     return [Finding("warn", "gitignored-record", f"governance record is git-ignored (missing on clone/CI): {r}", True) for r in swallowed]
 
 
+def _dead_source_of_truth(root: Path) -> list[Finding]:
+    """Warn when a record's `source_of_truth` frontmatter points at a missing path.
+
+    Records (work item READMEs, _audit companions, decisions, policies) often pin
+    a `source_of_truth:` to the files that authoritatively back them. When those
+    files are renamed, moved, or deleted the pointer dangles silently — the kind
+    of drift that lets stale records reference a long-gone tree. Only path-like,
+    single-token targets are checked, so prose entries do not produce false
+    positives. Not auto-fixed: the correct target needs judgment.
+    """
+    out: list[Finding] = []
+    patterns = ("work/**/*.md", "decisions/*.md", "governance/**/*.md",
+                "audits/**/*.md", "*.md")
+    seen: set[Path] = set()
+    for pattern in patterns:
+        for path in sorted(root.glob(pattern)):
+            if not path.is_file() or path in seen:
+                continue
+            seen.add(path)
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if not text.startswith("---"):
+                continue
+            end = text.find("\n---", 3)
+            block = text[3:end] if end != -1 else ""
+            for line in block.splitlines():
+                stripped = line.strip()
+                if not stripped.startswith("source_of_truth:"):
+                    continue
+                value = stripped.split(":", 1)[1].strip()
+                for token in (t.strip() for t in value.split(";")):
+                    looks_like_path = "/" in token or token.endswith((".md", ".json"))
+                    if token and " " not in token and looks_like_path and not (root / token).exists():
+                        rel = str(path.relative_to(root)).replace("\\", "/")
+                        out.append(Finding("warn", "source-of-truth-stale",
+                                           f"{rel}: source_of_truth points at missing path '{token}'", False))
+    return out
+
+
 # --- orchestration ----------------------------------------------------------
 
 def diagnose(root: Path) -> list[Finding]:
@@ -125,6 +166,7 @@ def diagnose(root: Path) -> list[Finding]:
     findings += _unregistered_contracts(root)[0]
     findings += _schema_skew(root)
     findings += _gitignored_records(root)
+    findings += _dead_source_of_truth(root)
     return findings
 
 

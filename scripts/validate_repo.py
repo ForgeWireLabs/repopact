@@ -385,6 +385,50 @@ def validate_policies(root: Path, problems: list[Problem]) -> None:
                       ("id", "title", "status", "applies_to"), problems)
 
 
+def validate_orphan_work_dirs(root: Path, problems: list[Problem]) -> None:
+    """Fail when a directory under work/ holds planning content but no work-item.json.
+
+    Work items are discovered only at ``work/<status>/<name>/work-item.json``
+    (see repo_model.discover_work_items). A directory that carries a README.md,
+    AGENTS.md, or an _audit/ companion but no manifest is therefore invisible to
+    the validator, the dashboard, and dependency/scope checks while still holding
+    load-bearing planning state. That silently breaks INV-1, so it is a hard
+    error: record it with ``repopact new work-item`` / ``repopact import-plan``,
+    or move it out of work/.
+    """
+    work = root / "work"
+    if not work.is_dir():
+        return
+    candidates: list[Path] = []
+    for child in sorted(work.iterdir()):
+        if not child.is_dir() or child.name.startswith((".", "_")):
+            continue
+        if child.name in STATUSES:
+            # Each subdirectory of a status container should be a tracked item.
+            candidates.extend(
+                sub for sub in sorted(child.iterdir())
+                if sub.is_dir() and not sub.name.startswith((".", "_"))
+            )
+            continue
+        candidates.append(child)
+    for directory in candidates:
+        if (directory / "work-item.json").is_file():
+            continue
+        has_planning = (
+            (directory / "README.md").is_file()
+            or (directory / "AGENTS.md").is_file()
+            or (directory / "_audit").is_dir()
+        )
+        if has_planning:
+            problems.append(Problem(
+                directory,
+                "work directory holds planning content (README/AGENTS/_audit) but no "
+                "work-item.json; it is invisible to the ledger, validator, and dashboard "
+                "(record it with `repopact new work-item` or `repopact import-plan`, or "
+                "move it out of work/)",
+            ))
+
+
 def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
     validate_version(root, problems)
@@ -394,6 +438,7 @@ def validate(root: Path) -> list[Problem]:
     owner_scopes, enforce_disjoint = validate_owners(root, problems)
     validate_findings(root, owner_scopes, problems)
     work_ids = validate_work(root, owner_scopes, enforce_disjoint, problems)
+    validate_orphan_work_dirs(root, problems)
     validate_evidence(root, work_ids, problems)
     validate_audit_registry(root, problems)
     validate_decisions(root, problems)

@@ -498,6 +498,37 @@ class RepositoryValidationTests(unittest.TestCase):
         init_repo.bootstrap(repo)
         self.assertEqual([], [f for f in doctor.diagnose(repo) if f.severity == "error"])
 
+    # --- orphan work directories & dead source_of_truth pointers -------------
+
+    def test_orphan_work_directory_without_manifest_is_rejected(self) -> None:
+        # A directory under work/ that carries planning content but no work-item.json
+        # is invisible to discover_work_items, so validate must flag it.
+        orphan = self.root / "work" / "active" / "099-ghost"
+        orphan.mkdir(parents=True)
+        (orphan / "README.md").write_text("# ghost plan\n", encoding="utf-8")
+        self.assertTrue(any("no work-item.json" in v or "work-item.json" in v
+                            for v in self.problems()))
+
+    def test_orphan_check_ignores_tracked_items_and_audit_companions(self) -> None:
+        # A properly tracked item — even with an _audit/ companion — is not an orphan.
+        self.add_active_item("099")
+        item = self.root / "work" / "active" / "099-probe"
+        audit = item / "_audit"
+        audit.mkdir()
+        (audit / "README.md").write_text("# audit\n", encoding="utf-8")
+        self.assertEqual([], self.problems())
+
+    def test_doctor_flags_dead_source_of_truth_pointer(self) -> None:
+        decision = self.root / "decisions" / "9999-probe.md"
+        decision.write_text(
+            "---\nid: 9999\ntitle: Probe\nstatus: accepted\ndate: 2026-06-17\n"
+            "source_of_truth: docs/gone.md; AGENTS.md\n---\n\n# 9999: Probe\n",
+            encoding="utf-8")
+        findings = doctor._dead_source_of_truth(self.root)
+        msgs = [f.message for f in findings]
+        self.assertTrue(any("docs/gone.md" in m for m in msgs))
+        self.assertFalse(any("AGENTS.md" in m for m in msgs))
+
     def test_import_plan_section_roadmap_without_checkboxes(self) -> None:
         repo = Path(self.temp.name) / "roadmapped"
         init_repo.bootstrap(repo)

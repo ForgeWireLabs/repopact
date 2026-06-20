@@ -29,7 +29,10 @@ files that were never committed — leaving no way back, and left no durable rec
    `HEAD` and `git checkout <sha> -- <dir>` restores it. If it is not recoverable
    (not a git repo, untracked, or dirty), the delete is **downgraded to an archive**
    so nothing unrecoverable is lost.
-2. **A decisions/ ADR is written** before the delete, recording what was retired, why
+2. **No dangling governance.** A directory that an `audits/registry.json` scope (or its
+   contract) points into is kept and reported, so retirement never breaks validation by
+   orphaning a registered scope — the operator relocates it first.
+3. **A decisions/ ADR is written** before the delete, recording what was retired, why
    (fully migrated, item-level `source` provenance), the commit it is recoverable at,
    and the exact `git` commands to restore it.
 

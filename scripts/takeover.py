@@ -169,9 +169,33 @@ def plan_dir_status(root: Path) -> list[tuple[Path, list[str], list[str]]]:
 _REVIEW_HINTS = ("tracking", "ROADMAP.md", "BACKLOG.md", "CHANGELOG.md", "PLAN.md")
 
 
+def registry_scopes_inside(root: Path, d: Path) -> list[str]:
+    """Audit-scope paths or contracts registered inside ``d`` (``audits/registry.json``).
+
+    Retiring a directory that an audit scope points into would dangle that scope and
+    break validation, so takeover refuses until the operator relocates it.
+    """
+    reg = root / "audits" / "registry.json"
+    if not reg.is_file():
+        return []
+    try:
+        data = json.loads(reg.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    rel = str(d.relative_to(root)).replace("\\", "/").rstrip("/")
+    prefix = rel + "/"
+    hits: set[str] = set()
+    for scope in data.get("scopes", []):
+        for key in ("path", "contract"):
+            value = str(scope.get(key, "")).replace("\\", "/")
+            if value == rel or value.startswith(prefix):
+                hits.add(value)
+    return sorted(hits)
+
+
 def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
     report: dict = {"validated": True, "retired": [], "skipped": [], "review": [],
-                    "actions": [], "decisions": [], "downgraded": []}
+                    "actions": [], "decisions": [], "downgraded": [], "blocked": []}
 
     problems = validate_repo.validate(root)
     if problems:
@@ -187,6 +211,12 @@ def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
             continue
         if not done:
             continue  # empty / nothing imported from here; leave it
+        scoped = registry_scopes_inside(root, d)
+        if scoped:
+            # Retiring the dir would leave a registered audit scope (or its contract)
+            # dangling and break validation; the operator must relocate it first.
+            report["blocked"].append({"dir": rel, "scopes": scoped})
+            continue
         if delete:
             ok, sha, why = git_recoverable(root, d)
             if ok:
@@ -246,6 +276,10 @@ def _print(report: dict, dry_run: bool) -> int:
         print(f"  ! kept {s['dir']}/ — {len(s['unmigrated'])} item(s) not yet imported "
               f"(run `repopact import-plan` first): {', '.join(s['unmigrated'][:5])}"
               + (" …" if len(s['unmigrated']) > 5 else ""))
+    for b in report.get("blocked", []):
+        print(f"  ! kept {b['dir']}/ — audit scope(s) registered inside "
+              f"(relocate in audits/registry.json first): {', '.join(b['scopes'][:5])}"
+              + (" …" if len(b['scopes']) > 5 else ""))
     if report["review"]:
         print("  i review (not auto-retired; may hold un-migrated content): " + ", ".join(report["review"]))
     if not report["actions"] and not report["skipped"]:

@@ -466,6 +466,26 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertFalse(report["validated"])
         self.assertEqual([], report["retired"])
 
+    def test_takeover_refuses_dir_with_audit_scope_inside(self) -> None:
+        repo = Path(self.temp.name) / "tk_scope"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        (repo / "todos" / "12-search" / "AGENTS.md").write_text("# nested contract\n", encoding="utf-8")
+        plan_import.import_plan(repo)
+        # register an audit scope that lives inside the plan dir
+        reg = json.loads((repo / "audits" / "registry.json").read_text(encoding="utf-8"))
+        reg["scopes"].append({
+            "path": "todos/12-search", "owner": "governance-owner",
+            "contract": "todos/12-search/AGENTS.md", "last_reviewed": "2026-06-15",
+            "next_review": "2026-09-13", "alignment": "current", "notes": "nested",
+        })
+        (repo / "audits" / "registry.json").write_text(json.dumps(reg, indent=2) + "\n", encoding="utf-8")
+        report = takeover.takeover(repo, delete=True)
+        self.assertEqual([], report["retired"])               # not retired
+        self.assertTrue((repo / "todos").exists())
+        self.assertTrue(any(b["dir"] == "todos" for b in report["blocked"]))
+
     def test_takeover_delete_documents_and_deletes_when_git_recoverable(self) -> None:
         import subprocess
         repo = Path(self.temp.name) / "tk4"

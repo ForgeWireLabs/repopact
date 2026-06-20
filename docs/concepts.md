@@ -11,9 +11,8 @@ all of it in versioned files, and make the binding parts enforceable.
 
 ## Why "pact"
 
-A README is advice. A pact has teeth. The distinguishing primitive is the
-**binding invariant**: a guarantee an agent may not weaken without flagging it and
-getting explicit human approval. See decision
+The distinguishing primitive is the **binding invariant**: a guarantee an agent may
+not weaken without flagging it and getting explicit human approval. See decision
 [`0001`](../decisions/0001-repository-as-pact.md).
 
 ## Principles vs invariants
@@ -32,9 +31,9 @@ This separation is the pact. See [`governance/charter.md`](../governance/charter
 
 Anything computable from source records is generated, not hand-maintained — the
 dashboard, the SPEC catalog, audit freshness. The lesson behind it (policy
-[`001`](../governance/policies/001-derived-artifacts-are-generated.md)) is a scar:
-hand-maintained mirrors of derivable state rot faster than humans reconcile them,
-and the rot then masquerades as drift.
+[`001`](../governance/policies/001-derived-artifacts-are-generated.md)) is that
+hand-maintained mirrors of derivable state fall out of date faster than they are
+reconciled, and the resulting staleness is indistinguishable from genuine drift.
 
 ## One truth per record
 

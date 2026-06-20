@@ -13,7 +13,7 @@ evidence.
 
 ## Generate your own minimal example
 
-A committed second copy would rot against the real schemas and tooling (policy
+A committed second copy would diverge from the real schemas and tooling (policy
 `001`), so instead generate a fresh one on demand:
 
 ```

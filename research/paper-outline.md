@@ -26,7 +26,7 @@ into an operating system for agentic work. We evaluate the claim adversarially.
 - Memory/state approaches for agents (external stores, RAG, scratchpads) and why
   they are not recoverable by a third party from the repository alone.
 - ADRs, conventional commits, policy-as-code, CI gates — prior art this composes.
-- Where RepoPact's "binding invariant" wedge differs from documentation.
+- Where RepoPact's binding-invariant primitive differs from documentation.
 
 ## 3. The model
 

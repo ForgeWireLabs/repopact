@@ -46,9 +46,9 @@ itself just created. The bootstrap output is not closed under the tool's own
 command set (¬H2, partial).
 
 **Design question.** `SPEC.md` is *RepoPact's own* specification, derived by
-`generate_spec.py` from the schemas and invariants. An adopter repo does not
-obviously need to vendor the RepoPact spec. So the defect is one of two things,
-to be settled by a decision record:
+`generate_spec.py` from the schemas and invariants. An adopter repository does not
+necessarily need to vendor the RepoPact spec. The defect is therefore one of two
+things, to be settled by a decision record:
 
 1. `spec` is a **maintainer** command that should not be advertised in the adopter
    CLI (or should refuse cleanly when no `SPEC.md` is present); or

@@ -32,7 +32,7 @@ policy `001` (derive over declare).
 
 ## Alternatives considered
 
-- **Self-contained SPEC restating schemas.** Rejected: highest rot risk; conflicts
+- **Self-contained SPEC restating schemas.** Rejected: highest divergence risk; conflicts
   with policy `001`.
 - **Flat top-level docs, no docs/ scope.** Rejected: a growing doc set benefits
   from the Diátaxis split and a single ownership scope.

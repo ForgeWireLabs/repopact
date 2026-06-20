@@ -5,16 +5,16 @@ It makes authority, intent, evidence, and architectural drift visible in the
 filesystem so that a new contributor or agent can recover the state of the
 project without depending on a prior conversation.
 
-> Make the repository the pact: authority, intent, evidence, and history that
+> The repository is the pact: authority, intent, evidence, and history that
 > survive every session.
 
 ## Why "pact"
 
 Conventions like `AGENTS.md`, ADRs, and issue trackers each capture a fragment of
 project knowledge, but none of them makes the *binding* part explicit — the
-guarantees an agent must not silently weaken. RepoPact's wedge is the **binding
-invariant**: a declared guarantee with a rationale, an escalation path, and (where
-possible) a machine enforcer. That, plus evidence-gated completion and a
+guarantees an agent must not silently weaken. RepoPact's distinguishing primitive is
+the **binding invariant**: a declared guarantee with a rationale, an escalation path,
+and (where possible) a machine enforcer. That, plus evidence-gated completion and a
 filesystem state machine, is what turns a folder convention into a contract.
 
 ## Core loop

@@ -28,7 +28,7 @@ This is what makes the repository a *pact* rather than a folder convention.
 
 ## Alternatives considered
 
-- **Principles only (status quo).** A charter of values with no teeth. Rejected:
+- **Principles only (status quo).** A charter of values with no binding enforcement. Rejected:
   values do not stop a confident agent from regressing a guarantee.
 - **Enforce everything in code.** Rejected: many invariants (e.g. "do not launder
   history") are not statically checkable; pretending otherwise produces false

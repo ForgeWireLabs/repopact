@@ -466,6 +466,47 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertFalse(report["validated"])
         self.assertEqual([], report["retired"])
 
+    def test_takeover_delete_documents_and_deletes_when_git_recoverable(self) -> None:
+        import subprocess
+        repo = Path(self.temp.name) / "tk4"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        (repo / "todos" / "12-search" / "DETAIL.md").write_text("# Detail only in todos\n", encoding="utf-8")
+        plan_import.import_plan(repo)
+        try:
+            run = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True, text=True)
+            run("init")
+            run("-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+            run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "seed")
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git unavailable")
+        report = takeover.takeover(repo, delete=True)
+        self.assertIn("todos", report["retired"])
+        self.assertFalse((repo / "todos").exists())          # deleted, not archived
+        self.assertFalse((repo / "archive").exists())
+        self.assertEqual([], report["downgraded"])
+        # a decisions/ ADR was written documenting why + how to recover
+        self.assertEqual(1, len(report["decisions"]))
+        adr = (repo / report["decisions"][0]).read_text(encoding="utf-8")
+        self.assertIn("Retire legacy plan directory", adr)
+        self.assertIn("git checkout", adr)
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_takeover_delete_downgrades_to_archive_when_not_recoverable(self) -> None:
+        repo = Path(self.temp.name) / "tk5"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        plan_import.import_plan(repo)
+        report = takeover.takeover(repo, delete=True)        # no git -> not recoverable
+        self.assertIn("todos", report["retired"])
+        self.assertFalse((repo / "todos").exists())
+        self.assertTrue((repo / "archive" / "todos" / "12-search" / "README.md").is_file())
+        self.assertEqual([], report["decisions"])
+        self.assertTrue(any(d["dir"] == "todos" for d in report["downgraded"]))
+        self.assertEqual([], [p.message for p in validate(repo)])
+
     # --- doctor (013) -------------------------------------------------------
 
     def _seed_drifted_repo(self) -> Path:

@@ -36,7 +36,9 @@ def main(argv: list[str] | None = None) -> int:
 
     p_take = sub.add_parser("takeover", help="Retire legacy planning sources RepoPact has fully imported")
     p_take.add_argument("--root", type=Path, default=Path.cwd())
-    p_take.add_argument("--delete", action="store_true", help="Delete instead of archiving under archive/")
+    p_take.add_argument("--delete", action="store_true",
+                        help="Delete instead of archiving (git-guarded; writes a decisions/ ADR; "
+                             "downgrades to archive if not recoverable from git)")
     p_take.add_argument("--dry-run", action="store_true", help="Report the plan without changing files")
 
     p_val = sub.add_parser("validate", help="Validate the repository")

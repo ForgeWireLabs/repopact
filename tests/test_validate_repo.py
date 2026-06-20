@@ -493,6 +493,31 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertIn("git checkout", adr)
         self.assertEqual([], [p.message for p in validate(repo)])
 
+    def test_takeover_delete_downgrades_when_dir_has_gitignored_files(self) -> None:
+        import subprocess
+        repo = Path(self.temp.name) / "tk6"
+        init_repo.bootstrap(repo)
+        (repo / "todos" / "12-search").mkdir(parents=True)
+        (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
+        plan_import.import_plan(repo)
+        try:
+            run = lambda *a: subprocess.run(["git", *a], cwd=repo, check=True, capture_output=True, text=True)
+            run("init")
+            # a present-but-ignored file under the plan dir: not in history, so deleting loses it
+            (repo / ".gitignore").write_text("todos/12-search/out/\n", encoding="utf-8")
+            (repo / "todos" / "12-search" / "out").mkdir()
+            (repo / "todos" / "12-search" / "out" / "build.bin").write_text("ignored output\n", encoding="utf-8")
+            run("-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+            run("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "seed")
+        except (OSError, subprocess.CalledProcessError):
+            self.skipTest("git unavailable")
+        report = takeover.takeover(repo, delete=True)
+        # not git-recoverable (ignored file present) -> archived, not deleted
+        self.assertTrue(any(d["dir"] == "todos" for d in report["downgraded"]))
+        self.assertEqual([], report["decisions"])
+        self.assertTrue((repo / "archive" / "todos").exists())
+        self.assertEqual([], [p.message for p in validate(repo)])
+
     def test_takeover_delete_downgrades_to_archive_when_not_recoverable(self) -> None:
         repo = Path(self.temp.name) / "tk5"
         init_repo.bootstrap(repo)

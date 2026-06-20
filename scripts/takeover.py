@@ -64,11 +64,13 @@ def git_recoverable(root: Path, d: Path) -> tuple[bool, str | None, str | None]:
     tracked = _git(root, ["ls-files", "--", rel])
     if not tracked or not tracked.strip():
         return (False, None, "directory is not tracked in git")
-    dirty = _git(root, ["status", "--porcelain", "--", rel])
+    # --ignored so a present-but-git-ignored file (not in history, e.g. build
+    # output under the dir) also blocks deletion — it would not be recoverable.
+    dirty = _git(root, ["status", "--porcelain", "--ignored", "--", rel])
     if dirty is None:
         return (False, None, "could not read git status")
     if dirty.strip():
-        return (False, None, "directory has uncommitted changes or untracked files")
+        return (False, None, "directory has uncommitted, untracked, or git-ignored files")
     sha = _git(root, ["rev-parse", "HEAD"])
     if not sha or not sha.strip():
         return (False, None, "repository has no commits")

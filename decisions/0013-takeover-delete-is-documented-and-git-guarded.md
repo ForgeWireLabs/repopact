@@ -25,7 +25,7 @@ files that were never committed — leaving no way back, and left no durable rec
 `--delete` is now **documented and git-guarded**:
 
 1. **Git-recoverability gate.** A directory is deleted only when it is fully tracked
-   and clean in git (no uncommitted or untracked files), so its entire tree exists at
+   and clean in git (no uncommitted, untracked, or git-ignored files present), so its entire tree exists at
    `HEAD` and `git checkout <sha> -- <dir>` restores it. If it is not recoverable
    (not a git repo, untracked, or dirty), the delete is **downgraded to an archive**
    so nothing unrecoverable is lost.

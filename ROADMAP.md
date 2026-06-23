@@ -4,6 +4,25 @@ A human-curated forward view. The authoritative status of in-flight work is the
 derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file
 adds editorial intent (what we mean to do next and why) that is not derivable.
 
+## Now — shipped in v1.7.0
+
+Closed the **inbound-reference drift class** found in the wild on forgewire — a
+`takeover --delete` retired a heavily-referenced `todos/` tree and left dangling
+references across docs, code, and a silently-broken test suite, none of which RepoPact
+validation flagged. Three fixes, both ends of the lifecycle:
+
+- **Import-plan rewrites narrative links** (decision `0015`): `import-plan` rebases each
+  imported narrative's relative links to the item's new `work/<status>/<id>/` home and
+  remaps cross-item links to the work ledger, so a freshly imported `work/` ships no link
+  pointing back at the legacy plan tree.
+- **Takeover repoints inbound references** (decision `0016`): before retiring a directory,
+  `takeover` auto-rewrites the safe navigational forms (Markdown link targets,
+  `source_of_truth:`) across the repo and **reports** everything it cannot safely touch
+  (code `Path()` calls, prose, cross-repo links) as a `file:line` worklist. Runs under
+  `--dry-run`.
+- **Import-plan stops doubling titles**: source headings that embed the tracker number
+  (`# 107 — Foo`) no longer produce `# 107 — 107 — Foo` once the allocated id is prepended.
+
 ## Now — shipped in v1.0.0
 
 - **Adopter evidence + 1.0**: an independent proving-ground project

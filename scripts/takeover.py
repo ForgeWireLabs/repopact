@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import shutil
 import subprocess
@@ -193,6 +194,108 @@ def registry_scopes_inside(root: Path, d: Path) -> list[str]:
     return sorted(hits)
 
 
+# File types we scan for inbound references; everything else (binaries, build output) is skipped.
+_TEXT_EXTS = {".md", ".markdown", ".txt", ".rst", ".py", ".toml", ".yaml", ".yml",
+              ".json", ".cfg", ".ini", ".sh", ".ps1"}
+_LIFECYCLE = {"completed", "deferred", "active", "blocked"}
+_MD_LINK = re.compile(r"(\]\()([^)\s]+)(\))")
+
+
+def _work_index(root: Path) -> dict[str, str]:
+    """Map each work item's directory basename (e.g. ``107-fcr-llm-awq-runtime``) to its
+    ``work/<status>/<id>-<slug>`` path. Basename keying tolerates references that omit the
+    legacy lifecycle segment (``todos/107-x`` vs ``todos/completed/107-x``)."""
+    index: dict[str, str] = {}
+    for manifest in root.glob("work/*/*/work-item.json"):
+        workdir = str(manifest.parent.relative_to(root)).replace("\\", "/")
+        index[manifest.parent.name] = workdir
+    return index
+
+
+def _map_ref(token: str, retired: set[str], work_index: dict[str, str], root: Path) -> str | None:
+    """Map a ``<retired-dir>/<...>`` path token to its work location, or None if it is not a
+    reference into a dir being retired (so it is left untouched).
+
+    ``todos/`` and ``work/`` are both repo-root siblings, so a leading ``../`` run is preserved
+    verbatim — only the ``<retired>/<item>`` head is swapped. Detail files that were never
+    migrated collapse to the work item's ``README.md`` (the unit RepoPact preserves)."""
+    m = re.match(r"^((?:\.\./)*)(.*)$", token)
+    prefix, rest = m.group(1), m.group(2).strip()
+    trailing = rest.endswith("/")
+    parts = [p for p in rest.strip("/").split("/") if p]
+    if not parts or parts[0] not in retired:
+        return None
+    segs = parts[1:]
+    if not segs:
+        return f"{prefix}work" + ("/" if trailing else "")        # the plan root itself -> ledger root
+    sub = segs[2:] if segs[0] in _LIFECYCLE else segs[1:]
+    item = (segs[1] if len(segs) > 1 else None) if segs[0] in _LIFECYCLE else segs[0]
+    workdir = work_index.get(item) if item else None
+    if workdir is None:
+        return None                                               # unknown item (e.g. merged-away) -> report, don't guess
+    if not sub:
+        return f"{prefix}{workdir}" + ("/" if trailing else "")
+    subpath = "/".join(sub)
+    if (root / workdir / subpath).exists():
+        return f"{prefix}{workdir}/{subpath}"
+    return f"{prefix}{workdir}/README.md"
+
+
+def rewrite_inbound_references(root: Path, retired: set[str], dry_run: bool, report: dict) -> None:
+    """Before a plan dir is retired, repoint inbound references elsewhere in the repo.
+
+    Rewrites the two unambiguous navigational forms — Markdown link targets ``](...)`` and
+    ``source_of_truth:`` frontmatter values — and **reports** every other surviving reference
+    (code ``Path()`` calls, prose mentions, cross-repo ``../other/<dir>`` links) for the
+    operator, since blindly editing code or historical prose is unsafe. This closes the gap
+    where ``takeover`` deletes a heavily-referenced dir and leaves the references dangling."""
+    if not retired:
+        return
+    work_index = _work_index(root)
+    retired_re = "|".join(re.escape(n) for n in retired)
+    token_re = re.compile(rf"(?:\.\./)*(?:{retired_re})/[^\s;)\"'`]+")
+    rewritten: list[str] = []
+    unresolved: list[str] = []
+
+    def _link(m: re.Match) -> str:
+        mapped = _map_ref(m.group(2), retired, work_index, root)
+        return f"{m.group(1)}{mapped}{m.group(3)}" if mapped else m.group(0)
+
+    for path in sorted(root.rglob("*")):
+        if not path.is_file() or path.suffix.lower() not in _TEXT_EXTS:
+            continue
+        rel = str(path.relative_to(root)).replace("\\", "/")
+        if (rel.startswith((".git/", "node_modules/", "archive/")) or "/__pycache__/" in rel
+                or any(rel == n or rel.startswith(n + "/") for n in retired)):
+            continue  # skip vcs/build and the retiring dirs themselves
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if not any(f"{n}/" in text for n in retired):
+            continue
+        new_lines: list[str] = []
+        changed = False
+        for i, line in enumerate(text.splitlines(keepends=True), 1):
+            if not any(f"{n}/" in line for n in retired) or "Imported into RepoPact from" in line:
+                new_lines.append(line)
+                continue
+            updated = _MD_LINK.sub(_link, line)
+            if updated.lstrip().startswith("source_of_truth:"):
+                updated = token_re.sub(lambda m: _map_ref(m.group(0), retired, work_index, root) or m.group(0), updated)
+            changed = changed or updated != line
+            new_lines.append(updated)
+            # report any plan reference still present after the safe rewrites
+            for tok in token_re.findall(updated):
+                unresolved.append(f"{rel}:{i}: {tok}")
+        if changed:
+            rewritten.append(rel)
+            if not dry_run:
+                path.write_text("".join(new_lines), encoding="utf-8")
+    report["refs_rewritten"] = sorted(set(rewritten))
+    report["refs_unresolved"] = unresolved
+
+
 def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
     report: dict = {"validated": True, "retired": [], "skipped": [], "review": [],
                     "actions": [], "decisions": [], "downgraded": [], "blocked": []}
@@ -249,6 +352,10 @@ def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
                 shutil.move(str(d), str(dest))
         report["retired"].append(rel)
 
+    # Repoint inbound references to the retired dirs (and report what could not be auto-fixed)
+    # so retirement never silently leaves dangling references across the repo.
+    rewrite_inbound_references(root, set(report["retired"]), dry_run, report)
+
     for hint in _REVIEW_HINTS:
         p = root / hint
         if p.exists():
@@ -282,6 +389,18 @@ def _print(report: dict, dry_run: bool) -> int:
               + (" …" if len(b['scopes']) > 5 else ""))
     if report["review"]:
         print("  i review (not auto-retired; may hold un-migrated content): " + ", ".join(report["review"]))
+    rewritten = report.get("refs_rewritten", [])
+    if rewritten:
+        print(f"  ~ {verb}repoint inbound reference(s) in {len(rewritten)} file(s) to work/: "
+              + ", ".join(rewritten[:5]) + (" …" if len(rewritten) > 5 else ""))
+    unresolved = report.get("refs_unresolved", [])
+    if unresolved:
+        print(f"  ! {len(unresolved)} reference(s) could not be auto-repointed "
+              "(code paths / prose / cross-repo) — fix by hand:")
+        for u in unresolved[:10]:
+            print(f"      {u}")
+        if len(unresolved) > 10:
+            print(f"      … and {len(unresolved) - 10} more")
     if not report["actions"] and not report["skipped"]:
         print("repopact takeover: no legacy plan directories to retire.")
     if report.get("post_validate_ok") is False:

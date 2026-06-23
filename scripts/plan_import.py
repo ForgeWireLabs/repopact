@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import sys
 from dataclasses import dataclass, field
@@ -62,11 +63,23 @@ class PlanItem:
     num: str | None = None  # original leading number, if any
 
 
+# A source heading often embeds the tracker number ("# 107 — Foo"); the importer
+# prepends the allocated id when writing the README header, so a raw heading would
+# double it ("# 107 — 107 — Foo"). Strip a leading "<digits><sep> " run. Requires
+# whitespace after the separator so slug-shaped titles ("21-multi-agent") are safe.
+_LEADING_NUM = re.compile(r"^\s*\d+\s*[—–:-]\s+")
+
+
+def _clean_title(title: str) -> str:
+    stripped = _LEADING_NUM.sub("", title).strip()
+    return stripped or title
+
+
 def _first_heading(text: str, fallback: str) -> str:
     for line in text.splitlines():
         m = re.match(r"\s*#\s+(.+?)\s*$", line)
         if m:
-            return m.group(1).strip()
+            return _clean_title(m.group(1).strip())
     return fallback
 
 
@@ -242,11 +255,67 @@ def _allocate(num: str | None, used: set[str]) -> str:
     return f"{n:03d}"
 
 
+_MD_LINK = re.compile(r"(\]\()([^)\s]+)(\))")
+
+
+def _rewrite_narrative_links(narrative: str, source_rel: str, wi_rel: str,
+                             plan_to_work: dict[str, str]) -> str:
+    """Rebase an imported narrative's relative links so they still resolve from the
+    item's new ``work/<status>/<id>/`` home, and remap links that point at *other*
+    migrated plan items to those items' work READMEs.
+
+    Why this exists: ``import_plan`` lifts a plan item's README out of
+    ``<plan>/<item>/`` into ``work/<status>/<id>/``. That relocation changes every
+    relative link's depth, and any cross-item link still points at the legacy plan
+    directory — which ``takeover`` later deletes, leaving the link dangling. Without
+    rewriting, ``work/`` ships broken links the moment the legacy tree is retired.
+
+    Detail files inside a plan item are not copied into ``work/`` (only the README
+    narrative is), so links that resolve into another item collapse to that item's
+    ``README.md`` — the unit RepoPact actually preserves. URLs, in-page anchors,
+    absolute paths, and mail links are left untouched.
+    """
+    source_rel = source_rel.replace("\\", "/")
+    # links in the narrative were relative to the source README's directory
+    base_dir = posixpath.dirname(source_rel) if source_rel.endswith(".md") else source_rel
+    plan_keys = sorted(plan_to_work, key=len, reverse=True)  # longest (most specific) first
+
+    def _map_abs(old_abs: str) -> str:
+        for key in plan_keys:
+            if old_abs == key or old_abs.startswith(key + "/"):
+                return plan_to_work[key] + "/README.md"
+        return old_abs
+
+    def _sub(m: re.Match) -> str:
+        target = m.group(2).strip()
+        if (not target or target.startswith(("#", "/", "<", "mailto:")) or "://" in target):
+            return m.group(0)
+        anchor = ""
+        if "#" in target:
+            target, frag = target.split("#", 1)
+            anchor = "#" + frag
+        if not target:
+            return m.group(0)
+        old_abs = posixpath.normpath(posixpath.join(base_dir, target))
+        new_abs = _map_abs(old_abs)
+        new_rel = posixpath.relpath(new_abs, wi_rel)
+        if target.endswith("/") and new_abs == old_abs and not new_rel.endswith("/"):
+            new_rel += "/"
+        return f"{m.group(1)}{new_rel}{anchor}{m.group(3)}"
+
+    return _MD_LINK.sub(_sub, narrative)
+
+
 def import_plan(root: Path, today: date | None = None, dry_run: bool = False,
                 import_issues: bool = False) -> adopt_repo.Report:
     today = today or date.today()
     rep = adopt_repo.Report(dry_run)
     used_ids, used_slugs = _existing(root)
+    # Pass 1: allocate ids and target work dirs for every item up front, so the
+    # narrative-link rewrite in pass 2 can resolve cross-item references to their
+    # final work/ locations (not the legacy plan paths that takeover will delete).
+    planned: list[tuple[PlanItem, str, str, str, str]] = []
+    plan_to_work: dict[str, str] = {}
     for item in discover(root, import_issues=import_issues):
         if item.slug in used_slugs:        # idempotent: already imported (or name clash) -> skip
             rep.skipped.append(f"work/* /{item.slug} (already present)")
@@ -254,7 +323,12 @@ def import_plan(root: Path, today: date | None = None, dry_run: bool = False,
         used_slugs.add(item.slug)
         item_id = _allocate(item.num, used_ids)
         status, ac_state = _STATUS[item.lifecycle]
-        wi_dir = root / "work" / status / f"{item_id}-{item.slug}"
+        wi_rel = f"work/{status}/{item_id}-{item.slug}"
+        planned.append((item, item_id, status, ac_state, wi_rel))
+        plan_to_work[item.source_rel.replace("\\", "/")] = wi_rel
+    # Pass 2: write the manifests and READMEs, rewriting each narrative's links.
+    for item, item_id, status, ac_state, wi_rel in planned:
+        wi_dir = root / wi_rel
         if ac_state == "waived":
             ac_text = ("Delivered prior to RepoPact adoption; imported from "
                        f"`{item.source_rel}`. Waived: no RepoPact evidence was captured at the time.")
@@ -268,10 +342,12 @@ def import_plan(root: Path, today: date | None = None, dry_run: bool = False,
             "created": today.isoformat(), "updated": today.isoformat(),
             "source": item.source_rel,
         }, root)
+        narrative = _rewrite_narrative_links(item.narrative, item.source_rel, wi_rel,
+                                             plan_to_work) if item.narrative else ""
         header = (f"# {item_id} — {item.title}\n\n> **Status**: {_EMOJI[item.lifecycle]}\n"
                   f"> Imported into RepoPact from `{item.source_rel}`; the source is preserved.\n\n"
                   "## Imported plan narrative\n\n")
-        rep.write(wi_dir / "README.md", header + (item.narrative or "_(no narrative in source)_\n"), root)
+        rep.write(wi_dir / "README.md", header + (narrative or "_(no narrative in source)_\n"), root)
 
     # A `tracking/` governance system maps to decisions/, findings, and work items.
     import track_import

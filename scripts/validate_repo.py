@@ -22,6 +22,11 @@ REQUIRED_WORK_FIELDS = {
 DECISION_STATUSES = ("proposed", "accepted", "superseded", "deprecated")
 POLICY_STATUSES = ("active", "retired")
 
+# A work-item README may use the "- [ ] **CRIT-1** ..." checklist convention to
+# mirror acceptance-criterion state. Where it does, the checkboxes must not
+# contradict the manifest (decision 0014).
+CHECKBOX_LINE = re.compile(r"-\s*\[([ xX])\]\s*\*\*([A-Za-z][A-Za-z0-9]*-\d+)\b")
+
 
 @dataclass(frozen=True)
 class Problem:
@@ -177,6 +182,34 @@ def validate_findings(root: Path, owner_scopes: set[str], problems: list[Problem
             problems.append(Problem(path, f"unknown scope '{scope}'"))
 
 
+def validate_readme_checkbox_parity(item: object, problems: list[Problem]) -> None:
+    """When a work-item README uses the ``- [ ] **ID** ...`` checklist convention,
+    every manifest criterion must have a checkbox whose state matches the manifest
+    (satisfied -> [x], pending -> [ ]); waived is left flexible. Gated on the
+    convention being present, so items that describe criteria in prose are
+    unaffected. The manifest stays the source of truth; this only stops a README
+    from silently disagreeing with it (decision 0014)."""
+    readme = item.directory / "README.md"
+    if not readme.is_file():
+        return
+    boxes = {
+        match.group(2): match.group(1).strip().lower()
+        for match in CHECKBOX_LINE.finditer(readme.read_text(encoding="utf-8"))
+    }
+    if not boxes:
+        return
+    for criterion in item.data.get("acceptance_criteria", []):
+        criterion_id = str(criterion.get("id", ""))
+        state = criterion.get("state")
+        box = boxes.get(criterion_id)
+        if box is None:
+            problems.append(Problem(readme, f"criterion {criterion_id} has no checkbox in README"))
+        elif state == "satisfied" and box != "x":
+            problems.append(Problem(readme, f"criterion {criterion_id} is satisfied but its README checkbox is unchecked"))
+        elif state == "pending" and box == "x":
+            problems.append(Problem(readme, f"criterion {criterion_id} is pending but its README checkbox is checked"))
+
+
 def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, problems: list[Problem]) -> set[str]:
     try:
         items = discover_work_items(root)
@@ -232,6 +265,8 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
                     problems.append(Problem(manifest, f"criterion {criterion_id} references unknown evidence '{evidence_id}'"))
             if item.status == "completed" and state == "pending":
                 problems.append(Problem(manifest, f"completed item has pending criterion {criterion_id}"))
+
+        validate_readme_checkbox_parity(item, problems)
 
     all_ids = set(seen)
     for item in items:

@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260622-220000-readme-checkbox-parity",
+  "timestamp": "2026-06-22T22:00:00Z",
+  "work_item": "016",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Governance validation passes; the new parity check is silent for RepoPact's own prose work-item READMEs (gated on the checklist convention)."
+    },
+    {
+      "command": "python -m pytest tests/test_validate_repo.py -q",
+      "exit_code": 0,
+      "summary": "Full validator test suite passes, including two new parity tests (flags a contradicting checkbox, silent without checkboxes)."
+    }
+  ],
+  "artifacts": [
+    "scripts/validate_repo.py",
+    "tests/test_validate_repo.py",
+    "decisions/0014-readme-checkbox-parity.md",
+    "VERSION"
+  ],
+  "environment": {
+    "repository": "ForgeWireLabs/repopact",
+    "branch": "main",
+    "platform": "Windows",
+    "process_note": "Added validate_readme_checkbox_parity to validate_repo.py: where a work-item README uses the - [ ] **ID** checklist convention, checkboxes must match the manifest (satisfied->[x], pending->[ ]); gated on the convention so prose READMEs are unaffected. VERSION 1.5.0 -> 1.6.0. Contributed up from ForgeLink (downstream consumer)."
+  }
+}

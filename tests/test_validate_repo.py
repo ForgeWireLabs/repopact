@@ -87,6 +87,30 @@ class RepositoryValidationTests(unittest.TestCase):
         self.write_json(path, lambda d: (d["acceptance_criteria"][0].update({"state": "pending", "evidence": []})))
         self.assertTrue(any("completed item has pending criterion" in v for v in self.problems()))
 
+    def test_readme_checkbox_parity_flags_contradiction(self) -> None:
+        path = self.manifest()
+        criteria = json.loads(path.read_text(encoding="utf-8"))["acceptance_criteria"]
+
+        def line(criterion: dict, override: str | None = None) -> str:
+            box = override if override is not None else ("x" if criterion["state"] == "satisfied" else " ")
+            return f"- [{box}] **{criterion['id']}** {str(criterion.get('text', ''))[:24]}"
+
+        readme = path.parent / "README.md"
+        # All checkboxes agree with the manifest -> no parity problem.
+        readme.write_text("# item\n\n" + "\n".join(line(c) for c in criteria) + "\n", encoding="utf-8")
+        self.assertFalse(any("checkbox" in v for v in self.problems()))
+
+        # Flip the first criterion's box so the README contradicts the manifest.
+        wrong = " " if criteria[0]["state"] == "satisfied" else "x"
+        lines = [line(criteria[0], override=wrong)] + [line(c) for c in criteria[1:]]
+        readme.write_text("# item\n\n" + "\n".join(lines) + "\n", encoding="utf-8")
+        self.assertTrue(any("checkbox" in v and criteria[0]["id"] in v for v in self.problems()))
+
+    def test_readme_without_checkboxes_is_unaffected(self) -> None:
+        # RepoPact's own work-item READMEs describe criteria in prose; the parity
+        # check is gated on the checklist convention and stays silent for them.
+        self.assertFalse(any("checkbox" in v for v in self.problems()))
+
     def test_dependency_must_reference_known_work_item(self) -> None:
         path = self.manifest()
         self.write_json(path, lambda d: d.__setitem__("depends_on", ["999"]))

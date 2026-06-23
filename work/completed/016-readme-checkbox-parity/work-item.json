@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "016",
+  "title": "README checkbox parity with the work-item manifest",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": [
+    "tooling"
+  ],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "validate_repo.py fails when a work-item README that uses the '- [ ] **ID**' checklist convention contradicts the manifest (satisfied criterion left unchecked, pending criterion checked, or a manifest criterion with no checkbox), and stays silent for prose READMEs. Covered by tests.",
+      "state": "satisfied",
+      "evidence": [
+        "20260622-220000-readme-checkbox-parity"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "The change is recorded as decision 0014 and the package version is bumped from 1.5.0 to 1.6.0.",
+      "state": "satisfied",
+      "evidence": [
+        "20260622-220000-readme-checkbox-parity"
+      ]
+    }
+  ],
+  "created": "2026-06-22",
+  "updated": "2026-06-22"
+}

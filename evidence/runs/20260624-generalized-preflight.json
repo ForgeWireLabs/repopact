@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260624-generalized-preflight",
+  "timestamp": "2026-06-24T17:30:00-05:00",
+  "work_item": "018",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed; preflight is default-off so RepoPact's own marker-less items are unaffected."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "83 tests passed, including 4 new preflight tests: off-by-default, required_from_id (at/below threshold), marker-satisfies-requirement, and required_from_date."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md (RepoPact spec version 1.9.0)."
+    },
+    {
+      "command": "python scripts/generate_spec.py",
+      "exit_code": 0,
+      "summary": "Regenerated SPEC.md derived blocks."
+    }
+  ],
+  "artifacts": ["audits/reports/dashboard.md", "SPEC.md"],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4",
+    "git": "2.53.0.windows.3"
+  }
+}

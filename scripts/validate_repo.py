@@ -210,6 +210,55 @@ def validate_readme_checkbox_parity(item: object, problems: list[Problem]) -> No
             problems.append(Problem(readme, f"criterion {criterion_id} is pending but its README checkbox is checked"))
 
 
+def _preflight_config(root: Path) -> dict:
+    """Opt-in preflight settings from governance/owners.json (default: disabled).
+
+        "preflight": {"enabled": true, "required_from_id": 10}
+        "preflight": {"enabled": true, "required_from_date": "2026-06-17"}
+
+    When enabled with neither threshold, a marker is required on every work item."""
+    try:
+        data = load_json(root / "governance" / "owners.json")
+    except (OSError, ValueError):
+        return {}
+    cfg = data.get("preflight", {})
+    return cfg if isinstance(cfg, dict) else {}
+
+
+def _preflight_required(item, cfg: dict) -> bool:
+    if not cfg.get("enabled"):
+        return False
+    from_id = cfg.get("required_from_id")
+    from_date = cfg.get("required_from_date")
+    if from_id is None and from_date is None:
+        return True
+    if from_id is not None:
+        try:
+            if int(item.item_id) >= int(from_id):
+                return True
+        except (TypeError, ValueError):
+            pass
+    if from_date is not None:
+        created = str(item.data.get("created", ""))
+        if created and created >= str(from_date):
+            return True
+    return False
+
+
+def validate_work_preflight(item, manifest: Path, cfg: dict, problems: list[Problem]) -> None:
+    """Require a preflight marker on qualifying work items when preflight is enabled.
+
+    The marker proves the item was recorded before implementation started. Its shape
+    (created_before_work_started, created_at, note) is enforced by the work-item
+    schema; this enforces only the *conditional requirement* the schema cannot
+    express (required for items at/after a configured id or date). Disabled by
+    default; see _preflight_config and governance/owners.json."""
+    if not _preflight_required(item, cfg):
+        return
+    if not isinstance(item.data.get("preflight"), dict):
+        problems.append(Problem(manifest, "work item requires a preflight marker (enabled via governance/owners.json preflight.enabled)"))
+
+
 def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, problems: list[Problem]) -> set[str]:
     try:
         items = discover_work_items(root)
@@ -219,6 +268,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         return set()
 
     schema = load_schema(root, "work-item.schema.json")
+    preflight_cfg = _preflight_config(root)
     seen: dict[str, Path] = {}
     for item in items:
         manifest = item.directory / "work-item.json"
@@ -267,6 +317,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
                 problems.append(Problem(manifest, f"completed item has pending criterion {criterion_id}"))
 
         validate_readme_checkbox_parity(item, problems)
+        validate_work_preflight(item, manifest, preflight_cfg, problems)
 
     all_ids = set(seen)
     for item in items:

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "018",
+  "title": "Generalized opt-in preflight marker",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "tooling"
+  ],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "Add an optional preflight property to schemas/work-item.schema.json (created_before_work_started const true, created_at date-time, note non-empty) validating the marker shape when present.",
+      "state": "satisfied",
+      "evidence": [
+        "20260624-generalized-preflight"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "Add opt-in, default-off preflight config read from governance/owners.json (enabled, required_from_id, required_from_date) and a generalized validate_work_preflight in validate_repo.py that requires a marker for qualifying work items.",
+      "state": "satisfied",
+      "evidence": [
+        "20260624-generalized-preflight"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "text": "Tests cover off-by-default, required_from_id (at/below threshold), marker-satisfies-requirement, and required_from_date; all gates (validate, unittest, dashboard, spec) pass.",
+      "state": "satisfied",
+      "evidence": [
+        "20260624-generalized-preflight"
+      ]
+    }
+  ],
+  "created": "2026-06-24",
+  "updated": "2026-06-24"
+}

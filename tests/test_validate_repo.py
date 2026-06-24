@@ -200,6 +200,46 @@ class RepositoryValidationTests(unittest.TestCase):
         self.add_active_item("901")
         self.assertTrue(any("active scope conflict" in v for v in self.problems()))
 
+    # --- optional preflight rule (decision 0018) ---------------------------
+
+    def _enable_preflight(self, **cfg) -> None:
+        owners = self.root / "governance" / "owners.json"
+        self.write_json(owners, lambda d: d.__setitem__("preflight", {"enabled": True, **cfg}))
+
+    def _set_preflight_marker(self, item_id: str) -> None:
+        item = self.root / "work" / "active" / f"{item_id}-probe" / "work-item.json"
+        self.write_json(item, lambda d: d.__setitem__("preflight", {
+            "created_before_work_started": True,
+            "created_at": "2026-06-15T00:00:00Z",
+            "note": "Created before implementation work started.",
+        }))
+
+    # Thresholds are set above this repo's own work-item id/date range so the
+    # probes are isolated from RepoPact's real (marker-less) work items.
+    def test_preflight_off_by_default(self) -> None:
+        self.add_active_item("900")  # no marker, but preflight is disabled by default
+        self.assertFalse(any("preflight" in v for v in self.problems()))
+
+    def test_preflight_required_from_id(self) -> None:
+        self._enable_preflight(required_from_id=900)
+        self.add_active_item("900")  # at threshold, no marker -> error
+        self.add_active_item("899")  # below threshold -> exempt
+        self.assertEqual(1, sum("preflight marker" in v for v in self.problems()))
+
+    def test_preflight_marker_satisfies_requirement(self) -> None:
+        self._enable_preflight(required_from_id=900)
+        self.add_active_item("900")
+        self._set_preflight_marker("900")
+        self.assertFalse(any("preflight" in v for v in self.problems()))
+
+    def test_preflight_required_from_date(self) -> None:
+        self._enable_preflight(required_from_date="2099-01-01")
+        self.add_active_item("900")  # created 2026-06-15 (before) -> exempt
+        self.add_active_item("901")
+        later = self.root / "work" / "active" / "901-probe" / "work-item.json"
+        self.write_json(later, lambda d: d.__setitem__("created", "2099-06-25"))  # after -> required
+        self.assertEqual(1, sum("preflight marker" in v for v in self.problems()))
+
     # --- schema layer (decision 0003) --------------------------------------
 
     def test_schema_rejects_bad_invariant_id(self) -> None:

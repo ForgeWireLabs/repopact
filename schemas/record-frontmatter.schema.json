@@ -10,7 +10,7 @@
       "properties": {
         "id": {"type": "string", "pattern": "^[0-9]{4,}$"},
         "title": {"type": "string", "minLength": 1},
-        "status": {"enum": ["proposed", "accepted", "superseded", "deprecated"]},
+        "status": {"enum": ["proposed", "accepted", "rejected", "deferred", "superseded", "deprecated"]},
         "date": {"type": "string", "format": "date"},
         "supersedes": {"type": "array", "items": {"type": "string"}}
       }

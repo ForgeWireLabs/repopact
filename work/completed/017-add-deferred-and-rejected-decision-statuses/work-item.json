@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "017",
+  "title": "Add deferred and rejected decision statuses",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "tooling"
+  ],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The decision status vocabulary includes 'deferred' and 'rejected' in all three authoritative locations: DECISION_STATUSES in validate_repo.py and track_import.py, and the decision status enum in record-frontmatter.schema.json.",
+      "state": "satisfied",
+      "evidence": [
+        "20260623-deferred-rejected-statuses"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "A validator test asserts that 'deferred' and 'rejected' validate as decision statuses while an unknown status still fails.",
+      "state": "satisfied",
+      "evidence": [
+        "20260623-deferred-rejected-statuses"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "text": "Decision 0017 records the rationale and the operator-approved frozen-surface change (INV-6); all gates (validate_repo, unittest, generate_dashboard, generate_spec) pass.",
+      "state": "satisfied",
+      "evidence": [
+        "20260623-deferred-rejected-statuses"
+      ]
+    }
+  ],
+  "created": "2026-06-23",
+  "updated": "2026-06-23"
+}

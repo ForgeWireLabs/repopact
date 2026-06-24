@@ -24,7 +24,7 @@ from pathlib import Path
 import adopt_repo
 
 TRACKING_DIR_NAMES = ("tracking", "track")
-DECISION_STATUSES = ("proposed", "accepted", "superseded", "deprecated")
+DECISION_STATUSES = ("proposed", "accepted", "rejected", "deferred", "superseded", "deprecated")
 _SEVERITY = {"p1": "high", "p2": "medium", "p3": "low", "high": "high", "medium": "medium", "low": "low"}
 _FINDING_STATE = {"open": "open", "accepted": "accepted", "reconciled": "reconciled",
                   "closed": "reconciled", "resolved": "reconciled", "mitigated": "reconciled"}

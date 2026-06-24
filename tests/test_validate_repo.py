@@ -169,6 +169,18 @@ class RepositoryValidationTests(unittest.TestCase):
         path.write_text(text, encoding="utf-8")
         self.assertTrue(any("status 'maybe' must be one of" in v for v in self.problems()))
 
+    def test_decision_status_accepts_deferred_and_rejected(self) -> None:
+        # A deferral and a rejection are recordable decisions, distinct from
+        # proposed/accepted/superseded/deprecated (decision 0017).
+        path = next((self.root / "decisions").glob("0001-*.md"))
+        original = path.read_text(encoding="utf-8")
+        for status in ("deferred", "rejected"):
+            path.write_text(original.replace("status: accepted", f"status: {status}", 1), encoding="utf-8")
+            self.assertFalse(
+                any("must be one of" in message for message in self.problems()),
+                f"decision status '{status}' should be valid",
+            )
+
     def test_policy_requires_front_matter(self) -> None:
         path = next((self.root / "governance" / "policies").glob("001-*.md"))
         path.write_text("# no front matter\n", encoding="utf-8")

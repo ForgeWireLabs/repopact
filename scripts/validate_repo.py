@@ -19,7 +19,7 @@ REQUIRED_WORK_FIELDS = {
     "acceptance_criteria", "created", "updated",
 }
 
-DECISION_STATUSES = ("proposed", "accepted", "superseded", "deprecated")
+DECISION_STATUSES = ("proposed", "accepted", "rejected", "deferred", "superseded", "deprecated")
 POLICY_STATUSES = ("active", "retired")
 
 # A work-item README may use the "- [ ] **CRIT-1** ..." checklist convention to

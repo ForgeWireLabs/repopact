@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260623-deferred-rejected-statuses",
+  "timestamp": "2026-06-23T16:30:00-05:00",
+  "work_item": "017",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed with the extended decision status vocabulary."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Validator tests passed, including test_decision_status_accepts_deferred_and_rejected and the existing invalid-status rejection."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md from source records."
+    },
+    {
+      "command": "python scripts/generate_spec.py",
+      "exit_code": 0,
+      "summary": "Regenerated SPEC.md catalog from source records."
+    }
+  ],
+  "artifacts": ["audits/reports/dashboard.md", "SPEC.md"],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4",
+    "git": "2.53.0.windows.3"
+  }
+}

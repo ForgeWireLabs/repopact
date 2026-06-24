@@ -17,7 +17,14 @@ supersedes: []
 ---
 ```
 
-- `status`: `proposed` | `accepted` | `superseded` | `deprecated`.
+- `status`: `proposed` | `accepted` | `rejected` | `deferred` | `superseded` |
+  `deprecated`.
+  - `proposed`: awaiting a decision.
+  - `accepted`: adopted.
+  - `rejected`: decided against.
+  - `deferred`: postponed, kept for its reasoning, with reactivation criteria.
+  - `superseded`: replaced by a later decision (see `supersedes`).
+  - `deprecated`: previously accepted, now retired.
 - `supersedes`: IDs of decisions this one replaces. Never edit a superseded record;
   set its status to `superseded` and link forward.
 

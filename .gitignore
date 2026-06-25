@@ -6,3 +6,7 @@ build/
 dist/
 *.egg-info/
 
+# Private pre-launch working area (commercial playbook, social drafts, funding,
+# portfolio strategy). Not part of the public RepoPact record. See decision 0019.
+launch/
+

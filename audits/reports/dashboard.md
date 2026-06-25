@@ -13,7 +13,7 @@
 | Scope contracts | 3 |
 | Audit registry entries | 3 |
 | Audit findings | 1 |
-| Decision records | 18 |
+| Decision records | 20 |
 | Policy records | 1 |
 | Evidence runs | 22 |
 
@@ -21,7 +21,7 @@
 
 | Status | Count |
 | --- | ---: |
-| active | 0 |
+| active | 3 |
 | blocked | 0 |
 | deferred | 0 |
 | completed | 19 |
@@ -32,4 +32,6 @@ All audit scopes are within their review cadence.
 
 ## Active items
 
-No active or blocked work.
+- 019: Published conformance suite for the RepoPact standard (active)
+- 020: PactBench — guarantee-violation detection benchmark (active)
+- 021: RepoPact's slice of the ForgeWire Labs public launch (active)

@@ -48,3 +48,36 @@ trees, or unusual `_audit` layouts. **Mitigation:** the conformance fixtures
 A finding marked *holds* means a specific adversarial case was caught; it is not a
 proof that no bypass exists. **Mitigation:** treat the hypothesis list as falsifiable
 and additive, not as a closed proof.
+
+## T5 — Benchmark selection and task curation (for H8–H10)
+
+The comparative studies (`benchmark-protocol.md`) are only as honest as their task sets.
+Hand-curating PactBench (S1) toward cases RepoPact handles well, or selecting SWE-bench /
+SWE-EVO slices that favour the governed arm, would manufacture the result.
+**Mitigation:** the PactBench task set and each study's "correct outcome" are
+pre-registered and committed before runs (no post-hoc curation); task-set versions are
+recorded per run; results are reported across at least two model families so a finding is
+not a single-model artefact.
+
+## T6 — Baseline fairness / construct validity (for H8–H10)
+
+A comparative win is meaningless if the baseline is a strawman. Comparing a
+RepoPact-governed repo against an *empty* repo would measure "having any context" rather
+than "having RepoPact." **Mitigation:** the baseline arm carries a genuine, reasonable
+`AGENTS.md` and README over identical source; only the governance layer differs; the
+ceremony cost of RepoPact is counted *against* it (an efficiency gain that is cancelled
+by governance overhead is reported as such, per ¬H9).
+
+## T7 — Token-measurement fairness (for H11 / S4)
+
+The S4 token-economy comparison is sensitive to artefacts that have nothing to do with
+the delivery mechanism: tokenizer and model choice, **prompt caching**, and provider
+pricing. Stable context (convention files, repo records) is cache-friendly and cheap on a
+second request; per-request RAG injections vary and bust the cache — so raw token counts
+can mis-state real cost in either direction, and a regime can look cheap on tokens while
+being expensive in dollars (or vice versa). Comparing regimes that also carry *different
+corpus content* would measure the content, not the mechanism. **Mitigation:** fix
+tokenizer + model per run; hold corpus content constant across regimes; fix top-k for
+retrieval; and report three numbers side by side — raw tokens, cache-adjusted tokens, and
+USD at stated rates — so the comparison cannot hide behind any single one. The result is
+read off the cost-vs-success frontier (S4), never off raw tokens alone.

@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "021",
+  "title": "RepoPact's slice of the ForgeWire Labs public launch",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "docs",
+    "tooling"
+  ],
+  "depends_on": [
+    "019"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "RepoPact launch assets drafted and operator-approved: README hero (the 'agent-proof your guarantees' wedge + adopt->dashboard demo), the 'AGENTS.md is not a contract' essay, and the RepoPact portion of the Show HN / X / Reddit copy. Drafts live in the private launch/ area; framing follows decision 0020.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "The architecture paper (research/paper-outline.md expanded to a full draft) is posted to arXiv (cs.SE). [Operator-gated: arXiv account, cs.SE endorsement if required, final-text approval, submission.]",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "RepoPact published/refreshed on PyPI at the launch version with the positioning-aligned README; the conformance suite (019) is green and linked from the launch. [Operator-gated: PyPI release.]",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Show HN posted and launch-day response handled per the playbook timing/anti-abuse rules. [Operator-gated: account karma warm-up, approval, posting.]",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-06-24",
+  "updated": "2026-06-24"
+}

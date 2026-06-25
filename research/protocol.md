@@ -78,3 +78,48 @@ equal weight; the aim is calibration, not advocacy.
 - Raw transcripts in [`captures/`](captures/), one per run, referenced by ID.
 - [`findings.md`](findings.md) as the analyzed register; [`run-log.md`](run-log.md)
   as the chronological record.
+
+## Amendment 2026-06-24 — comparative value hypotheses (H8–H10)
+
+The hypotheses above ask whether the architecture *catches what it claims* on a single
+governed subject. They do not measure whether governing a repository with RepoPact
+**changes agent behaviour** relative to not governing it. That comparative question is
+added here and operationalized in [`benchmark-protocol.md`](benchmark-protocol.md). The
+independent variable is `condition ∈ {repopact, baseline}`, holding source, task, model,
+and harness constant.
+
+- **H8 — Guarantee enforcement is measurable.** On a pre-registered suite of tasks whose
+  correct outcome is to refuse/escalate weakening a binding invariant or frozen surface,
+  a RepoPact-governed agent blocks or escalates the weakening at a materially higher rate
+  than the same agent on an ungoverned repo. (Benchmark: PactBench, work item `020`.)
+- **H9 — Durable state improves recovery and efficiency.** A *fresh* session given only
+  the repository resolves long-horizon tasks (SWE-bench Verified, SWE-EVO) at a higher
+  rate, with fewer regressions and lower token cost, under RepoPact than baseline, and
+  can reconstruct goal/decisions/remaining-work from the tree alone.
+- **H10 — The repo is a coordination substrate.** Two concurrent agents on one
+  RepoPact-governed repository produce fewer conflicting/duplicated edits and higher
+  joint-task success than on a shared scratchpad.
+- **H11 — Context efficiency.** Across context-provisioning regimes (full-prompt,
+  convention-file-only, RAG, summarized/external memory, on-demand tool fetch, RepoPact,
+  hybrids), RepoPact sits on the better frontier of **per-request token cost vs. task
+  success** — approaching full-context quality at near-convention-file cost — and its
+  per-request *context* tokens grow sublinearly with accumulated project state where
+  full-prompt stuffing grows linearly. (Study: S4.)
+
+**Falsification (added 2026-06-24).** The comparative claim is **disproven, in whole or
+part**, if any of:
+
+8. The RepoPact arm shows no significant improvement (or a regression) in
+   violation-catch rate over baseline at a fair false-stop rate (¬H8).
+9. RepoPact does not improve resolution/recovery and does not reduce redo cost on the
+   long-horizon beds — or only does so by adding ceremony cost that cancels the gain
+   (¬H9).
+10. Two agents coordinate no better through the repository than through a scratchpad
+    (¬H10).
+11. RepoPact is Pareto-dominated on token cost vs. task success — some regime reaches
+    equal-or-better success at strictly lower tokens — or its per-request context tokens
+    grow as fast as full-prompt stuffing as project state accumulates (¬H11).
+
+A result that **disconfirms** RepoPact is recorded with equal weight, in `findings.md`,
+and the relevant threat (T5/T6 in [`threats-to-validity.md`](threats-to-validity.md)) is
+re-examined before the number is reported.

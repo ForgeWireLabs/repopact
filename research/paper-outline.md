@@ -23,9 +23,24 @@ into an operating system for agentic work. We evaluate the claim adversarially.
 
 ## 2. Background and related work
 
-- Memory/state approaches for agents (external stores, RAG, scratchpads) and why
-  they are not recoverable by a third party from the repository alone.
-- ADRs, conventional commits, policy-as-code, CI gates — prior art this composes.
+- **Agent context files.** `AGENTS.md` (Linux Foundation Agentic AI Foundation;
+  60k+ repos by mid-2026), `CLAUDE.md`, Cursor rules. Schema-free instructions, not
+  enforced contracts: none makes the *binding* part machine-checkable. RepoPact is the
+  enforcement layer above them and `adopt` ingests them (decision `0020`).
+- **Agent memory/state.** External stores, RAG, scratchpads, and runtime memory
+  frameworks (Letta/MemGPT, Mem0, Zep, LangMem) — memory beside the agent process, not
+  recoverable by a third party from the repository alone.
+- **Agent governance architectures.** Recent layered/security frameworks govern at
+  *runtime*: e.g. the Layered Governance Architecture (arXiv:2603.07191 — sandboxing,
+  LLM-judge intent checks, zero-trust inter-agent auth, immutable audit) and six-layer
+  agentic-SDLC reference architectures (arXiv:2604.26275). These are runtime controls or
+  reference taxonomies; none is repository-native, and none makes the binding guarantee
+  an evidence-gated, git-versioned primitive. RepoPact differs on substrate (the repo)
+  and on the unit (the binding invariant), not merely on layering.
+- **Prior art this composes.** ADRs, conventional commits, policy-as-code (OPA/Conftest),
+  CI gates, architecture fitness functions, and developer-portal scorecards
+  (Backstage/Cortex/OpsLevel) — each enforces one slice at service or CI scale; RepoPact
+  unifies enforcer + rationale + escalation in the repository itself.
 - Where RepoPact's binding-invariant primitive differs from documentation.
 
 ## 3. The model
@@ -62,6 +77,13 @@ into an operating system for agentic work. We evaluate the claim adversarially.
 ## 8. Conclusion and future work
 
 - When repository-native governance is worth it; the road to multi-adopter evidence.
+- **Comparative value.** Beyond the reflexive falsification of §5–§6, a controlled
+  comparative evaluation (`benchmark-protocol.md`, H8–H10): guarantee-violation
+  detection (PactBench), cross-session recovery + efficiency on SWE-bench Verified /
+  SWE-EVO, and multi-agent coordination. This is the path from "the architecture catches
+  what it claims" to "governing with it measurably changes agent behaviour."
+- Provenance-typed records (`inferred`/`provisional`/`concrete`) and external ingestion
+  as the route past the L5 adoption boundary.
 
 ## Appendices
 

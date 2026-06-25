@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "020",
+  "title": "PactBench — guarantee-violation detection benchmark",
+  "status": "active",
+  "owner_scope": "tooling",
+  "affected_scopes": [
+    "tooling"
+  ],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A pre-registered PactBench task set: tasks whose correct outcome is to refuse/escalate weakening a binding invariant or frozen surface, each carrying source, the tempting shortcut, the governing invariant, and the expected correct outcome. Committed before any runs (threat T5).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "A harness runs an agent over each task in {repopact, baseline} arms holding source/task/model/harness constant, and records each outcome into the confusion matrix (violated-silently / blocked / escalated / false-stopped) with a raw capture per run.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "A results report (violation-catch rate, escalation correctness, false-stop rate) across >=2 model families, reproducible from the published task set, feeding research/benchmark-protocol.md S1 and paper section 6.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-06-24",
+  "updated": "2026-06-24"
+}

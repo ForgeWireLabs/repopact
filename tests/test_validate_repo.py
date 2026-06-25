@@ -292,6 +292,32 @@ class RepositoryValidationTests(unittest.TestCase):
             d["acceptance_criteria"][0].update({"state": "satisfied", "evidence": ["20260615-inferred"]})))
         self.assertFalse(any("rests on non-concrete" in v for v in self.problems()))
 
+    def test_adopt_emits_provisional_and_inferred(self) -> None:
+        # The trilemma escape: adoption yields a Closed (valid) + Faithful (labelled) record.
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        self.assertEqual([], [p.message for p in validate(repo)])
+        wi = json.loads((repo / "work" / "active" / "000-adopt-repopact" / "work-item.json")
+                        .read_text(encoding="utf-8"))
+        self.assertEqual("provisional", wi["provenance"])
+        run = next((repo / "evidence" / "runs").glob("*-adopt.json"))
+        self.assertEqual("inferred", json.loads(run.read_text(encoding="utf-8"))["provenance"])
+
+    def test_doctor_ratchets_provisional_to_concrete(self) -> None:
+        repo = self._seed_existing_repo()
+        adopt_repo.adopt(repo)
+        # Attach real verification: upgrade the adoption evidence to concrete.
+        run = next((repo / "evidence" / "runs").glob("*-adopt.json"))
+        ev = json.loads(run.read_text(encoding="utf-8"))
+        ev["provenance"] = "concrete"
+        run.write_text(json.dumps(ev), encoding="utf-8")
+        actions = doctor.fix(repo)
+        self.assertTrue(any("ratcheted work item 000" in a for a in actions))
+        wi = json.loads((repo / "work" / "active" / "000-adopt-repopact" / "work-item.json")
+                        .read_text(encoding="utf-8"))
+        self.assertEqual("concrete", wi["provenance"])
+        self.assertEqual([], [p.message for p in validate(repo)])
+
     # --- schema layer (decision 0003) --------------------------------------
 
     def test_schema_rejects_bad_invariant_id(self) -> None:

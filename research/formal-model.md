@@ -251,13 +251,18 @@ entire output. `new`, guarded moves, and `doctor --fix` are closed because their
 trees and are bound by the trilemma. These are the actions that cross the L5 boundary, and
 they are central to real-world adoption (H7).
 
-**Provenance typing (future work, L5).** The trilemma `{total, faithful, closed}` admits
-two members only while *faithful* requires every record to be concrete — to assert a fact.
-A provenance type on records — `concrete` versus `inferred`/`provisional` — allows a
-migration to emit inferred records that declare themselves reconstructed rather than
-proven. An inferred record remains faithful, since it labels itself as not-yet-proof
-rather than fabricating proof, and lets `adopt` approach `R` more closely. §7 develops this
-for project memory held outside the repository.
+**Provenance typing (implemented in 2.0; decision 0021).** The trilemma
+`{total, faithful, closed}` admits two members only while *faithful* requires every record
+to be concrete — to assert a fact. A provenance type on records —
+`concrete` versus `inferred`/`provisional` — lets a migration emit inferred/provisional
+records that declare themselves reconstructed rather than proven. Such a record remains
+faithful (it labels itself as not-yet-proof rather than fabricating proof) *and* lies in
+`R` (it is a valid state, admitted by L2 rule P1). `adopt` now emits a **provisional** work
+item backed by **inferred** evidence, so the migration is **both Closed and Faithful** — the
+trilemma is resolved in the implementation, not merely relaxed. The L2 monitor enforces P2
+(a `completed` item must be concrete) and P3 (a `concrete` item may not rest on non-concrete
+evidence); `doctor` ratchets `provisional → concrete` (conservative, monotone) once concrete
+evidence is attached. §7 develops the still-open direction (external project memory).
 
 ---
 
@@ -391,10 +396,12 @@ directions follow, both at L5:
    transitional rather than immutable: records ratchet from `inferred` to `concrete` as
    evidence arrives.
 
-Neither is implemented in the current version; both are stated here as future work, so the
-model delimits its present scope. Hypothesis H7 is correspondingly bounded: adoption is
-non-destructive and sound at the time it is performed, not complete; completeness is
-limited by how much of the project's memory is reachable from within the repository.
+Of these, **provenance-typed records are implemented in 2.0** (decision 0021): adoption
+emits provisional/inferred records and `doctor` ratchets them, resolving the trilemma in the
+implementation. **External ingestion remains future work.** Hypothesis H7 is correspondingly
+bounded: adoption is non-destructive and sound at the time it is performed, and now
+*honestly typed* (provisional, not falsely concrete), but completeness is still limited by
+how much of the project's memory is reachable from within the repository.
 
 ---
 

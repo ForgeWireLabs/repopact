@@ -292,7 +292,7 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
     rep.json(target / "evidence" / "runs" / f"{ev_id}.json", {
         "$schema": "../../schemas/evidence-run.schema.json",
         "id": ev_id, "timestamp": ts.replace(microsecond=0).astimezone().isoformat(),
-        "work_item": "000", "result": "passed",
+        "work_item": "000", "result": "passed", "provenance": "inferred",
         "commands": [
             {"command": "git rev-list --count HEAD", "exit_code": 0, "summary": f"{stats.get('commits')} commits of history adopted."},
             {"command": "repopact adopt", "exit_code": 0, "summary": summary},
@@ -301,11 +301,16 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
         "environment": {"platform": sys.platform},
     }, target)
 
-    wi_dir = target / "work" / "completed" / "000-adopt-repopact"
+    # The adoption is a PROVISIONAL record backed by INFERRED evidence (decision 0021):
+    # reconstructed from the scan, not proven by a run. This is the trilemma escape - the
+    # result is Closed (valid) and Faithful (labelled reconstructed). `doctor` ratchets it
+    # to concrete once real verification evidence is attached, and a human completes it.
+    wi_dir = target / "work" / "active" / "000-adopt-repopact"
     rep.json(wi_dir / "work-item.json", {
         "$schema": "../../../schemas/work-item.schema.json",
         "id": "000", "title": "Adopt RepoPact into the existing repository",
-        "status": "completed", "owner_scope": "governance", "affected_scopes": ["governance"],
+        "status": "active", "owner_scope": "governance", "affected_scopes": ["governance"],
+        "provenance": "provisional",
         "depends_on": [],
         "acceptance_criteria": [
             {"id": "AC-1", "text": "Existing CODEOWNERS, CI workflows, and nested contracts are represented as RepoPact records.",
@@ -317,11 +322,13 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
     }, target)
     rep.write(wi_dir / "README.md",
               "# 000 — Adopt RepoPact into the existing repository\n\n"
-              "> **Status**: ✅ Complete\n\n## Intent\n\n"
+              "> **Status**: 🟡 Provisional (reconstructed on adoption; ratchet to concrete after verification)\n\n## Intent\n\n"
               "Bring an existing project under RepoPact governance by mapping its already-present\n"
               "ownership (CODEOWNERS), enforcement (CI workflows), and contracts (nested `AGENTS.md`)\n"
-              "into RepoPact records, then proving the result validates.\n\n## Closeout\n\n"
-              f"Satisfied by evidence run `{ev_id}`. {summary}\n", target)
+              "into RepoPact records.\n\n## Provenance\n\n"
+              f"This record is **provisional**, backed by **inferred** evidence run `{ev_id}` reconstructed\n"
+              "from the repository scan rather than proven by a run. Attach real verification evidence and\n"
+              "run `repopact doctor` to ratchet it to concrete, then complete it. " + summary + "\n", target)
 
     rep.write(target / "decisions" / "0001-adopt-repopact.md",
               "---\nid: 0001\ntitle: Adopt RepoPact\nstatus: accepted\n"

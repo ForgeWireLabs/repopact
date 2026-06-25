@@ -197,7 +197,8 @@ inventing the missing record — e.g. synthesizing an evidence run, which manufa
 proof and violates the evidence invariant — or discarding the offending signal, which
 breaks faithfulness. RepoPact relaxes *closed*: it retains total and faithful, emits the
 best sound records it can, and reports the residue as a validator-generated worklist,
-yielding a *fresh pact* rather than a false acceptance. A future **provenance type** on
+yielding a *fresh pact* rather than a false acceptance. A **provenance type** (implemented
+in 2.0; decision 0021) on
 records (`concrete` vs `inferred`/`provisional`) is the principled escape: an inferred
 record labels itself as reconstructed rather than proven, remaining faithful while letting
 adoption approach `R` more closely (§7).
@@ -347,8 +348,9 @@ bounds brownfield honesty, and evaluated the architecture reflexively and advers
 reporting both the defects that cracked it and the cases it caught. The comparative value
 claims are pre-registered and forthcoming. Future work: run the benchmark suite; mechanize
 the historical and refinement invariants (a trace semantics over git; a refinement order on
-contracts); and cross the L5 boundary with external ingestion and provenance-typed records,
-toward a repository that holds more of the working memory coordinated agents need.
+contracts); and cross the remaining L5 boundary with external ingestion (provenance-typed
+records, which resolve the adoption trilemma, landed in 2.0), toward a repository that holds
+more of the working memory coordinated agents need.
 
 ---
 

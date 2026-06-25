@@ -170,6 +170,38 @@ def diagnose(root: Path) -> list[Finding]:
     return findings
 
 
+def _ratchet_provisional(root: Path) -> list[str]:
+    """Ratchet provisional work items to concrete once every satisfied criterion rests on
+    concrete evidence (decision 0021). Conservative and monotone: only upgrades."""
+    actions: list[str] = []
+    ev_prov: dict[str, str] = {}
+    runs = root / "evidence" / "runs"
+    if runs.is_dir():
+        for p in runs.glob("*.json"):
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if isinstance(d.get("id"), str):
+                ev_prov[d["id"]] = d.get("provenance", "concrete")
+    for manifest in root.glob("work/*/*/work-item.json"):
+        try:
+            d = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if d.get("provenance") != "provisional":
+            continue
+        satisfied = [c for c in d.get("acceptance_criteria", []) if c.get("state") == "satisfied"]
+        if not satisfied:
+            continue
+        if all(ev_prov.get(e, "concrete") == "concrete"
+               for c in satisfied for e in c.get("evidence", [])):
+            d["provenance"] = "concrete"
+            manifest.write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8")
+            actions.append(f"ratcheted work item {d.get('id')} provisional->concrete")
+    return actions
+
+
 def fix(root: Path, today: date | None = None) -> list[str]:
     """Apply safe repairs. Returns a list of actions taken."""
     today = today or date.today()
@@ -241,6 +273,9 @@ def fix(root: Path, today: date | None = None) -> list[str]:
             lines += [f"!{d}", f"!{d}*"]
         gi.write_text(existing + "\n".join(lines) + "\n", encoding="utf-8")
         actions.append(f"added .gitignore negations for {len(dirs)} path(s)")
+
+    # 6. ratchet provisional records whose evidence is now concrete (decision 0021)
+    actions.extend(_ratchet_provisional(root))
 
     return actions
 

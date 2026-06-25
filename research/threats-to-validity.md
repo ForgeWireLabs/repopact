@@ -68,6 +68,27 @@ than "having RepoPact." **Mitigation:** the baseline arm carries a genuine, reas
 ceremony cost of RepoPact is counted *against* it (an efficiency gain that is cancelled
 by governance overhead is reported as such, per ¬H9).
 
+## T7 — Token-measurement fairness (for S4 / H11)
+
+Token economics depend on the tokenizer, the model, prompt **caching**, and provider
+pricing. Stable context (convention files, repo records) is cache-friendly; per-request
+RAG injections vary and bust the cache, changing real cost. Measuring raw tokens without
+accounting for caching/pricing misstates the comparison in either direction.
+**Mitigation:** fix tokenizer + model per run; hold *corpus content* constant across
+regimes so we compare the delivery mechanism, not the content; report raw tokens,
+cache-adjusted tokens, and USD at stated rates; measure per-request *and* per-task
+(amortized) so on-demand-fetch regimes are not flattered by a cheap first request.
+
+## T8 — Drift / security task realism and responsible scoping (for S5–S6 / H12–H13)
+
+Induced drift and security temptations must be realistic, not toy, or the results are
+theatre. Security work must also stay defensive. **Mitigation:** drift mutations and
+security tasks are pre-registered and reviewed for realism; security tasks are
+**defensive, sandboxed, and benign-by-construction** (no real exploit development, no live
+targets); RepoPact's own records and evidence are evaluated *as an attack surface* (no
+immunity assumption); injection corpora are synthetic and contained. RepoPact is framed as
+**composing with** runtime guards (e.g. LGA, arXiv:2603.07191), not replacing them.
+
 ## T7 — Token-measurement fairness (for H11 / S4)
 
 The S4 token-economy comparison is sensitive to artefacts that have nothing to do with

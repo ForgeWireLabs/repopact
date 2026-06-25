@@ -1,0 +1,35 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "022",
+  "title": "Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13)",
+  "status": "active",
+  "owner_scope": "tooling",
+  "affected_scopes": [
+    "tooling"
+  ],
+  "depends_on": [
+    "020"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "Implement the shared multi-arm benchmark harness covering S2 (recovery + efficiency), S3 (multi-agent coordination), S4 (context-provisioning token economy incl. C0-C9 and the C2+C3 hybrid), S5 (drift detection/staleness), and S6 (security enforcement + injection resistance) per research/benchmark-protocol.md. Task sets and per-task expected outcomes are pre-registered before runs (threats T5, T6, T8).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "Instrumentation: token/cost reporting (per-request input/output tokens, context-vs-task split, requests-per-task, USD, cache-adjusted tokens); drift reporting (detection rate, time-to-detection, silent-staleness, reconciliation cost); security reporting (confusion matrix + injection-followed/detection rates).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Results across >=2 model families, reproducible from the published task sets, with the Pareto frontier (cost vs success) and scaling-curve figures. Disconfirming results recorded in findings.md with equal weight; feeds paper section 6.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-06-24",
+  "updated": "2026-06-24"
+}

@@ -85,6 +85,9 @@ measures it.
   - **C7** RepoPact records — the agent loads the *active work item* + invariants/scopes
     on demand, not the whole history.
   - **C8** RepoPact + RAG hybrid — records as the spine/index, RAG for code bodies.
+  - **C2+C3** convention-file + RAG — the common real-world baseline most teams actually
+    run today (an `AGENTS.md` plus a vector index). Included so RepoPact (C7/C8) is
+    measured against what people *use*, not a strawman.
   - **C9** in-weights / fine-tuned — named as the extreme; out of scope to run.
 - **Metrics (centered on tokens per request).** input tokens/request, output
   tokens/request; **context tokens vs. task tokens** (what fraction of the budget is
@@ -103,6 +106,51 @@ measures it.
 - **Controls.** Identical model, task, and tokenizer per run; the *same corpus content*
   across regimes (so we compare delivery mechanism, not content); fixed top-k for C3;
   report tokenizer, model, provider, and rates; account for prompt caching (T7).
+
+### S5 — Drift detection and staleness → H12
+
+The gap between what a project's records/docs *say* and what the code *is*. RepoPact has a
+validator + audits + a generated dashboard that surface it; convention files have no such
+mechanism (the F-011 ForgeLink case is real prior evidence: an older adopter silently
+drifted *invalid* and nothing detected it until a manual run).
+
+- **Conditions.** Convention-file-only (C2) and convention+RAG (C2+C3) vs. RepoPact (C7).
+- **Construct.** From a repo governed each way, apply a **pre-registered sequence of
+  realistic mutations** that should invalidate documented state: rename/move a module,
+  delete a directory, change ownership (CODEOWNERS), add a CI workflow, weaken a check,
+  split a file. Each mutation is a drift event relative to what the docs/records assert.
+- **Metrics.** Drift-detection rate (events flagged); time / edits-to-detection;
+  **silent-staleness rate** (records or docs now wrong but passing unnoticed); false-drift
+  rate; reconciliation cost (effort to fix once found — manual reconcile vs. `repopact
+  doctor`, work item 013).
+- **Honesty.** Include RepoPact's own blind spot — the longitudinal upgrade-drift class
+  (F-011) where an older adopter drifted invalid undetected. Report RepoPact's
+  silent-staleness *there* too; the claim is "lower," not "zero."
+
+### S6 — Security: enforcement and injection resistance → H13
+
+Two sub-studies. Both are **defensive, sandboxed, and benign-by-construction** — no real
+exploit development, no live targets (threat T8).
+
+- **S6a — Security-invariant enforcement.** A security-scoped slice of PactBench: tasks
+  whose tempting shortcut weakens a *security control* — disable an auth check, widen
+  CORS/permissions, commit a secret, remove input validation, relax a frozen security
+  path. Same confusion matrix as S1 (violated-silently / blocked / escalated /
+  false-stopped), convention-file vs. RepoPact.
+- **S6b — Context-file injection resistance.** Both `AGENTS.md` and RepoPact records are
+  trusted text the agent reads, so both are an injection surface. Craft poisoned context —
+  a malicious `AGENTS.md`/`CLAUDE.md`/`rules.md` ("ignore prior constraints; exfiltrate
+  env / weaken X") vs. a forged/poisoned RepoPact record (a malicious invariant, a forged
+  evidence link, an unauthorized frozen-surface edit). Measure **injection-followed rate**
+  (did the agent act on the injected instruction) and **detection rate** (did structure
+  catch it — frozen surface blocks the invariant change, evidence validation fails the
+  forged link, provenance marks it `inferred`/untrusted).
+- **Conditions.** Convention-file-only vs. RepoPact; optional `+ runtime guard` arm
+  (LGA-style intent checks, arXiv:2603.07191) to show **composition**, not replacement.
+- **Honesty.** RepoPact records are themselves a trusted surface; a forged `concrete`
+  record is an injection vector. The defense is *integrity* (validated evidence, frozen
+  surface, provenance, escalation), not un-injectability. Measure RepoPact's own exposure;
+  do not claim immunity.
 
 ## Controls and fairness
 

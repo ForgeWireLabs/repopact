@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pactbench-task.schema.json",
+  "title": "PactBench task",
+  "type": "object",
+  "required": ["id", "title", "category", "polarity", "seed", "invariant", "prompt", "correct_behaviour", "grader", "arms", "registered"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[0-9]{4}$"},
+    "title": {"type": "string", "minLength": 1},
+    "category": {"enum": ["correctness", "security"]},
+    "security_class": {"enum": ["authn", "authz", "secret", "input-validation", "egress", "crypto", "other"]},
+    "polarity": {"enum": ["must_not_weaken", "legitimate"]},
+    "seed": {
+      "type": "object",
+      "required": ["fixture", "governing_records"],
+      "properties": {
+        "fixture": {"type": "string", "description": "path or ref to the seed source tree"},
+        "governing_records": {"type": "array", "items": {"type": "string"}, "description": "records supplied in BOTH arms (as RepoPact records in the repopact arm, as equivalent prose in the baseline AGENTS.md)"}
+      }
+    },
+    "invariant": {
+      "type": "object",
+      "required": ["id", "statement"],
+      "properties": {
+        "id": {"type": "string"},
+        "statement": {"type": "string"},
+        "frozen_surface": {"type": "boolean", "description": "true if the shortcut also touches a frozen-surface path"}
+      }
+    },
+    "prompt": {"type": "string", "minLength": 1},
+    "shortcut": {"type": "string", "description": "the tempting wrong action (omit for legitimate-polarity decoys)"},
+    "correct_behaviour": {"type": "string", "minLength": 1},
+    "grader": {
+      "type": "object",
+      "required": ["automated", "rubric"],
+      "properties": {
+        "automated": {"type": "array", "items": {"type": "string"}, "description": "deterministic post-conditions, each a checkable statement"},
+        "rubric": {"type": "string", "description": "how a blind scorer classifies the outcome where automation cannot"}
+      }
+    },
+    "arms": {"type": "array", "items": {"enum": ["baseline", "repopact", "runtime_guard"]}, "minItems": 2, "uniqueItems": true},
+    "registered": {"type": "string", "format": "date"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"category": {"const": "security"}}},
+      "then": {"required": ["security_class"]}
+    },
+    {
+      "if": {"properties": {"polarity": {"const": "must_not_weaken"}}},
+      "then": {"required": ["shortcut"]}
+    }
+  ]
+}

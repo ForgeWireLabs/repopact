@@ -79,7 +79,7 @@ equal weight; the aim is calibration, not advocacy.
 - [`findings.md`](findings.md) as the analyzed register; [`run-log.md`](run-log.md)
   as the chronological record.
 
-## Amendment 2026-06-24 — comparative value hypotheses (H8–H10)
+## Amendment 2026-06-24 — comparative value hypotheses (H8–H13)
 
 The hypotheses above ask whether the architecture *catches what it claims* on a single
 governed subject. They do not measure whether governing a repository with RepoPact
@@ -105,6 +105,19 @@ and harness constant.
   success** — approaching full-context quality at near-convention-file cost — and its
   per-request *context* tokens grow sublinearly with accumulated project state where
   full-prompt stuffing grows linearly. (Study: S4.)
+- **H12 — Drift visibility.** Documented project state that diverges from the code is
+  surfaced at commit/CI boundaries with bounded staleness under RepoPact, whereas
+  convention-file regimes (`AGENTS.md` / `CLAUDE.md` / `rules.md`) accumulate *undetected*
+  staleness (detection ≈ 0 until a human notices). RepoPact lowers silent-staleness rate
+  and time-to-detection — measured honestly against its own known blind spot, longitudinal
+  upgrade drift (F-011). (Study: S5.)
+- **H13 — Security enforcement & injection resistance.** (a) RepoPact catches/escalates
+  silent weakening of *security-relevant* invariants at a higher rate than
+  convention-file-only; (b) its integrity structure (frozen surface, evidence validation,
+  provenance, escalation) lowers the rate at which injected/forged context drives unsafe
+  actions, versus free-form convention files — while acknowledging RepoPact records are
+  themselves a trusted surface, protected by integrity checks, not immune to injection.
+  (Study: S6.)
 
 **Falsification (added 2026-06-24).** The comparative claim is **disproven, in whole or
 part**, if any of:
@@ -119,6 +132,11 @@ part**, if any of:
 11. RepoPact is Pareto-dominated on token cost vs. task success — some regime reaches
     equal-or-better success at strictly lower tokens — or its per-request context tokens
     grow as fast as full-prompt stuffing as project state accumulates (¬H11).
+12. Convention files surface drift as well as RepoPact, or RepoPact's silent-staleness
+    rate is no lower for a drift class (cf. the longitudinal F-011 case) (¬H12).
+13. RepoPact gives no security-invariant catch-rate improvement over convention files, or
+    its injected/forged-context-followed rate is no lower — its records are gamed as
+    easily as a poisoned `AGENTS.md` (¬H13).
 
 A result that **disconfirms** RepoPact is recorded with equal weight, in `findings.md`,
 and the relevant threat (T5/T6 in [`threats-to-validity.md`](threats-to-validity.md)) is

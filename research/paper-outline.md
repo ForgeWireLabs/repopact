@@ -1,6 +1,6 @@
 # Working outline — "The Repository as the Operating System for Agentic Work"
 
-A paper draft assembled from this proving ground. The outline is a scaffold; the
+This draft is assembled from the repopact proving ground. The outline is a scaffold; the
 evidence that fills it comes from [`findings.md`](findings.md) and the
 proving-ground evidence runs, not from assertion.
 
@@ -26,7 +26,7 @@ into an operating system for agentic work. We evaluate the claim adversarially.
 - **Agent context files.** `AGENTS.md` (Linux Foundation Agentic AI Foundation;
   60k+ repos by mid-2026), `CLAUDE.md`, Cursor rules. Schema-free instructions, not
   enforced contracts: none makes the *binding* part machine-checkable. RepoPact is the
-  enforcement layer above them and `adopt` ingests them (decision `0020`).
+  enforcement layer above them and `adopt` ingests them.
 - **Agent memory/state.** External stores, RAG, scratchpads, and runtime memory
   frameworks (Letta/MemGPT, Mem0, Zep, LangMem) — memory beside the agent process, not
   recoverable by a third party from the repository alone.
@@ -41,7 +41,7 @@ into an operating system for agentic work. We evaluate the claim adversarially.
   CI gates, architecture fitness functions, and developer-portal scorecards
   (Backstage/Cortex/OpsLevel) — each enforces one slice at service or CI scale; RepoPact
   unifies enforcer + rationale + escalation in the repository itself.
-- Where RepoPact's binding-invariant primitive differs from documentation.
+
 
 ## 3. The model
 

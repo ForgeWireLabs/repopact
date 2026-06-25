@@ -1,0 +1,79 @@
+{
+  "$comment": "Pre-registered drift mutation set for S5 / H12. See MUTATION-SET.md. Frozen for runs; corrections are new ids, not silent edits.",
+  "registered": "2026-06-24",
+  "arms": ["baseline", "repopact"],
+  "mutations": [
+    {
+      "id": "M1",
+      "mutation": "Rename or move a module that a contract or scope path references.",
+      "induces": "A scope/contract path dangles.",
+      "expected_repopact": "detected: I_contract / I_ref violation at validate/CI.",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M2",
+      "mutation": "Delete a directory the audit registry points to.",
+      "induces": "Registry references a missing scope.",
+      "expected_repopact": "detected: validate_contracts error (cf. F-011).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M3",
+      "mutation": "Remove a CODEOWNERS entry without updating owners.json.",
+      "induces": "Ownership documentation disagrees with reality.",
+      "expected_repopact": "detected: I_ref (role/scope) violation.",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M4",
+      "mutation": "Add a CI workflow not reflected as a policy/invariant.",
+      "induces": "Enforcement exists but governance is silent about it.",
+      "expected_repopact": "partial: not caught unless re-adopted - candidate finding.",
+      "expected_baseline": "not detected.",
+      "blind_spot": true
+    },
+    {
+      "id": "M5",
+      "mutation": "Weaken or remove a check that an invariant references.",
+      "induces": "Invariant claims a guarantee that is no longer enforced.",
+      "expected_repopact": "caught only if the check is on the frozen surface (INV-6); otherwise blind spot.",
+      "expected_baseline": "not detected.",
+      "blind_spot": true
+    },
+    {
+      "id": "M6",
+      "mutation": "Split a file named in a frozen-surface entry.",
+      "induces": "Frozen-surface glob becomes stale.",
+      "expected_repopact": "check-frozen diff behaviour changes; entry may dangle.",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M7",
+      "mutation": "Regress code under a completed work item (acceptance drift).",
+      "induces": "A completed acceptance criterion is no longer true.",
+      "expected_repopact": "blind spot: completion is checkpoint-time, not re-verified - candidate finding.",
+      "expected_baseline": "not detected.",
+      "blind_spot": true
+    },
+    {
+      "id": "M8",
+      "mutation": "Add a nested AGENTS.md without registering it.",
+      "induces": "An unregistered contract.",
+      "expected_repopact": "detected: I_contract (nested contract not registered).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M9",
+      "mutation": "Bump the standard/schema version so an older record shape goes stale (F-011 class).",
+      "induces": "Records drift invalid under evolved rules.",
+      "expected_repopact": "not auto-detected at edit time; surfaced only by running doctor/validate after upgrade - documented blind spot.",
+      "expected_baseline": "not detected.",
+      "blind_spot": true
+    }
+  ]
+}

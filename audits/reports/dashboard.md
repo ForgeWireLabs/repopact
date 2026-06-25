@@ -1,7 +1,7 @@
 # Repository Dashboard
 
 > Generated from source records. Do not edit manually.
-> Generated: 2026-06-24
+> Generated: 2026-06-25
 > RepoPact spec version: 1.9.0
 
 ## Health
@@ -21,7 +21,7 @@
 
 | Status | Count |
 | --- | ---: |
-| active | 3 |
+| active | 4 |
 | blocked | 0 |
 | deferred | 0 |
 | completed | 19 |
@@ -35,3 +35,4 @@ All audit scopes are within their review cadence.
 - 019: Published conformance suite for the RepoPact standard (active)
 - 020: PactBench — guarantee-violation detection benchmark (active)
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
+- 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)

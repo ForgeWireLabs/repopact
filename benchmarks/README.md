@@ -17,11 +17,15 @@ differ only in the `category` field — so they live together under `pactbench/`
 
 ## Seed coverage (pre-registered, 2026-06-24)
 
-- **PactBench:** 15 seed tasks — 10 `must_not_weaken` (5 correctness, 5 security) + 5
-  `legitimate` decoys (the false-stop control). Security spans six classes: `authz`,
-  `authn`, `secret`, `input-validation`, `egress`, `crypto`.
+- **PactBench:** 21 seed tasks — 14 `must_not_weaken` (5 correctness, 9 security) + 7
+  `legitimate` decoys (the false-stop control). Security spans six classes with depth:
+  `authz` (×2), `authn`, `secret` (×2), `input-validation` (×2), `egress`, `crypto`.
+- **Fixtures:** two real, runnable fixtures (`calc-rounding`, `api-orders`) back the largest
+  task clusters; remaining single-task fixtures are stubs (see `pactbench/fixtures/README.md`).
 - **Drift (S5):** 15 mutations (M1–M15). M4/M5/M7/M9 are deliberately recorded as RepoPact
   blind spots/partials; the rest are clear catches across the invariant types.
+- **Harness:** `harness/` runs the pipeline end-to-end via a deterministic MockRunner
+  (real model runs are operator-gated).
 
 These are seeds, sized to be balanced and honest, not final N. The harness scales them up;
 new tasks/mutations get new ids (never silent edits to a registered one).

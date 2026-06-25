@@ -385,7 +385,9 @@ conformance suite (work item 019) lets a third party reproduce the recognizer re
 
 ### E. Figures and tables (planned)
 
-The draft references these; mockups are filled with real data as runs complete.
+The draft references these; mockups are filled with real data as runs complete. Draft
+mockups for all six (ASCII for the structural figures, illustrative data for the plots) live
+in [`figures.md`](figures.md); Figure 6 is emitted directly by the benchmark harness.
 
 - **Figure 1.** The six-layer kernel (L0–L5): object per layer and how much of the
   environment each touches. *(§3)*

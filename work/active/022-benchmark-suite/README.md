@@ -50,4 +50,21 @@ governed by threats T5, T6, T7, T8.
 - **AC-3** — reproducible results across ≥2 model families with frontier + scaling-curve
   figures; disconfirming results recorded with equal weight.
 
+## Progress (2026-06-24)
+
+Foundation landed; criteria stay `pending` because the live-model runs they ultimately
+require are operator-gated. Evidence:
+[`20260624-pactbench-harness-selftest`](../../../evidence/runs/20260624-pactbench-harness-selftest.json)
+(`partial`).
+
+- **Harness** (`benchmarks/harness/`) runs end-to-end via a deterministic `MockRunner`:
+  loader → arms → grader → confusion matrix + token/cost instrumentation; `--selftest`
+  green over the task set. The `RealRunner` is the documented, operator-gated integration
+  point (toward AC-1 plumbing + AC-2 instrumentation).
+- **PactBench** scaled to **21 tasks** (14 `must_not_weaken` across six security classes +
+  7 decoys) with two **real, runnable fixtures** (`calc-rounding`, `api-orders`; 3 + 5
+  fixture tests pass).
+- **Still gated:** S2/S3/S4 drivers and real-model runs across ≥2 model families
+  (AC-2 full instrumentation, AC-3 results). No row in any harness report is a finding yet.
+
 (State tracked in [`work-item.json`](work-item.json); `pending` until evidence-backed.)

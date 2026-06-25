@@ -48,21 +48,29 @@ class RepositoryValidationTests(unittest.TestCase):
         mutate(data)
         path.write_text(json.dumps(data), encoding="utf-8")
 
-    def add_active_item(self, item_id: str, owner_scope: str = "work") -> None:
+    def add_active_item(self, item_id: str, owner_scope: str = "work", preflight: bool = True) -> None:
         directory = self.root / "work" / "active" / f"{item_id}-probe"
         directory.mkdir(parents=True)
         (directory / "README.md").write_text("# probe\n", encoding="utf-8")
-        (directory / "work-item.json").write_text(json.dumps({
+        data = {
             "id": item_id,
             "title": "probe",
             "status": "active",
             "owner_scope": owner_scope,
             "affected_scopes": [],
             "depends_on": [],
+            "provenance": "concrete",
             "acceptance_criteria": [{"id": "AC-1", "text": "x", "state": "pending", "evidence": []}],
             "created": "2026-06-15",
             "updated": "2026-06-15",
-        }), encoding="utf-8")
+        }
+        if preflight:
+            data["preflight"] = {
+                "created_before_work_started": True,
+                "created_at": "2026-06-15T00:00:00Z",
+                "note": "probe",
+            }
+        (directory / "work-item.json").write_text(json.dumps(data), encoding="utf-8")
 
     # --- baseline -----------------------------------------------------------
 
@@ -216,29 +224,73 @@ class RepositoryValidationTests(unittest.TestCase):
 
     # Thresholds are set above this repo's own work-item id/date range so the
     # probes are isolated from RepoPact's real (marker-less) work items.
-    def test_preflight_off_by_default(self) -> None:
-        self.add_active_item("900")  # no marker, but preflight is disabled by default
-        self.assertFalse(any("preflight" in v for v in self.problems()))
+    def test_preflight_on_by_default(self) -> None:
+        # 2.0: mandatory by default (decision 0021). A marker-less item at/above the
+        # repo's threshold (owners.json required_from_id) is flagged - no opt-in needed.
+        self.add_active_item("900", preflight=False)
+        self.assertTrue(any("preflight marker" in v for v in self.problems()))
 
     def test_preflight_required_from_id(self) -> None:
         self._enable_preflight(required_from_id=900)
-        self.add_active_item("900")  # at threshold, no marker -> error
-        self.add_active_item("899")  # below threshold -> exempt
+        self.add_active_item("900", preflight=False)  # at threshold, no marker -> error
+        self.add_active_item("899", preflight=False)  # below threshold -> exempt
         self.assertEqual(1, sum("preflight marker" in v for v in self.problems()))
 
     def test_preflight_marker_satisfies_requirement(self) -> None:
         self._enable_preflight(required_from_id=900)
-        self.add_active_item("900")
+        self.add_active_item("900", preflight=False)
         self._set_preflight_marker("900")
         self.assertFalse(any("preflight" in v for v in self.problems()))
 
     def test_preflight_required_from_date(self) -> None:
         self._enable_preflight(required_from_date="2099-01-01")
-        self.add_active_item("900")  # created 2026-06-15 (before) -> exempt
-        self.add_active_item("901")
+        self.add_active_item("900", preflight=False)  # created 2026-06-15 (before) -> exempt
+        self.add_active_item("901", preflight=False)
         later = self.root / "work" / "active" / "901-probe" / "work-item.json"
         self.write_json(later, lambda d: d.__setitem__("created", "2099-06-25"))  # after -> required
         self.assertEqual(1, sum("preflight marker" in v for v in self.problems()))
+
+    # --- provenance (decision 0021) ----------------------------------------
+
+    def _add_evidence(self, run_id: str, provenance: str, work_item: str = "900") -> None:
+        path = self.root / "evidence" / "runs" / f"{run_id}.json"
+        path.write_text(json.dumps({
+            "id": run_id, "timestamp": "2026-06-15T00:00:00Z", "work_item": work_item,
+            "result": "passed", "provenance": provenance,
+            "commands": [{"command": "x", "exit_code": 0}], "artifacts": [], "environment": {},
+        }), encoding="utf-8")
+
+    def test_provisional_active_item_is_admitted(self) -> None:
+        # P1: a provisional/inferred item is a valid state (the trilemma escape).
+        self.add_active_item("900")
+        item = self.root / "work" / "active" / "900-probe" / "work-item.json"
+        self.write_json(item, lambda d: d.__setitem__("provenance", "provisional"))
+        self.assertFalse(any("provenance" in v or "non-concrete" in v for v in self.problems()))
+
+    def test_completed_item_must_be_concrete(self) -> None:
+        # P2: a completed item cannot be provisional.
+        path = self.manifest()  # item 000 is completed
+        self.write_json(path, lambda d: d.__setitem__("provenance", "provisional"))
+        self.assertTrue(any("cannot be completed" in v for v in self.problems()))
+
+    def test_concrete_item_cannot_rest_on_inferred_evidence(self) -> None:
+        # P3: a concrete item resting on non-concrete evidence is rejected.
+        self.add_active_item("900")
+        self._add_evidence("20260615-inferred", "inferred")
+        item = self.root / "work" / "active" / "900-probe" / "work-item.json"
+        self.write_json(item, lambda d: d["acceptance_criteria"][0].update(
+            {"state": "satisfied", "evidence": ["20260615-inferred"]}))
+        self.assertTrue(any("rests on non-concrete" in v for v in self.problems()))
+
+    def test_provisional_item_may_rest_on_inferred_evidence(self) -> None:
+        # Pre-ratchet state: a provisional item on inferred evidence is admitted.
+        self.add_active_item("900")
+        self._add_evidence("20260615-inferred", "inferred")
+        item = self.root / "work" / "active" / "900-probe" / "work-item.json"
+        self.write_json(item, lambda d: (
+            d.__setitem__("provenance", "provisional"),
+            d["acceptance_criteria"][0].update({"state": "satisfied", "evidence": ["20260615-inferred"]})))
+        self.assertFalse(any("rests on non-concrete" in v for v in self.problems()))
 
     # --- schema layer (decision 0003) --------------------------------------
 

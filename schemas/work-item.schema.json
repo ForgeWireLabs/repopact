@@ -10,6 +10,7 @@
     "owner_scope": {"type": "string", "minLength": 1},
     "affected_scopes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "depends_on": {"type": "array", "items": {"type": "string", "pattern": "^[0-9]{3,}$"}, "uniqueItems": true},
+    "provenance": {"enum": ["concrete", "provisional", "inferred"], "description": "Record provenance (decision 0021). Absent = concrete. provisional/inferred records are reconstructed (e.g. by adopt) and not yet proven; they may not be 'completed' until ratcheted to concrete."},
     "preflight": {
       "type": "object",
       "required": ["created_before_work_started", "created_at", "note"],
@@ -29,7 +30,8 @@
           "id": {"type": "string"},
           "text": {"type": "string"},
           "state": {"enum": ["pending", "satisfied", "waived"]},
-          "evidence": {"type": "array", "items": {"type": "string"}}
+          "evidence": {"type": "array", "items": {"type": "string"}},
+          "provenance": {"enum": ["concrete", "provisional", "inferred"]}
         }
       }
     },

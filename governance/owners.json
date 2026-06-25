@@ -37,5 +37,10 @@
   "concurrency": {
     "enforce_disjoint_active_scopes": false,
     "note": "When true, no two non-terminal (active/blocked) work items may share an owner or affected scope. Adopters with multiple concurrent agents should enable this."
+  },
+  "preflight": {
+    "enabled": true,
+    "required_from_id": 23,
+    "note": "Mandatory preflight (decision 0021): work items 023+ must record a preflight marker (the item was created before implementation began). Items 000-022 predate the 2.0 mandate and are grandfathered."
   }
 }

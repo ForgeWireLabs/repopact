@@ -2,7 +2,7 @@
 
 > Generated from source records. Do not edit manually.
 > Generated: 2026-06-25
-> RepoPact spec version: 1.9.0
+> RepoPact spec version: 2.0.0
 
 ## Health
 
@@ -13,7 +13,7 @@
 | Scope contracts | 3 |
 | Audit registry entries | 3 |
 | Audit findings | 1 |
-| Decision records | 20 |
+| Decision records | 21 |
 | Policy records | 1 |
 | Evidence runs | 23 |
 
@@ -21,7 +21,7 @@
 
 | Status | Count |
 | --- | ---: |
-| active | 4 |
+| active | 6 |
 | blocked | 0 |
 | deferred | 0 |
 | completed | 19 |
@@ -36,3 +36,5 @@ All audit scopes are within their review cadence.
 - 020: PactBench — guarantee-violation detection benchmark (active)
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
+- 023: Make preflight mandatory by default (2.0) (active)
+- 024: Provenance-typed records (concrete / provisional / inferred) (active)

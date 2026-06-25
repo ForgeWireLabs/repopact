@@ -226,7 +226,10 @@ def _preflight_config(root: Path) -> dict:
 
 
 def _preflight_required(item, cfg: dict) -> bool:
-    if not cfg.get("enabled"):
+    # Mandatory by default (decision 0021): absent/empty config means enabled. A repo
+    # grandfathers its pre-2.0 items with required_from_id / required_from_date; adopt and
+    # doctor set required_from_date to the adoption/upgrade date automatically.
+    if not cfg.get("enabled", True):
         return False
     from_id = cfg.get("required_from_id")
     from_date = cfg.get("required_from_date")
@@ -239,10 +242,67 @@ def _preflight_required(item, cfg: dict) -> bool:
         except (TypeError, ValueError):
             pass
     if from_date is not None:
+        # Strict '>' so items created on/before the adoption/upgrade date are grandfathered;
+        # only work created AFTER the epoch must carry a marker.
         created = str(item.data.get("created", ""))
-        if created and created >= str(from_date):
+        if created and created > str(from_date):
             return True
     return False
+
+
+_PROV_LEVEL = {"inferred": 0, "provisional": 1, "concrete": 2}
+
+
+def _evidence_provenance(root: Path) -> dict:
+    """Map evidence-run id -> provenance ('concrete' default). Decision 0021."""
+    out: dict[str, str] = {}
+    runs = root / "evidence" / "runs"
+    if not runs.is_dir():
+        return out
+    for path in runs.glob("*.json"):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError):
+            continue
+        rid = data.get("id")
+        if isinstance(rid, str):
+            out[rid] = data.get("provenance", "concrete")
+    return out
+
+
+def validate_provenance(item, ev_prov: dict, manifest: Path, problems: list[Problem]) -> None:
+    """Provenance rules (decision 0021), with the order inferred < provisional < concrete.
+
+    P1 (admission): provisional/inferred work items are *valid* states - this is the
+        trilemma escape that lets adopt be Closed and Faithful at once.
+    P2 (completion requires concrete): a `completed` item must be concrete and every
+        satisfied criterion must be backed only by concrete evidence (keeps INV-3 honest).
+    P3 (consistency): a `concrete` item may not rest on non-concrete evidence - it must
+        declare itself provisional/inferred until its evidence is ratcheted to concrete.
+    """
+    item_prov = item.data.get("provenance", "concrete")
+    completed = item.status == "completed"
+    rests_on_nonconcrete = False
+    for criterion in item.data.get("acceptance_criteria", []):
+        if criterion.get("state") != "satisfied":
+            continue
+        crit_prov = criterion.get("provenance", "concrete")
+        ev_levels = [ev_prov.get(e, "concrete") for e in criterion.get("evidence", [])]
+        nonconcrete = crit_prov != "concrete" or any(p != "concrete" for p in ev_levels)
+        if nonconcrete:
+            rests_on_nonconcrete = True
+            if completed:
+                problems.append(Problem(
+                    manifest,
+                    f"completed item criterion {criterion.get('id')} rests on non-concrete "
+                    "evidence; ratchet it to concrete before completing (P2)"))
+    if completed and item_prov != "concrete":
+        problems.append(Problem(
+            manifest, f"item provenance '{item_prov}' cannot be completed; ratchet to concrete first (P2)"))
+    if item_prov == "concrete" and rests_on_nonconcrete and not completed:
+        problems.append(Problem(
+            manifest, "concrete item rests on non-concrete evidence; mark it provisional/inferred "
+            "or ratchet the evidence (P3)"))
 
 
 def validate_work_preflight(item, manifest: Path, cfg: dict, problems: list[Problem]) -> None:
@@ -269,6 +329,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
 
     schema = load_schema(root, "work-item.schema.json")
     preflight_cfg = _preflight_config(root)
+    ev_prov = _evidence_provenance(root)
     seen: dict[str, Path] = {}
     for item in items:
         manifest = item.directory / "work-item.json"
@@ -318,6 +379,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
 
         validate_readme_checkbox_parity(item, problems)
         validate_work_preflight(item, manifest, preflight_cfg, problems)
+        validate_provenance(item, ev_prov, manifest, problems)
 
     all_ids = set(seen)
     for item in items:

@@ -209,7 +209,8 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
         roles.append({"id": scope_id, "description": f"Owns paths assigned to {handle} in CODEOWNERS.", "scopes": [scope_id]})
     rep.json(target / "governance" / "owners.json",
              {"version": 2, "scopes": scopes, "roles": roles,
-              "concurrency": {"enforce_disjoint_active_scopes": False}}, target)
+              "concurrency": {"enforce_disjoint_active_scopes": False},
+              "preflight": {"enabled": True, "required_from_date": today.isoformat()}}, target)
 
     rep.write(target / "governance" / "charter.md",
               "# Charter\n\n## Principles (human judgment)\n\n1. Systems before sessions.\n"

@@ -10,3 +10,10 @@ dist/
 # portfolio strategy). Not part of the public RepoPact record. See decision 0019.
 launch/
 
+# Large media (audio/video) does not belong in git — host as a GitHub Release asset
+# or external link. (RepoPact_cures_AI_session_amnesia.m4a is 99MB.)
+*.m4a
+*.mp4
+*.mov
+*.wav
+

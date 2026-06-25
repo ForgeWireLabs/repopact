@@ -1,7 +1,7 @@
 ---
 id: 0018
 title: Generalized opt-in preflight marker
-status: accepted
+status: superseded
 date: 2026-06-24
 supersedes: []
 ---

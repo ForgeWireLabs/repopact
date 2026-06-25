@@ -1,0 +1,40 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "024",
+  "title": "Provenance-typed records (concrete / provisional / inferred)",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "tooling"
+  ],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-06-24T00:00:00Z",
+    "note": "Recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "Schemas carry an optional provenance enum (concrete/provisional/inferred), default concrete, on work items, acceptance criteria, and evidence runs.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "L2 enforces: admission (provisional/inferred items are valid), completion-requires-concrete (P2), and consistency (a concrete item may not rest on non-concrete evidence) (P3).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "adopt emits provisional/inferred records (trilemma escape: Closed + Faithful); doctor ratchets provisional -> concrete as real evidence arrives; tests cover admission/ratchet/consistency.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-06-24",
+  "updated": "2026-06-24"
+}

@@ -99,6 +99,10 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
         "scopes": [{"id": "governance", "paths": ["AGENTS.md", "governance/**", "schemas/**"], "owner": "governance-owner"}],
         "roles": [{"id": "governance-owner", "description": "Maintains the pact and schemas.", "scopes": ["governance"]}],
         "concurrency": {"enforce_disjoint_active_scopes": False},
+        # Mandatory preflight (decision 0021). The bootstrap date is the epoch: work created
+        # after setup must carry a marker (`repopact new` stamps it); same-day setup records
+        # and anything imported at adoption time are grandfathered.
+        "preflight": {"enabled": True, "required_from_date": today.isoformat()},
     })
 
     _json(target / "audits" / "registry.json", {

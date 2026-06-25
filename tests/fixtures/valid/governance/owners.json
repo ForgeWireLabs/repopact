@@ -6,5 +6,6 @@
   "roles": [
     {"id": "governance-owner", "description": "Maintains the pact and schemas.", "scopes": ["governance"]}
   ],
-  "concurrency": {"enforce_disjoint_active_scopes": false}
+  "concurrency": {"enforce_disjoint_active_scopes": false},
+  "preflight": {"enabled": true, "required_from_id": 2}
 }

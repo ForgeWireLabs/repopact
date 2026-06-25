@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,10 +38,20 @@ def new_work_item(title: str, today: date, root: Path = ROOT) -> Path:
     item_id = _next_numeric([p.parent for p in existing], 3, 1)
     directory = root / "work" / "active" / f"{item_id}-{slug}"
     directory.mkdir(parents=True)
+    # Mandatory preflight (decision 0021): creating the work item with `new` IS the
+    # preflight act, so stamp the marker and concrete provenance up front. No work
+    # should begin until this record exists and propagates through the pact.
+    created_at = datetime.combine(today, datetime.min.time()).isoformat() + "Z"
     manifest = {
         "$schema": "../../../schemas/work-item.schema.json",
         "id": item_id, "title": title, "status": "active",
         "owner_scope": "governance", "affected_scopes": [], "depends_on": [],
+        "provenance": "concrete",
+        "preflight": {
+            "created_before_work_started": True,
+            "created_at": created_at,
+            "note": "Stamped by `repopact new`; the work item was recorded before implementation began.",
+        },
         "acceptance_criteria": [{"id": "AC-1", "text": "TODO: observable outcome", "state": "pending", "evidence": []}],
         "created": today.isoformat(), "updated": today.isoformat(),
     }

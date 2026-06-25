@@ -9,30 +9,30 @@ Draft, 2026-06-24. Target: arXiv cs.SE preprint → workshop (BoatSE / ICSE-FSE 
 
 ## Abstract
 
-Durable collaboration between humans and coding agents fails not for lack of model
-capability but for lack of a *substrate*: load-bearing state — intent, authority,
-evidence, and history — that survives the end of a conversation. We argue that the
-version-controlled repository, not a chat log, ticket tracker, or external memory store,
-is the right substrate, and that a thin layer of machine-checked records turns a folder
-convention into an operating system for agentic work. We present **RepoPact**, a
-repository-native governance kernel organized in six layers (L0–L5): a typed record store,
-a per-work-item lifecycle automaton, an invariant monitor checked at commit/CI boundaries,
-a typed enforcement lattice, a derive layer, and an adoption boundary. RepoPact's
-distinguishing primitive is the **binding invariant** — a declared guarantee with a
-rationale, an escalation path, and (where its logical type permits) a machine enforcer —
-which is the unit that an agent must not silently weaken. We give the kernel an operational
-semantics in which a reference validator is the characteristic function of the set of
-*conformant* repositories, and we show that repository adoption is subject to a
-**trilemma** (total, faithful, closed — pick two) that bounds what brownfield migration
-can promise. We evaluate the architecture adversarially and reflexively: a throwaway but
-genuinely working project adopts the *packaged* product and is driven through
-pre-registered falsification criteria; two defects cracked the architecture and were fixed
-and re-verified, while a series of adversarial cases were correctly caught. We then
-pre-register a comparative benchmark suite (guarantee-violation detection, cross-session
-recovery and efficiency, multi-agent coordination, context-provisioning token economy,
-drift, and security) whose results are forthcoming. We report the reflexivity and scale
-limits of the present evidence honestly, including the cases the architecture does *not*
-catch.
+Coding agents lose the load-bearing state of a project at every conversation boundary —
+the intent behind a change, the guarantees it must preserve, the decisions already made,
+and the proof that anything worked. We call this **session amnesia** and argue it is a
+memory and authority problem, not a reasoning one. We present **RepoPact**, a
+repository-native governance kernel that keeps this state as typed, version-controlled
+records organized in six layers (L0–L5): a record store, a per-work-item lifecycle
+automaton, an invariant monitor checked at commit/CI boundaries, a typed enforcement
+lattice, a derive layer, and an adoption boundary. Its distinguishing primitive is the
+**binding invariant** — a declared guarantee with a rationale, an escalation path, and,
+where its logical type permits, a machine enforcer — the unit an agent must not silently
+weaken. We give the kernel an operational semantics in which a reference validator is the
+characteristic function of the *conformant* repositories; show that brownfield adoption
+obeys a **trilemma** (total, faithful, closed — pick two) bounding what migration can
+promise; and explain why an invariant's logical *kind* predicts its enforcement mechanism.
+We evaluate reflexively and adversarially against pre-registered falsification criteria on
+the *packaged* product: two defects cracked the architecture and were fixed and
+re-verified, while a battery of adversarial cases were caught. We pre-register a six-study
+comparative benchmark suite — guarantee-violation detection, cross-session recovery and
+efficiency, multi-agent coordination, context-token economy, drift, and security — and
+commit to reporting results honestly, including the cases RepoPact does *not* catch.
+
+**Keywords:** agentic software engineering; coding agents; repository governance; software
+invariants; durable agent memory; evidence-gated workflows; brownfield adoption; benchmark
+pre-registration.
 
 ---
 
@@ -107,9 +107,9 @@ escalation* in the repository itself, gating work completion on evidence.
 
 ## 3. The model
 
-The kernel comprises six layers, ordered by how much of the repository's environment they
-touch (L0–L3 internal, L4 derives, L5 crosses the boundary to state the repo does not
-contain).
+The kernel comprises six layers (Figure 1), ordered by how much of the repository's
+environment they touch (L0–L3 internal, L4 derives, L5 crosses the boundary to state the
+repo does not contain).
 
 | Layer | Name | Object |
 |---|---|---|
@@ -134,8 +134,8 @@ lifecycle (§3.2).
 
 ### 3.2 The lifecycle automaton (L1)
 
-Per work item, the lifecycle is a finite automaton over `{active, blocked, deferred,
-completed}` with `active` initial. Transitions are total — any state may move to any state,
+Per work item, the lifecycle is a finite automaton (Figure 2) over `{active, blocked,
+deferred, completed}` with `active` initial. Transitions are total — any state may move to any state,
 because degradation must be explicit (a blocked or deferred item is first-class, not a
 failure) — with a single guard on edges into `completed`: every acceptance criterion is
 non-pending, and every satisfied criterion links real evidence. Crucially, the guard is
@@ -182,7 +182,7 @@ mechanisms and tells us what a fourth mechanism would have to be.
 
 Constructor (`init`), invariant-preserving (`new`, guarded completion, `doctor --fix`),
 and derive/read actions behave well with respect to `R`. **Migration** actions (`adopt`,
-`import-plan`) do not, and cannot. A migration over a RepoPact-naive (or partially
+`import-plan`) do not, and cannot (Figure 3). A migration over a RepoPact-naive (or partially
 external) project faces three requirements:
 
 - **Total** — defined on any input tree;
@@ -285,9 +285,10 @@ guiding the upgrade (F-011, fixed by `doctor`). F-011 is recorded honestly as a 
 longitudinal drift is not auto-detected at edit time.
 
 **6.4 Comparative results.** Forthcoming. The benchmark suite (§5.2) is pre-registered;
-this draft will be updated with the cost-vs-success frontier (S4), the catch-rate and
-injection-resistance figures (S1/S6), and the drift latency/staleness numbers (S5) as runs
-complete across ≥2 model families.
+this draft will be updated with the cost-vs-success Pareto frontier and the per-request
+scaling curve (S4; Figures 4–5), the catch-rate confusion matrix and injection-resistance
+figures (S1/S6; Figure 6), and the drift latency/staleness numbers (S5) as runs complete
+across ≥2 model families.
 
 ## 7. Discussion
 
@@ -351,6 +352,26 @@ toward a repository that holds more of the working memory coordinated agents nee
 
 ---
 
+## Ethics and responsible disclosure
+
+The security study (S6) is **defensive and benign-by-construction**: tasks are sandboxed,
+operate on synthetic fixtures, and involve no live targets or real exploit development.
+Injection corpora are synthetic and contained. RepoPact's *own* records are evaluated as an
+attack surface — we make no immunity claim — and RepoPact is framed as composing with
+runtime guards, not replacing them. The evaluation involves no human subjects; agent runs
+respect model-provider terms. Defects found in RepoPact during evaluation are recorded
+openly as findings (F-001…F-013) rather than quietly patched.
+
+## Data and artifact availability
+
+RepoPact is open source under Apache-2.0. The formal model (`formal-model.md`), the
+experiment protocol and its amendment (`protocol.md`), the comparative benchmark protocol
+(`benchmark-protocol.md`), the threats register (`threats-to-validity.md`), the findings
+register (`findings.md`), and the raw proving-ground captures (`captures/`) are in the
+repository. Benchmark task sets (`benchmarks/`) are **pre-registered**: committed before
+runs, with corrections issued as new task ids rather than silent edits. A versioned
+conformance suite (work item 019) lets a third party reproduce the recognizer result.
+
 ## Appendices
 
 - **A. Typed invariant lattice** — the seven invariants, their logical type, and enforcer
@@ -361,6 +382,32 @@ toward a repository that holds more of the working memory coordinated agents nee
   conformance suite, work item 019).
 - **D. Benchmark protocol** — studies S1–S6, hypotheses H8–H13, falsification criteria, and
   fairness threats (`benchmark-protocol.md`, `protocol.md` amendment, `benchmarks/`).
+
+### E. Figures and tables (planned)
+
+The draft references these; mockups are filled with real data as runs complete.
+
+- **Figure 1.** The six-layer kernel (L0–L5): object per layer and how much of the
+  environment each touches. *(§3)*
+- **Figure 2.** The work-item lifecycle automaton: the four states, the guarded edge into
+  `completed`, and checkpoint composition with the L2 monitor. *(§3.2)*
+- **Figure 3.** The adoption trilemma: total / faithful / closed as overlapping
+  requirements, with RepoPact relaxing *closed* (the fresh-pact + worklist region). *(§3.5)*
+- **Table 1.** The typed invariant lattice: each invariant's logical kind → enforcer
+  (validator / diff-time / human). *(§3.4)*
+- **Table 2.** Studies S1–S6 → hypothesis → primary metric → status (complete / forthcoming).
+  *(§5.2)*
+- **Table 3.** Reflexive findings F-001…F-013: hypothesis, severity, outcome
+  (cracked / holds), citing capture. *(§6)*
+- **Figure 4 (mock→real).** S4 cost-vs-success Pareto frontier across context regimes
+  (C0–C9 + C2+C3). *(§6.4)*
+- **Figure 5 (mock→real).** S4 scaling curve: per-request *context* tokens vs accumulated
+  project state, per regime — the headline figure. *(§6.4)*
+- **Figure 6 (mock→real).** PactBench confusion matrix, baseline vs RepoPact, with the
+  false-stop control. *(§6.4)*
+
+(Note: figure/table numbering will be reconciled at typesetting; the prose currently cites
+Figures 1–6 informally.)
 
 ## References (informal)
 

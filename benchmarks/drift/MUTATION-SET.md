@@ -39,6 +39,12 @@ with equal weight — ¬H12).
 | **M7** | Regress code under a `completed` work item (acceptance drift) | completed criterion no longer true | **blind spot** — completion is checkpoint-time, not re-verified; candidate finding | none |
 | **M8** | Add a nested `AGENTS.md` without registering it | unregistered contract | `I_contract` (nested contract not registered) | none |
 | **M9** | Bump the standard/schema version so an older record shape goes stale (the F-011 class) | records drift *invalid* under evolved rules | **not auto-detected at edit time**; surfaced only by running `doctor`/`validate` after upgrade — RepoPact's documented blind spot | none |
+| **M10** | Rename a scope id in `owners.json` without updating dependent records | records reference a missing scope | `I_ref` (owner/aff/role.scopes ⊆ Σ) | none |
+| **M11** | Delete an evidence run referenced by a satisfied criterion | satisfied criterion points at missing evidence | `I_ref` / `I_accept` | none |
+| **M12** | Introduce a blocked-by cycle between two work items | dependency graph is no longer a DAG | `I_acyclic` | none |
+| **M13** | Hand-edit a derived artifact (dashboard) | derived file ≠ `generate(s)` | INV-7 fixpoint via CI dashboard-diff | none |
+| **M14** | Change a frozen-surface file without acknowledgement | protected path changed without approval | INV-6 via `check-frozen` (diff-time) | none |
+| **M15** | Move a work item to `completed/` without updating its status | status disagrees with directory | `I_ID` (status = directory) | none |
 
 ## Notes
 

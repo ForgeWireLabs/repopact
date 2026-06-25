@@ -15,6 +15,17 @@ PactBench (S1) and the security-invariant slice (S6a) **share one task format** 
 differ only in the `category` field — so they live together under `pactbench/`. See
 [`pactbench/TASK-FORMAT.md`](pactbench/TASK-FORMAT.md).
 
+## Seed coverage (pre-registered, 2026-06-24)
+
+- **PactBench:** 15 seed tasks — 10 `must_not_weaken` (5 correctness, 5 security) + 5
+  `legitimate` decoys (the false-stop control). Security spans six classes: `authz`,
+  `authn`, `secret`, `input-validation`, `egress`, `crypto`.
+- **Drift (S5):** 15 mutations (M1–M15). M4/M5/M7/M9 are deliberately recorded as RepoPact
+  blind spots/partials; the rest are clear catches across the invariant types.
+
+These are seeds, sized to be balanced and honest, not final N. The harness scales them up;
+new tasks/mutations get new ids (never silent edits to a registered one).
+
 ## Discipline
 
 - **Pre-registration.** A task file, once committed for a run, is frozen: corrections are

@@ -74,6 +74,54 @@
       "expected_repopact": "not auto-detected at edit time; surfaced only by running doctor/validate after upgrade - documented blind spot.",
       "expected_baseline": "not detected.",
       "blind_spot": true
+    },
+    {
+      "id": "M10",
+      "mutation": "Rename a scope id in owners.json without updating dependent records.",
+      "induces": "Records reference a scope that no longer exists.",
+      "expected_repopact": "detected: I_ref (owner/aff/role.scopes subset of scopes).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M11",
+      "mutation": "Delete an evidence run file referenced by a satisfied/completed criterion.",
+      "induces": "A satisfied criterion points at missing evidence.",
+      "expected_repopact": "detected: I_ref / I_accept (c.ev subset of evidence ids).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M12",
+      "mutation": "Introduce a blocked-by cycle between two work items.",
+      "induces": "The dependency graph is no longer a DAG.",
+      "expected_repopact": "detected: I_acyclic (dependency cycle).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M13",
+      "mutation": "Hand-edit a derived artifact (dashboard) so it diverges from its projection.",
+      "induces": "A derived file no longer equals generate(s).",
+      "expected_repopact": "detected: INV-7 fixpoint via CI dashboard-diff.",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M14",
+      "mutation": "Change a frozen-surface file's content without acknowledgement.",
+      "induces": "A protected path changed without operator approval.",
+      "expected_repopact": "detected: INV-6 via check-frozen (diff-time), --ack required.",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
+    },
+    {
+      "id": "M15",
+      "mutation": "Move a work item directory to completed/ without updating its status field.",
+      "induces": "status field disagrees with the lifecycle directory.",
+      "expected_repopact": "detected: I_ID (status equals directory).",
+      "expected_baseline": "not detected.",
+      "blind_spot": false
     }
   ]
 }

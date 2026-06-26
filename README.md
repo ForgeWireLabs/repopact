@@ -9,7 +9,7 @@ cannot be silently weakened.
 > The repository is the pact: authority, intent, evidence, and history that survive every
 > session.
 
-`pip install repopact` · Apache-2.0 · current release **2.0.0**
+`pip install repopact` · Apache-2.0 · current release **2.0.1**
 ([changelog](decisions/0021-preflight-mandatory-and-provenance.md)).
 
 ## How it relates to `AGENTS.md`
@@ -121,14 +121,13 @@ and [benchmark protocol](research/benchmark-protocol.md) (hypotheses H1–H13, f
 criteria, [threats to validity](research/threats-to-validity.md)), a [findings
 register](research/findings.md), and a full [paper draft](research/paper.md).
 
-**PactBench** (`benchmarks/`) is the runnable benchmark suite — pre-registered tasks measuring
-whether RepoPact enforcement reduces silent guarantee drift, with a model-agnostic harness and
-an S5 drift harness.
-
-The adversarial adoption evidence is produced in a separate lab, the **[RepoPact Proving
-Ground](https://github.com/ForgeWireLabs/repopact-proving-ground)** — a throwaway-but-real
+**PactBench** — the runnable benchmark suite (pre-registered tasks measuring whether RepoPact
+enforcement reduces silent guarantee drift, with a model-agnostic harness and an S5 drift
+harness) — lives in the **[RepoPact Proving
+Ground](https://github.com/ForgeWireLabs/repopact-proving-ground)**, a throwaway-but-real
 project that consumes RepoPact from PyPI and is driven across every primitive, including cases
-designed to break it. *RepoPact defines the pact; the Proving Ground tests whether the pact
+designed to break it. RepoPact defines the *protocol* (`research/`); the Proving Ground hosts
+the runnable suite. *RepoPact defines the pact; the Proving Ground tests whether the pact
 holds under agent pressure.*
 
 ## Ecosystem

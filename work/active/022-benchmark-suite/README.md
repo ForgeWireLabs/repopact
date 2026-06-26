@@ -37,8 +37,9 @@ governed by threats T5, T6, T7, T8.
 
 ## Scope
 
-- `benchmarks/` — the shared multi-arm harness, instrumentation, and pre-registered task
-  sets for S2–S6 (reusing the PactBench task format from `020`).
+- The shared multi-arm harness, instrumentation, and pre-registered task sets for S2–S6 live
+  in the **RepoPact Proving Ground** repo (`benchmarks/`), reusing the PactBench task format.
+  This repo holds only the protocol + hypotheses (`research/`) — see work item `020`.
 - Results as evidence runs + raw `research/captures/`; figures feed paper §6.
 - Out of scope: S1/PactBench (owned by `020`); building the runtime-guard arm beyond a
   thin composition shim (S6 `+ runtime guard` is optional/illustrative).
@@ -57,7 +58,7 @@ require are operator-gated. Evidence:
 [`20260624-pactbench-harness-selftest`](../../../evidence/runs/20260624-pactbench-harness-selftest.json)
 (`partial`).
 
-- **Harness** (`benchmarks/harness/`) runs end-to-end via a deterministic `MockRunner`:
+- **Harness** (now in the Proving Ground repo, `benchmarks/harness/`) runs end-to-end via a deterministic `MockRunner`:
   loader → arms → grader → confusion matrix + token/cost instrumentation; `--selftest`
   green over the task set. The `RealRunner` is the documented, operator-gated integration
   point (toward AC-1 plumbing + AC-2 instrumentation).

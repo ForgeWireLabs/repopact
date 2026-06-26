@@ -383,7 +383,8 @@ conformance suite (work item 019) lets a third party reproduce the recognizer re
 - **C. Conformance** — the recognizer theorem and the fixture corpus (`formal-model.md` §6;
   conformance suite, work item 019).
 - **D. Benchmark protocol** — studies S1–S6, hypotheses H8–H13, falsification criteria, and
-  fairness threats (`benchmark-protocol.md`, `protocol.md` amendment, `benchmarks/`).
+  fairness threats (`benchmark-protocol.md`, `protocol.md` amendment). The runnable suite is
+  hosted in the RepoPact Proving Ground repo (ForgeWireLabs/repopact-proving-ground).
 
 ### E. Figures and tables (planned)
 

@@ -318,6 +318,26 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual("concrete", wi["provenance"])
         self.assertEqual([], [p.message for p in validate(repo)])
 
+    def test_doctor_migrates_preflight_on_upgrade(self) -> None:
+        # Simulate a pre-2.0 repo: governed, no preflight config, a marker-less legacy item.
+        # Under 2.0 default-on it fails; doctor grandfathers it (decision 0021).
+        repo = Path(self.temp.name) / "upgraded"
+        init_repo.bootstrap(repo)
+        self.write_json(repo / "governance" / "owners.json", lambda d: d.pop("preflight", None))
+        d = repo / "work" / "active" / "001-legacy"
+        d.mkdir(parents=True)
+        (d / "README.md").write_text("# legacy\n", encoding="utf-8")
+        (d / "work-item.json").write_text(json.dumps({
+            "id": "001", "title": "legacy", "status": "active",
+            "owner_scope": "governance", "affected_scopes": [], "depends_on": [],
+            "acceptance_criteria": [{"id": "AC-1", "text": "x", "state": "pending", "evidence": []}],
+            "created": "2020-01-01", "updated": "2020-01-01",
+        }), encoding="utf-8")
+        self.assertTrue(any("preflight" in p.message for p in validate(repo)))
+        actions = doctor.fix(repo)
+        self.assertTrue(any("preflight epoch" in a for a in actions))
+        self.assertEqual([], [p.message for p in validate(repo)])
+
     # --- L3 open obligations (formal-model §5: O-4 temporal, O-6 relational) ----------
     # Marked honestly: these invariant classes are not mechanizable on a single tree today;
     # they are enforced by human review (INV-4/INV-5) until O-4/O-6 are discharged.

@@ -170,6 +170,25 @@ def diagnose(root: Path) -> list[Finding]:
     return findings
 
 
+def _migrate_preflight(root: Path, today: date) -> list[str]:
+    """On upgrade to 2.0, grandfather pre-2.0 work items (decision 0021). If owners.json
+    declares no preflight config at all, set an epoch (required_from_date = today) so
+    existing items are exempt and only work created after the upgrade needs a marker. A repo
+    that already declares preflight (on or off) is left untouched."""
+    owners = root / "governance" / "owners.json"
+    if not owners.is_file():
+        return []
+    try:
+        data = json.loads(owners.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if "preflight" in data:
+        return []
+    data["preflight"] = {"enabled": True, "required_from_date": today.isoformat()}
+    owners.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return [f"set preflight epoch (required_from_date={today.isoformat()}) to grandfather pre-2.0 work items"]
+
+
 def _ratchet_provisional(root: Path) -> list[str]:
     """Ratchet provisional work items to concrete once every satisfied criterion rests on
     concrete evidence (decision 0021). Conservative and monotone: only upgrades."""
@@ -276,6 +295,9 @@ def fix(root: Path, today: date | None = None) -> list[str]:
 
     # 6. ratchet provisional records whose evidence is now concrete (decision 0021)
     actions.extend(_ratchet_provisional(root))
+
+    # 7. migrate preflight on upgrade: grandfather pre-2.0 work items (decision 0021)
+    actions.extend(_migrate_preflight(root, today))
 
     return actions
 

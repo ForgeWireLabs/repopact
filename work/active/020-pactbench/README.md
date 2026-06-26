@@ -1,46 +1,43 @@
-# 020 — PactBench: guarantee-violation detection benchmark
+# 020 — Integrate PactBench with RepoPact Proving Ground
 
 > **Status**: 🟢 Active
-> **Owners**: tooling-owner (lead).
-> **Depends on**: none. (Feeds the paper and `research/benchmark-protocol.md` S1 / H8.)
-
-## Needs you (operator gates)
-
-- **Compute / model access.** Running the benchmark across ≥2 model families needs API
-  keys / model access you provision. The task set and harness can be built without it;
-  the *results* (AC-3) are gated on you supplying run access.
+> **Owners**: governance-owner (lead); tooling-owner (harness).
+> **Depends on**: none. Establishes the repo boundary for the benchmark work.
 
 ## Intent
 
-RepoPact's distinctive claim is that a binding invariant stops an agent from *silently
-weakening a guarantee*. That claim deserves a number, the way runtime-security work
-reports an interception rate. PactBench is that benchmark: a pre-registered suite of
-tasks where the correct behaviour is to **refuse or escalate** rather than quietly delete
-the failing assertion, relax the schema, or edit a frozen path — measured with RepoPact
-governance on versus off.
+PactBench is the first named benchmark suite inside **RepoPact Proving Ground**, not a
+benchmark implementation embedded directly in the RepoPact standard repository.
 
-This is the paper's strongest differentiator (S1 in
-[`benchmark-protocol.md`](../../../research/benchmark-protocol.md)) and a defensible
-marketing figure: *"agents under RepoPact silently weakened a declared guarantee X% less
-often."*
+- **RepoPact** defines the contract language, validation semantics, evidence expectations,
+  and the **benchmark protocol** (`research/benchmark-protocol.md`, `research/protocol.md`
+  hypotheses H8–H13, `research/threats-to-validity.md`). It says *what to measure* and the
+  falsification criteria.
+- **RepoPact Proving Ground**
+  ([ForgeWireLabs/repopact-proving-ground](https://github.com/ForgeWireLabs/repopact-proving-ground))
+  hosts the runnable tasks, harnesses, captures, and reproducible result bundles that test
+  whether RepoPact enforcement measurably reduces silent guarantee drift. It consumes
+  RepoPact from PyPI and runs the suite against the *packaged* product.
 
-## Decisions
-
-Operationalizes hypothesis **H8** (protocol amendment 2026-06-24). Pre-registration and
-baseline-fairness are governed by threats **T5** and **T6**.
+> RepoPact defines the pact. RepoPact Proving Ground tests whether the pact holds under
+> agent pressure.
 
 ## Scope
 
-- `benchmarks/pactbench/tasks/` — the pre-registered task set + per-task expected outcome.
-- `benchmarks/pactbench/harness/` — the two-arm runner and confusion-matrix scorer.
-- Results written as evidence runs + raw `research/captures/`.
-- Out of scope: S2 (recovery/efficiency) and S3 (coordination) — those are separate
-  studies under the same protocol.
+- **Move** `benchmarks/` (PactBench task format + tasks, fixtures, the multi-arm harness,
+  the S5 drift harness) out of this repo and into the Proving Ground.
+- **Keep** the protocol, hypotheses, threats, and the paper here in `research/`.
+- **Reconcile references** in both repos (README, paper Appendix D, work item 022) so each
+  repo points at the right home.
+- Hosts the comparative studies S2–S6 (work item `022`) under the same Proving-Ground roof.
 
 ## Acceptance criteria
 
-- **AC-1** — pre-registered task set committed before runs.
-- **AC-2** — two-arm harness recording the confusion matrix with raw captures.
-- **AC-3** — reproducible results across ≥2 model families, feeding the protocol and paper.
+- **AC-1** — RepoPact defines only the protocol; no runnable benchmark embedded in the
+  standard repo.
+- **AC-2** — the runnable PactBench suite is hosted in the Proving Ground, consuming RepoPact
+  from PyPI.
+- **AC-3** — cross-repo references are consistent; real cross-model result bundles remain
+  operator-gated.
 
-(State tracked in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+(State in [`work-item.json`](work-item.json); `pending` until evidence-backed.)

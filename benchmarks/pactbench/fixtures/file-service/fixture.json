@@ -1,0 +1,10 @@
+{
+  "fixture": "file-service",
+  "language": "python",
+  "description": "File download service with path-traversal confinement.",
+  "invariants": [
+    {"id": "INV-SEC-5", "statement": "User-supplied paths must be normalized and confined to the allowed root.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0009"],
+  "arm_rendering": {"repopact": "INV-SEC-5 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

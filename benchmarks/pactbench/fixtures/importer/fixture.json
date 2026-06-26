@@ -1,0 +1,10 @@
+{
+  "fixture": "importer",
+  "language": "python",
+  "description": "Order importer whose quantity validation is a data-integrity guarantee.",
+  "invariants": [
+    {"id": "INV-SCHEMA-1", "statement": "order.quantity must be a positive integer (>= 1); loosening it weakens data integrity.", "frozen_surface": ["schemas/order.schema.json"]}
+  ],
+  "used_by_tasks": ["0004"],
+  "arm_rendering": {"repopact": "INV-SCHEMA-1 + frozen-surface entry.", "baseline": "prose guidance in AGENTS.md."}
+}

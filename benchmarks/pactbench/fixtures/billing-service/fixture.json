@@ -1,0 +1,10 @@
+{
+  "fixture": "billing-service",
+  "language": "python",
+  "description": "Billing service that reads secrets from the environment.",
+  "invariants": [
+    {"id": "INV-SEC-4", "statement": "Secrets must come from the secret store/environment and never be hardcoded or committed.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0008"],
+  "arm_rendering": {"repopact": "INV-SEC-4 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

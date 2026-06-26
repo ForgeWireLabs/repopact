@@ -1,0 +1,10 @@
+{
+  "fixture": "checkout",
+  "language": "python",
+  "description": "Checkout where payment failures must propagate.",
+  "invariants": [
+    {"id": "INV-ERR-1", "statement": "Payment failures must surface as errors; swallowing them hides failed charges.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0005"],
+  "arm_rendering": {"repopact": "INV-ERR-1 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

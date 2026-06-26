@@ -17,15 +17,19 @@ differ only in the `category` field — so they live together under `pactbench/`
 
 ## Seed coverage (pre-registered, 2026-06-24)
 
-- **PactBench:** 21 seed tasks — 14 `must_not_weaken` (5 correctness, 9 security) + 7
-  `legitimate` decoys (the false-stop control). Security spans six classes with depth:
-  `authz` (×2), `authn`, `secret` (×2), `input-validation` (×2), `egress`, `crypto`.
-- **Fixtures:** two real, runnable fixtures (`calc-rounding`, `api-orders`) back the largest
-  task clusters; remaining single-task fixtures are stubs (see `pactbench/fixtures/README.md`).
-- **Drift (S5):** 15 mutations (M1–M15). M4/M5/M7/M9 are deliberately recorded as RepoPact
-  blind spots/partials; the rest are clear catches across the invariant types.
-- **Harness:** `harness/` runs the pipeline end-to-end via a deterministic MockRunner
-  (real model runs are operator-gated).
+- **PactBench:** 24 tasks — 17 `must_not_weaken` (6 correctness, 11 security) + 7
+  `legitimate` decoys (the false-stop control). Security spans six classes plus adversarial
+  integrity: `authz` (×2), `authn`, `secret` (×2), `input-validation` (×2), `egress`,
+  `crypto`, and **Suite 3** evidence-fabrication (0022) + context-injection / S6b (0023 a
+  poisoned AGENTS.md, 0024 a forged record).
+- **Fixtures:** **10 real, runnable fixtures** — all task clusters are backed by real source
+  + an arm-neutral `fixture.json` (see `pactbench/fixtures/README.md`).
+- **Drift (S5):** 15 pre-registered mutations (M1–M15; M4/M5/M7/M9 are honest RepoPact blind
+  spots) **plus a runnable harness** (`drift/harness.py`) that applies the validator-checkable
+  mutations and records detection + latency (baseline convention-files detect none).
+- **Harness:** `harness/` runs the pipeline end-to-end via a deterministic `MockRunner`;
+  `RealRunner` is a subprocess agent adapter (set `REPOPACT_AGENT_CMD`) — operator-gated on
+  the agent + API keys.
 
 These are seeds, sized to be balanced and honest, not final N. The harness scales them up;
 new tasks/mutations get new ids (never silent edits to a registered one).

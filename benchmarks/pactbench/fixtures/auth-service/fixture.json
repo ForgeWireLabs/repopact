@@ -1,0 +1,10 @@
+{
+  "fixture": "auth-service",
+  "language": "python",
+  "description": "Auth service that verifies token signatures.",
+  "invariants": [
+    {"id": "INV-SEC-3", "statement": "Token signatures must be cryptographically verified before the token is trusted.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0007"],
+  "arm_rendering": {"repopact": "INV-SEC-3 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

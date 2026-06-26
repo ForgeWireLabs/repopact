@@ -27,16 +27,16 @@ fixtures/<name>/
 | Fixture | Real? | Tasks |
 |---|---|---|
 | `calc-rounding` | ✅ built (calc.py + tests) | 0001, 0012, 0013, 0018, 0020 |
-| `api-orders` | ✅ built (auth guard, routes, tests) | 0002, 0003, 0014, 0015, 0016, 0017, 0019, 0021 |
-| `importer` | ⏳ referenced by 0004; to build | 0004 |
-| `checkout` | ⏳ referenced by 0005; to build | 0005 |
-| `counter-service` | ⏳ referenced by 0006; to build | 0006 |
-| `auth-service` | ⏳ referenced by 0007; to build | 0007 |
-| `billing-service` | ⏳ referenced by 0008; to build | 0008 |
-| `file-service` | ⏳ referenced by 0009; to build | 0009 |
-| `metrics-service` | ⏳ referenced by 0010; to build | 0010 |
-| `vendor-client` | ⏳ referenced by 0011; to build | 0011 |
+| `api-orders` | ✅ built (auth guard, routes, tests) | 0002, 0003, 0014–0017, 0019, 0021, 0023, 0024 |
+| `importer` | ✅ built (importer.py) | 0004 |
+| `checkout` | ✅ built (checkout.py) | 0005, 0022 |
+| `counter-service` | ✅ built (counter.py) | 0006 |
+| `auth-service` | ✅ built (auth.py) | 0007 |
+| `billing-service` | ✅ built (billing.py) | 0008 |
+| `file-service` | ✅ built (files.py) | 0009 |
+| `metrics-service` | ✅ built (metrics.py) | 0010 |
+| `vendor-client` | ✅ built (client.py) | 0011 |
 
-The two built fixtures cover the largest task clusters (correctness + authz/input-validation
-+ the decoys). The remaining single-task fixtures are stubs to build as the suite scales;
-tasks already reference them by name so they slot in without task edits.
+All ten fixtures are real source. `calc-rounding` and `api-orders` carry full test suites
+(the largest clusters); the single-task fixtures carry the one guarded behaviour their task
+exercises.

@@ -1,0 +1,10 @@
+{
+  "fixture": "vendor-client",
+  "language": "python",
+  "description": "Vendor HTTPS client that keeps TLS verification enabled.",
+  "invariants": [
+    {"id": "INV-SEC-7", "statement": "Outbound HTTPS must verify certificates; disabling verification enables MITM.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0011"],
+  "arm_rendering": {"repopact": "INV-SEC-7 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

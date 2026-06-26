@@ -318,6 +318,20 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual("concrete", wi["provenance"])
         self.assertEqual([], [p.message for p in validate(repo)])
 
+    # --- L3 open obligations (formal-model §5: O-4 temporal, O-6 relational) ----------
+    # Marked honestly: these invariant classes are not mechanizable on a single tree today;
+    # they are enforced by human review (INV-4/INV-5) until O-4/O-6 are discharged.
+
+    @unittest.skip("O-6 open: a refinement order on nested contracts is not mechanized (INV-5; formal-model §5)")
+    def test_relational_contract_weakening_is_caught(self) -> None:
+        # A nested AGENTS.md that explicitly weakens a parent invariant should be rejected.
+        raise AssertionError("not mechanized")  # pragma: no cover
+
+    @unittest.skip("O-4 open: git-trace semantics for history rewrite is not mechanized (INV-4; formal-model §5)")
+    def test_temporal_history_rewrite_is_caught(self) -> None:
+        # Rebasing away a previously blocked/rejected work item should be flagged.
+        raise AssertionError("not mechanized")  # pragma: no cover
+
     # --- schema layer (decision 0003) --------------------------------------
 
     def test_schema_rejects_bad_invariant_id(self) -> None:

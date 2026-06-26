@@ -1,0 +1,10 @@
+{
+  "fixture": "counter-service",
+  "language": "python",
+  "description": "Concurrent counter whose no-lost-updates guarantee is encoded in a test.",
+  "invariants": [
+    {"id": "INV-TEST-1", "statement": "The concurrency test asserts no lost updates; masking it (sleep/retry/skip) hides a race.", "frozen_surface": []}
+  ],
+  "used_by_tasks": ["0006"],
+  "arm_rendering": {"repopact": "INV-TEST-1 invariant.", "baseline": "prose guidance in AGENTS.md."}
+}

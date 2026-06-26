@@ -11,6 +11,10 @@ turns that into an Outcome. Two runners ship:
 """
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+
 from model import AgentAction, Task, TokenUsage
 
 
@@ -56,20 +60,70 @@ class MockRunner:
 
 
 class RealRunner:
-    """Operator-gated integration point for a live agent/model.
+    """Drive a live agent as a subprocess (operator-gated on the agent + API keys).
 
-    Implement ``run`` to: materialize the arm (RepoPact records vs a convention-file
-    AGENTS.md) over the task fixture, drive the agent with the task prompt, then read back
-    post-conditions (diff inspection, check-frozen exit code, emitted approval requests) and
-    return an AgentAction. Requires a model/agent and API keys.
+    The agent is any program named by the ``REPOPACT_AGENT_CMD`` environment variable. The
+    harness sends it a JSON task spec on stdin:
+
+        {"task_id", "arm", "category", "polarity", "frozen_surface", "security_class",
+         "fixture", "prompt"}
+
+    and expects a JSON AgentAction on stdout:
+
+        {"weakened_guarantee": bool, "escalated": bool, "blocked_by_enforcer": bool,
+         "completed_task": bool, "errored": bool,
+         "tokens": {"input_tokens", "output_tokens", "context_tokens", "task_tokens",
+                    "requests", "usd"}, "note": str}
+
+    This keeps the harness model-agnostic: wrap any agent/harness (Claude Code, Codex, a
+    custom orchestrator) as a subprocess speaking this contract. The wrapper is responsible
+    for materializing the arm over the fixture and reading back the real post-conditions
+    (diff inspection, check-frozen exit code, emitted approval requests) per
+    pactbench/TASK-FORMAT.md.
     """
 
     name = "real"
 
-    def run(self, task: Task, arm: str) -> AgentAction:  # pragma: no cover
-        raise NotImplementedError(
-            "RealRunner requires a model/agent and API keys (operator-gated). "
-            "Wire a model client here and read post-conditions per pactbench/TASK-FORMAT.md."
+    def __init__(self, cmd: str | None = None) -> None:
+        self.cmd = cmd or os.environ.get("REPOPACT_AGENT_CMD")
+
+    def run(self, task: Task, arm: str) -> AgentAction:
+        if not self.cmd:
+            raise NotImplementedError(
+                "RealRunner needs an agent command. Set REPOPACT_AGENT_CMD to a program that "
+                "reads a task spec on stdin and writes an AgentAction JSON on stdout "
+                "(see this class's docstring). Operator-gated: requires the agent + API keys."
+            )
+        spec = {
+            "task_id": task.id, "arm": arm, "category": task.category,
+            "polarity": task.polarity, "frozen_surface": task.frozen_surface,
+            "security_class": task.security_class, "fixture": task.fixture,
+            "prompt": getattr(task, "prompt", None),
+        }
+        proc = subprocess.run(self.cmd, shell=True, input=json.dumps(spec),
+                              capture_output=True, text=True)
+        if proc.returncode != 0:
+            return AgentAction(errored=True, note=f"agent exit {proc.returncode}: {proc.stderr[:200]}")
+        try:
+            out = json.loads(proc.stdout)
+        except (ValueError, json.JSONDecodeError):
+            return AgentAction(errored=True, note="agent did not emit valid AgentAction JSON")
+        t = out.get("tokens", {})
+        return AgentAction(
+            weakened_guarantee=bool(out.get("weakened_guarantee")),
+            escalated=bool(out.get("escalated")),
+            blocked_by_enforcer=bool(out.get("blocked_by_enforcer")),
+            completed_task=bool(out.get("completed_task")),
+            errored=bool(out.get("errored")),
+            tokens=TokenUsage(
+                input_tokens=int(t.get("input_tokens", 0)),
+                output_tokens=int(t.get("output_tokens", 0)),
+                context_tokens=int(t.get("context_tokens", 0)),
+                task_tokens=int(t.get("task_tokens", 0)),
+                requests=int(t.get("requests", 0)),
+                usd=float(t.get("usd", 0.0)),
+            ),
+            note=str(out.get("note", "")),
         )
 
 

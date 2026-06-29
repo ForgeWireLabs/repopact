@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import site
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -26,13 +27,16 @@ MODULES = (
 
 def _seed_dir(name: str) -> Path:
     """Locate seed content (schemas/templates) in a checkout or an installed wheel."""
-    checkout = CHECKOUT / name
-    if checkout.is_dir():
-        return checkout
-    installed = Path(sys.prefix) / "share" / "repopact" / name
-    if installed.is_dir():
-        return installed
-    raise FileNotFoundError(f"cannot locate seed '{name}' (looked in {checkout} and {installed})")
+    candidates = [
+        CHECKOUT / name,
+        Path(sys.prefix) / "share" / "repopact" / name,
+        Path(site.USER_BASE) / "share" / "repopact" / name,
+    ]
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    looked = ", ".join(str(candidate) for candidate in candidates)
+    raise FileNotFoundError(f"cannot locate seed '{name}' (looked in {looked})")
 
 
 def _write(path: Path, text: str) -> None:

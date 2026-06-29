@@ -17,7 +17,7 @@ cannot be silently weakened.
 `AGENTS.md` (and `CLAUDE.md`, editor rules) tell an agent *what to do* — they're
 instructions, plain Markdown, with no enforcement. RepoPact is the layer **above** them:
 
-> `AGENTS.md` tells the agent what to do. RepoPact proves it didn't quietly undo it.
+> `AGENTS.md` tells an agent how to behave. RepoPact enforces and records whether the work respected the contract.
 
 RepoPact's distinguishing primitive is the **binding invariant** — a declared guarantee with
 a rationale, an escalation path, and (where its logical type permits) a machine enforcer.
@@ -127,7 +127,7 @@ holds a [formal model](research/formal-model.md) (the L0–L5 kernel, the typed 
 lattice, the adoption trilemma), the pre-registered [experiment protocol](research/protocol.md)
 and [benchmark protocol](research/benchmark-protocol.md) (hypotheses H1–H13, falsification
 criteria, [threats to validity](research/threats-to-validity.md)), a [findings
-register](research/findings.md), and a full [paper draft](research/paper.md).
+register](research/findings.md), and the current [paper](research/paper.md).
 
 **PactBench** — the runnable benchmark suite (pre-registered tasks measuring whether RepoPact
 enforcement reduces silent guarantee drift, with a model-agnostic harness and an S5 drift

@@ -382,10 +382,17 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         validate_provenance(item, ev_prov, manifest, problems)
 
     all_ids = set(seen)
+    status_by_id = {item.item_id: item.status for item in items}
     for item in items:
         for dependency in item.data.get("depends_on", []):
             if dependency not in all_ids:
                 problems.append(Problem(item.directory / "work-item.json", f"unknown dependency '{dependency}'"))
+            elif item.status in ("active", "completed") and status_by_id.get(dependency) == "proposed":
+                problems.append(Problem(
+                    item.directory / "work-item.json",
+                    f"{item.status} work item depends on proposed work item '{dependency}'; "
+                    "proposed work is not accepted implementation authority",
+                ))
 
     detect_dependency_cycles(items, all_ids, problems)
     if enforce_disjoint:

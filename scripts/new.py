@@ -16,6 +16,8 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+from repo_model import STATUSES
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,11 +34,13 @@ def _next_numeric(paths: list[Path], width: int, start: int) -> str:
     return str(max(used + [start - 1]) + 1).zfill(width)
 
 
-def new_work_item(title: str, today: date, root: Path = ROOT) -> Path:
+def new_work_item(title: str, today: date, root: Path = ROOT, status: str = "active") -> Path:
+    if status not in STATUSES:
+        raise ValueError(f"unknown work-item status '{status}'")
     slug = slugify(title)
     existing = list((root / "work").glob("*/*/work-item.json"))
     item_id = _next_numeric([p.parent for p in existing], 3, 1)
-    directory = root / "work" / "active" / f"{item_id}-{slug}"
+    directory = root / "work" / status / f"{item_id}-{slug}"
     directory.mkdir(parents=True)
     # Mandatory preflight (decision 0021): creating the work item with `new` IS the
     # preflight act, so stamp the marker and concrete provenance up front. No work
@@ -44,7 +48,7 @@ def new_work_item(title: str, today: date, root: Path = ROOT) -> Path:
     created_at = datetime.combine(today, datetime.min.time()).isoformat() + "Z"
     manifest = {
         "$schema": "../../../schemas/work-item.schema.json",
-        "id": item_id, "title": title, "status": "active",
+        "id": item_id, "title": title, "status": status,
         "owner_scope": "governance", "affected_scopes": [], "depends_on": [],
         "provenance": "concrete",
         "preflight": {
@@ -83,10 +87,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Stamp a new record from a template")
     parser.add_argument("kind", choices=["work-item", "decision", "policy"])
     parser.add_argument("title")
+    parser.add_argument("--status", choices=STATUSES, default="active",
+                        help="Lifecycle status for a new work item")
     args = parser.parse_args()
     today = date.today()
     if args.kind == "work-item":
-        path = new_work_item(args.title, today)
+        path = new_work_item(args.title, today, status=args.status)
     else:
         path = new_markdown(args.kind, args.title, today)
     print(f"Created {path.relative_to(ROOT)}")

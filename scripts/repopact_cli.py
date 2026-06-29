@@ -13,6 +13,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+from repo_model import STATUSES
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="repopact", description="RepoPact: durable agent work, governed in the repo.")
@@ -54,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     p_new.add_argument("kind", choices=["work-item", "decision", "policy"])
     p_new.add_argument("title")
     p_new.add_argument("--root", type=Path, default=Path.cwd())
+    p_new.add_argument("--status", choices=STATUSES, default="active",
+                       help="Lifecycle status for a new work item")
 
     p_frz = sub.add_parser("check-frozen", help="Report frozen-surface changes in a diff range")
     p_frz.add_argument("--root", type=Path, default=Path.cwd())
@@ -172,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "new":
         import new
         if args.kind == "work-item":
-            path = new.new_work_item(args.title, date.today(), root)
+            path = new.new_work_item(args.title, date.today(), root, status=args.status)
         else:
             path = new.new_markdown(args.kind, args.title, date.today(), root)
         print(f"Created {path.relative_to(root)}")

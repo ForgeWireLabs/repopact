@@ -18,7 +18,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent          # directory holding the tooling modules
 CHECKOUT = HERE.parent                          # repo root when running from a checkout
-LIFECYCLE = ("active", "blocked", "deferred", "completed")
+LIFECYCLE = ("proposed", "active", "blocked", "deferred", "completed")
 MODULES = (
     "repo_model.py", "validate_repo.py", "generate_dashboard.py", "generate_spec.py",
     "init_repo.py", "new.py", "check_frozen_surface.py", "frontmatter.py", "repopact_cli.py",

@@ -197,7 +197,7 @@ def registry_scopes_inside(root: Path, d: Path) -> list[str]:
 # File types we scan for inbound references; everything else (binaries, build output) is skipped.
 _TEXT_EXTS = {".md", ".markdown", ".txt", ".rst", ".py", ".toml", ".yaml", ".yml",
               ".json", ".cfg", ".ini", ".sh", ".ps1"}
-_LIFECYCLE = {"completed", "deferred", "active", "blocked"}
+_LIFECYCLE = {"completed", "deferred", "active", "blocked", "proposed"}
 _MD_LINK = re.compile(r"(\]\()([^)\s]+)(\))")
 
 

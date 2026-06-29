@@ -22,6 +22,7 @@ message appears.
 
 | Fixture | Rule (SPEC §4) | Expected message |
 | --- | --- | --- |
+| `active-depends-on-proposed` | Reference resolution / lifecycle authority | `depends on proposed work item` |
 | `completed-with-pending` | Acceptance | `completed item has pending criterion` |
 | `satisfied-without-evidence` | Acceptance | `satisfied without evidence` |
 | `unknown-dependency` | Reference resolution | `unknown dependency` |

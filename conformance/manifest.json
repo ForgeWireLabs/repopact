@@ -1,6 +1,6 @@
 {
   "$schema": "../schemas/conformance-manifest.schema.json",
-  "suite_version": "2.0.1",
+  "suite_version": "2.0.2",
   "spec_version_file": "../VERSION",
   "fixtures_root": "fixtures",
   "cases": [
@@ -10,6 +10,23 @@
       "expect": "accept",
       "rules": ["SPEC-4-record-validity", "INV-2", "INV-3"],
       "description": "A minimal conformant RepoPact repository."
+    },
+    {
+      "id": "valid-proposed-work",
+      "path": "valid-proposed",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": ["SPEC-5-lifecycle-proposed"],
+      "description": "A proposed work item is structurally valid but does not grant implementation authority."
+    },
+    {
+      "id": "active-depends-on-proposed",
+      "path": "invalid/active-depends-on-proposed",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "depends on proposed work item",
+      "rules": ["SPEC-4-reference-resolution", "SPEC-5-lifecycle-proposed"],
+      "description": "Accepted work cannot depend on a proposed work item as if it were accepted."
     },
     {
       "id": "completed-with-pending",

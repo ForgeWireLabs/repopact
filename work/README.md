@@ -11,3 +11,10 @@ Directory names use `NNN-kebab-case`. IDs are permanent and never reused.
 The directory containing a work item is authoritative for its lifecycle state.
 The JSON status must agree with it.
 
+Lifecycle states:
+
+- `proposed`: captured but unauthorized candidate work.
+- `active`: authorized or in progress.
+- `blocked`: accepted/current but unable to proceed.
+- `deferred`: accepted but intentionally postponed.
+- `completed`: evidence-closed and delivered.

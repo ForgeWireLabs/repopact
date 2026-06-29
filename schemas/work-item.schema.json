@@ -6,7 +6,7 @@
   "properties": {
     "id": {"type": "string", "pattern": "^[0-9]{3,}$"},
     "title": {"type": "string", "minLength": 1},
-    "status": {"enum": ["active", "blocked", "deferred", "completed"]},
+    "status": {"enum": ["proposed", "active", "blocked", "deferred", "completed"]},
     "owner_scope": {"type": "string", "minLength": 1},
     "affected_scopes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
     "depends_on": {"type": "array", "items": {"type": "string", "pattern": "^[0-9]{3,}$"}, "uniqueItems": true},
@@ -39,4 +39,3 @@
     "updated": {"type": "string", "format": "date"}
   }
 }
-

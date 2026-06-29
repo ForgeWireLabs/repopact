@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "003",
+  "title": "Active work",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": ["002"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-01-01T00:00:00Z",
+    "note": "Active work was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Work is delivered", "state": "pending", "evidence": []}
+  ],
+  "created": "2026-01-01",
+  "updated": "2026-01-01"
+}

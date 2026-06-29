@@ -10,8 +10,10 @@ operator approval (`INV-6`); `scripts/check_frozen_surface.py` is the backstop.
 
 ## 1. Capture intent
 
-Create `work/active/NNN-short-name/` containing `README.md` and `work-item.json`.
-State the outcome, boundaries, dependencies, risks, and acceptance criteria.
+Create `work/proposed/NNN-short-name/` for candidate work that is not yet
+authorized, or `work/active/NNN-short-name/` for accepted work ready for design or
+implementation. Each item contains `README.md` and `work-item.json`. State the
+outcome, boundaries, dependencies, risks, and acceptance criteria.
 
 ## 2. Resolve authority
 
@@ -46,9 +48,11 @@ Regenerate derived artifacts (the dashboard) rather than editing them by hand.
 
 ## 7. Transition state
 
-- `active`: being designed or executed.
-- `blocked`: cannot progress until a named condition changes.
-- `deferred`: intentionally postponed with rationale and revisit trigger.
+- `proposed`: captured but unauthorized candidate work; it records possible
+  intent but does not grant implementation authority.
+- `active`: accepted and authorized for design or implementation.
+- `blocked`: accepted/current work that cannot progress until a named condition changes.
+- `deferred`: accepted but intentionally postponed with rationale and revisit trigger.
 - `completed`: acceptance criteria satisfied with evidence.
 
 Move the entire directory and update `status`. Never copy only the final summary.

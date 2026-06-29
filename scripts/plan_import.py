@@ -11,7 +11,7 @@ Supported sources (extensible):
 
 * **Plan directories** — `todos/`, `todo/`, `tasks/`, `plan/`, `planning/`, `backlog/`
   with one subdirectory or markdown file per item, optionally grouped under
-  `completed/`, `deferred/`, `blocked/`, `active/` lifecycle folders.
+  `proposed/`, `completed/`, `deferred/`, `blocked/`, `active/` lifecycle folders.
 * **Checklist files** — `TODO.md`, `TODOS.md`, `ROADMAP.md`, `BACKLOG.md`, `PLAN.md`,
   `TASKS.md` at the root: each `- [ ]` / `- [x]` line becomes a work item.
 
@@ -33,16 +33,23 @@ import adopt_repo  # reuse Report and _slug
 
 PLAN_DIR_NAMES = ("todos", "todo", "tasks", "plan", "planning", "backlog")
 CHECKLIST_FILES = ("TODO.md", "TODOS.md", "ROADMAP.md", "BACKLOG.md", "PLAN.md", "TASKS.md")
-LIFECYCLE_DIRS = {"completed", "deferred", "blocked", "active"}
+LIFECYCLE_DIRS = {"proposed", "completed", "deferred", "blocked", "active"}
 
 # source lifecycle -> (work status, acceptance-criterion state)
 _STATUS = {
+    "proposed": ("proposed", "pending"),
     "completed": ("completed", "waived"),
     "deferred": ("deferred", "pending"),
     "blocked": ("blocked", "pending"),
     "active": ("active", "pending"),
 }
-_EMOJI = {"completed": "✅ Complete", "deferred": "⏸️ Deferred", "blocked": "⛔ Blocked", "active": "📋 Active"}
+_EMOJI = {
+    "proposed": "Proposed",
+    "completed": "✅ Complete",
+    "deferred": "⏸️ Deferred",
+    "blocked": "⛔ Blocked",
+    "active": "📋 Active",
+}
 
 _SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__"}
 # Index/template/readme files in a plan directory are scaffolding, not plan items.
@@ -55,7 +62,7 @@ def _is_scaffold(name: str) -> bool:
 
 @dataclass
 class PlanItem:
-    lifecycle: str          # completed | deferred | blocked | active
+    lifecycle: str          # proposed | completed | deferred | blocked | active
     slug: str               # RepoPact slug (no leading number)
     title: str
     narrative: str          # markdown body to preserve

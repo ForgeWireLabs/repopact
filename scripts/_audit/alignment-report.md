@@ -1,5 +1,14 @@
 # Tooling Alignment Report
 
+## 2026-06-29 proposed lifecycle state (025)
+
+- Added `proposed` to the shared lifecycle model as candidate work that does not
+  grant implementation authority.
+- Validator accepts structurally valid proposed work items but rejects active or
+  completed work that depends on proposed work.
+- Bootstrap and CLI record-stamping now create/use `work/proposed/`; conformance
+  covers the new lifecycle rule.
+
 ## 2026-06-15 adoption surface and hardening (003)
 
 - Records are now validated against `schemas/*.json` via `jsonschema` (decision

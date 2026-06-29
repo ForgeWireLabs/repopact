@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 
-STATUSES = ("active", "blocked", "deferred", "completed")
+STATUSES = ("proposed", "active", "blocked", "deferred", "completed")
 
 # Directories that are not part of the governed tree: tooling caches and, notably,
 # test fixtures, which are self-contained sub-repositories validated on their own.
@@ -64,4 +64,3 @@ def discover_evidence_ids(root: Path) -> set[str]:
     for path in sorted((root / "evidence" / "runs").glob("*.json")):
         result.add(str(load_json(path).get("id", "")))
     return result
-

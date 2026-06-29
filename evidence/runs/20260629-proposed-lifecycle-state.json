@@ -1,0 +1,53 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260629-proposed-lifecycle-state",
+  "timestamp": "2026-06-29T00:00:00-05:00",
+  "work_item": "025",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pytest tests/test_validate_repo.py -q",
+      "exit_code": 0,
+      "summary": "73 passed, 2 skipped. Covered bootstrap-created work/proposed, valid/invalid proposed items, active dependency rejection, and CLI --status proposed."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "8/8 conformance cases passed, including valid proposed work and active-depends-on-proposed rejection."
+    },
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed."
+    },
+    {
+      "command": "python -m pytest",
+      "exit_code": 0,
+      "summary": "96 passed, 2 skipped."
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; python scripts/check_frozen_surface.py --base HEAD --ack",
+      "exit_code": 0,
+      "summary": "Frozen-surface check flagged schemas/work-item.schema.json and proceeded with operator acknowledgment for the requested lifecycle schema change."
+    }
+  ],
+  "artifacts": [
+    "schemas/work-item.schema.json",
+    "scripts/repo_model.py",
+    "scripts/init_repo.py",
+    "scripts/new.py",
+    "scripts/repopact_cli.py",
+    "scripts/validate_repo.py",
+    "tests/test_validate_repo.py",
+    "conformance/manifest.json",
+    "conformance/fixtures/valid-proposed/",
+    "conformance/fixtures/invalid/active-depends-on-proposed/",
+    "decisions/0023-add-proposed-lifecycle-state.md"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4",
+    "note": "Frozen-surface check required PYTHONUTF8=1 on Windows to decode the diff output."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "002",
+  "title": "Candidate work",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-01-01T00:00:00Z",
+    "note": "Proposed work was recorded before any implementation authority was granted."
+  },
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "Candidate is reviewed and either accepted or dropped", "state": "pending", "evidence": []}
+  ],
+  "created": "2026-01-01",
+  "updated": "2026-01-01"
+}

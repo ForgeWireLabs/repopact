@@ -1,7 +1,7 @@
 # RepoPact Specification
 
 <!-- generated:version -->
-This document specifies **RepoPact 2.0.1**.
+This document specifies **RepoPact 2.0.2**.
 <!-- /generated:version -->
 
 > Status: **stable (1.0)**. The record formats and rules below were exercised by an
@@ -71,7 +71,9 @@ cross-record consistency.
    (for work items) its lifecycle directory must agree. IDs are unique per type.
 3. **Reference resolution.** Work-item `depends_on` and acceptance-criterion
    `evidence`, evidence `work_item`, finding `scope`, role `scopes`, and decision
-   `supersedes` must reference records or scopes that exist.
+   `supersedes` must reference records or scopes that exist. `active` and
+   `completed` work items may not depend on `proposed` work, because proposed
+   work is not accepted implementation authority.
 4. **Acceptance.** A `satisfied` criterion has linked evidence. A `completed` work
    item has no `pending` criterion.
 5. **Acyclic dependencies.** The work-item `depends_on` graph has no cycles.
@@ -82,10 +84,19 @@ cross-record consistency.
 ## 5. Lifecycle state machine
 
 A work item's status is the name of its lifecycle directory; the JSON `status` must
-match. States: `active`, `blocked`, `deferred`, `completed`. A transition moves the
-entire directory and updates `status`; the reasoning, decisions, and evidence links
-are never dropped. `completed` requires every acceptance criterion `satisfied` or
-`waived` with evidence. Closed work is never rewritten to look cleaner (INV-4).
+match. States:
+
+- `proposed`: captured candidate work that is not accepted or authorized for
+  implementation.
+- `active`: accepted work authorized for design or implementation.
+- `blocked`: accepted/current work that cannot proceed until a named condition changes.
+- `deferred`: accepted work intentionally postponed.
+- `completed`: delivered work whose acceptance criteria are evidence-closed.
+
+A transition moves the entire directory and updates `status`; the reasoning,
+decisions, and evidence links are never dropped. `completed` requires every
+acceptance criterion `satisfied` or `waived` with evidence. Closed work is never
+rewritten to look cleaner (INV-4).
 
 ## 6. Invariants and escalation
 

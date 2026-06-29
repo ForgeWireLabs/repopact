@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "025",
+  "title": "Add proposed lifecycle state",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "tooling"
+  ],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-06-29T00:00:00Z",
+    "note": "Created before implementation of the proposed lifecycle state began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "`work/proposed/` is a valid lifecycle directory and bootstrap creates it.",
+      "state": "satisfied",
+      "evidence": ["20260629-proposed-lifecycle-state"]
+    },
+    {
+      "id": "AC-2",
+      "text": "Proposed work items validate structurally, but active/completed work cannot depend on proposed work.",
+      "state": "satisfied",
+      "evidence": ["20260629-proposed-lifecycle-state"]
+    },
+    {
+      "id": "AC-3",
+      "text": "CLI can create proposed work items via `repopact new work-item ... --status proposed`.",
+      "state": "satisfied",
+      "evidence": ["20260629-proposed-lifecycle-state"]
+    },
+    {
+      "id": "AC-4",
+      "text": "Documentation and conformance reflect the new lifecycle semantics.",
+      "state": "satisfied",
+      "evidence": ["20260629-proposed-lifecycle-state"]
+    }
+  ],
+  "created": "2026-06-29",
+  "updated": "2026-06-29"
+}

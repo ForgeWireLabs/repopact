@@ -48,14 +48,20 @@ class RepositoryValidationTests(unittest.TestCase):
         mutate(data)
         path.write_text(json.dumps(data), encoding="utf-8")
 
-    def add_active_item(self, item_id: str, owner_scope: str = "work", preflight: bool = True) -> None:
-        directory = self.root / "work" / "active" / f"{item_id}-probe"
+    def add_work_item(
+        self,
+        item_id: str,
+        status: str = "active",
+        owner_scope: str = "work",
+        preflight: bool = True,
+    ) -> None:
+        directory = self.root / "work" / status / f"{item_id}-probe"
         directory.mkdir(parents=True)
         (directory / "README.md").write_text("# probe\n", encoding="utf-8")
         data = {
             "id": item_id,
             "title": "probe",
-            "status": "active",
+            "status": status,
             "owner_scope": owner_scope,
             "affected_scopes": [],
             "depends_on": [],
@@ -71,6 +77,9 @@ class RepositoryValidationTests(unittest.TestCase):
                 "note": "probe",
             }
         (directory / "work-item.json").write_text(json.dumps(data), encoding="utf-8")
+
+    def add_active_item(self, item_id: str, owner_scope: str = "work", preflight: bool = True) -> None:
+        self.add_work_item(item_id, "active", owner_scope, preflight)
 
     # --- baseline -----------------------------------------------------------
 
@@ -94,6 +103,23 @@ class RepositoryValidationTests(unittest.TestCase):
         path = self.manifest()
         self.write_json(path, lambda d: (d["acceptance_criteria"][0].update({"state": "pending", "evidence": []})))
         self.assertTrue(any("completed item has pending criterion" in v for v in self.problems()))
+
+    def test_valid_proposed_work_item_validates(self) -> None:
+        self.add_work_item("900", status="proposed")
+        self.assertEqual([], self.problems())
+
+    def test_invalid_proposed_work_item_fails_structure_validation(self) -> None:
+        self.add_work_item("900", status="proposed")
+        path = self.root / "work" / "proposed" / "900-probe" / "work-item.json"
+        self.write_json(path, lambda d: d.pop("title"))
+        self.assertTrue(any("missing fields: title" in v for v in self.problems()))
+
+    def test_active_work_cannot_depend_on_proposed_work(self) -> None:
+        self.add_work_item("900", status="proposed")
+        self.add_active_item("901")
+        active = self.root / "work" / "active" / "901-probe" / "work-item.json"
+        self.write_json(active, lambda d: d.__setitem__("depends_on", ["900"]))
+        self.assertTrue(any("depends on proposed work item '900'" in v for v in self.problems()))
 
     def test_readme_checkbox_parity_flags_contradiction(self) -> None:
         path = self.manifest()
@@ -401,6 +427,7 @@ class RepositoryValidationTests(unittest.TestCase):
     def test_bootstrap_produces_valid_repo(self) -> None:
         target = Path(self.temp.name) / "seeded"
         init_repo.bootstrap(target)
+        self.assertTrue((target / "work" / "proposed").is_dir())
         self.assertEqual([], [p.message for p in validate(target)])
 
     # --- SPEC generator determinism (004) ----------------------------------
@@ -423,6 +450,15 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual(0, rc)
         stamped = list((self.root / "work" / "active").glob("*-cli-probe/work-item.json"))
         self.assertEqual(1, len(stamped))
+        self.assertEqual([], [p.message for p in validate(self.root)])
+
+    def test_cli_new_can_stamp_proposed_work_item(self) -> None:
+        rc = repopact_cli.main(["new", "work-item", "Cli Proposal", "--status", "proposed", "--root", str(self.root)])
+        self.assertEqual(0, rc)
+        stamped = list((self.root / "work" / "proposed").glob("*-cli-proposal/work-item.json"))
+        self.assertEqual(1, len(stamped))
+        data = json.loads(stamped[0].read_text(encoding="utf-8"))
+        self.assertEqual("proposed", data["status"])
         self.assertEqual([], [p.message for p in validate(self.root)])
 
     # --- proving-ground hardening (007) -------------------------------------

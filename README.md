@@ -58,7 +58,8 @@ intent -> scoped authority -> work item -> implementation -> evidence -> audit -
 pip install repopact                # the CLI + reference validator, from PyPI
 repopact init --target ../your-repo # seed a valid RepoPact in a new repo
 cd ../your-repo
-repopact new work-item "Title of the work"   # stamps records (incl. the preflight marker)
+repopact new work-item "Title of the work"   # stamps active work (incl. the preflight marker)
+repopact new work-item "Candidate idea" --status proposed
 repopact validate
 repopact dashboard
 ```
@@ -110,9 +111,17 @@ Decision [`0021`](decisions/0021-preflight-mandatory-and-provenance.md) (superse
 
 ## Status is a filesystem transition
 
-Work moves between `work/active`, `work/blocked`, `work/deferred`, and `work/completed`; its
-`work-item.json` status must match its directory. Moving a work item never deletes its
-reasoning, decisions, or evidence links.
+Work moves between lifecycle directories; its `work-item.json` status must match its
+directory. Moving a work item never deletes its reasoning, decisions, or evidence links.
+
+- `proposed`: captured candidate work that is not yet accepted or authorized for
+  implementation.
+- `active`: accepted work authorized for design or implementation.
+- `blocked`: accepted/current work that cannot proceed until a named condition changes.
+- `deferred`: accepted work intentionally postponed with rationale.
+- `completed`: delivered work whose acceptance criteria are evidence-closed.
+
+Active and completed work cannot depend on proposed work as if it were accepted.
 
 ## Derive over declare
 

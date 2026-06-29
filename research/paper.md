@@ -704,7 +704,7 @@ Defects found in RepoPact are recorded openly as findings rather than quietly pa
 
 ## Data and Artifact Availability
 
-RepoPact is open source under Apache-2.0. The formal model, experiment protocol, comparative benchmark protocol, threats register, findings register, paper draft, and related research records live in RepoPact's public `research/` directory.
+RepoPact is open source under Apache-2.0. The formal model, experiment protocol, comparative benchmark protocol, threats register, findings register, current paper, and related research records live in RepoPact's public `research/` directory.
 
 The runnable benchmark artifacts live in RepoPact Proving Ground. This includes PactBench task sets, fixtures, harnesses, deterministic mock runner support, subprocess real-runner support, drift harnesses, and future result bundles. The benchmark protocol remains in RepoPact. The runnable benchmark implementation belongs to Proving Ground.
 

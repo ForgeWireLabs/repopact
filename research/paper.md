@@ -47,7 +47,7 @@ This paper makes five contributions.
 
 4. **A brownfield adoption trilemma and a provenance-typed resolution.** In a concrete-only record language, no migration from a RepoPact-naive project can be total, faithful, and closed. RepoPact 2.0 resolves this by adding provenance-typed records. Reconstructed state can be valid as `inferred` or `provisional` without being falsely asserted as concrete, while completion remains gated on concrete evidence.
 
-5. **A reflexive and adversarial evaluation program.** RepoPact is evaluated against its own claims using the packaged product, a public Proving Ground, adversarial findings, a formal model, a conformance story, and pre-registered comparative benchmarks. Results that disconfirm RepoPact are in scope by design.
+5. **A reflexive and adversarial evaluation program.** RepoPact is evaluated against its own claims using the packaged product, a public Proving Ground, adversarial findings, a formal model, a machine-checkable conformance suite, and pre-registered comparative benchmarks. Results that disconfirm RepoPact are in scope by design.
 
 RepoPact is open source under Apache-2.0. It is the work-governance layer of the ForgeWire Labs inspectable-infrastructure stack, but this paper concerns RepoPact as an independently useful artifact.
 

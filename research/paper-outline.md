@@ -12,7 +12,8 @@ conversation. We argue the version-controlled repository — not a chat log, tic
 tracker, or external memory store — is the right substrate, and that a thin layer
 of machine-checked records (binding invariants, scoped authority, evidence-gated
 work items, a filesystem state machine, drift audits) turns a folder convention
-into an operating system for agentic work. We evaluate the claim adversarially.
+into a repository-native contract and evidence layer for agentic work. We evaluate
+the claim adversarially.
 
 ## 1. Introduction
 

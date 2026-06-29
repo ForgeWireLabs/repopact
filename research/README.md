@@ -1,9 +1,10 @@
 # RepoPact Proving Ground — Research Record
 
 This directory is the lab notebook for an adversarial evaluation of the RepoPact
-architecture. RepoPact claims to be a *repository-native operating system for
-durable agent work*: authority, intent, evidence, and drift recorded as versioned
-files so project state survives without a prior conversation. This record exists
+architecture. RepoPact claims to be a *repository-native contract, evidence, and
+conformance layer for durable agent work*: authority, intent, evidence, and drift
+recorded as versioned files so project state survives without a prior conversation.
+This record exists
 to test that claim — to **prove or disprove** it — rather than to assert it.
 
 The exercise is deliberately reflexive: RepoPact is the instrument as well as the
@@ -19,7 +20,7 @@ output produced along the way **are the data**.
 | [`protocol.md`](protocol.md) | The experiment: research question, hypotheses, method, and falsification criteria. Write before running. |
 | [`run-log.md`](run-log.md) | Chronological log of every experimental action and its result. Append-only. |
 | [`findings.md`](findings.md) | Findings register: each place the architecture held or cracked, with severity and resolution. |
-| [`paper-outline.md`](paper-outline.md) | Working outline for a paper on repository-native agentic operating systems. |
+| [`paper-outline.md`](paper-outline.md) | Working outline for a paper on repository-native governance for durable agentic work. |
 | [`formal-model.md`](formal-model.md) | Operational semantics of the kernel as layers (L0–L5): the state algebra, the lifecycle FSM as one layer (L1), the well-formedness predicate the validator decides, the typed invariant lattice, the adoption trilemma, and the theorems (T1–T6) the proving ground falsifies. |
 | [`threats-to-validity.md`](threats-to-validity.md) | Why the evidence must not be over-read — reflexivity (forgewire is the progenitor), single evaluator, scale. |
 | [`release-runbook.md`](release-runbook.md) | The credential-bound release steps for v1.0.0, recorded for the operator and the paper. |

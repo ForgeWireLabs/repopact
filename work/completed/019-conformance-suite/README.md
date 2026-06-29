@@ -1,6 +1,7 @@
 # 019 — Published conformance suite for the RepoPact standard
 
-> **Status**: 🟢 Active
+> **Status**: Complete 2026-06-29. Evidence
+> [`20260629-conformance-suite-closeout`](../../../evidence/runs/20260629-conformance-suite-closeout.json).
 > **Owners**: tooling-owner (lead); governance-owner (schema/spec coupling).
 > **Depends on**: none.
 
@@ -39,5 +40,10 @@ required; this is the implementation of an existing one.
 - **AC-3** — `CONFORMANCE.md` defines the conformance claim, tied to `VERSION`; all gates
   pass.
 
-(State is tracked in [`work-item.json`](work-item.json); criteria are `pending` until
-each is backed by an evidence run.)
+## Closeout
+
+All acceptance criteria are satisfied. The suite is published under
+`conformance/` with a manifest and rule mappings, `scripts/run_conformance.py`
+runs the suite against the reference validator or an arbitrary implementation
+command template, CI runs the suite, and `CONFORMANCE.md` defines the versioned
+claim.

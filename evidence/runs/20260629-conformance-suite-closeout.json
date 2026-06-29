@@ -1,0 +1,41 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260629-conformance-suite-closeout",
+  "timestamp": "2026-06-29T14:47:16-05:00",
+  "work_item": "019",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts\\run_conformance.py",
+      "exit_code": 0,
+      "summary": "Published conformance runner passed 6/6 cases: valid-minimal accepted; five invalid overlays rejected with their declared diagnostics."
+    },
+    {
+      "command": "python -m unittest tests.test_conformance -v",
+      "exit_code": 0,
+      "summary": "4 conformance tests passed: manifest schema/path/version validity, runner agreement with the reference validator, valid fixture accepted, and invalid overlays rejected."
+    },
+    {
+      "command": "python scripts\\validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed after adding the conformance suite, runner, schema, CI wiring, and conformance claim."
+    }
+  ],
+  "artifacts": [
+    "CONFORMANCE.md",
+    "conformance/README.md",
+    "conformance/manifest.json",
+    "conformance/fixtures/",
+    "schemas/conformance-manifest.schema.json",
+    "scripts/run_conformance.py",
+    "tests/test_conformance.py",
+    ".github/workflows/governance.yml",
+    "SPEC.md",
+    "README.md"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4"
+  }
+}

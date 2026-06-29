@@ -1,0 +1,60 @@
+{
+  "$schema": "../schemas/conformance-manifest.schema.json",
+  "suite_version": "2.0.1",
+  "spec_version_file": "../VERSION",
+  "fixtures_root": "fixtures",
+  "cases": [
+    {
+      "id": "valid-minimal",
+      "path": "valid",
+      "expect": "accept",
+      "rules": ["SPEC-4-record-validity", "INV-2", "INV-3"],
+      "description": "A minimal conformant RepoPact repository."
+    },
+    {
+      "id": "completed-with-pending",
+      "path": "invalid/completed-with-pending",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "completed item has pending criterion",
+      "rules": ["INV-2"],
+      "description": "A completed work item cannot retain pending acceptance criteria."
+    },
+    {
+      "id": "satisfied-without-evidence",
+      "path": "invalid/satisfied-without-evidence",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "satisfied without evidence",
+      "rules": ["INV-3"],
+      "description": "A satisfied acceptance criterion must link evidence."
+    },
+    {
+      "id": "unknown-dependency",
+      "path": "invalid/unknown-dependency",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "unknown dependency",
+      "rules": ["SPEC-4-reference-resolution"],
+      "description": "Work-item dependencies must resolve to known work items."
+    },
+    {
+      "id": "unregistered-contract",
+      "path": "invalid/unregistered-contract",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "not registered in audits/registry.json",
+      "rules": ["SPEC-4-contract-coverage"],
+      "description": "Nested AGENTS.md contracts must be represented in the audit registry."
+    },
+    {
+      "id": "dependency-cycle",
+      "path": "invalid/dependency-cycle",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "dependency cycle",
+      "rules": ["SPEC-4-acyclic-dependencies"],
+      "description": "Dependency edges between work items must be acyclic."
+    }
+  ]
+}

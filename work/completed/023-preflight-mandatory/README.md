@@ -1,6 +1,7 @@
 # 023 — Make preflight mandatory by default (2.0)
 
-> **Status**: 🟢 Active
+> **Status**: Complete 2026-06-29. Evidence
+> [`20260629-preflight-mandatory-closeout`](../../../evidence/runs/20260629-preflight-mandatory-closeout.json).
 > **Owners**: governance-owner (lead); tooling-owner (validator + `new`).
 > **Depends on**: none. Part of the 2.0 release (with [024](../024-provenance-typed-records/)).
 
@@ -32,4 +33,9 @@ preflight enabled by default; grandfather pre-2.0 items via `required_from_id` /
 - **AC-2** — `new` stamps the marker; RepoPact grandfathers 000-022.
 - **AC-3** — adopt/doctor grandfather on upgrade; tests cover it.
 
-(State in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+## Closeout
+
+All acceptance criteria are satisfied. RepoPact validates with default-on
+preflight, `repopact new` stamps concrete preflight markers, and the Moto One
+Hyper adopter validates with `required_from_date` and post-adoption preflight
+markers.

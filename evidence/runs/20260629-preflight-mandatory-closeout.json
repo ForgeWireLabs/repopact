@@ -1,0 +1,45 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260629-preflight-mandatory-closeout",
+  "timestamp": "2026-06-29T14:47:16-05:00",
+  "work_item": "023",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts\\validate_repo.py",
+      "exit_code": 0,
+      "summary": "RepoPact validation passed with mandatory preflight enabled by default and RepoPact's own owners.json grandfathering pre-2.0 work via required_from_id 23."
+    },
+    {
+      "command": "python -m unittest tests.test_conformance -v",
+      "exit_code": 0,
+      "summary": "4 conformance tests passed; suite validation includes the current schema layer and does not regress the preflight/provenance validator rules covered by the full test suite."
+    },
+    {
+      "command": "python C:\\Projects\\moto-one-hyper\\scripts\\validate_repo.py",
+      "exit_code": 0,
+      "summary": "Real adopter repository validates with preflight.required_from_date set to 2026-06-27 and `repopact new`-stamped preflight markers on post-adoption work."
+    },
+    {
+      "command": "rg -n 'required_from_date|provenance|preflight|inferred|provisional|Stamped by' governance\\owners.json work\\active work\\completed evidence\\runs\\20260627-193623-adopt.json",
+      "exit_code": 0,
+      "summary": "Moto One Hyper records show required_from_date, concrete post-adoption preflight markers, and the provisional/inferred adoption record shape."
+    }
+  ],
+  "artifacts": [
+    "governance/owners.json",
+    "scripts/validate_repo.py",
+    "scripts/new.py",
+    "scripts/adopt_repo.py",
+    "scripts/doctor.py",
+    "tests/test_validate_repo.py",
+    "C:/Projects/moto-one-hyper/governance/owners.json",
+    "C:/Projects/moto-one-hyper/work/active/001-acquire-exact-motorola-one-hyper-stock-boot-image/work-item.json"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.4",
+    "note": "Closeout evidence for work item 023; downstream adopter evidence is external and cited by absolute path."
+  }
+}

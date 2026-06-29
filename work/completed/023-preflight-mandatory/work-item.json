@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "023",
   "title": "Make preflight mandatory by default (2.0)",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": [
     "governance",
@@ -19,22 +19,22 @@
     {
       "id": "AC-1",
       "text": "Preflight is enabled by default (absent config requires a marker for every work item); existing repos grandfather their pre-2.0 items via required_from_id / required_from_date.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-preflight-mandatory-closeout"]
     },
     {
       "id": "AC-2",
       "text": "`repopact new` stamps the preflight marker and concrete provenance; RepoPact's own owners.json grandfathers 000-022 via required_from_id 23.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-preflight-mandatory-closeout"]
     },
     {
       "id": "AC-3",
       "text": "adopt and doctor set required_from_date to the adoption/upgrade date so existing adopters are grandfathered on upgrade; tests cover default-on and the grandfather thresholds.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-preflight-mandatory-closeout"]
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-06-24"
+  "updated": "2026-06-29"
 }

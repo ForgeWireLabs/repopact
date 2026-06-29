@@ -70,6 +70,14 @@ repopact dashboard
 [`AGENTS.md`](AGENTS.md), then [`governance/charter.md`](governance/charter.md) and
 [`governance/workflow.md`](governance/workflow.md).
 
+Alternative implementations can run the published conformance suite:
+
+```powershell
+python scripts/run_conformance.py --command "your-validator --root {repo}"
+```
+
+See [`CONFORMANCE.md`](CONFORMANCE.md) and [`conformance/`](conformance/).
+
 ## Adopt an *existing* repository
 
 For a project that already has CODEOWNERS, CI workflows, and nested `AGENTS.md` contracts,

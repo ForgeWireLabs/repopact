@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "019",
   "title": "Published conformance suite for the RepoPact standard",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "tooling",
@@ -13,22 +13,22 @@
     {
       "id": "AC-1",
       "text": "Promote tests/fixtures/{valid,invalid} into a versioned, documented conformance suite with a manifest mapping each fixture to the spec rule / invariant it exercises and its expected validator outcome (accept / reject-with-reason).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-conformance-suite-closeout"]
     },
     {
       "id": "AC-2",
       "text": "A conformance runner (scripts/run_conformance.py) runs an arbitrary RepoPact implementation against the suite and reports pass/fail per case; wired into CI so the suite cannot silently drift from the validator.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-conformance-suite-closeout"]
     },
     {
       "id": "AC-3",
       "text": "CONFORMANCE.md describes how a third-party implementation claims 'RepoPact <spec-version> conformant', tied to VERSION; all gates (validate, unittest, dashboard, spec, conformance) pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260629-conformance-suite-closeout"]
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-06-24"
+  "updated": "2026-06-29"
 }

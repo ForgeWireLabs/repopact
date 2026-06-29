@@ -1,6 +1,7 @@
 # 024 — Provenance-typed records (concrete / provisional / inferred)
 
-> **Status**: 🟢 Active
+> **Status**: Complete 2026-06-29. Evidence
+> [`20260629-provenance-typed-records-closeout`](../../../evidence/runs/20260629-provenance-typed-records-closeout.json).
 > **Owners**: governance-owner (lead); tooling-owner (validator, adopt, doctor).
 > **Depends on**: none. Part of the 2.0 release (with [023](../023-preflight-mandatory/)).
 
@@ -33,4 +34,10 @@ default concrete; L2 rules P1 (admission), P2 (completion requires concrete), P3
 - **AC-2** — L2 admission / completion-requires-concrete / consistency.
 - **AC-3** — adopt emits provisional; doctor ratchets; tests cover it.
 
-(State in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+## Closeout
+
+All acceptance criteria are satisfied. Schemas carry provenance types, the
+validator enforces admission/completion/consistency, `adopt` emits
+provisional/inferred records, and `doctor` ratchets provisional work when
+concrete evidence is present. Moto One Hyper provides live adopter evidence for
+the provisional adoption + inferred evidence shape.

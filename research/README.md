@@ -24,6 +24,7 @@ output produced along the way **are the data**.
 | [`paper-outline.md`](paper-outline.md) | Working outline for the paper (scaffold; superseded in detail by `paper.md`). |
 | [`benchmark-protocol.md`](benchmark-protocol.md) | Pre-registered comparative benchmark protocol (S1–S6 / H8–H13); the runnable suites live in RepoPact Proving Ground. |
 | [`figures.md`](figures.md) | Planned figures and tables for the paper, with data sources. |
+| [`gap-audit-2026-07.md`](gap-audit-2026-07.md) | Pre-publication gap audit (2026-07-15): verified gaps across adopters, conformance, benchmarks, and logistics, with a sequenced worklist toward the end-of-August paper deadline. |
 | [`formal-model.md`](formal-model.md) | Operational semantics of the kernel as layers (L0–L5): the state algebra, the lifecycle FSM as one layer (L1), the well-formedness predicate the validator decides, the typed invariant lattice, the adoption trilemma, and the theorems (T1–T6) the proving ground falsifies. |
 | [`threats-to-validity.md`](threats-to-validity.md) | Why the evidence must not be over-read — reflexivity (forgewire is the progenitor), single evaluator, scale. |
 | [`release-runbook.md`](release-runbook.md) | The credential-bound release steps for v1.0.0, recorded for the operator and the paper. |

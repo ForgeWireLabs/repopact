@@ -4,63 +4,60 @@ A human-curated forward view. The authoritative status of in-flight work is the
 derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file
 adds editorial intent (what we mean to do next and why) that is not derivable.
 
-## Now — shipped in v1.7.0
+## Now — shipped in v2.0.x
 
-Closed the **inbound-reference drift class** found in the wild on forgewire — a
-`takeover --delete` retired a heavily-referenced `todos/` tree and left dangling
-references across docs, code, and a silently-broken test suite, none of which RepoPact
-validation flagged. Three fixes, both ends of the lifecycle:
+RepoPact 2.0 changed the record language itself; the 2.0.x line hardened it:
 
-- **Import-plan rewrites narrative links** (decision `0015`): `import-plan` rebases each
-  imported narrative's relative links to the item's new `work/<status>/<id>/` home and
-  remaps cross-item links to the work ledger, so a freshly imported `work/` ships no link
-  pointing back at the legacy plan tree.
-- **Takeover repoints inbound references** (decision `0016`): before retiring a directory,
-  `takeover` auto-rewrites the safe navigational forms (Markdown link targets,
-  `source_of_truth:`) across the repo and **reports** everything it cannot safely touch
-  (code `Path()` calls, prose, cross-repo links) as a `file:line` worklist. Runs under
-  `--dry-run`.
-- **Import-plan stops doubling titles**: source headings that embed the tracker number
-  (`# 107 — Foo`) no longer produce `# 107 — 107 — Foo` once the allocated id is prepended.
+- **Mandatory preflight** (decision `0021`, v2.0.0; generalizing the opt-in
+  marker of decision `0018`): a work item must exist before implementation
+  begins. Existing adopters are grandfathered through a preflight epoch and a
+  `doctor` migration path.
+- **Provenance-typed records** (decision `0021`): every record carries
+  `concrete | provisional | inferred` provenance. This resolves the brownfield
+  adoption trilemma — `adopt` now emits provisional work items backed by inferred
+  evidence, so migration is total, faithful, *and* closed, while completion stays
+  gated on concrete evidence. `doctor` ratchets `provisional → concrete` when the
+  proof exists.
+- **Published conformance suite** (`CONFORMANCE.md`, `conformance/`, work item
+  `019`): a versioned fixture corpus plus runner so third-party implementations
+  can test acceptance/rejection against the standard, not against our Python.
+- **PactBench relocated to RepoPact Proving Ground** (v2.0.1):
+  RepoPact keeps the benchmark *protocol*; the runnable suite lives in
+  [`repopact-proving-ground`](https://github.com/ForgeWireLabs/repopact-proving-ground)
+  and consumes RepoPact from PyPI.
+- **`proposed` lifecycle state** (decision `0023`; on `main`, unreleased —
+  ships in the next release): candidate work can be captured durably without
+  granting implementation authority; `active`/`completed` items may not depend
+  on `proposed` ones. Driven by a real downstream adopter.
 
-## Now — shipped in v1.0.0
+## Next — the active ledger
 
-- **Adopter evidence + 1.0**: an independent proving-ground project
-  (`repopact-proving-ground`) adopted RepoPact from the published wheel and
-  exercised every primitive, including adversarial cases. Five of six hypotheses
-  held outright; the two defects found (`spec` crash, `check-frozen` working-tree
-  blindness) were fixed and re-verified. Recorded in [`research/`](research/);
-  1.0 declared in decision `0007`. Work item `007`.
-- **Brownfield adoption**: `repopact adopt` brings an *existing* repo under RepoPact,
-  mapping CODEOWNERS → scopes, CI workflows → binding gates, and nested `AGENTS.md`
-  → registered contracts, non-destructively. Proven on the real forgewire repo
-  (4569 commits, 19 contracts). Work item `008`, decision `0008`.
-
-## Earlier — shipped in v0.1.0-alpha
-
-- **Governance core**: binding invariants + escalation, frozen surface, decisions,
-  policies, parameterized roles (work items `001`–`002`).
-- **Adoption surface**: `init_repo.py`, templates + `new.py`, Apache-2.0, audit
-  findings, schema-enforced validation, spec version, cycle detection (`003`).
-- **Specification & docs**: `SPEC.md` (generated catalog), Diataxis docs, OSS
-  hygiene, first alpha release (`004`).
-
-## Next
-
-- **PyPI distribution**: publish the `repopact` wheel so `pip install repopact`
-  works for anyone (Trusted Publishing from CI preferred).
-- **Animated demo**: record `scripts/demo.sh` as an asciinema cast / GIF and embed
-  it in the README (the script is ready; the recording is a manual pass).
-- **Multi-adopter evidence**: invite external projects to adopt RepoPact and
-  contribute their proving-ground-style evidence, broadening the 1.0 base.
+- **`020` PactBench ↔ Proving Ground integration**: finish the repo split so the
+  benchmark suite runs entirely against the packaged product.
+- **`021` Public launch**: arXiv preprint (cs.SE), launch release on PyPI, Show HN.
+  Operator-gated — account, endorsement, and posting are human steps.
+- **`022` Comparative benchmark suite (S2–S6 / H9–H13)**: one matched-arm harness
+  for recovery, coordination, token economy, drift, and security studies.
+  Real cross-model results are gated on compute/model access.
 
 ## Later
 
 - **Alternative validator** in a compiled language, proving the SPEC is
-  implementation-independent.
+  implementation-independent (the conformance suite is its runnable target).
 - **GitHub Action** that runs the gates as a reusable workflow.
-- **Conformance test kit** packaged for third-party implementations (the
-  `tests/fixtures/` corpus shipped in `006` is the seed).
+- **External ingestion at L5**: tracker exports and design documents as
+  first-class, evidence-bearing records with provenance.
+- **Mechanized temporal/relational invariants**: trace semantics for INV-4 over
+  git history; a refinement order for nested contracts (INV-5).
+
+## Earlier
+
+- **v1.x**: 1.0 declared on proving-ground evidence (decision `0007`); brownfield
+  `adopt` (`0008`); PyPI trusted publishing (`0009`); `import-plan` (`0010`);
+  `doctor` upgrade/repair (`0011`); `takeover` for legacy planning trees (`0012`);
+  inbound-reference drift fixes (`0015`, `0016`).
+- **v0.1.0-alpha**: governance core, adoption surface, specification and docs
+  (work items `001`–`004`).
 
 ## How to influence it
 

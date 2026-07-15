@@ -68,7 +68,7 @@ A **work item** is
 w = (id, title, σ, owner, aff, dep, AC, created, updated)
 ```
 
-with status `σ(w) ∈ Q = {active, blocked, deferred, completed}`, `owner ∈` (intended) `Σ`,
+with status `σ(w) ∈ Q = {proposed, active, blocked, deferred, completed}`, `owner ∈` (intended) `Σ`,
 `aff ⊆ Σ`, `dep ⊆` (intended) `Ids(W)`, and acceptance set `AC(w)` of criteria
 
 ```
@@ -118,7 +118,7 @@ code site:
 | `I_struct` | every record satisfies its JSON Schema | §3 | `check_schema` (Draft 2020-12) |
 | `I_contract` | root `AGENTS.md` exists; every nested contract is registered; `_audit/` companions complete | §4.1 | `validate_contracts` |
 | `I_ID` | `id(r) = prefix(path(r))` ∀ record; `σ(w) = dir(w)`; ids unique per type | §4.2 | `validate_work`, `_validate_records`, `validate_*` |
-| `I_ref` | `dep ⊆ Ids(W)`, `c.ev ⊆ Ids(E)`, `e.work_item ∈ Ids(W)`, `finding.scope ∈ Σ`, `role.scopes ⊆ Σ`, `decision.supersedes ⊆ Ids(D)`, `owner/aff ⊆ Σ` | §4.3 | `validate_work`, `validate_evidence`, `validate_findings`, `validate_owners`, `validate_decisions` |
+| `I_ref` | `dep ⊆ Ids(W)`, `c.ev ⊆ Ids(E)`, `e.work_item ∈ Ids(W)`, `finding.scope ∈ Σ`, `role.scopes ⊆ Σ`, `decision.supersedes ⊆ Ids(D)`, `owner/aff ⊆ Σ`; and σ(w) ∈ {active, completed} ⟹ ∀d ∈ dep(w): σ(d) ≠ proposed (authorized work may not depend on unauthorized candidates) | §4.3 | `validate_work`, `validate_evidence`, `validate_findings`, `validate_owners`, `validate_decisions` |
 | `I_accept` | ∀`c`: `c.st=satisfied ⟹ c.ev≠∅`; and `σ(w)=completed ⟹ ∄c∈AC(w): c.st=pending` | §4.4 | `validate_work` |
 | `I_acyclic` | the `dep` digraph `G(s)=(Ids(W), dep)` is a DAG | §4.5 | `detect_dependency_cycles` (DFS 3-color) |
 | `I_conc` | `δ ⟹ ∀` distinct non-terminal `w,w'`: `scopes(w) ∩ scopes(w') = ∅` | §4.6 | `validate_disjoint_scopes` |
@@ -139,8 +139,13 @@ exactly the two clauses of the acceptance predicate (§4).
 Per work item, the lifecycle is a finite automaton
 
 ```
-M_w = (Q, Λ, δ_w, q₀),   Q = {active, blocked, deferred, completed},   q₀ = active.
+M_w = (Q, Λ, δ_w, Q₀),   Q = {proposed, active, blocked, deferred, completed},   Q₀ = {proposed, active}.
 ```
+
+`Q₀` is a *set* of initial states because `new` may create an item either as accepted
+work (`active`, the default) or as a captured-but-unauthorized candidate (`proposed`,
+via `--status proposed`; decision 0023). `proposed` records possible intent without
+granting implementation authority; acceptance is the `proposed → active` move.
 
 `Λ` is the alphabet of lifecycle moves (a directory relocation + a `σ` rewrite). `δ_w` is
 **total** — any state may move to any state — with one guard, on edges into `completed`:
@@ -151,13 +156,13 @@ g_done(w, s) ≡ (∀ c ∈ AC(w): c.st ≠ pending)
 ```
 
 ```
-        ┌─────────── any ⇄ any (degradation is explicit: charter P7) ───────────┐
-        │                                                                        │
-     active  ⇄  blocked  ⇄  deferred                                            │
-        │          │           │                                                 │
-        └──────────┴───────────┴──────►  completed     [edge guarded by g_done]  │
-                          completed ─────────────────────────────────────────────┘
-                          (reopen is allowed; evidence is never dropped — INV-4)
+        ┌──────────────── any ⇄ any (degradation is explicit: charter P7) ──────────────┐
+        │                                                                                │
+   proposed  ──►  active  ⇄  blocked  ⇄  deferred                                       │
+  [no authority]     │          │           │                                            │
+                     └──────────┴───────────┴──────►  completed  [edge guarded by g_done]│
+                                       completed ────────────────────────────────────────┘
+                                       (reopen is allowed; evidence is never dropped — INV-4)
 ```
 
 **Composition with the invariant monitor (L2).** The lifecycle automaton is the control

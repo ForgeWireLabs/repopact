@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "029",
   "title": "Deterministic adopter fleet verification",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": ["tooling", "governance", "evidence"],
   "depends_on": ["028"],
@@ -16,32 +16,32 @@
     {
       "id": "AC-1",
       "text": "A versioned adopter manifest declares every known adopter repository, default branch, consumption model, version locator, and repository-native validation command; duplicate local checkouts resolve to one remote identity.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-adopter-fleet-verification"]
     },
     {
       "id": "AC-2",
       "text": "A deterministic, locally runnable fleet-verification command compares the current RepoPact release with every declared adopter's public default-branch version and remote head, fails closed on drift or an unreachable declaration, and reports discoverable unregistered candidates separately.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-adopter-fleet-verification"]
     },
     {
       "id": "AC-3",
       "text": "Fleet verification models exact PyPI pins and vendored consumers separately; vendored consumers prove the upstream base by checksums or an equivalently reviewable overlay so changing a version marker alone cannot assert parity.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-adopter-fleet-verification"]
     },
     {
       "id": "AC-4",
       "text": "Release closeout records package publication and downstream rollout as separate phases and cannot report ecosystem completion until every declared adopter passes fleet verification, without depending on GitHub Actions availability.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-adopter-fleet-verification"]
     },
     {
       "id": "AC-5",
       "text": "Tests cover current, stale, missing, unreachable, duplicate-remote, PyPI-pin, and vendored-drift cases; governance validation, unit tests, conformance, and the fleet command pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-adopter-fleet-verification"]
     }
   ],
   "created": "2026-07-18",

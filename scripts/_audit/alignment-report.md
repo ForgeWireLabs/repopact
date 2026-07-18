@@ -1,5 +1,18 @@
 # Tooling Alignment Report
 
+## 2026-07-18 deterministic adopter fleet verification
+
+- Added a versioned, schema-validated public adopter manifest covering exact PyPI
+  pins and vendored consumers as distinct contracts.
+- `repopact fleet-verify` resolves each declared public default branch, reads its
+  version marker at the resolved commit, and fails closed on stale or unreachable
+  state while reporting unregistered local candidates separately.
+- Vendored parity is checksum-backed: exact files must remain byte-identical and
+  declared overlays must reconstruct the adopter bytes from an immutable upstream
+  revision. A version marker alone cannot pass.
+- `repopact release-closeout` reports package publication and ecosystem rollout as
+  separate phases and succeeds only when both have evidence.
+
 ## 2026-06-29 proposed lifecycle state (025)
 
 - Added `proposed` to the shared lifecycle model as candidate work that does not

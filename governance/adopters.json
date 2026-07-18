@@ -1,0 +1,91 @@
+{
+  "$schema": "../schemas/adopter-fleet.schema.json",
+  "version": 1,
+  "upstream": {
+    "repository": "ForgeWireLabs/repopact",
+    "version_file": "VERSION"
+  },
+  "adopters": [
+    {
+      "id": "forgelink",
+      "repository": "ForgeWireLabs/ForgeLink",
+      "default_branch": "main",
+      "consumption": {
+        "type": "pypi",
+        "package": "repopact",
+        "version_file": "requirements-repopact.txt"
+      },
+      "validation_commands": ["python .local/validate_system.py"]
+    },
+    {
+      "id": "skillforge-academy",
+      "repository": "ForgeWireLabs/skillforge-academy",
+      "default_branch": "main",
+      "consumption": {
+        "type": "pypi",
+        "package": "repopact",
+        "version_file": "requirements-repopact.txt"
+      },
+      "validation_commands": ["python -m repopact_cli validate --root .", "npm run validate:content"]
+    },
+    {
+      "id": "forgewire",
+      "repository": "ForgeWireLabs/forgewire",
+      "default_branch": "main",
+      "consumption": {
+        "type": "pypi",
+        "package": "repopact",
+        "version_file": "requirements-repopact.txt"
+      },
+      "validation_commands": ["python -m repopact_cli validate --root .", "python scripts/validate_audit.py"]
+    },
+    {
+      "id": "moto-one-hyper",
+      "repository": "ForgeWireLabs/moto-one-hyper-forgewire-rom-lab",
+      "default_branch": "main",
+      "consumption": {
+        "type": "vendored",
+        "version_file": "scripts/REPOPACT_VERSION",
+        "upstream_version": "2.2.0",
+        "upstream_revision": "2b3b549e915bbe69264ac59401cf533d11cc6532",
+        "files": [
+          {
+            "upstream_path": "scripts/generate_dashboard.py",
+            "adopter_path": "scripts/generate_dashboard.py",
+            "mode": "exact",
+            "upstream_sha256": "98042f0a1251b029ca76286c5ee666f850f88f06db226f7999188490df3aa270",
+            "adopter_sha256": "98042f0a1251b029ca76286c5ee666f850f88f06db226f7999188490df3aa270"
+          },
+          {
+            "upstream_path": "scripts/repo_model.py",
+            "adopter_path": "scripts/repo_model.py",
+            "mode": "exact",
+            "upstream_sha256": "2ff2fc0dec0aaaf9c5a5f676bd84ebcbf9b7148a64eb79f7c00ba1b2ed1fc104",
+            "adopter_sha256": "2ff2fc0dec0aaaf9c5a5f676bd84ebcbf9b7148a64eb79f7c00ba1b2ed1fc104"
+          },
+          {
+            "upstream_path": "scripts/validate_repo.py",
+            "adopter_path": "scripts/validate_repo.py",
+            "mode": "overlay",
+            "upstream_sha256": "8eed18211d6a400d6c5f4ef5f99b3f210d0221e31872c63879491acfdcca6bc9",
+            "adopter_sha256": "5a2b739a9d3a552a4ade42fc5071c4b8a2ff6413f9bfb1e29f96f3691f934160",
+            "overlay_path": "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
+            "overlay_sha256": "2a0311fb6767e104e85ab1ead8d00537dc63e96c833914bda42b4d865c73ef2e"
+          }
+        ]
+      },
+      "validation_commands": ["python scripts/validate_repo.py", "python -m unittest discover -s tests -v"]
+    },
+    {
+      "id": "repopact-proving-ground",
+      "repository": "ForgeWireLabs/repopact-proving-ground",
+      "default_branch": "master",
+      "consumption": {
+        "type": "pypi",
+        "package": "repopact",
+        "version_file": "requirements-repopact.txt"
+      },
+      "validation_commands": ["python -m repopact_cli validate --root .", "python -m unittest discover -s tests -v", "python benchmarks/pactbench/run.py --selftest"]
+    }
+  ]
+}

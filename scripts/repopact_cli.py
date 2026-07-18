@@ -13,6 +13,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import jsonschema
+
 from repo_model import STATUSES
 
 
@@ -64,6 +66,19 @@ def main(argv: list[str] | None = None) -> int:
     p_frz.add_argument("--base", default="origin/main")
     p_frz.add_argument("--ack", action="store_true")
 
+    p_fleet = sub.add_parser("fleet-verify", help="Verify every declared public adopter")
+    p_fleet.add_argument("--root", type=Path, default=Path.cwd())
+    p_fleet.add_argument("--manifest", type=Path)
+    p_fleet.add_argument("--discover-root", type=Path, action="append")
+    p_fleet.add_argument("--json", action="store_true", help="Emit deterministic JSON")
+
+    p_close = sub.add_parser("release-closeout", help="Gate release closeout on publication and adopter rollout")
+    p_close.add_argument("--root", type=Path, default=Path.cwd())
+    p_close.add_argument("--manifest", type=Path)
+    p_close.add_argument("--discover-root", type=Path, action="append")
+    p_close.add_argument("--package-evidence", type=Path)
+    p_close.add_argument("--json", action="store_true", help="Emit deterministic JSON")
+
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -99,6 +114,30 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = args.root.resolve()
+
+    if args.command in {"fleet-verify", "release-closeout"}:
+        import fleet_verify
+        try:
+            report = fleet_verify.verify_fleet(
+                root,
+                manifest_path=args.manifest,
+                discovery_roots=args.discover_root,
+            )
+            if args.command == "fleet-verify":
+                print(
+                    fleet_verify.render_json(report) if args.json else fleet_verify.render_fleet(report),
+                    end="" if args.json else "\n",
+                )
+                return 0 if report.ok else 1
+            closeout = fleet_verify.release_closeout(root, report, args.package_evidence)
+            print(
+                fleet_verify.render_json(closeout) if args.json else fleet_verify.render_closeout(closeout),
+                end="" if args.json else "\n",
+            )
+            return 0 if closeout["status"] == "pass" else 1
+        except (OSError, ValueError, jsonschema.ValidationError) as exc:
+            print(f"Fleet verification configuration error: {exc}", file=sys.stderr)
+            return 2
 
     if args.command == "doctor":
         import doctor, validate_repo

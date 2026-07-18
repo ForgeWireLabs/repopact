@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -133,6 +134,50 @@ def validate_frozen_surface(root: Path, problems: list[Problem]) -> None:
     for entry in data.get("protected", []):
         if not str(entry.get("reason", "")).strip():
             problems.append(Problem(path, f"protected entry '{entry.get('glob')}' needs a reason"))
+
+
+def validate_adopter_manifest(root: Path, problems: list[Problem]) -> None:
+    """Validate the optional maintainer-only public adopter fleet declaration."""
+    path = root / "governance" / "adopters.json"
+    if not path.is_file():
+        return
+    try:
+        data = load_json(path)
+        schema = load_schema(root, "adopter-fleet.schema.json")
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        problems.append(Problem(path, str(exc)))
+        return
+    check_schema(data, schema, path, problems)
+    entries = [entry for entry in data.get("adopters", []) if isinstance(entry, dict)]
+    ids = [str(entry.get("id", "")) for entry in entries]
+    repositories = [str(entry.get("repository", "")).lower().removesuffix(".git") for entry in entries]
+    if len(ids) != len(set(ids)):
+        problems.append(Problem(path, "adopter ids must be unique"))
+    if len(repositories) != len(set(repositories)):
+        problems.append(Problem(path, "adopter remote identities must be unique"))
+    version_path = root / str(data.get("upstream", {}).get("version_file", "VERSION"))
+    try:
+        current_version = version_path.read_text(encoding="utf-8").strip()
+    except OSError:
+        current_version = ""
+    for entry in entries:
+        consumption = entry.get("consumption", {})
+        if not isinstance(consumption, dict) or consumption.get("type") != "vendored":
+            continue
+        if consumption.get("upstream_version") != current_version:
+            problems.append(Problem(path, f"vendored adopter '{entry.get('id')}' does not target VERSION {current_version}"))
+        for contract in consumption.get("files", []):
+            if not isinstance(contract, dict) or contract.get("mode") != "overlay":
+                continue
+            overlay = (root / str(contract.get("overlay_path", ""))).resolve()
+            try:
+                overlay.relative_to(root.resolve())
+                actual = hashlib.sha256(overlay.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+            except (OSError, ValueError) as exc:
+                problems.append(Problem(path, f"vendored overlay is unreadable: {exc}"))
+                continue
+            if actual != contract.get("overlay_sha256"):
+                problems.append(Problem(path, f"vendored overlay checksum drift: {contract.get('overlay_path')}"))
 
 
 def validate_owners(root: Path, problems: list[Problem]) -> tuple[set[str], bool]:
@@ -617,6 +662,7 @@ def validate(root: Path) -> list[Problem]:
     validate_contracts(root, problems)
     validate_invariants(root, problems)
     validate_frozen_surface(root, problems)
+    validate_adopter_manifest(root, problems)
     owner_scopes, enforce_disjoint = validate_owners(root, problems)
     validate_findings(root, owner_scopes, problems)
     work_ids = validate_work(root, owner_scopes, enforce_disjoint, problems)

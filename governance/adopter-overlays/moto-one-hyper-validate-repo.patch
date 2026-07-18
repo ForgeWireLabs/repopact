@@ -1,0 +1,118 @@
+--- upstream/scripts/validate_repo.py
++++ adopter/scripts/validate_repo.py
+@@ -24,0 +25,53 @@
++ROM_LAB_REQUIRED = (
++    "rom_lab/README.md",
++    "rom_lab/research/sources_matrix.md",
++    "rom_lab/research/device_tree_candidates.md",
++    "rom_lab/research/gsi_candidates.md",
++    "rom_lab/research/kernel_candidates.md",
++    "rom_lab/research/vendor_blob_plan.md",
++    "rom_lab/build/README.md",
++    "rom_lab/build/manifest_plan.md",
++    "rom_lab/build/lineage_plan.md",
++    "rom_lab/build/aosp_plan.md",
++    "rom_lab/emulator/README.md",
++    "rom_lab/emulator/cuttlefish_plan.md",
++    "rom_lab/emulator/android_emulator_plan.md",
++    "rom_lab/emulator/gsi_boot_test_plan.md",
++    "rom_lab/emulator/windows_graphics_strategy.md",
++    "rom_lab/device_def/README.md",
++    "rom_lab/device_def/device_profile.json",
++    "rom_lab/device_def/partition_map.md",
++    "rom_lab/device_def/bringup_checklist.md",
++    "rom_lab/device_def/risk_register.md",
++    "rom_lab/scripts/rom_lab_inventory.ps1",
++    "rom_lab/scripts/search_sources.ps1",
++    "rom_lab/scripts/check_android_build_host.ps1",
++    "rom_lab/scripts/capture_gpu_cuda_context.ps1",
++    "rom_lab/scripts/capture_emulator_host_evidence.ps1",
++    "rom_lab/scripts/verify_no_large_binaries.ps1",
++    "rom_lab/scripts/start_emulator_safe.ps1",
++    "rom_lab/scripts/start_emulator_intel_or_cpu_safe.ps1",
++    "rom_lab/reports/rom_lab_status_20260627.md",
++    "rom_lab/reports/emulator_smoke_test_20260627.md",
++    "rom_lab/reports/emulator_gpu_cuda_environment_review_20260627.md",
++    "rom_lab/reports/emulator_crash_logs/README.md",
++    "rom_lab/research/source_viability_review_20260627.md",
++)
++ROM_LAB_PROFILE_FIELDS = {
++    "model", "sku", "codename", "target", "carrier", "soc", "storage", "ram",
++    "android_stock", "build", "active_slot", "bootloader_unlocked",
++    "stock_boot_verified", "root_available", "partitions",
++}
++FORBIDDEN_BINARY_SUFFIXES = {
++    ".img", ".zip", ".bin", ".payload", ".br", ".dat", ".mbn", ".elf",
++    ".sin", ".ofp", ".ops", ".tar", ".tgz", ".xz", ".7z",
++}
++MAX_REPO_FILE_BYTES = 5 * 1024 * 1024
++DESTRUCTIVE_SCRIPT_TERMS = (
++    "fastboot flash",
++    "fastboot erase",
++    "fastboot flashing lock",
++    "fastboot oem lock",
++    " dd ",
++    "mkfs",
++)
+@@ -613,0 +667,59 @@
++def validate_rom_lab(root: Path, problems: list[Problem]) -> None:
++    lab = root / "rom_lab"
++    if not lab.is_dir():
++        problems.append(Problem(lab, "missing ROM lab directory"))
++        return
++    for rel in ROM_LAB_REQUIRED:
++        path = root / rel
++        if not path.is_file():
++            problems.append(Problem(path, "missing required ROM lab file"))
++
++    profile_path = root / "rom_lab" / "device_def" / "device_profile.json"
++    try:
++        profile = load_json(profile_path)
++    except (OSError, ValueError, json.JSONDecodeError) as exc:
++        problems.append(Problem(profile_path, f"device profile is not valid JSON: {exc}"))
++        profile = {}
++    missing = ROM_LAB_PROFILE_FIELDS - set(profile)
++    if missing:
++        problems.append(Problem(profile_path, f"device profile missing fields: {', '.join(sorted(missing))}"))
++    if profile.get("stock_boot_verified") is not False:
++        problems.append(Problem(profile_path, "stock_boot_verified must remain false until a verified stock boot image exists"))
++    if profile.get("root_available") is not False:
++        problems.append(Problem(profile_path, "root_available must remain false until root is actually available"))
++
++    invariants_path = root / "governance" / "invariants.json"
++    agents_path = root / "AGENTS.md"
++    try:
++        invariants_text = invariants_path.read_text(encoding="utf-8").lower()
++    except OSError:
++        invariants_text = ""
++    try:
++        agents_text = agents_path.read_text(encoding="utf-8").lower()
++    except OSError:
++        agents_text = ""
++    for required in ("flash", "erase", "wipe", "relock", "approval"):
++        if required not in invariants_text or required not in agents_text:
++            problems.append(Problem(invariants_path, f"safety invariant docs must mention '{required}'"))
++
++    for path in root.rglob("*"):
++        if not path.is_file():
++            continue
++        if ".git" in path.parts or "__pycache__" in path.parts:
++            continue
++        if path.suffix.lower() in FORBIDDEN_BINARY_SUFFIXES:
++            problems.append(Problem(path, "forbidden firmware/image/archive artifact must not be committed"))
++        elif path.stat().st_size > MAX_REPO_FILE_BYTES:
++            problems.append(Problem(path, f"file exceeds safe repository size threshold ({MAX_REPO_FILE_BYTES} bytes)"))
++
++    script_roots = (root / "scripts", root / "rom_lab" / "scripts")
++    for script_root in script_roots:
++        if not script_root.is_dir():
++            continue
++        for path in script_root.glob("*.ps1"):
++            text = path.read_text(encoding="utf-8").lower()
++            for term in DESTRUCTIVE_SCRIPT_TERMS:
++                if term in text:
++                    problems.append(Problem(path, f"destructive command term is not allowed in execution scripts: {term.strip()}"))
++
++
+@@ -627,0 +740 @@
++    validate_rom_lab(root, problems)

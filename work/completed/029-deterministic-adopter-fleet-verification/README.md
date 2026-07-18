@@ -1,6 +1,6 @@
 # 029 — Deterministic adopter fleet verification
 
-> **Status**: Active
+> **Status**: Complete — 2026-07-18
 > **Owners**: tooling-owner (lead); governance-owner and evidence-owner affected.
 > **Depends on**: `028` (the manual 2.2.0 adopter rollout establishes the baseline).
 
@@ -27,13 +27,17 @@ marker.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — declare every known adopter and its consumption/validation contract.
-- [ ] **AC-2** — fail closed when a declared public default branch is stale or unverifiable.
-- [ ] **AC-3** — prove vendored upstream parity rather than trusting a version marker.
-- [ ] **AC-4** — separate package publication from ecosystem rollout completion.
-- [ ] **AC-5** — cover failure modes with tests and pass all repository gates.
+- [x] **AC-1** — declare every known adopter and its consumption/validation contract.
+- [x] **AC-2** — fail closed when a declared public default branch is stale or unverifiable.
+- [x] **AC-3** — prove vendored upstream parity rather than trusting a version marker.
+- [x] **AC-4** — separate package publication from ecosystem rollout completion.
+- [x] **AC-5** — cover failure modes with tests and pass all repository gates.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+Evidence `20260718-deterministic-adopter-fleet-verification` links every criterion
+to the versioned five-adopter manifest, deterministic CLI output, Moto's immutable
+2.2.0 base plus reviewable ROM-lab overlay, the separate publication/ecosystem
+closeout phases, and the complete passing gate set. Duplicate SkillForge checkouts
+resolve to one remote identity; no unregistered local RepoPact candidates were
+reported. The item is complete and lives under `work/completed/`.

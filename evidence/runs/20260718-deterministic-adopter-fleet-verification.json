@@ -1,0 +1,60 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-deterministic-adopter-fleet-verification",
+  "timestamp": "2026-07-18T21:04:43Z",
+  "work_item": "029",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts/repopact_cli.py fleet-verify --root . --discover-root C:\\Projects --json",
+      "exit_code": 0,
+      "summary": "Resolved and read every declared default branch at its immutable remote head. ForgeLink 86f8d67, ForgeWire 65f3e94, Moto One Hyper 4ad7400, Proving Ground 8f68bc4, and SkillForge 71be8ed all report RepoPact 2.2.0; duplicate SkillForge checkouts collapsed to one remote identity and no unregistered candidates were reported. ForgeWire's private content was verified through the authenticated GitHub fallback after its unauthenticated raw URL correctly returned 404."
+    },
+    {
+      "command": "python scripts/repopact_cli.py release-closeout --root . --discover-root C:\\Projects --package-evidence evidence/runs/20260718-repopact-2-2-0-publication.json --json",
+      "exit_code": 0,
+      "summary": "Reported package publication and ecosystem rollout as separate complete phases; closeout passed only because the public PyPI 2.2.0 evidence and all five fleet contracts passed."
+    },
+    {
+      "command": "python -m unittest tests.test_fleet_verify -v",
+      "exit_code": 0,
+      "summary": "All 9 focused tests passed, covering current, stale, missing, unreachable, duplicate-remote, non-exact PyPI pin, vendored drift, reviewable and zero-context overlay reconstruction, and separate closeout-phase behavior."
+    },
+    {
+      "command": "python scripts/validate_repo.py && python scripts/run_conformance.py && python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed, all 8 conformance cases passed, and all 110 unit tests passed with the two declared formal-model tests skipped."
+    },
+    {
+      "command": "pip install -r requirements.txt",
+      "exit_code": 0,
+      "summary": "The declared jsonschema dependency and its requirements are installed."
+    },
+    {
+      "command": "python scripts/check_frozen_surface.py --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "The operator's WI-029 handoff authorized the new adopter-fleet schema on the frozen schema surface; the acknowledged diff backstop passed without changing or weakening an invariant."
+    }
+  ],
+  "artifacts": [
+    "governance/adopters.json",
+    "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
+    "schemas/adopter-fleet.schema.json",
+    "scripts/fleet_verify.py",
+    "scripts/repopact_cli.py",
+    "tests/test_fleet_verify.py",
+    "evidence/runs/20260718-repopact-2-2-0-publication.json"
+  ],
+  "environment": {
+    "date": "2026-07-18",
+    "release": "2.2.0",
+    "adopters": 5,
+    "pypi_consumers": 4,
+    "vendored_consumers": 1,
+    "unregistered_candidates": 0,
+    "duplicate_skillforge_checkouts": 2,
+    "github_actions_available": false,
+    "remote_verification": "public raw GitHub with authenticated gh fallback for declared private repositories"
+  }
+}

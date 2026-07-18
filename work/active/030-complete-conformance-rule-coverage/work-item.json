@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "030",
+  "title": "Complete conformance rule coverage",
+  "status": "active",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "governance"],
+  "depends_on": ["019", "024", "025", "026"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-18T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A machine-readable inventory identifies every machine-enforceable SPEC rule and validation invariant, and an automated coverage gate fails when any such rule lacks a conformance fixture or when a declared fixture references an unknown rule.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "Conformance fixtures cover provenance acceptance and rejection, status-directory mismatch, invalid semantic version, schema-invalid records, orphan work directories, disjoint active scopes, and canonical dashboard absence or drift, in addition to the existing cases.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Each fixture isolates its intended rule so a secondary dashboard or schema failure cannot mask the expected signal, and the runner reports both expected and unexpected violations deterministically.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "CONFORMANCE.md states the complete coverage contract for alternative implementations, and governance validation, unit tests, SPEC generation, and the expanded conformance suite pass.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-07-18",
+  "updated": "2026-07-18"
+}

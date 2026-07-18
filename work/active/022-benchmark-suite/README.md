@@ -9,6 +9,8 @@
 - **Compute / model access.** Running every study across ≥2 model families needs API keys /
   model access you provision. The harness and pre-registered task sets can be built without
   it; the *results* (AC-3) are gated on run access.
+- **First live smoke.** AC-5 requires one provisioned real-model command before the full
+  comparative programme can be treated as de-risked.
 
 ## Intent
 
@@ -50,6 +52,8 @@ governed by threats T5, T6, T7, T8.
 - **AC-2** — token/cost, drift, and security instrumentation as specified.
 - **AC-3** — reproducible results across ≥2 model families with frontier + scaling-curve
   figures; disconfirming results recorded with equal weight.
+- **AC-4** — freeze the statistical analysis plan before interpreting any live result.
+- **AC-5** — run and capture a three-task RealRunner smoke against one real model.
 
 ## Progress (2026-06-24)
 
@@ -67,5 +71,8 @@ require are operator-gated. Evidence:
   fixture tests pass).
 - **Still gated:** S2/S3/S4 drivers and real-model runs across ≥2 model families
   (AC-2 full instrumentation, AC-3 results). No row in any harness report is a finding yet.
+- **Statistical and live-run gates added 2026-07-18:** AC-4 prevents post-hoc analysis
+  choices, and AC-5 prevents an untested RealRunner interface from becoming the critical
+  path for the full experiment.
 
 (State tracked in [`work-item.json`](work-item.json); `pending` until evidence-backed.)

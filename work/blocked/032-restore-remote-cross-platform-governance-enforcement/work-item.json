@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "032",
+  "title": "Restore remote cross-platform governance enforcement",
+  "status": "blocked",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "governance", "evidence"],
+  "depends_on": ["009", "027"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-18T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The operator either clears the GitHub Actions billing lock or approves and provisions an alternative remote CI provider; the selected checkpoint and residual trust assumptions are recorded in a durable decision.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "Every default-branch change runs governance validation, unit tests, conformance, derived-artifact checks, and distribution build on at least Linux and Windows, with public logs and no dependency on a developer workstation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "The remote checkpoint is required by repository policy or an equivalently enforceable merge gate, and a deliberately invalid test branch proves the gate rejects drift before merge.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Release documentation continues to distinguish direct PyPI fallback publication from trusted automated publishing and does not claim CI-backed enforcement until a green cross-platform run is publicly verified.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-07-18",
+  "updated": "2026-07-18"
+}

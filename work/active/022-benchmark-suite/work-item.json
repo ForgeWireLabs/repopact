@@ -28,8 +28,20 @@
       "text": "Results across >=2 model families, reproducible from the published task sets, with the Pareto frontier (cost vs success) and scaling-curve figures. Disconfirming results recorded in findings.md with equal weight; feeds paper section 6.",
       "state": "pending",
       "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Before any live comparative result is interpreted, a dated protocol amendment freezes runs per task and arm, seed and temperature policy, model/version pinning, rubric version, paired analysis, effect sizes and confidence intervals, multiple-comparison handling, missing-run treatment, and stopping rules.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "RealRunner completes a documented smoke run on at least three pre-registered tasks with one real model before full studies begin; raw command, provider/model version, prompts, outputs, token/cost telemetry, grader results, and failures are captured, and no MockRunner output is presented as empirical evidence.",
+      "state": "pending",
+      "evidence": []
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-06-24"
+  "updated": "2026-07-18"
 }

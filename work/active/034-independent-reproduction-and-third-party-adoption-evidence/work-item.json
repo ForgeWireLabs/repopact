@@ -1,0 +1,43 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "034",
+  "title": "Independent reproduction and third-party adoption evidence",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "docs", "evidence"],
+  "depends_on": ["010"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-18T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The existing Flask adoption is published as a reproducible script or fixture with exact source revision, commands, expected records, validation result, and cleanup boundaries so an independent party can rerun F-009 without private local state.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "At least one public reproduction or adopter is executed and reported by a person or organization outside ForgeWireLabs, with immutable source and result links and provenance that distinguishes their execution from author-run evidence.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "The reproduction path includes the packaged RepoPact version, conformance or repository validation, encountered friction, and disconfirming observations; unsuccessful or partial attempts remain visible rather than being filtered from the evidence base.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Paper threats T1 and T2 and the findings register are updated to state exactly what the independent result mitigates and what single-operator, domain, and scale limitations remain.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-07-18",
+  "updated": "2026-07-18"
+}

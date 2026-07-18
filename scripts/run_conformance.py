@@ -16,6 +16,8 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import generate_dashboard
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "conformance" / "manifest.json"
@@ -54,6 +56,10 @@ def materialize_case(root: Path, fixtures_root: Path, case: dict) -> Path:
     else:
         shutil.copytree(fixtures_root / str(case["path"]), repo)
     shutil.copytree(ROOT / "schemas", repo / "schemas")
+    # Overlays intentionally mutate source records. Materialize their canonical
+    # derived projection so each case tests its declared rule rather than failing
+    # secondarily on dashboard drift.
+    generate_dashboard.write_dashboard(repo)
     return repo
 
 

@@ -5,6 +5,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 
@@ -16,6 +17,7 @@ import plan_import  # noqa: E402
 import takeover  # noqa: E402
 import doctor  # noqa: E402
 import check_frozen_surface  # noqa: E402
+import generate_dashboard  # noqa: E402
 import generate_spec  # noqa: E402
 import init_repo  # noqa: E402
 import repopact_cli  # noqa: E402
@@ -77,6 +79,7 @@ class RepositoryValidationTests(unittest.TestCase):
                 "note": "probe",
             }
         (directory / "work-item.json").write_text(json.dumps(data), encoding="utf-8")
+        generate_dashboard.write_dashboard(self.root)
 
     def add_active_item(self, item_id: str, owner_scope: str = "work", preflight: bool = True) -> None:
         self.add_work_item(item_id, "active", owner_scope, preflight)
@@ -85,6 +88,25 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_repository_is_valid(self) -> None:
         self.assertEqual([], self.problems())
+
+    def test_missing_dashboard_is_rejected(self) -> None:
+        (self.root / "audits" / "reports" / "dashboard.md").unlink()
+        self.assertTrue(any("missing generated dashboard" in value for value in self.problems()))
+
+    def test_stale_dashboard_is_rejected_and_doctor_repairs_it(self) -> None:
+        dashboard = self.root / "audits" / "reports" / "dashboard.md"
+        dashboard.write_text("# obsolete dashboard\n", encoding="utf-8")
+        self.assertTrue(any("generated dashboard is stale" in value for value in self.problems()))
+
+        actions = doctor.fix(self.root, today=date(2026, 7, 18))
+        self.assertIn("regenerated audits/reports/dashboard.md", actions)
+        self.assertEqual([], self.problems())
+
+    def test_dashboard_generation_is_stable_between_audit_transitions(self) -> None:
+        first = generate_dashboard.generate(self.root, today=date(2026, 7, 18))
+        later = generate_dashboard.generate(self.root, today=date(2026, 7, 19))
+        self.assertEqual(first, later)
+        self.assertNotIn("> Generated:", first)
 
     # --- work lifecycle -----------------------------------------------------
 
@@ -705,6 +727,7 @@ class RepositoryValidationTests(unittest.TestCase):
             "next_review": "2026-09-13", "alignment": "current", "notes": "nested",
         })
         (repo / "audits" / "registry.json").write_text(json.dumps(reg, indent=2) + "\n", encoding="utf-8")
+        generate_dashboard.write_dashboard(repo)
         report = takeover.takeover(repo, delete=True)
         self.assertEqual([], report["retired"])               # not retired
         self.assertTrue((repo / "todos").exists())

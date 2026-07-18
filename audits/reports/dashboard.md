@@ -1,7 +1,7 @@
 # Repository Dashboard
 
-> Generated from source records. Do not edit manually.
-> Generated: 2026-07-15
+> Canonically generated from source records. Do not edit manually.
+> Validation fails when this file differs from `repopact dashboard` output.
 > RepoPact spec version: 2.1.0
 
 ## Health
@@ -10,8 +10,8 @@
 | --- | ---: |
 | Invariants | 7 |
 | Frozen-surface entries | 4 |
-| Scope contracts | 3 |
-| Audit registry entries | 3 |
+| Scope contracts | 4 |
+| Audit registry entries | 4 |
 | Audit findings | 1 |
 | Decision records | 24 |
 | Policy records | 1 |
@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 0 |
-| active | 3 |
+| active | 4 |
 | blocked | 0 |
 | deferred | 0 |
 | completed | 23 |
@@ -36,3 +36,4 @@ All audit scopes are within their review cadence.
 - 020: Integrate PactBench with RepoPact Proving Ground (active)
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
+- 026: Deterministic dashboard validation (active)

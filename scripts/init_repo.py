@@ -16,6 +16,8 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
+import generate_dashboard
+
 HERE = Path(__file__).resolve().parent          # directory holding the tooling modules
 CHECKOUT = HERE.parent                          # repo root when running from a checkout
 LIFECYCLE = ("proposed", "active", "blocked", "deferred", "completed")
@@ -126,6 +128,7 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
     _write(target / "README.md",
            "# Repository\n\nBootstrapped with RepoPact. Run `repopact validate` "
            "(or `python scripts/validate_repo.py`).\n")
+    generate_dashboard.write_dashboard(target, today=today)
     return target
 
 

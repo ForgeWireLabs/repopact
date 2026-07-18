@@ -35,6 +35,8 @@ import sys
 from datetime import date
 from pathlib import Path
 
+import generate_dashboard
+
 import adopt_repo
 import plan_import
 import validate_repo
@@ -362,6 +364,7 @@ def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
             report["review"].append(hint)
 
     if not dry_run and report["retired"]:
+        generate_dashboard.write_dashboard(root)
         report["post_validate_ok"] = not validate_repo.validate(root)
     return report
 

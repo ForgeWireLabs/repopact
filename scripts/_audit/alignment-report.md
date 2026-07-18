@@ -31,3 +31,15 @@
 - The validator is read-only and reports deterministic path-scoped errors.
 - Dashboard generation writes only `audits/reports/dashboard.md`.
 - Lifecycle-blocking rules have unit-test coverage.
+
+## 2026-07-18 deterministic dashboard enforcement
+
+- `validate_repo.py` compares the committed dashboard with a fresh canonical render
+  and rejects missing or stale output.
+- The generator no longer embeds its run date, so output stays byte-stable until a
+  displayed source value or audit-cadence state changes.
+- Bootstrap, adoption, record stamping, plan import, takeover, conformance
+  materialization, and doctor repair refresh the derived dashboard as part of their
+  governed mutation path.
+- Regression tests cover missing/stale rejection, stable rendering, doctor repair,
+  and command compatibility.

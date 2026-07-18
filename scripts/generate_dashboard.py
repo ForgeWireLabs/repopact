@@ -46,8 +46,15 @@ def _overdue_scopes(root: Path, today: date) -> list[tuple[str, str]]:
     return overdue
 
 
-def generate(root: Path) -> str:
-    today = date.today()
+def generate(root: Path, today: date | None = None) -> str:
+    """Render the canonical dashboard projection for ``root``.
+
+    ``today`` is injectable so audit-cadence transitions can be tested. The
+    rendering deliberately does not include the wall-clock date: a generated
+    artifact should change only when a displayed source-derived value changes,
+    not merely because the command ran on another day.
+    """
+    today = today or date.today()
     items = discover_work_items(root)
     counts = Counter(item.status for item in items)
     contracts = iter_contracts(root)
@@ -63,8 +70,8 @@ def generate(root: Path) -> str:
     lines = [
         "# Repository Dashboard",
         "",
-        "> Generated from source records. Do not edit manually.",
-        f"> Generated: {today.isoformat()}",
+        "> Canonically generated from source records. Do not edit manually.",
+        "> Validation fails when this file differs from `repopact dashboard` output.",
         f"> RepoPact spec version: {_spec_version(root)}",
         "",
         "## Health",
@@ -104,10 +111,17 @@ def generate(root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
+def write_dashboard(root: Path, today: date | None = None) -> Path:
+    """Write the one dashboard derived artifact and return its path."""
+    output = root / "audits" / "reports" / "dashboard.md"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(generate(root, today=today), encoding="utf-8")
+    return output
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    output = root / "audits" / "reports" / "dashboard.md"
-    output.write_text(generate(root), encoding="utf-8")
+    output = write_dashboard(root)
     print(f"Generated {output.relative_to(root)}")
 
 

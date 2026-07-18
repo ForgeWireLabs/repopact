@@ -152,8 +152,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "dashboard":
         import generate_dashboard
-        out = root / "audits" / "reports" / "dashboard.md"
-        out.write_text(generate_dashboard.generate(root), encoding="utf-8")
+        out = generate_dashboard.write_dashboard(root)
         print(f"Generated {out.relative_to(root)}")
         return 0
 

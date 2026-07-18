@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from validate_repo import validate  # noqa: E402
+import generate_dashboard  # noqa: E402
 
 import run_conformance  # noqa: E402
 
@@ -33,6 +34,7 @@ INVALID = FIXTURES / "invalid"
 def build_repo(dst: Path, overlay: Path | None = None) -> Path:
     shutil.copytree(VALID, dst)
     shutil.copytree(ROOT / "schemas", dst / "schemas")
+    generate_dashboard.write_dashboard(dst)
     if overlay is not None:
         for src in overlay.rglob("*"):
             if src.is_dir() or src.name == "meta.json":

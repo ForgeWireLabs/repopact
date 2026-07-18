@@ -27,6 +27,15 @@
       "next_review": "2026-09-15",
       "alignment": "current",
       "notes": "Diataxis documentation set; governed lightly, no per-page audit inventories (policy 001)."
+    },
+    {
+      "path": "work/active/026-deterministic-dashboard-validation",
+      "owner": "tooling-owner",
+      "contract": "work/active/026-deterministic-dashboard-validation/AGENTS.md",
+      "last_reviewed": "2026-07-18",
+      "next_review": "2026-10-16",
+      "alignment": "current",
+      "notes": "Deterministic derived-dashboard validation and adopter proof."
     }
   ]
 }

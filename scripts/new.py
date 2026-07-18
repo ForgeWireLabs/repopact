@@ -16,6 +16,7 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+import generate_dashboard
 from repo_model import STATUSES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -64,6 +65,7 @@ def new_work_item(title: str, today: date, root: Path = ROOT, status: str = "act
     (directory / "README.md").write_text(
         (root / "templates" / "work-item.README.md").read_text(encoding="utf-8")
         .replace("NNN", item_id).replace("Title Of The Work", title), encoding="utf-8")
+    generate_dashboard.write_dashboard(root, today=today)
     return manifest_path
 
 
@@ -80,6 +82,7 @@ def new_markdown(kind: str, title: str, today: date, root: Path = ROOT) -> Path:
     text = text.replace("Decision Title", title).replace("Policy Title", title)
     path = directory / f"{record_id}-{slug}.md"
     path.write_text(text, encoding="utf-8")
+    generate_dashboard.write_dashboard(root, today=today)
     return path
 
 

@@ -23,6 +23,7 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import generate_dashboard
 import init_repo  # reuse _seed_dir, _json/_write semantics, LIFECYCLE
 
 
@@ -337,6 +338,12 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
               "makes those bindings explicit and machine-checkable.\n\n## Decision\n\n"
               "Adopt RepoPact; existing workflows become binding gates (INV-2) and ownership becomes\n"
               "scopes/roles. Existing files were preserved; RepoPact records were added around them.\n", target)
+
+    # The dashboard is derived, but adoption remains non-destructive: create the
+    # canonical projection only when the reserved path is absent. An existing file
+    # is preserved and validation will identify it if it is not canonical.
+    dashboard_text = "" if dry_run else generate_dashboard.generate(target, today=today)
+    rep.write(target / "audits" / "reports" / "dashboard.md", dashboard_text, target)
 
     rep.gitignored = gitignored_records(target, rep.created)
     return rep

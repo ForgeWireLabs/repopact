@@ -11,6 +11,7 @@ from pathlib import Path
 import jsonschema
 
 from frontmatter import FrontMatterError, parse_file
+import generate_dashboard
 from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
@@ -488,6 +489,32 @@ def validate_audit_registry(root: Path, problems: list[Problem]) -> None:
         validate_dates(entry.get("next_review"), "next_review", path, problems)
 
 
+def validate_dashboard(root: Path, problems: list[Problem]) -> None:
+    """Reject a missing or stale committed dashboard projection.
+
+    Source-record validation remains authoritative. If malformed sources prevent
+    generation, their existing validators report the primary error and this
+    secondary comparison stays silent instead of crashing validation.
+    """
+    path = root / "audits" / "reports" / "dashboard.md"
+    if not path.is_file():
+        problems.append(Problem(
+            path,
+            "missing generated dashboard; run `repopact dashboard --root .`",
+        ))
+        return
+    try:
+        expected = generate_dashboard.generate(root)
+        actual = path.read_text(encoding="utf-8")
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return
+    if actual != expected:
+        problems.append(Problem(
+            path,
+            "generated dashboard is stale; run `repopact dashboard --root .` and commit the result",
+        ))
+
+
 def _validate_records(root: Path, directory: Path, pattern: str, statuses: tuple[str, ...],
                       required: tuple[str, ...], problems: list[Problem]) -> dict[str, Path]:
     seen: dict[str, Path] = {}
@@ -598,6 +625,7 @@ def validate(root: Path) -> list[Problem]:
     validate_audit_registry(root, problems)
     validate_decisions(root, problems)
     validate_policies(root, problems)
+    validate_dashboard(root, problems)
     return sorted(problems, key=lambda problem: (str(problem.path), problem.message))
 
 

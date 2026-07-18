@@ -23,6 +23,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import adopt_repo
+import generate_dashboard
 import validate_repo
 
 
@@ -298,6 +299,14 @@ def fix(root: Path, today: date | None = None) -> list[str]:
 
     # 7. migrate preflight on upgrade: grandfather pre-2.0 work items (decision 0021)
     actions.extend(_migrate_preflight(root, today))
+
+    # 8. derived output is safe to repair because it is fully reproducible.
+    dashboard = root / "audits" / "reports" / "dashboard.md"
+    expected = generate_dashboard.generate(root, today=today)
+    actual = dashboard.read_text(encoding="utf-8") if dashboard.is_file() else None
+    if actual != expected:
+        generate_dashboard.write_dashboard(root, today=today)
+        actions.append("regenerated audits/reports/dashboard.md")
 
     return actions
 

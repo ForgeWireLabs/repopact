@@ -1,0 +1,62 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-deterministic-dashboard-validation",
+  "timestamp": "2026-07-18T18:22:11Z",
+  "work_item": "026",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "101 tests passed with 2 documented formal-model skips. Coverage includes missing/stale dashboard rejection, stable rendering, doctor repair, bootstrap, adoption, new-record stamping, import, takeover, and conformance materialization."
+    },
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "The upstream repository passed governance validation with its canonical dashboard."
+    },
+    {
+      "command": "git push origin main",
+      "exit_code": 0,
+      "summary": "Published implementation commit 126264a1dcd20699063bf4163413ccfab574b6bc to ForgeWireLabs/repopact main."
+    },
+    {
+      "command": "python .local/validate_system.py (ForgeLink before regeneration)",
+      "exit_code": 1,
+      "summary": "The pinned adopter rejected its historically stale dashboard with the canonical regeneration instruction."
+    },
+    {
+      "command": "python -m repopact_cli dashboard --root . && python .local/validate_system.py (ForgeLink)",
+      "exit_code": 0,
+      "summary": "Canonical regeneration restored a passing ForgeLink audit and reported 5 active, 3 deferred, and 26 completed items."
+    },
+    {
+      "command": "git push origin main (ForgeLink)",
+      "exit_code": 0,
+      "summary": "ForgeLink commit 02d0083 pinned RepoPact 126264a; its pre-push gate passed governance plus 221 renderer tests and 202 of 203 Node tests with one opt-in live Twilio test skipped."
+    }
+  ],
+  "artifacts": [
+    "scripts/generate_dashboard.py",
+    "scripts/validate_repo.py",
+    "scripts/doctor.py",
+    "scripts/init_repo.py",
+    "scripts/adopt_repo.py",
+    "scripts/new.py",
+    "scripts/plan_import.py",
+    "scripts/takeover.py",
+    "scripts/run_conformance.py",
+    "tests/test_validate_repo.py",
+    "tests/test_conformance.py",
+    "conformance/fixtures/valid/audits/reports/dashboard.md",
+    "https://github.com/ForgeWireLabs/ForgeLink/commit/02d0083"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12",
+    "upstream_commit": "126264a1dcd20699063bf4163413ccfab574b6bc",
+    "adopter": "ForgeWireLabs/ForgeLink",
+    "adopter_commit": "02d0083"
+  }
+}

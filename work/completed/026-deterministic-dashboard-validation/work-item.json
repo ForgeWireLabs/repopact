@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "026",
   "title": "Deterministic dashboard validation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "tooling",
@@ -20,32 +20,32 @@
     {
       "id": "DDV-001",
       "text": "Dashboard generation is canonical and does not change solely because the calendar date advanced.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-dashboard-validation"]
     },
     {
       "id": "DDV-002",
       "text": "RepoPact validation fails when the committed dashboard is missing or differs from freshly generated output.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-dashboard-validation"]
     },
     {
       "id": "DDV-003",
       "text": "RepoPact mutation and repair commands regenerate the dashboard before reporting a valid repository.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-dashboard-validation"]
     },
     {
       "id": "DDV-004",
       "text": "Regression tests prove stale-dashboard rejection, deterministic regeneration, repair, and adopter command compatibility.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-dashboard-validation"]
     },
     {
       "id": "DDV-005",
       "text": "An adopter pins the upstream fix and proves its previously stale dashboard cannot pass validation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-deterministic-dashboard-validation"]
     }
   ],
   "created": "2026-07-18",

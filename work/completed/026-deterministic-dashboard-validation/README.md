@@ -1,6 +1,7 @@
 # 026 — Deterministic dashboard validation
 
-> **Status**: Active.
+> **Status**: Complete 2026-07-18. Evidence
+> [`20260718-deterministic-dashboard-validation`](../../../evidence/runs/20260718-deterministic-dashboard-validation.json).
 > **Owners**: tooling-owner (lead); work-coordinator and evidence-owner support.
 > **Depends on**: none.
 
@@ -22,14 +23,14 @@ those records must refresh the projection before claiming success.
 
 ## Acceptance criteria
 
-- [ ] **DDV-001** Dashboard generation is canonical and does not change solely because
+- [x] **DDV-001** Dashboard generation is canonical and does not change solely because
   the calendar date advanced.
-- [ ] **DDV-002** Validation fails when the dashboard is missing or differs from freshly
+- [x] **DDV-002** Validation fails when the dashboard is missing or differs from freshly
   generated output.
-- [ ] **DDV-003** Mutation and repair commands regenerate before reporting validity.
-- [ ] **DDV-004** Regression tests cover rejection, regeneration, repair, and adopter
+- [x] **DDV-003** Mutation and repair commands regenerate before reporting validity.
+- [x] **DDV-004** Regression tests cover rejection, regeneration, repair, and adopter
   command compatibility.
-- [ ] **DDV-005** An adopter pins the fix and proves stale output cannot validate.
+- [x] **DDV-005** An adopter pins the fix and proves stale output cannot validate.
 
 ## Safety and compatibility
 
@@ -42,4 +43,15 @@ those records must refresh the projection before claiming success.
 
 ## Evidence
 
-Pending implementation and adopter validation.
+Evidence run `20260718-deterministic-dashboard-validation` records the 101-test
+upstream pass and the ForgeLink adopter proof. ForgeLink pinned implementation commit
+`126264a`, its stale dashboard failed validation before regeneration, canonical
+regeneration restored a pass, and adopter commit `02d0083` passed the full pre-push
+governance and product test gate.
+
+## Closeout
+
+Dashboard output is now a deterministic validated projection. Validation is read-only
+and fails on missing or byte-stale output. RepoPact mutation and doctor paths refresh
+the projection, and audit-cadence changes still alter the dashboard when the displayed
+freshness result actually changes.

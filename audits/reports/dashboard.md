@@ -15,17 +15,17 @@
 | Audit findings | 1 |
 | Decision records | 24 |
 | Policy records | 1 |
-| Evidence runs | 27 |
+| Evidence runs | 28 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 0 |
-| active | 4 |
+| active | 3 |
 | blocked | 0 |
 | deferred | 0 |
-| completed | 23 |
+| completed | 24 |
 
 ## Audit freshness
 
@@ -36,4 +36,3 @@ All audit scopes are within their review cadence.
 - 020: Integrate PactBench with RepoPact Proving Ground (active)
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
-- 026: Deterministic dashboard validation (active)

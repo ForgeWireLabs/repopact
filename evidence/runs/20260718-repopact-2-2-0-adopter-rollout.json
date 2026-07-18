@@ -1,0 +1,34 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-repopact-2-2-0-adopter-rollout",
+  "timestamp": "2026-07-18T19:51:19Z",
+  "work_item": "028",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "local dependency scan plus gh search code repopact --owner ForgeWireLabs", "exit_code": 0, "summary": "Identified all adopter remotes: ForgeLink, skillforge-academy, forgewire, moto-one-hyper-forgewire-rom-lab, and repopact-proving-ground. Duplicate local SkillForge checkouts resolve to one remote."},
+    {"command": "ForgeLink work item 034 validation and push", "exit_code": 0, "summary": "Exact PyPI pin repopact==2.2.0; governance audit, 221 renderer tests, and 202 of 203 Node tests passed with one opt-in live Twilio test skipped; main commit 86f8d67c9ea8770f364b35d06a5c417a00f31815."},
+    {"command": "SkillForge work item 307 validation and push", "exit_code": 0, "summary": "Exact PyPI pin repopact==2.2.0; governance and content validation passed for 3 certifications, 19 domains, 770 questions, 135 flashcards, 28 PBQs, and 150 lessons; main commit 71be8edf6f0de184070d942fc9fa49cf93f64234."},
+    {"command": "ForgeWire work item 203 validation and push", "exit_code": 0, "summary": "Exact PyPI pin repopact==2.2.0; governance passed and audit validation reported 0 errors with 8 pre-existing review-age warnings; unrelated Fabric edits remained uncommitted and excluded; main commit d26be0fb42faf10cd973e6110c23b5ee766a3de1."},
+    {"command": "Moto One Hyper work item 028 validation and push", "exit_code": 0, "summary": "Vendored marker 2.2.0; upstream canonical-dashboard behavior was merged with preserved ROM-lab safety checks; all 150 tests passed without device or firmware mutation; main commit 4ad7400b227e12ec67a25be52b5cb586f1ded5d5."},
+    {"command": "Proving Ground work item 002 validation and push", "exit_code": 0, "summary": "Exact PyPI pin repopact==2.2.0; governance, 8 unit tests, 24 PactBench tasks, and the drift selftest passed; master commit 8f68bc4ba38aadfb85c11f51d0e21f89201cc274."},
+    {"command": "GitHub Contents API plus git ls-remote verification", "exit_code": 0, "summary": "Every default branch publicly reports 2.2.0 through requirements-repopact.txt or Moto's scripts/REPOPACT_VERSION, and every local release commit equals its remote default-branch head."},
+    {"command": "python scripts/validate_repo.py && python scripts/run_conformance.py && python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Upstream governance validation passed, conformance passed 8 of 8 scenarios, and all 101 unit tests passed with the two documented open-model cases skipped."}
+  ],
+  "artifacts": [
+    "research/captures/015-repopact-2-2-0-adopter-rollout.md",
+    "https://github.com/ForgeWireLabs/ForgeLink/commit/86f8d67",
+    "https://github.com/ForgeWireLabs/skillforge-academy/commit/71be8ed",
+    "https://github.com/ForgeWireLabs/forgewire/commit/d26be0fb",
+    "https://github.com/ForgeWireLabs/moto-one-hyper-forgewire-rom-lab/commit/4ad7400",
+    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/8f68bc4"
+  ],
+  "environment": {
+    "date": "2026-07-18",
+    "release": "2.2.0",
+    "adopter_remotes": 5,
+    "pypi_consumers": 4,
+    "vendored_consumers": 1,
+    "all_default_branches_verified": true
+  }
+}

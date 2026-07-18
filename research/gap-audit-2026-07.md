@@ -147,6 +147,12 @@ explicitly defer S2/S3 in the paper.
   (`repopact @ git+…@d1d5f81`) while the paper says it "consumes RepoPact from
   PyPI." Re-pin to `repopact==2.1.0`; re-run selftests and validation.
 
+**2026-07-18 update.** The Proving Ground now pins formal PyPI release
+`repopact==2.2.0`; governance, unit, PactBench, and drift selftests pass. The rollout
+also verified ForgeLink, SkillForge, ForgeWire, and Moto One Hyper on 2.2.0 at their
+public default-branch heads. This closes the package-pin bullet, not the other stale-doc
+items in GA-8.
+
 ## GA-9 — Ledger hygiene in our own repos (medium)
 
 - Work items `020`/`021`/`022` have acceptance criteria with **empty

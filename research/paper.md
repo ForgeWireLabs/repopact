@@ -596,6 +596,12 @@ Brownfield adoption converted real projects into RepoPact-governed repositories 
 
 The adoption evidence spans four subjects of increasing independence. The progenitor repository — 4569 commits, nineteen nested `AGENTS.md` contracts, seven CODEOWNERS-derived scopes, four CI workflows mapped to binding gates — adopted conformantly and non-destructively, but is confirmatory only: RepoPact was distilled from its practices, so it cannot witness generality (F-007, and threat T1). A clean-room open-source repository with no RepoPact lineage (pallets/flask) reached a conformant state through the sparse-signals path, the first independent datum (F-009). An independent application in a different domain and stack exercised the full lifecycle — adopt, plan import, doctor — end to end (F-012). And a governance-folder planning tree was migrated into the ledger with the legacy method retired by `takeover` without losing un-captured data (F-013).
 
+As of the RepoPact 2.2.0 rollout, every inventoried public adopter default branch is
+current: ForgeLink, SkillForge Academy, ForgeWire, RepoPact Proving Ground, and the
+vendored-tooling Moto One Hyper ROM Lab. Each regenerated its dashboard and passed its
+repository-native governance gate; the rollout record preserves the differing package
+and vendored consumption models rather than treating them as identical.
+
 The early adoption framing treated the concrete-record trilemma as a hard boundary. If a legacy project contained a done item with no evidence, adoption could preserve faithfulness only by relaxing closure and reporting the residue as a worklist. That was the correct model before provenance typing.
 
 RepoPact 2.0 changes the model. Adoption can now emit provisional and inferred records. This allows the migration to remain honest without forcing false concrete proof. A reconstructed adoption work item can be valid as provisional. Inferred evidence can state that it was reconstructed from a scan rather than directly proven. `doctor` can later ratchet records to concrete when the required evidence exists.

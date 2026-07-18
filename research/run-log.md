@@ -352,3 +352,22 @@ now a validator-enforced state fixpoint. The direct upload restores distribution
 does not close the separate GitHub Actions/cross-platform CI limitation in GA-3.
 
 **Capture.** [`captures/014-dashboard-integrity-and-direct-release.md`](captures/014-dashboard-integrity-and-direct-release.md)
+
+## Run 015 — ecosystem-wide 2.2.0 adopter rollout — 2026-07-18
+
+**Goal.** Move every known adopter to the formal dashboard-integrity release and prove
+the public default branches, rather than only local checkouts, are current.
+
+**Actions.** Local dependency discovery plus ForgeWireLabs code search identified five
+adopter remotes. ForgeLink was already current. SkillForge, ForgeWire, and Proving
+Ground moved from 2.1/interim commit pins to `repopact==2.2.0`. Moto reconciled its
+vendored tooling while preserving ROM-lab safety extensions. Each adopter created and
+closed its own preflight work item, regenerated its dashboard, ran governance and native
+checks, committed only its owned files, and pushed its default branch. GitHub API and
+remote-head checks verified all five public states.
+
+**Result.** Every inventoried adopter is at RepoPact 2.2.0. The Proving Ground's stale
+package pin gap is closed. Its drift harness now refreshes the dashboard after setup so
+the 2.2.0 fixpoint cannot confound mutation attribution.
+
+**Capture.** [`captures/015-repopact-2-2-0-adopter-rollout.md`](captures/015-repopact-2-2-0-adopter-rollout.md)

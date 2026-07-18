@@ -1,6 +1,6 @@
 # 027 — Release RepoPact 2.2.0 with dashboard integrity
 
-> **Status**: Active.
+> **Status**: Completed.
 > **Owners**: governance-owner (lead); tooling, docs, work, and evidence support.
 > **Depends on**: completed work item 026.
 
@@ -18,9 +18,9 @@ stale dashboards that passed 2.1.0 are intentionally rejected by 2.2.0.
 - [x] **REL220-001** Align all release and conformance version surfaces at 2.2.0.
 - [x] **REL220-002** Pass governance, regression, conformance, derived-output, and
   distribution-build checks.
-- [ ] **REL220-003** Merge, tag, upload the exact validated artifacts directly to
+- [x] **REL220-003** Merge, tag, upload the exact validated artifacts directly to
   PyPI, and externally verify v2.2.0.
-- [ ] **REL220-004** Advance ForgeLink to the formal release without reopening drift.
+- [x] **REL220-004** Advance ForgeLink to the formal release without reopening drift.
 
 ## Release boundary
 
@@ -39,4 +39,12 @@ stale dashboards that passed 2.1.0 are intentionally rejected by 2.2.0.
 - `20260718-repopact-2-2-0-release-candidate` records the passing 101-test suite,
   8-case conformance suite, governance validation, deterministic generated-output
   hashes, checked distribution metadata, and exact pre-publication artifact hashes.
-- Publication and adopter evidence remain pending for REL220-003 and REL220-004.
+- `20260718-repopact-2-2-0-publication` records the pushed release tag, exact direct
+  upload, public PyPI hash match, clean-package smoke, and ForgeLink formal adoption.
+
+## Closeout
+
+RepoPact 2.2.0 is published on PyPI and tagged at release commit `2b3b549`. ForgeLink
+consumes the formal exact version at pushed commit `86f8d67`. The release evidence is
+complete; GitHub Actions availability remains an explicitly open infrastructure risk,
+not an implied passing gate.

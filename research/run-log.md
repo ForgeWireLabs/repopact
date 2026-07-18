@@ -329,3 +329,26 @@ doctor healthy. Branch `adopt-repopact` (commit 7fb28c7), unmerged.
 ledger without losing un-captured content. VERSION → 1.4.0.
 
 **Capture.** [`captures/012-tracking-and-takeover.md`](captures/012-tracking-and-takeover.md)
+
+## Run 014 — canonical dashboard fixpoint + direct 2.2.0 release — 2026-07-18
+
+**Goal.** Eliminate the state in which a valid ledger coexists with a stale checked-in
+dashboard, release the new guarantee, and advance a real adopter from an interim commit
+pin to the formal package.
+
+**Actions.** Work item 026 added canonical dashboard rendering, missing/stale rejection
+inside the one-tree validator, deterministic repair, and mutation-path regeneration.
+ForgeLink proved the historical stale dashboard fails and regenerates cleanly. Work item
+027 aligned version/spec/conformance surfaces at 2.2.0; 101 tests (2 documented skips),
+8/8 conformance cases, governance validation, repeat-generation hashes, distribution
+build, and Twine checks passed. GitHub Actions publishing was billing-blocked, so the
+operator-authorized direct fallback uploaded the exact hash-pinned wheel and sdist.
+Public PyPI metadata matched both hashes; a clean no-cache install bootstrapped and
+validated a fresh repository. ForgeLink then pinned `repopact==2.2.0`, passed its full
+commit/push gates, and pushed commit `86f8d67`.
+
+**Result.** RepoPact 2.2.0 is public and externally installable. Dashboard equality is
+now a validator-enforced state fixpoint. The direct upload restores distribution but
+does not close the separate GitHub Actions/cross-platform CI limitation in GA-3.
+
+**Capture.** [`captures/014-dashboard-integrity-and-direct-release.md`](captures/014-dashboard-integrity-and-direct-release.md)

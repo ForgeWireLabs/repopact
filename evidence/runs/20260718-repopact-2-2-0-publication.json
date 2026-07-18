@@ -1,0 +1,58 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-repopact-2-2-0-publication",
+  "timestamp": "2026-07-18T18:41:35Z",
+  "work_item": "027",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git push origin main && git push origin v2.2.0",
+      "exit_code": 0,
+      "summary": "Published release commit 2b3b549e915bbe69264ac59401cf533d11cc6532 to main and pushed annotated tag v2.2.0; remote tag dereference resolves to the same commit."
+    },
+    {
+      "command": "python -m twine upload --non-interactive C:\\Projects\\repopact-release\\2.2.0\\repopact-2.2.0-py3-none-any.whl C:\\Projects\\repopact-release\\2.2.0\\repopact-2.2.0.tar.gz",
+      "exit_code": 0,
+      "summary": "Directly uploaded both exact validated artifacts to production PyPI using operator-held credentials because GitHub Actions publishing was billing-locked. No credential content was read into or stored in evidence."
+    },
+    {
+      "command": "PyPI JSON and project-page verification",
+      "exit_code": 0,
+      "summary": "Public PyPI metadata reports latest release 2.2.0, Python >=3.11, a non-yanked 70,343-byte wheel with SHA-256 a254a6b23af94d30118b53422082c7a1e52310e1e40c58e16c6cb3716fa8f3ba, and a non-yanked 73,193-byte sdist with SHA-256 f137400f74b0fb743cffcf8b28dbe5d24b6a1fe13fc37b75af977f9745d437b8. Both match the pre-upload evidence."
+    },
+    {
+      "command": "python -m venv C:\\Projects\\repopact-release\\verify-2.2.0\\venv && pip install --no-cache-dir repopact==2.2.0",
+      "exit_code": 0,
+      "summary": "A clean virtual environment downloaded and installed RepoPact 2.2.0 from the public index; installed metadata reported version 2.2.0."
+    },
+    {
+      "command": "repopact init --target C:\\Projects\\repopact-release\\verify-2.2.0\\sandbox && repopact validate --root C:\\Projects\\repopact-release\\verify-2.2.0\\sandbox",
+      "exit_code": 0,
+      "summary": "The public wheel bootstrapped a fresh valid repository and its packaged validator accepted it. An earlier exploratory call used unsupported flag --root for init and exited before creating state; the documented --target invocation passed."
+    },
+    {
+      "command": "git push origin main (ForgeLink)",
+      "exit_code": 0,
+      "summary": "ForgeLink commit 86f8d67c9ea8770f364b35d06a5c417a00f31815 replaced the interim git pin with repopact==2.2.0. Its commit/push gates passed governance, 221 renderer tests, and 202 of 203 Node tests with one opt-in live Twilio test skipped."
+    }
+  ],
+  "artifacts": [
+    "evidence/runs/20260718-repopact-2-2-0-release-candidate.json",
+    "decisions/0025-release-2.2.0-dashboard-integrity.md",
+    "research/captures/014-dashboard-integrity-and-direct-release.md",
+    "https://pypi.org/project/repopact/2.2.0/",
+    "https://github.com/ForgeWireLabs/repopact/tree/v2.2.0",
+    "https://github.com/ForgeWireLabs/ForgeLink/commit/86f8d67"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12",
+    "release": "2.2.0",
+    "release_commit": "2b3b549e915bbe69264ac59401cf533d11cc6532",
+    "adopter": "ForgeWireLabs/ForgeLink",
+    "adopter_commit": "86f8d67c9ea8770f364b35d06a5c417a00f31815",
+    "publication_route": "operator-authorized direct PyPI upload; GitHub Actions billing-locked",
+    "ci_limitation": "Direct publication restores package delivery but does not restore GitHub Actions or cross-platform CI coverage."
+  }
+}

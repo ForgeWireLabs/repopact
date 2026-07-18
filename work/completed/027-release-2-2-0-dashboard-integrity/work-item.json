@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "027",
   "title": "Release RepoPact 2.2.0 with dashboard integrity",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": [
     "governance",
@@ -34,14 +34,14 @@
     {
       "id": "REL220-003",
       "text": "The release is merged, tagged v2.2.0, uploaded directly to PyPI from the exact locally validated artifacts because GitHub Actions publishing is billing-blocked, and externally verified.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-repopact-2-2-0-publication"]
     },
     {
       "id": "REL220-004",
       "text": "ForgeLink advances from the interim commit pin to the formal 2.2.0 release and retains canonical dashboard enforcement.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260718-repopact-2-2-0-publication"]
     }
   ],
   "created": "2026-07-18",

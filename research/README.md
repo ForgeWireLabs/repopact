@@ -27,7 +27,7 @@ output produced along the way **are the data**.
 | [`gap-audit-2026-07.md`](gap-audit-2026-07.md) | Pre-publication gap audit (2026-07-15): verified gaps across adopters, conformance, benchmarks, and logistics, with a sequenced worklist toward the end-of-August paper deadline. |
 | [`formal-model.md`](formal-model.md) | Operational semantics of the kernel as layers (L0–L5): the state algebra, the lifecycle FSM as one layer (L1), the well-formedness predicate the validator decides, the typed invariant lattice, the adoption trilemma, and the theorems (T1–T6) the proving ground falsifies. |
 | [`threats-to-validity.md`](threats-to-validity.md) | Why the evidence must not be over-read — reflexivity (forgewire is the progenitor), single evaluator, scale. |
-| [`release-runbook.md`](release-runbook.md) | The credential-bound release steps for v1.0.0, recorded for the operator and the paper. |
+| [`release-runbook.md`](release-runbook.md) | Credential-bound release steps, including the billing-locked Actions/direct-PyPI fallback used for 2.2.0 and the historical v1.0.0 handoff. |
 | [`captures/`](captures/) | Raw, unedited terminal transcripts referenced by the run log and findings. |
 
 ## How to read this as evidence

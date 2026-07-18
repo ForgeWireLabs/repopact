@@ -38,13 +38,13 @@
       "notes": "Completed deterministic derived-dashboard validation and ForgeLink adopter proof."
     },
     {
-      "path": "work/active/027-release-2-2-0-dashboard-integrity",
+      "path": "work/completed/027-release-2-2-0-dashboard-integrity",
       "owner": "governance-owner",
-      "contract": "work/active/027-release-2-2-0-dashboard-integrity/AGENTS.md",
+      "contract": "work/completed/027-release-2-2-0-dashboard-integrity/AGENTS.md",
       "last_reviewed": "2026-07-18",
       "next_review": "2026-10-16",
       "alignment": "current",
-      "notes": "RepoPact 2.2.0 release validation, publication, and formal adopter advancement."
+      "notes": "Completed RepoPact 2.2.0 release, direct PyPI publication, public verification, and ForgeLink formal-release adoption."
     }
   ]
 }

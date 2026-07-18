@@ -280,7 +280,7 @@ RepoPact's invariants are not of one logical kind. Their logical kind predicts w
 | state                 | completed implies no pending criterion          | validator on one tree                     |
 | state                 | satisfied implies linked evidence               | validator on one tree                     |
 | state with provenance | completed implies concrete evidence             | validator on one tree                     |
-| state fixpoint        | generated dashboard equals projection           | CI diff or generator check                |
+| state fixpoint        | generated dashboard equals projection           | validator on one tree plus generator      |
 | transition            | frozen-surface change implies acknowledgement   | diff-time checker                         |
 | temporal              | completed work is not rewritten to look cleaner | git history plus review                   |
 | relational            | nested contract refines parent contract         | human review, future refinement calculus  |
@@ -307,7 +307,18 @@ Anything computable from source records should be generated, not hand-maintained
 π_spec(s) -> SPEC.md derived blocks
 ```
 
-A derived artifact is valid only when it matches its projection from the source records. Where enforced, this is a state-fixpoint invariant.
+A derived artifact is valid only when it matches its projection from the source records. Where enforced, this is a state-fixpoint invariant. RepoPact 2.2.0 makes the dashboard instance explicit in the recognizer:
+
+```text
+I_derive_dash(s) = exists(dashboard) and read(dashboard) = π_dashboard(s)
+```
+
+This separates two questions that an earlier validator conflated: the source ledger
+can be structurally valid while its checked-in materialized view is stale. A missing
+or byte-different dashboard now rejects the repository at any validator checkpoint;
+canonical regeneration is the deterministic repair. CI remains a useful independent
+execution venue, but is no longer the only mechanism capable of detecting dashboard
+drift.
 
 ### 3.6 The adoption boundary, L5, and the concrete-record trilemma
 
@@ -767,7 +778,7 @@ The conformance suite is versioned with RepoPact and exists to make standard con
 | state                 | completed work has no pending criteria            | one tree                           | validator                          |
 | state                 | satisfied criterion links evidence                | one tree                           | validator                          |
 | state with provenance | completed work is concrete                        | one tree                           | validator                          |
-| state fixpoint        | dashboard equals generated projection             | one tree plus generator            | CI or dashboard check              |
+| state fixpoint        | dashboard equals generated projection             | one tree plus generator            | validator (`validate_dashboard`)   |
 | transition            | frozen-surface change requires acknowledgement    | base and head                      | diff-time checker                  |
 | temporal              | completed work is not rewritten to look cleaner   | git trace                          | review, future trace semantics     |
 | relational            | nested contract refines parent                    | contract pair and refinement order | human review, future formalization |

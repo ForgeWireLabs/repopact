@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "027",
+  "title": "Release RepoPact 2.2.0 with dashboard integrity",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "tooling",
+    "docs",
+    "work",
+    "evidence"
+  ],
+  "depends_on": ["026"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-18T18:26:26Z",
+    "note": "Created before changing release or conformance version records."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "REL220-001",
+      "text": "Version, specification, conformance, README, dashboard, and release decision consistently identify RepoPact 2.2.0.",
+      "state": "satisfied",
+      "evidence": ["20260718-repopact-2-2-0-release-candidate"]
+    },
+    {
+      "id": "REL220-002",
+      "text": "Governance validation, the full regression suite, conformance suite, derived-artifact checks, and distribution build pass on the release tree.",
+      "state": "satisfied",
+      "evidence": ["20260718-repopact-2-2-0-release-candidate"]
+    },
+    {
+      "id": "REL220-003",
+      "text": "The release is merged, tagged v2.2.0, uploaded directly to PyPI from the exact locally validated artifacts because GitHub Actions publishing is billing-blocked, and externally verified.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "REL220-004",
+      "text": "ForgeLink advances from the interim commit pin to the formal 2.2.0 release and retains canonical dashboard enforcement.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-07-18",
+  "updated": "2026-07-18"
+}

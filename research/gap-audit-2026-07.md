@@ -64,6 +64,13 @@ platform coverage is not hypothetical).
 **Move (operator).** Clear the billing lock, or move the gates to a free CI
 alternative before submission. Re-enables trusted publishing as a side effect.
 
+**2026-07-18 update.** The billing lock remains. RepoPact 2.2.0 therefore uses the
+documented direct-PyPI fallback, with exact artifact hashes, public-index verification,
+and a clean-environment install captured as release evidence. This restores package
+publication but does **not** close GA-3: cross-platform CI and the repository checkpoint
+remain unavailable. Separately, 2.2.0 moves dashboard projection equality into the
+one-tree validator, so that particular fixpoint no longer depends exclusively on CI.
+
 ## GA-4 — Conformance suite: 8 cases; the 2.0 headline feature has zero (high)
 
 Current cases: valid-minimal, valid-proposed-work, active-depends-on-proposed,

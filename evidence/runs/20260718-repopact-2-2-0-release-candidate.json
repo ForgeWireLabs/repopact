@@ -1,0 +1,51 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-repopact-2-2-0-release-candidate",
+  "timestamp": "2026-07-18T18:35:02Z",
+  "work_item": "027",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "101 tests passed with 2 documented formal-model skips on the 2.2.0 release tree."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "All 8 versioned conformance cases passed."
+    },
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed with work item 027 active and the canonical dashboard present."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py && python scripts/generate_spec.py (repeat hash check)",
+      "exit_code": 0,
+      "summary": "Repeat generation was byte-stable: dashboard SHA-256 CE9D0E89746B93D0DC2E3C71C4917237A2CA1CB8949B4C6508426150559E941A; SPEC SHA-256 FF364F4BA823F9C942DABE35B38068CB3BEA3FCC251B47A80911588F6D89A599."
+    },
+    {
+      "command": "python -m build --outdir C:\\Projects\\repopact-release\\2.2.0 && python -m twine check C:\\Projects\\repopact-release\\2.2.0\\*",
+      "exit_code": 0,
+      "summary": "Built and checked repopact-2.2.0-py3-none-any.whl (70,343 bytes; SHA-256 A254A6B23AF94D30118B53422082C7A1E52310E1E40C58E16C6CB3716FA8F3BA) and repopact-2.2.0.tar.gz (73,193 bytes; SHA-256 F137400F74B0FB743CFFCF8B28DBE5D24B6A1FE13FC37B75AF977F9745D437B8). Wheel metadata reports repopact 2.2.0 and Python >=3.11."
+    }
+  ],
+  "artifacts": [
+    "VERSION",
+    "SPEC.md",
+    "conformance/manifest.json",
+    "decisions/0025-release-2.2.0-dashboard-integrity.md",
+    "research/formal-model.md",
+    "research/paper.md",
+    "C:/Projects/repopact-release/2.2.0/repopact-2.2.0-py3-none-any.whl",
+    "C:/Projects/repopact-release/2.2.0/repopact-2.2.0.tar.gz"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.12",
+    "release": "2.2.0",
+    "publication_route": "operator-authorized direct PyPI upload; GitHub Actions billing-locked"
+  }
+}

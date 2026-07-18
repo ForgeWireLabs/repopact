@@ -282,7 +282,7 @@ history requires the trace.
 | --- | --- | --- | --- | --- |
 | INV-2 | completed ⟹ no pending criterion | **state** | `□ I_accept(s)` | `validate_repo.py` |
 | INV-3 | satisfied ⟹ linked evidence | **state** | `□ I_accept(s)` | `validate_repo.py` |
-| INV-7 | derived artifacts are generated, not hand-edited | **state (fixpoint)** | `□ (dash(s)=π_dash(s) ∧ spec(s)=π_spec(s))` | CI dashboard-diff (`governance.yml`) |
+| INV-7 | derived artifacts are generated, not hand-edited | **state (fixpoint)** | `□ (dash(s)=π_dash(s) ∧ spec(s)=π_spec(s))` | `validate_repo.py` for `dash`; generator/CI check for `spec` |
 | INV-6 | frozen-surface change ⟹ operator approval | **transition (2-state)** | `□ (touch(Δ, Frz) ⟹ ack)` over diff `Δ=(s,s')` | `check_frozen_surface --base` |
 | INV-4 | completed work is never rewritten to look cleaner | **temporal / historical** | `□ ¬rewrite(history)` over the git trace | human review + git |
 | INV-5 | deepest `AGENTS.md` refines parents, never weakens | **relational / refinement** | `∀ c≺c': ⟦c⟧ ⊆ ⟦c'⟧` | human review |
@@ -293,7 +293,11 @@ enforcer moves from the validator to a diff-time checker to human review. The pr
 reflects what is decidable on a single tree. INV-6 takes a `--base` argument because a
 change to the frozen surface is a two-state property not present in a single snapshot.
 INV-4 is human-gated because it quantifies over history, which a single tree does not
-contain. Mechanizing INV-4 and INV-5 would require, respectively, a trace semantics over
+contain. Since RepoPact 2.2.0, dashboard equality is decided directly by the one-tree
+validator: a missing dashboard or byte inequality with `π_dash(s)` is a violation.
+This makes CI a redundant execution venue for the dashboard fixpoint rather than its
+only enforcer. Specification projection equality remains generator/CI-checked.
+Mechanizing INV-4 and INV-5 would require, respectively, a trace semantics over
 git history and a refinement order `≺` on contracts (O-4, O-6).
 
 ---

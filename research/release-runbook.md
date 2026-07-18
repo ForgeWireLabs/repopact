@@ -1,4 +1,28 @@
-# Release runbook — v1.0.0
+# Release runbook
+
+## Current billing-locked Actions fallback (used for 2.2.0)
+
+When GitHub Actions cannot execute, the OIDC trusted-publishing path is unavailable.
+An operator-authorized direct upload may publish the exact locally validated tag
+artifacts without weakening the release gates:
+
+1. Validate the release tree, run the full unit and conformance suites, regenerate
+   derived artifacts, and require deterministic output.
+2. Build the sdist and wheel from the release commit, run `twine check`, and record
+   SHA-256 hashes.
+3. Merge and push the release commit, create and push the annotated version tag, and
+   confirm the remote tag resolves to that commit.
+4. Run `python -m twine upload <exact-wheel> <exact-sdist>` using an operator-held
+   PyPI token. Never write the token, `.pypirc`, or secret-bearing output to evidence.
+5. Verify the public PyPI JSON/index metadata and install `repopact==<version>` with
+   `--no-cache-dir` in a clean virtual environment. Record installed metadata and a
+   validator smoke test.
+
+This proves package publication and package identity. It does not prove the unavailable
+GitHub workflow or restore CI coverage; that limitation remains explicit in the gap
+audit.
+
+## Historical v1.0.0 handoff
 
 The build and verification are done and recorded ([run 003](run-log.md)). What
 remains are the outward-facing, credential-bound steps. They are listed here so the

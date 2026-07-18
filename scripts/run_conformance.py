@@ -16,7 +16,10 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import jsonschema
+
 import generate_dashboard
+import validate_repo
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,7 +38,35 @@ def load_manifest(path: Path = MANIFEST) -> dict:
         data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError(f"manifest must be a JSON object: {path}")
+    schema = json.loads((ROOT / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8"))
+    jsonschema.Draft202012Validator(schema).validate(data)
+    validate_manifest_coverage(data)
     return data
+
+
+def validate_manifest_coverage(manifest: dict) -> None:
+    """Enforce bidirectional rule/case coverage with deterministic diagnostics."""
+    errors: list[str] = []
+    rule_ids = [str(rule.get("id", "")) for rule in manifest.get("rules", []) if isinstance(rule, dict)]
+    case_ids = [str(case.get("id", "")) for case in manifest.get("cases", []) if isinstance(case, dict)]
+    if len(rule_ids) != len(set(rule_ids)):
+        errors.append("rule ids must be unique")
+    if len(case_ids) != len(set(case_ids)):
+        errors.append("case ids must be unique")
+    known = set(rule_ids)
+    referenced = {
+        str(rule_id)
+        for case in manifest.get("cases", []) if isinstance(case, dict)
+        for rule_id in case.get("rules", [])
+    }
+    uncovered = sorted(known - referenced)
+    unknown = sorted(referenced - known)
+    if uncovered:
+        errors.append(f"rules without conformance cases: {', '.join(uncovered)}")
+    if unknown:
+        errors.append(f"cases reference unknown rules: {', '.join(unknown)}")
+    if errors:
+        raise ValueError("; ".join(errors))
 
 
 def _copy_overlay(src: Path, dst: Path) -> None:
@@ -57,9 +88,12 @@ def materialize_case(root: Path, fixtures_root: Path, case: dict) -> Path:
         shutil.copytree(fixtures_root / str(case["path"]), repo)
     shutil.copytree(ROOT / "schemas", repo / "schemas")
     # Overlays intentionally mutate source records. Materialize their canonical
-    # derived projection so each case tests its declared rule rather than failing
-    # secondarily on dashboard drift.
-    generate_dashboard.write_dashboard(repo)
+    # projection unless the dashboard itself is the isolated signal under test.
+    dashboard_mode = case.get("dashboard", "canonical")
+    if dashboard_mode == "canonical":
+        generate_dashboard.write_dashboard(repo)
+    elif dashboard_mode == "remove":
+        (repo / "audits" / "reports" / "dashboard.md").unlink(missing_ok=True)
     return repo
 
 
@@ -72,14 +106,29 @@ def evaluate_case(case: dict, command: str, fixtures_root: Path) -> CaseResult:
     case_id = str(case["id"])
     with tempfile.TemporaryDirectory(prefix=f"repopact-conformance-{case_id}-") as tmp:
         repo = materialize_case(Path(tmp), fixtures_root, case)
+        reference_problems = validate_repo.validate(repo)
         proc = run_command(command, repo)
     output = "\n".join(part for part in (proc.stdout, proc.stderr) if part)
     expect = case.get("expect")
     if expect == "accept":
+        if reference_problems:
+            observed = "; ".join(problem.message for problem in reference_problems)
+            return CaseResult(case_id, False, f"fixture isolation failed: unexpected violations: {observed}")
         passed = proc.returncode == 0
         detail = "accepted" if passed else f"expected accept, exit={proc.returncode}: {output.strip()}"
         return CaseResult(case_id, passed, detail)
     expected = str(case.get("expected_message", ""))
+    matching = [problem for problem in reference_problems if expected in problem.message]
+    unexpected = [problem for problem in reference_problems if expected not in problem.message]
+    if len(matching) != 1 or unexpected:
+        observed = "; ".join(problem.message for problem in reference_problems) or "none"
+        extra = "; ".join(problem.message for problem in unexpected) or "none"
+        return CaseResult(
+            case_id,
+            False,
+            f"fixture isolation failed: expected one '{expected}' violation; observed: {observed}; "
+            f"unexpected violations: {extra}",
+        )
     passed = proc.returncode != 0 and expected in output
     detail = (
         f"rejected with '{expected}'"
@@ -105,7 +154,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    results = run_suite(args.command, args.manifest.resolve())
+    try:
+        results = run_suite(args.command, args.manifest.resolve())
+    except (OSError, ValueError, json.JSONDecodeError, jsonschema.ValidationError) as exc:
+        print(f"CONFORMANCE MANIFEST ERROR: {exc}", file=sys.stderr)
+        return 2
     failed = [result for result in results if not result.passed]
     for result in results:
         status = "PASS" if result.passed else "FAIL"

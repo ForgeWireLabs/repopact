@@ -50,9 +50,28 @@ class ConformanceTests(unittest.TestCase):
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         schema = json.loads((ROOT / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8"))
         jsonschema.Draft202012Validator(schema).validate(manifest)
+        run_conformance.validate_manifest_coverage(manifest)
         self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8").strip(), manifest["suite_version"])
         for case in manifest["cases"]:
             self.assertTrue((FIXTURES / case["path"]).exists(), case["path"])
+
+    def test_rule_coverage_is_bidirectional_and_every_fixture_is_declared(self) -> None:
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        declared = {case["path"] for case in manifest["cases"]}
+        fixture_paths = {"valid"}
+        fixture_paths.update(path.name for path in FIXTURES.iterdir() if path.is_dir() and path.name.startswith("valid-"))
+        fixture_paths.update(f"invalid/{path.name}" for path in INVALID.iterdir() if path.is_dir())
+        self.assertEqual(fixture_paths, declared)
+
+        missing = json.loads(json.dumps(manifest))
+        missing["cases"] = [case for case in missing["cases"] if "SPEC-4-version" not in case["rules"]]
+        with self.assertRaisesRegex(ValueError, "rules without conformance cases: SPEC-4-version"):
+            run_conformance.validate_manifest_coverage(missing)
+
+        unknown = json.loads(json.dumps(manifest))
+        unknown["cases"][0]["rules"].append("SPEC-999-unknown")
+        with self.assertRaisesRegex(ValueError, "cases reference unknown rules: SPEC-999-unknown"):
+            run_conformance.validate_manifest_coverage(unknown)
 
     def test_manifest_matches_reference_suite(self) -> None:
         results = run_conformance.run_suite(
@@ -68,19 +87,32 @@ class ConformanceTests(unittest.TestCase):
             self.assertEqual([], [p.message for p in validate(repo)])
 
     def test_invalid_fixtures_are_rejected(self) -> None:
-        cases = sorted(d for d in INVALID.iterdir() if d.is_dir())
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        cases = [case for case in manifest["cases"] if case["expect"] == "reject"]
         self.assertTrue(cases, "no invalid fixtures found")
         for case in cases:
-            with self.subTest(case=case.name):
-                expect = json.loads((case / "meta.json").read_text(encoding="utf-8"))["expect"]
+            with self.subTest(case=case["id"]):
                 with tempfile.TemporaryDirectory() as tmp:
-                    repo = build_repo(Path(tmp) / "repo", overlay=case)
+                    repo = run_conformance.materialize_case(Path(tmp), FIXTURES, case)
                     messages = [p.message for p in validate(repo)]
-                    self.assertTrue(messages, f"{case.name}: expected rejection, got none")
-                    self.assertTrue(
-                        any(expect in m for m in messages),
-                        f"{case.name}: expected '{expect}' in {messages}",
-                    )
+                    expect = case["expected_message"]
+                    self.assertEqual(1, len(messages), f"{case['id']}: unexpected violations: {messages}")
+                    self.assertIn(expect, messages[0])
+
+    def test_runner_reports_unexpected_fixture_violations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            suite = Path(tmp) / "conformance"
+            shutil.copytree(ROOT / "conformance", suite)
+            overlay = suite / "fixtures" / "invalid" / "completed-with-pending"
+            (overlay / "VERSION").write_text("not-semver\n", encoding="utf-8")
+            results = run_conformance.run_suite(
+                f'"{sys.executable}" "{ROOT / "scripts" / "validate_repo.py"}" --root "{{repo}}"',
+                suite / "manifest.json",
+            )
+        result = next(item for item in results if item.case_id == "completed-with-pending")
+        self.assertFalse(result.passed)
+        self.assertIn("unexpected violations", result.detail)
+        self.assertIn("must be semantic", result.detail)
 
 
 if __name__ == "__main__":

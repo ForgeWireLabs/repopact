@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "001",
+  "title": "Seed work item",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "The repository validates", "state": "satisfied", "evidence": ["20260101-seed"]}
+  ],
+  "created": "2026-01-01",
+  "updated": "2026-01-01"
+}

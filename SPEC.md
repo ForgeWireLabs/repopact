@@ -80,6 +80,12 @@ cross-record consistency.
 6. **Concurrency (optional).** When `owners.json` enables
    `enforce_disjoint_active_scopes`, no two non-terminal work items share a scope.
 7. **Version.** `VERSION` is `MAJOR.MINOR.PATCH`.
+8. **Provenance.** Provisional and inferred work are admitted states, but completed
+   work and concrete claims must rest on concrete evidence.
+9. **Ledger visibility.** Planning content under `work/` has a machine-readable
+   work item; orphan narrative directories are invalid.
+10. **Dashboard integrity.** `audits/reports/dashboard.md` exists and is byte-equal
+    to the canonical projection generated from source records.
 
 ## 5. Lifecycle state machine
 
@@ -146,6 +152,9 @@ repository is the canonical conformance example.
 A machine-checkable corpus lives in [`conformance/`](conformance/): a valid
 baseline that must be accepted, one invalid overlay per rule above that must be
 rejected with a declared message, and a manifest mapping each case to the rule or
-invariant it exercises. `python scripts/run_conformance.py` exercises it; an
-alternative implementation can pass a `{repo}` command template to target the same
-fixtures.
+invariant it exercises. The manifest's normative rule inventory is checked in both
+directions: every inventoried rule has a case and every case references a known
+rule. Reject fixtures must expose exactly their declared primary violation; an
+unexpected secondary violation fails the suite.
+`python scripts/run_conformance.py` exercises it; an alternative implementation
+can pass a `{repo}` command template to target the same fixtures.

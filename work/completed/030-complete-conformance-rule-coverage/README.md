@@ -1,6 +1,6 @@
 # 030 — Complete conformance rule coverage
 
-> **Status**: Active
+> **Status**: Complete — 2026-07-18
 > **Owners**: tooling-owner (lead); governance-owner affected.
 > **Depends on**: `019`, `024`, `025`, `026`.
 
@@ -25,12 +25,15 @@ isolate their primary signal so canonical-dashboard enforcement cannot confound 
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — fail when any machine-enforceable rule has no conformance fixture.
-- [ ] **AC-2** — add the currently missing rule cases.
-- [ ] **AC-3** — isolate fixture signals and report unexpected violations.
-- [ ] **AC-4** — align conformance documentation and pass every repository gate.
+- [x] **AC-1** — fail when any machine-enforceable rule has no conformance fixture.
+- [x] **AC-2** — add the currently missing rule cases.
+- [x] **AC-3** — isolate fixture signals and report unexpected violations.
+- [x] **AC-4** — align conformance documentation and pass every repository gate.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+Evidence `20260718-complete-conformance-rule-coverage` links every criterion to
+the normative rule inventory, bidirectional coverage gate, expanded 17-case
+corpus, exact reference-diagnostic isolation, aligned conformance documentation,
+and passing repository gates. The item is complete and lives under
+`work/completed/`.

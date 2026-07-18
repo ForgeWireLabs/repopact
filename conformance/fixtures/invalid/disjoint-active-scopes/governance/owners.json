@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "scopes": [
+    {"id": "governance", "paths": ["AGENTS.md", "governance/**", "schemas/**"], "owner": "governance-owner"}
+  ],
+  "roles": [
+    {"id": "governance-owner", "description": "Maintains the pact and schemas.", "scopes": ["governance"]}
+  ],
+  "concurrency": {"enforce_disjoint_active_scopes": true},
+  "preflight": {"enabled": true, "required_from_id": 2}
+}

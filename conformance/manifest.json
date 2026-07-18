@@ -3,6 +3,98 @@
   "suite_version": "2.2.0",
   "spec_version_file": "../VERSION",
   "fixtures_root": "fixtures",
+  "rules": [
+    {
+      "id": "SPEC-4-record-validity",
+      "source": "SPEC.md#3-record-types",
+      "enforced_by": "scripts/validate_repo.py:check_schema",
+      "description": "Governance JSON records satisfy their declared schemas."
+    },
+    {
+      "id": "SPEC-4-contract-coverage",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_contracts",
+      "description": "The root contract exists and nested contracts are audit-registered."
+    },
+    {
+      "id": "SPEC-4-identity-agreement",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Record ids, filenames, directories, and lifecycle status agree."
+    },
+    {
+      "id": "SPEC-4-reference-resolution",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Dependencies and other governed references resolve to known records or scopes."
+    },
+    {
+      "id": "SPEC-4-acceptance",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Satisfied criteria have evidence and completed work has no pending criteria."
+    },
+    {
+      "id": "SPEC-4-acyclic-dependencies",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:detect_dependency_cycles",
+      "description": "The work dependency graph is acyclic."
+    },
+    {
+      "id": "SPEC-4-disjoint-active-scopes",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_disjoint_scopes",
+      "description": "When enabled, active work items do not overlap owner or affected scopes."
+    },
+    {
+      "id": "SPEC-4-version",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_version",
+      "description": "VERSION is semantic MAJOR.MINOR.PATCH."
+    },
+    {
+      "id": "SPEC-4-provenance",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_provenance",
+      "description": "Provisional states are admitted, but completion and concrete claims require concrete evidence."
+    },
+    {
+      "id": "SPEC-4-orphan-work-ledger",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_orphan_work_dirs",
+      "description": "Planning directories under work are represented by machine-readable work items."
+    },
+    {
+      "id": "SPEC-4-dashboard-integrity",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_dashboard",
+      "description": "The canonical derived dashboard exists and matches its source records."
+    },
+    {
+      "id": "SPEC-5-lifecycle-proposed",
+      "source": "SPEC.md#5-lifecycle-state-machine",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Proposed work is valid candidate state but cannot authorize active or completed dependencies."
+    },
+    {
+      "id": "INV-2",
+      "source": "governance/invariants.json#INV-2",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Completed work has no pending acceptance criteria."
+    },
+    {
+      "id": "INV-3",
+      "source": "governance/invariants.json#INV-3",
+      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "description": "Satisfied acceptance criteria link evidence."
+    },
+    {
+      "id": "INV-7",
+      "source": "governance/invariants.json#INV-7",
+      "enforced_by": "scripts/validate_repo.py:validate_dashboard",
+      "description": "The derived dashboard is generated rather than hand-maintained."
+    }
+  ],
   "cases": [
     {
       "id": "valid-minimal",
@@ -34,7 +126,7 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "completed item has pending criterion",
-      "rules": ["INV-2"],
+      "rules": ["SPEC-4-acceptance", "INV-2"],
       "description": "A completed work item cannot retain pending acceptance criteria."
     },
     {
@@ -43,7 +135,7 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "satisfied without evidence",
-      "rules": ["INV-3"],
+      "rules": ["SPEC-4-acceptance", "INV-3"],
       "description": "A satisfied acceptance criterion must link evidence."
     },
     {
@@ -72,6 +164,88 @@
       "expected_message": "dependency cycle",
       "rules": ["SPEC-4-acyclic-dependencies"],
       "description": "Dependency edges between work items must be acyclic."
+    },
+    {
+      "id": "valid-provisional-work",
+      "path": "valid-provisional",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": ["SPEC-4-provenance"],
+      "description": "Provisional active work is an admitted, honest intermediate state."
+    },
+    {
+      "id": "completed-provisional-work",
+      "path": "invalid/completed-provisional-work",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "cannot be completed; ratchet to concrete first (P2)",
+      "rules": ["SPEC-4-provenance"],
+      "description": "A provisional item cannot claim completion."
+    },
+    {
+      "id": "status-directory-mismatch",
+      "path": "invalid/status-directory-mismatch",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "status 'active' does not match directory 'completed'",
+      "rules": ["SPEC-4-identity-agreement"],
+      "description": "Work-item status must agree with its lifecycle directory."
+    },
+    {
+      "id": "invalid-semantic-version",
+      "path": "invalid/invalid-semantic-version",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "must be semantic (MAJOR.MINOR.PATCH)",
+      "rules": ["SPEC-4-version"],
+      "description": "VERSION must contain a semantic version."
+    },
+    {
+      "id": "schema-invalid-evidence",
+      "path": "invalid/schema-invalid-evidence",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "schema result: 'unknown' is not one of",
+      "rules": ["SPEC-4-record-validity"],
+      "description": "A structurally invalid evidence record is rejected by its schema."
+    },
+    {
+      "id": "orphan-work-directory",
+      "path": "invalid/orphan-work-directory",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "work directory holds planning content",
+      "rules": ["SPEC-4-orphan-work-ledger"],
+      "description": "Planning content cannot remain invisible to the work ledger."
+    },
+    {
+      "id": "disjoint-active-scopes",
+      "path": "invalid/disjoint-active-scopes",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "active scope conflict",
+      "rules": ["SPEC-4-disjoint-active-scopes"],
+      "description": "The optional disjoint-scope policy rejects overlapping active work."
+    },
+    {
+      "id": "missing-dashboard",
+      "path": "invalid/missing-dashboard",
+      "overlay_on": "valid",
+      "dashboard": "remove",
+      "expect": "reject",
+      "expected_message": "missing generated dashboard",
+      "rules": ["SPEC-4-dashboard-integrity", "INV-7"],
+      "description": "A repository without its canonical dashboard is rejected."
+    },
+    {
+      "id": "stale-dashboard",
+      "path": "invalid/stale-dashboard",
+      "overlay_on": "valid",
+      "dashboard": "preserve",
+      "expect": "reject",
+      "expected_message": "dashboard is stale",
+      "rules": ["SPEC-4-dashboard-integrity", "INV-7"],
+      "description": "A hand-maintained or stale dashboard is rejected."
     }
   ]
 }

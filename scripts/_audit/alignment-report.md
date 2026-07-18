@@ -1,5 +1,16 @@
 # Tooling Alignment Report
 
+## 2026-07-18 complete conformance rule coverage
+
+- The conformance manifest now inventories every repository-tree rule named by the
+  SPEC and machine-enforced invariants covered by the reference validator.
+- Coverage is bidirectional: omitted-rule and unknown-rule mappings fail before
+  conformance execution, and repository tests reject undeclared fixture directories.
+- Reject fixtures must produce exactly one intended reference violation. The runner
+  reports unexpected secondary diagnostics deterministically and fails the case.
+- Added provenance acceptance/rejection, lifecycle identity, semantic version,
+  schema validity, orphan work, disjoint scope, and missing/stale dashboard cases.
+
 ## 2026-07-18 deterministic adopter fleet verification
 
 - Added a versioned, schema-validated public adopter manifest covering exact PyPI

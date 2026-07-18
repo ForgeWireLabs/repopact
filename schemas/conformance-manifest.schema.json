@@ -2,16 +2,34 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "conformance-manifest.schema.json",
   "type": "object",
-  "required": ["suite_version", "fixtures_root", "cases"],
+  "additionalProperties": false,
+  "required": ["suite_version", "fixtures_root", "rules", "cases"],
   "properties": {
+    "$schema": {"type": "string"},
     "suite_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
     "spec_version_file": {"type": "string"},
     "fixtures_root": {"type": "string", "minLength": 1},
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "enforced_by", "description"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "source": {"type": "string", "minLength": 1},
+          "enforced_by": {"type": "string", "minLength": 1},
+          "description": {"type": "string", "minLength": 1}
+        }
+      }
+    },
     "cases": {
       "type": "array",
       "minItems": 1,
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["id", "path", "expect", "rules", "description"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
@@ -19,6 +37,7 @@
           "overlay_on": {"type": "string", "minLength": 1},
           "expect": {"enum": ["accept", "reject"]},
           "expected_message": {"type": "string"},
+          "dashboard": {"enum": ["canonical", "preserve", "remove"]},
           "rules": {"type": "array", "items": {"type": "string"}, "minItems": 1},
           "description": {"type": "string", "minLength": 1}
         },

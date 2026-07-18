@@ -1,0 +1,58 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260718-complete-conformance-rule-coverage",
+  "timestamp": "2026-07-18T21:30:23Z",
+  "work_item": "030",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "All 17 conformance cases passed. The corpus now covers provenance admission and completion rejection, status-directory mismatch, invalid semantic version, schema-invalid evidence, orphan work, disjoint active scopes, and missing/stale dashboards in addition to the existing cases."
+    },
+    {
+      "command": "python -m unittest tests.test_conformance -v",
+      "exit_code": 0,
+      "summary": "All 6 focused conformance tests passed, including bidirectional omitted-rule and unknown-rule failures, exact fixture-directory declaration, reference-suite agreement, and deterministic reporting of unexpected secondary violations."
+    },
+    {
+      "command": "python scripts/repopact_cli.py spec --root . && python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "SPEC derived blocks regenerated without drift and repository governance validation passed with the expanded rule inventory and corpus."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "All 112 unit tests passed with the two declared formal-model tests skipped."
+    },
+    {
+      "command": "pip install -r requirements.txt",
+      "exit_code": 0,
+      "summary": "The declared jsonschema dependency and its requirements are installed."
+    },
+    {
+      "command": "python scripts/check_frozen_surface.py --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "The operator's instruction to proceed with WI-030 authorized the conformance-manifest schema extension; the acknowledged frozen-surface backstop passed without weakening an invariant."
+    }
+  ],
+  "artifacts": [
+    "conformance/manifest.json",
+    "conformance/fixtures/",
+    "schemas/conformance-manifest.schema.json",
+    "scripts/run_conformance.py",
+    "tests/test_conformance.py",
+    "CONFORMANCE.md",
+    "SPEC.md"
+  ],
+  "environment": {
+    "date": "2026-07-18",
+    "repopact_version": "2.2.0",
+    "inventoried_rules": 15,
+    "conformance_cases": 17,
+    "focused_tests": 6,
+    "unit_tests": 112,
+    "formal_model_skips": 2
+  }
+}

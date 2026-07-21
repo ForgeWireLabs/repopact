@@ -1,7 +1,7 @@
 # RepoPact Conformance
 
 RepoPact conformance is tied to the semantic version in [`VERSION`](VERSION).
-An implementation may claim **RepoPact 2.2.0 conformant** when it passes the
+An implementation may claim **RepoPact 2.3.0 conformant** when it passes the
 published conformance suite in [`conformance/`](conformance/).
 
 The manifest contains the normative machine-enforced rule inventory and its valid

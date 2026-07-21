@@ -46,8 +46,8 @@
       "consumption": {
         "type": "vendored",
         "version_file": "scripts/REPOPACT_VERSION",
-        "upstream_version": "2.2.0",
-        "upstream_revision": "2b3b549e915bbe69264ac59401cf533d11cc6532",
+        "upstream_version": "2.3.0",
+        "upstream_revision": "f371c545535eaddd0880b52f71bd9e9a19704b1a",
         "files": [
           {
             "upstream_path": "scripts/generate_dashboard.py",
@@ -67,10 +67,10 @@
             "upstream_path": "scripts/validate_repo.py",
             "adopter_path": "scripts/validate_repo.py",
             "mode": "overlay",
-            "upstream_sha256": "8eed18211d6a400d6c5f4ef5f99b3f210d0221e31872c63879491acfdcca6bc9",
-            "adopter_sha256": "5a2b739a9d3a552a4ade42fc5071c4b8a2ff6413f9bfb1e29f96f3691f934160",
+            "upstream_sha256": "05347e93ceaab1c01b9d2ef612599a396f7633ed437f5f0d73c884a0298337ff",
+            "adopter_sha256": "1f63f572d61e11ae45d819d386dc7495490d49c4f78cd048c7bdb75198d8c21e",
             "overlay_path": "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
-            "overlay_sha256": "2a0311fb6767e104e85ab1ead8d00537dc63e96c833914bda42b4d865c73ef2e"
+            "overlay_sha256": "9f032fc16096bb35fa2d5864699e772eb67ca2a81bfdf1975631324d7013c177"
           }
         ]
       },

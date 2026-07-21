@@ -1,6 +1,8 @@
 --- upstream/scripts/validate_repo.py
 +++ adopter/scripts/validate_repo.py
-@@ -24,0 +25,53 @@
+@@ -4 +3,0 @@
+-import hashlib
+@@ -25,0 +25,53 @@
 +ROM_LAB_REQUIRED = (
 +    "rom_lab/README.md",
 +    "rom_lab/research/sources_matrix.md",
@@ -54,7 +56,52 @@
 +    " dd ",
 +    "mkfs",
 +)
-@@ -613,0 +667,59 @@
+@@ -179,44 +230,0 @@
+-
+-
+-def validate_adopter_manifest(root: Path, problems: list[Problem]) -> None:
+-    """Validate the optional maintainer-only public adopter fleet declaration."""
+-    path = root / "governance" / "adopters.json"
+-    if not path.is_file():
+-        return
+-    try:
+-        data = load_json(path)
+-        schema = load_schema(root, "adopter-fleet.schema.json")
+-    except (OSError, ValueError, json.JSONDecodeError) as exc:
+-        problems.append(Problem(path, str(exc)))
+-        return
+-    check_schema(data, schema, path, problems)
+-    entries = [entry for entry in data.get("adopters", []) if isinstance(entry, dict)]
+-    ids = [str(entry.get("id", "")) for entry in entries]
+-    repositories = [str(entry.get("repository", "")).lower().removesuffix(".git") for entry in entries]
+-    if len(ids) != len(set(ids)):
+-        problems.append(Problem(path, "adopter ids must be unique"))
+-    if len(repositories) != len(set(repositories)):
+-        problems.append(Problem(path, "adopter remote identities must be unique"))
+-    version_path = root / str(data.get("upstream", {}).get("version_file", "VERSION"))
+-    try:
+-        current_version = version_path.read_text(encoding="utf-8").strip()
+-    except OSError:
+-        current_version = ""
+-    for entry in entries:
+-        consumption = entry.get("consumption", {})
+-        if not isinstance(consumption, dict) or consumption.get("type") != "vendored":
+-            continue
+-        if consumption.get("upstream_version") != current_version:
+-            problems.append(Problem(path, f"vendored adopter '{entry.get('id')}' does not target VERSION {current_version}"))
+-        for contract in consumption.get("files", []):
+-            if not isinstance(contract, dict) or contract.get("mode") != "overlay":
+-                continue
+-            overlay = (root / str(contract.get("overlay_path", ""))).resolve()
+-            try:
+-                overlay.relative_to(root.resolve())
+-                actual = hashlib.sha256(overlay.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+-            except (OSError, ValueError) as exc:
+-                problems.append(Problem(path, f"vendored overlay is unreadable: {exc}"))
+-                continue
+-            if actual != contract.get("overlay_sha256"):
+-                problems.append(Problem(path, f"vendored overlay checksum drift: {contract.get('overlay_path')}"))
+@@ -700,0 +709,59 @@
 +def validate_rom_lab(root: Path, problems: list[Problem]) -> None:
 +    lab = root / "rom_lab"
 +    if not lab.is_dir():
@@ -114,5 +161,7 @@
 +                    problems.append(Problem(path, f"destructive command term is not allowed in execution scripts: {term.strip()}"))
 +
 +
-@@ -627,0 +740 @@
+@@ -708 +774,0 @@
+-    validate_adopter_manifest(root, problems)
+@@ -716,0 +783 @@
 +    validate_rom_lab(root, problems)

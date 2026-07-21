@@ -1,0 +1,52 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260720-release-2-3-0",
+  "timestamp": "2026-07-20T00:00:00Z",
+  "work_item": "035",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Governance validation passed on the 2.3.0 tree with the re-pinned moto-one-hyper vendored adopter (upstream_revision f371c54)."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "19/19 conformance cases passed, including SPEC-4-release-label accept and core-mismatch reject."
+    },
+    {
+      "command": "python scripts/fleet_verify.py",
+      "exit_code": 0,
+      "summary": "The adopter fleet verified, including the re-vendored moto-one-hyper at RepoPact 2.3.0."
+    },
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "All 112 unit tests passed with the two declared formal-model tests skipped."
+    },
+    {
+      "command": "python -m build && python -m twine check dist/repopact-2.3.0*",
+      "exit_code": 0,
+      "summary": "sdist and wheel built and passed twine check. SHA-256: wheel 98722c26c49d5500a24775899d8e19b682c55af1d36bc0c20d19488affa8fe6b; sdist 8596b816068bce3c4b8f87b7dc8c8cfbf93dc4e28c649bb1507089f8abc9ead4."
+    }
+  ],
+  "artifacts": [
+    "VERSION",
+    "conformance/manifest.json",
+    "governance/adopters.json",
+    "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
+    "decisions/0027-release-2.3.0-optional-release-label.md",
+    "dist/repopact-2.3.0-py3-none-any.whl",
+    "dist/repopact-2.3.0.tar.gz"
+  ],
+  "environment": {
+    "date": "2026-07-20",
+    "repopact_version": "2.3.0",
+    "conformance_cases": 19,
+    "unit_tests": 112,
+    "formal_model_skips": 2,
+    "vendored_adopter_revendored": "moto-one-hyper c073adb"
+  }
+}

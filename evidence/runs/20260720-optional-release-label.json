@@ -1,0 +1,54 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260720-optional-release-label",
+  "timestamp": "2026-07-20T00:00:00Z",
+  "work_item": "035",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Governance validation passed with the new validate_release_label rule wired in and no VERSION, suite_version, or adopter-fleet change."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "All conformance cases passed, including the new valid-release-label accept case and the release-label-version-mismatch reject case; bidirectional coverage holds for SPEC-4-release-label."
+    },
+    {
+      "command": "python -m unittest tests.test_conformance -v",
+      "exit_code": 0,
+      "summary": "Focused conformance tests passed, including exact fixture-directory declaration and reference-suite agreement with the two added fixtures."
+    },
+    {
+      "command": "python scripts/generate_spec.py",
+      "exit_code": 0,
+      "summary": "SPEC derived blocks regenerated without drift; the RELEASE_LABEL prose lives in hand-written normative regions."
+    },
+    {
+      "command": "python -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "All 112 unit tests passed across every module (test_conformance, test_validate_repo, test_fleet_verify, test_plan_import_links, test_takeover_refs) with the two declared formal-model tests skipped."
+    }
+  ],
+  "artifacts": [
+    "scripts/validate_repo.py",
+    "SPEC.md",
+    "conformance/manifest.json",
+    "conformance/fixtures/valid-release-label/",
+    "conformance/fixtures/invalid/release-label-version-mismatch/",
+    "work/completed/035-optional-release-label/",
+    "decisions/0026-optional-release-label.md"
+  ],
+  "environment": {
+    "date": "2026-07-20",
+    "repopact_version": "2.2.0",
+    "release_label": "none",
+    "new_rules": 1,
+    "new_conformance_cases": 2,
+    "conformance_cases": 19,
+    "unit_tests": 112,
+    "formal_model_skips": 2
+  }
+}

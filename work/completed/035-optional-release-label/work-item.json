@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "035",
+  "title": "Optional RELEASE_LABEL pre-release identity",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "governance"],
+  "depends_on": ["019", "030"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-20T00:00:00Z",
+    "note": "Recorded from the RELEASE_LABEL design discussion before the validator, spec, and conformance changes were implemented."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A new §4 validation rule accepts an optional root RELEASE_LABEL file as a SemVer pre-release whose MAJOR.MINOR.PATCH core equals VERSION, rejects a label whose core diverges from VERSION or is not a SemVer pre-release, and constrains nothing when the file is absent.",
+      "state": "satisfied",
+      "evidence": ["20260720-optional-release-label"]
+    },
+    {
+      "id": "AC-2",
+      "text": "SPEC records RELEASE_LABEL in the repository layout, §4.7, and §8, and the conformance manifest inventories SPEC-4-release-label with a passing accept fixture and a rejecting core-mismatch fixture; bidirectional coverage holds.",
+      "state": "satisfied",
+      "evidence": ["20260720-optional-release-label"]
+    },
+    {
+      "id": "AC-3",
+      "text": "The change is additive: VERSION, suite_version, and the adopter fleet are untouched, and governance validation, the conformance suite, and the full test suite pass on the resulting tree.",
+      "state": "satisfied",
+      "evidence": ["20260720-optional-release-label"]
+    }
+  ],
+  "created": "2026-07-20",
+  "updated": "2026-07-20"
+}

@@ -104,6 +104,48 @@ def validate_version(root: Path, problems: list[Problem]) -> None:
         problems.append(Problem(path, f"VERSION '{version}' must be semantic (MAJOR.MINOR.PATCH)"))
 
 
+# A SemVer pre-release/build suffix on the release line: the MAJOR.MINOR.PATCH core
+# is captured so it can be pinned to VERSION, then the SemVer pre-release grammar
+# (dot-separated identifiers, numeric identifiers with no leading zeros) and the
+# optional build metadata (decision 0026).
+_SEMVER_IDENT = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+_RELEASE_LABEL_RE = re.compile(
+    rf"(?P<base>[0-9]+\.[0-9]+\.[0-9]+)"
+    rf"-{_SEMVER_IDENT}(?:\.{_SEMVER_IDENT})*"
+    rf"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+)
+
+
+def validate_release_label(root: Path, problems: list[Problem]) -> None:
+    """Validate the optional ``RELEASE_LABEL`` product/maturity identity (decision 0026).
+
+    ``VERSION`` stays a clean, totally-ordered ``MAJOR.MINOR.PATCH`` triple that
+    adopter equality and overlay targeting key off. Maturity (``rc.1``, ``beta.2``)
+    belongs on the git tag and, when a single shared pre-release string is wanted
+    across a repo's surfaces, in this optional file. It is a full SemVer pre-release
+    whose core is pinned to ``VERSION``, so it adds a label without ever letting the
+    release line diverge. Absent means unconstrained; the rule is purely additive."""
+    path = root / "RELEASE_LABEL"
+    if not path.is_file():
+        return
+    label = path.read_text(encoding="utf-8").strip()
+    match = _RELEASE_LABEL_RE.fullmatch(label)
+    if not match:
+        problems.append(Problem(
+            path,
+            f"RELEASE_LABEL '{label}' must be a SemVer pre-release of VERSION "
+            "(MAJOR.MINOR.PATCH-prerelease[+build], e.g. 2.3.0-rc.1)",
+        ))
+        return
+    version_path = root / "VERSION"
+    version = version_path.read_text(encoding="utf-8").strip() if version_path.is_file() else ""
+    if match.group("base") != version:
+        problems.append(Problem(
+            path,
+            f"RELEASE_LABEL base '{match.group('base')}' must equal VERSION '{version}'",
+        ))
+
+
 def validate_invariants(root: Path, problems: list[Problem]) -> None:
     path = root / "governance" / "invariants.json"
     try:
@@ -659,6 +701,7 @@ def validate_orphan_work_dirs(root: Path, problems: list[Problem]) -> None:
 def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
     validate_version(root, problems)
+    validate_release_label(root, problems)
     validate_contracts(root, problems)
     validate_invariants(root, problems)
     validate_frozen_surface(root, problems)

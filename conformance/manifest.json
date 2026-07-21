@@ -53,6 +53,12 @@
       "description": "VERSION is semantic MAJOR.MINOR.PATCH."
     },
     {
+      "id": "SPEC-4-release-label",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "scripts/validate_repo.py:validate_release_label",
+      "description": "The optional RELEASE_LABEL is a SemVer pre-release whose MAJOR.MINOR.PATCH core equals VERSION."
+    },
+    {
       "id": "SPEC-4-provenance",
       "source": "SPEC.md#4-validation-rules-semantics",
       "enforced_by": "scripts/validate_repo.py:validate_provenance",
@@ -199,6 +205,23 @@
       "expected_message": "must be semantic (MAJOR.MINOR.PATCH)",
       "rules": ["SPEC-4-version"],
       "description": "VERSION must contain a semantic version."
+    },
+    {
+      "id": "valid-release-label",
+      "path": "valid-release-label",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": ["SPEC-4-release-label"],
+      "description": "An optional RELEASE_LABEL pinned to VERSION is a valid product/maturity identity."
+    },
+    {
+      "id": "release-label-version-mismatch",
+      "path": "invalid/release-label-version-mismatch",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "must equal VERSION",
+      "rules": ["SPEC-4-release-label"],
+      "description": "A RELEASE_LABEL whose core diverges from VERSION is rejected."
     },
     {
       "id": "schema-invalid-evidence",

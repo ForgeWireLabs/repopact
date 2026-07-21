@@ -29,6 +29,7 @@ and is resolved by an audit finding, not by silent divergence.
 ```
 AGENTS.md                      root contract (required)
 VERSION                        semantic project version (required)
+RELEASE_LABEL                  optional SemVer pre-release label of VERSION (product/tag identity)
 governance/charter.md          principles and invariants (prose)
 governance/invariants.json     binding invariants (required)
 governance/frozen-surface.json protected paths and symbols (required)
@@ -79,7 +80,10 @@ cross-record consistency.
 5. **Acyclic dependencies.** The work-item `depends_on` graph has no cycles.
 6. **Concurrency (optional).** When `owners.json` enables
    `enforce_disjoint_active_scopes`, no two non-terminal work items share a scope.
-7. **Version.** `VERSION` is `MAJOR.MINOR.PATCH`.
+7. **Version.** `VERSION` is `MAJOR.MINOR.PATCH`. When present, the optional
+   `RELEASE_LABEL` is a SemVer pre-release whose `MAJOR.MINOR.PATCH` core equals
+   `VERSION` and which carries a pre-release label (e.g. `2.3.0-rc.1`); maturity
+   lives on the label and the git tag, never in `VERSION`.
 8. **Provenance.** Provisional and inferred work are admitted states, but completed
    work and concrete claims must rest on concrete evidence.
 9. **Ledger visibility.** Planning content under `work/` has a machine-readable
@@ -135,6 +139,14 @@ reports rather than silently blocking, because the binding gate is human review.
 `VERSION` is the semantic project version. Release tags may carry a maturity label
 (e.g. `v0.1.0-alpha`). Backward-incompatible changes to any record schema or to a
 §4 rule require a MAJOR bump and a decision record.
+
+`VERSION` stays a clean, totally-ordered `MAJOR.MINOR.PATCH` triple: adopter
+equality and vendored-overlay targeting compare against it exactly, so it never
+carries a pre-release suffix. When a repository wants one shared pre-release string
+across its surfaces (package metadata, installers, diagnostics), it records it in
+the optional `RELEASE_LABEL` file — a full SemVer pre-release whose core is pinned
+to `VERSION` (§4.7). The label adds maturity information without letting the
+release line diverge; it is optional and its absence constrains nothing.
 
 ## 9. Conformance and reference implementation
 

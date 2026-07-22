@@ -546,7 +546,7 @@ The Proving Ground's role is not to claim results before they exist. Its role is
 
 ## 6. Results
 
-The reflexive findings register currently holds thirteen entries. Each cites a raw capture; severity reflects impact on an adopter, not effort to fix. "Holds" records an adversarial case the architecture correctly caught, kept as evidence *for* the design rather than discarded as a non-event.
+The reflexive findings register currently holds fourteen entries. Each cites a raw capture; severity reflects impact on an adopter, not effort to fix. "Holds" records an adversarial case the architecture correctly caught, kept as evidence *for* the design rather than discarded as a non-event.
 
 | ID    | Hypothesis | Severity | Finding                                                                             | Resolution                          |
 | ----- | ---------- | -------- | ----------------------------------------------------------------------------------- | ----------------------------------- |
@@ -563,6 +563,7 @@ The reflexive findings register currently holds thirteen entries. Each cites a r
 | F-011 | H7         | major    | older adopter drifted invalid as the standard evolved, undetected                   | fixed: `doctor`                      |
 | F-012 | H7         | holds    | full lifecycle on an independent different-domain application                       | shipped                              |
 | F-013 | H7         | holds    | governance-folder planning migrated and legacy tree retired without data loss       | shipped                              |
+| F-014 | H6, H7     | holds    | downstream adoption exposed a missing authority state; full resolution trace recovered | shipped in 2.1.0                   |
 
 ### 6.1 What cracked
 
@@ -612,7 +613,15 @@ A prior adopter also revealed longitudinal upgrade drift: the standard evolved a
 
 ### 6.4 Standard evolution under adoption pressure
 
-The `proposed` lifecycle state is itself a result, not merely a feature. A downstream public adopter surfaced candidate work that deserved durable capture but had not been accepted or authorized. The four-state lifecycle offered no honest mapping: every available state either overstated authority or misstated intent. The gap was resolved the way the pact requires — a decision record with the rationale, a schema change, CLI support, and conformance fixtures for both the valid and the forbidden configurations — and the dependency rule (authorized work may not depend on proposed work) entered the invariant monitor rather than remaining prose.
+The `proposed` lifecycle state is itself a result, not merely a feature (F-014,
+capture 013). A downstream public adopter surfaced candidate work that deserved durable
+capture but had not been accepted or authorized. The four-state lifecycle offered no
+honest mapping: every available state either overstated authority or misstated intent.
+The gap was resolved the way the pact requires — decision 0023, work item 025, a schema
+change, CLI support, semantic validation, and conformance fixtures for both the valid and
+forbidden configurations — and released in 2.1.0 under decision 0024. The dependency rule
+(authorized work may not depend on proposed work) entered the invariant monitor rather
+than remaining prose.
 
 This matters for two reasons. First, it is external pressure: the defect was found by an adopter that is not the progenitor, in ordinary use rather than in a designed adversarial case. Second, it exercises the meta-claim. RepoPact argues that governance state must evolve through typed, recorded, machine-checked channels; the standard's own evolution followed exactly that channel, and a reader can recover the entire episode — motivation, decision, semantics, enforcement — from the tree.
 

@@ -2,7 +2,8 @@
 
 | path | owner | last_reviewed | alignment | next_review | notes |
 | --- | --- | --- | --- | --- | --- |
-| scripts/validate_repo.py | tooling-owner | 2026-07-18 | current | 2026-10-16 | Schema (jsonschema) + semantic validation: contracts, invariants, frozen surface, roles, findings, work lifecycle including proposed-authority dependencies, cycles, evidence, decisions, policies, version, and canonical dashboard parity. |
+| scripts/validate_repo.py | tooling-owner | 2026-07-22 | current | 2026-10-20 | Schema (jsonschema) + semantic validation: contracts, invariants, frozen surface, roles, findings, work lifecycle including proposed-authority dependencies, cycles, evidence, decisions, policies, version, canonical dashboard parity, and opt-in upstream research consistency. |
+| scripts/validate_research.py | tooling-owner | 2026-07-22 | current | 2026-10-20 | Cross-checks canonical upstream research metadata against lifecycle implementation, paper/figure/protocol facts, threat identifiers, benchmark counts/mappings, and the proposed-state evidence trace. |
 | scripts/generate_dashboard.py | tooling-owner | 2026-07-18 | current | 2026-10-16 | Deterministically derives status, record counts, spec version, and audit freshness under audits/reports; omits run-date churn and exposes the canonical writer used by mutation and repair commands. |
 | scripts/repo_model.py | tooling-owner | 2026-06-29 | current | 2026-09-29 | Shared record discovery, lifecycle status list, and JSON loading. |
 | scripts/frontmatter.py | tooling-owner | 2026-06-15 | current | 2026-09-15 | Minimal front-matter parser for decision and policy records. |

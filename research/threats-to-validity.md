@@ -49,7 +49,7 @@ A finding marked *holds* means a specific adversarial case was caught; it is not
 proof that no bypass exists. **Mitigation:** treat the hypothesis list as falsifiable
 and additive, not as a closed proof.
 
-## T5 — Benchmark selection and task curation (for H8–H10)
+## T5 — Benchmark selection and task curation (for H8–H13)
 
 The comparative studies (`benchmark-protocol.md`) are only as honest as their task sets.
 Hand-curating PactBench (S1) toward cases RepoPact handles well, or selecting SWE-bench /
@@ -59,7 +59,7 @@ pre-registered and committed before runs (no post-hoc curation); task-set versio
 recorded per run; results are reported across at least two model families so a finding is
 not a single-model artefact.
 
-## T6 — Baseline fairness / construct validity (for H8–H10)
+## T6 — Baseline fairness / construct validity (for H8–H13)
 
 A comparative win is meaningless if the baseline is a strawman. Comparing a
 RepoPact-governed repo against an *empty* repo would measure "having any context" rather
@@ -89,16 +89,18 @@ targets); RepoPact's own records and evidence are evaluated *as an attack surfac
 immunity assumption); injection corpora are synthetic and contained. RepoPact is framed as
 **composing with** runtime guards (e.g. LGA, arXiv:2603.07191), not replacing them.
 
-## T7 — Token-measurement fairness (for H11 / S4)
+## T9 — Provenance misuse
 
-The S4 token-economy comparison is sensitive to artefacts that have nothing to do with
-the delivery mechanism: tokenizer and model choice, **prompt caching**, and provider
-pricing. Stable context (convention files, repo records) is cache-friendly and cheap on a
-second request; per-request RAG injections vary and bust the cache — so raw token counts
-can mis-state real cost in either direction, and a regime can look cheap on tokens while
-being expensive in dollars (or vice versa). Comparing regimes that also carry *different
-corpus content* would measure the content, not the mechanism. **Mitigation:** fix
-tokenizer + model per run; hold corpus content constant across regimes; fix top-k for
-retrieval; and report three numbers side by side — raw tokens, cache-adjusted tokens, and
-USD at stated rates — so the comparison cannot hide behind any single one. The result is
-read off the cost-vs-success frontier (S4), never off raw tokens alone.
+Provenance typing can be misunderstood. If users treat `inferred` or `provisional`
+records as equivalent to concrete proof, the type system loses its value. **Mitigation:**
+completion cannot rest on non-concrete evidence; provenance remains visible in generated
+surfaces and review; doctor ratchets only when concrete evidence exists. Comparative and
+longitudinal work must still test whether operators honor the distinction in practice.
+
+## T10 — Standard versus implementation coupling
+
+The reference validator defines RepoPact's current operational semantics. This is useful
+for precision but risks coupling the standard to one Python implementation.
+**Mitigation:** the independently consumable conformance corpus maps standard rules to
+accept/reject fixtures and can run alternative validators. The corpus narrows coupling;
+it does not replace an independent implementation and third-party reproduction.

@@ -1,6 +1,7 @@
 # 031 — Canonical research metadata and evidence trace repair
 
-> **Status**: Active
+> **Status**: Complete 2026-07-22. Evidence
+> [`20260722-canonical-research-metadata-and-trace-repair`](../../../evidence/runs/20260722-canonical-research-metadata-and-trace-repair.json).
 > **Owners**: governance-owner (lead); tooling-owner and evidence-owner affected.
 > **Depends on**: `025`, `028`.
 
@@ -25,12 +26,14 @@ to review rather than being reduced to token substitution.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — create the missing F-014/capture 013 evidence chain.
-- [ ] **AC-2** — define canonical metadata for repeated research facts.
-- [ ] **AC-3** — repair every known contradiction listed in GA-8.
-- [ ] **AC-4** — regress repeated-fact drift and reconcile closed/open research gaps.
+- [x] **AC-1** — create the missing F-014/capture 013 evidence chain.
+- [x] **AC-2** — define canonical metadata for repeated research facts.
+- [x] **AC-3** — repair every known contradiction listed in GA-8.
+- [x] **AC-4** — regress repeated-fact drift and reconcile closed/open research gaps.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+All acceptance criteria are satisfied by the linked evidence. F-014/capture 013 traces
+the proposed-state episode; canonical metadata and the repository gate cross-check the
+repeated facts; GA-8 is repaired; and the dated gap disposition preserves the remaining
+open/operator-gated research work without overstating closure.

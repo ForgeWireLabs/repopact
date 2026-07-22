@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "lifecycle": {
+    "states": ["proposed", "active", "blocked", "deferred", "completed"],
+    "implementation_source": "scripts/repo_model.py",
+    "set_documents": [
+      {
+        "path": "research/paper.md",
+        "pattern": "status\\(w\\)\\s*∈\\s*\\{([^}]+)\\}"
+      }
+    ],
+    "figure_documents": [
+      {
+        "path": "research/figures.md",
+        "section": "Figure 2"
+      }
+    ],
+    "provenance_typing_release": "2.0.0"
+  },
+  "benchmark": {
+    "pactbench": {
+      "task_count": 24,
+      "source": "evidence/runs/20260718-repopact-2-2-0-adopter-rollout.json",
+      "documents": [
+        {
+          "path": "research/figures.md",
+          "pattern": "arm on the ([0-9]+) pre-registered PactBench tasks"
+        },
+        {
+          "path": "work/active/022-benchmark-suite/README.md",
+          "pattern": "\\*\\*PactBench\\*\\* now has \\*\\*([0-9]+) tasks"
+        }
+      ]
+    },
+    "study_hypotheses": {
+      "S1": "H8",
+      "S2": "H9",
+      "S3": "H10",
+      "S4": "H11",
+      "S5": "H12",
+      "S6": "H13"
+    },
+    "range_documents": [
+      {
+        "path": "research/benchmark-protocol.md",
+        "pattern": "operationalize hypotheses \\*\\*H([0-9]+)[–-]H([0-9]+)\\*\\*"
+      },
+      {
+        "path": "research/paper-outline.md",
+        "pattern": "benchmark-protocol\\.md`, H([0-9]+)[–-]H([0-9]+)"
+      }
+    ],
+    "mapping_documents": [
+      "research/benchmark-protocol.md",
+      "research/paper.md"
+    ]
+  },
+  "threats": {
+    "identifiers": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10"],
+    "documents": [
+      "research/threats-to-validity.md",
+      "research/paper.md"
+    ]
+  },
+  "proposed_state_trace": {
+    "finding": "F-014",
+    "capture": "research/captures/013-proposed-lifecycle-adoption-pressure.md",
+    "decisions": [
+      "decisions/0023-add-proposed-lifecycle-state.md",
+      "decisions/0024-release-2.1.0-proposed-lifecycle.md"
+    ],
+    "work_item": "work/completed/025-add-proposed-lifecycle-state/work-item.json",
+    "implementation_evidence": "evidence/runs/20260629-proposed-lifecycle-state.json",
+    "release_tag": "v2.1.0",
+    "release_commit": "f4a237d03105c991afcc4b371259f06200e7b226",
+    "adopter_commit": "https://github.com/ForgeWireLabs/moto-one-hyper-forgewire-rom-lab/commit/0adb522ab4b3e4c33b0beb101ae637ad737c5e91",
+    "rollout_evidence": "evidence/runs/20260718-repopact-2-2-0-adopter-rollout.json"
+  }
+}

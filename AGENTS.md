@@ -43,7 +43,7 @@ more path scopes; keep each change within a single role's scope. Adopters redefi
 these roles for their own repository — the contract is the structure, not this
 particular role set.
 
-- **Governance owner**: `AGENTS.md`, `governance/`, `schemas/`, `decisions/`.
+- **Governance owner**: `AGENTS.md`, `governance/`, `schemas/`, `decisions/`, `research/`.
 - **Work coordinator**: `work/`, status transitions, dependency records.
 - **Evidence owner**: `evidence/`, validation manifests, reproducibility records.
 - **Tooling owner**: `scripts/`, `tests/`, CI automation.

@@ -23,6 +23,7 @@ py-modules = [
   "repopact_cli",
   "repo_model",
   "validate_repo",
+  "validate_research",
   "generate_dashboard",
   "generate_spec",
   "init_repo",

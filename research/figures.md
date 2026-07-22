@@ -40,26 +40,26 @@ to state the repository does not contain. The lifecycle finite-state machine is 
 *Placement: §3.2. Render as a state diagram.*
 
 ```
-        ┌───────── any ⇄ any (degradation is explicit) ─────────┐
-        │                                                        │
-     ┌────────┐      ┌─────────┐      ┌──────────┐               │
-     │ active │ ⇄  │ blocked │ ⇄  │ deferred │                  │
-     └────────┘      └─────────┘      └──────────┘               │
-         │                │                │                     │
-         └────────────────┴────────────────┘                    │
-                          │                                      │
-                          ▼   [guard g_done: no pending crit;    │
-                    ┌───────────┐  satisfied ⟹ evidence ]        │
-                    │ completed │ ◀────────────────────────────────┘
-                    └───────────┘   (reopen allowed; evidence never dropped)
+   ┌──────────┐  accept   ┌────────┐      ┌─────────┐      ┌──────────┐
+   │ proposed │ ────────▶ │ active │  ⇄   │ blocked │  ⇄   │ deferred │
+   └──────────┘            └────────┘      └─────────┘      └──────────┘
+        no authority            │                │                │
+                                └────────────────┴────────────────┘
+                                                 │
+                                                 ▼  [guard g_done: no pending crit;
+                                          ┌───────────┐ satisfied ⟹ evidence]
+                                          │ completed │
+                                          └───────────┘
+                            (accepted states may degrade/reopen; evidence is retained)
 
    g_done is a CHECKPOINT, not a runtime gate: a bad `git mv` lands a non-conformant
    state s' (validate(s') ≠ ∅); the CI checkpoint rejects the commit.
 ```
 
-**Figure 2.** The per-work-item lifecycle. All transitions are total (blocked/deferred are
-first-class), with one guarded edge into `completed`. The guard is enforced at the
-commit/CI checkpoint by the L2 monitor, not as a runtime precondition.
+**Figure 2.** The per-work-item lifecycle. `proposed` records candidate intent without
+authority; acceptance moves it to `active`. Accepted states can move explicitly among
+active, blocked, deferred, and completed, with a guarded edge into `completed`. The guard
+is enforced at the commit/CI checkpoint by the L2 monitor, not as a runtime precondition.
 
 ---
 
@@ -84,9 +84,9 @@ commit/CI checkpoint by the L2 monitor, not as a runtime precondition.
 ```
 
 **Figure 3.** Brownfield adoption is subject to a trilemma: a migration cannot be
-simultaneously total, faithful, and closed under the conformant language R. RepoPact
-relaxes *closed*, producing a sound fresh pact plus a validator-generated worklist rather
-than a false acceptance. (Provenance-typed records are the principled future escape.)
+simultaneously total, faithful, and closed under the concrete-only conformant language R.
+RepoPact 2.0 shipped the resolution: provenance-typed `inferred` and `provisional`
+records preserve honest uncertainty while concrete completion remains evidence-gated.
 
 ---
 
@@ -152,15 +152,15 @@ result.
 ```
   arm       | violated | blocked | escalated | proceeded | false-stop | errored
   ----------|----------|---------|-----------|-----------|------------|--------
-  baseline  |    14    |    0    |     0     |     7     |     0      |   0
-  repopact  |     0    |    4    |    10     |     7     |     0      |   0
+  baseline  |    17    |    0    |     0     |     7     |     0      |   0
+  repopact  |     0    |    5    |    12     |     7     |     0      |   0
 
   derived:  baseline catch=0.00  silent=1.00 | repopact catch=1.00 silent=0.00
             false-stop (both) = 0.00 (legitimate decoys proceeded)
 ```
 
 **Figure 6.** *(Illustrative MockRunner output; not a finding.)* Outcome distribution per
-arm on the 21 pre-registered PactBench tasks, with the legitimate decoys as a false-stop
+arm on the 24 pre-registered PactBench tasks, with the legitimate decoys as a false-stop
 control. The real figure is produced by the harness across ≥2 model families via the
 operator-gated RealRunner.
 

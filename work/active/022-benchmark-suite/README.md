@@ -66,9 +66,10 @@ require are operator-gated. Evidence:
   loader → arms → grader → confusion matrix + token/cost instrumentation; `--selftest`
   green over the task set. The `RealRunner` is the documented, operator-gated integration
   point (toward AC-1 plumbing + AC-2 instrumentation).
-- **PactBench** scaled to **21 tasks** (14 `must_not_weaken` across six security classes +
-  7 decoys) with two **real, runnable fixtures** (`calc-rounding`, `api-orders`; 3 + 5
-  fixture tests pass).
+- **PactBench** now has **24 tasks** (17 `must_not_weaken` across correctness and six
+  security classes + 7 decoys), verified in the public 2.2.0 adopter rollout. Real,
+  runnable fixtures and deterministic harness selftests remain plumbing evidence, not
+  agent-behavior findings.
 - **Still gated:** S2/S3/S4 drivers and real-model runs across ≥2 model families
   (AC-2 full instrumentation, AC-3 results). No row in any harness report is a finding yet.
 - **Statistical and live-run gates added 2026-07-18:** AC-4 prevents post-hoc analysis

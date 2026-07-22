@@ -23,6 +23,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-011 | H7 | major | An older adopter (ForgeLink) drifted *invalid* as the standard evolved (stale registry paths, missing root contract); nothing detected or guided the upgrade | [009](captures/009-forgelink-upgrade.md) | **fixed** — `repopact doctor [--fix]` (WI 013, dec 0011), proven on real ForgeLink [010](captures/010-repopact-doctor.md) |
 | F-012 | H7 | holds | Full lifecycle (adopt+import-plan+doctor) on an independent, different-domain real app (SkillForge, a Tauri cert-learning app) reached conformant RepoPact, non-destructively | [011](captures/011-skillforge-adoption.md) | shipped (WI 014); motivated TODO-prefix import fix |
 | F-013 | H7 | holds | RepoPact adapts to governance-folder planning (tracking/ → decisions/findings/milestones) and `takeover` retires the migrated old method, leaving one ledger without losing un-captured data | [012](captures/012-tracking-and-takeover.md) | shipped (WI 015, dec 0012) |
+| F-014 | H6,H7 | holds | A downstream adopter exposed the missing `proposed` authority state; the resolution is recoverable through decision, implementation, conformance, release, and adopter records | [013](captures/013-proposed-lifecycle-adoption-pressure.md) | shipped (WI 025, dec 0023/0024, release 2.1.0) |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -184,3 +185,27 @@ pallets/flask (no RepoPact lineage) to a conformant RepoPact. This exercises the
 sparse + workflows path. Still open: an *independent* repo that also has CODEOWNERS
 and nested contracts, to show those mappings generalize beyond the progenitor
 (forgewire). Tracked in [`threats-to-validity.md`](threats-to-validity.md) T1.
+
+## F-014 — downstream adoption exposed a missing authority state
+
+**Hypotheses tested:** H6 (recoverability from repository records) and H7 (brownfield
+adoption under real project pressure).
+
+**Observed.** The Moto One Hyper ROM Lab needed to retain candidate work without
+authorizing implementation. RepoPact's four-state lifecycle had no truthful encoding:
+every available state either granted authority, implied a blocker, or implied prior
+acceptance. The downstream need is recorded in decision 0023 and the adopter's public
+commit `0adb522`; capture [013](captures/013-proposed-lifecycle-adoption-pressure.md)
+preserves the exact chain.
+
+**Resolution (shipped).** Work item 025 added `proposed` to the schema, shared model,
+bootstrap, CLI, semantic validator, and conformance corpus. Evidence run
+`20260629-proposed-lifecycle-state` proves the implementation gates. Decision 0024 and
+tag `v2.1.0` record the release, and the later five-adopter 2.2.0 rollout verifies the
+originating vendored consumer and the rest of the public fleet after the change.
+
+**Why it matters.** The standard evolved by adding an honest authority type instead of
+tolerating a false assertion. More importantly for the paper's meta-claim, a reader can
+recover the motivation, accepted decision, enforcement behavior, release, and downstream
+use from linked records without the initiating conversation. This is one positive case,
+not proof that the evolution process is universally complete.

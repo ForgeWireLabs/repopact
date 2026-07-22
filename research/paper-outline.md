@@ -79,10 +79,11 @@ the claim adversarially.
 
 - When repository-native governance is worth it; the road to multi-adopter evidence.
 - **Comparative value.** Beyond the reflexive falsification of §5–§6, a controlled
-  comparative evaluation (`benchmark-protocol.md`, H8–H10): guarantee-violation
-  detection (PactBench), cross-session recovery + efficiency on SWE-bench Verified /
-  SWE-EVO, and multi-agent coordination. This is the path from "the architecture catches
-  what it claims" to "governing with it measurably changes agent behaviour."
+  comparative evaluation (`benchmark-protocol.md`, H8–H13): guarantee-violation
+  detection (PactBench), cross-session recovery, multi-agent coordination, context-token
+  economy, drift visibility, and security/injection resistance. This is the path from
+  "the architecture catches what it claims" to "governing with it measurably changes
+  agent behaviour."
 - Provenance-typed records (`inferred`/`provisional`/`concrete`) and external ingestion
   as the route past the L5 adoption boundary.
 

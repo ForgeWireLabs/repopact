@@ -371,3 +371,24 @@ package pin gap is closed. Its drift harness now refreshes the dashboard after s
 the 2.2.0 fixpoint cannot confound mutation attribution.
 
 **Capture.** [`captures/015-repopact-2-2-0-adopter-rollout.md`](captures/015-repopact-2-2-0-adopter-rollout.md)
+
+## Run 013 — retrospective proposed-state trace repair — 2026-07-22
+
+**Goal.** Close GA-2 without pretending a retrospective record was contemporaneous, and
+prevent the stale repeated facts in GA-8 from drifting independently again.
+
+**Actions.** Recovered the proposed-state chain from public/versioned records: Moto's
+originating adoption commit `0adb522`, decision 0023, work item 025, evidence run
+`20260629-proposed-lifecycle-state`, decision 0024, and tag `v2.1.0` at `f4a237d`.
+Recorded F-014 and filled the reserved capture 013. Added canonical research metadata for lifecycle
+states, the 24-task PactBench count, S1–S6/H8–H13 mappings, T1–T10, and the trace itself.
+The repository validator now cross-checks those facts. Regressions mutate each known
+drift class and require rejection.
+
+**Result.** GA-2 and GA-8 are closed. The historical audit text remains intact with a
+dated disposition. GA-3, GA-5/6, GA-7, GA-9, and GA-10 remain explicitly open; direct
+PyPI publication is not described as CI restoration.
+
+**Capture.** [`captures/013-proposed-lifecycle-adoption-pressure.md`](captures/013-proposed-lifecycle-adoption-pressure.md)
+
+**Finding.** F-014 (holds; one recoverable external-pressure evolution episode).

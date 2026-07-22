@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "031",
   "title": "Canonical research metadata and evidence trace repair",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": ["governance", "tooling", "evidence"],
   "depends_on": ["025", "028"],
@@ -16,28 +16,28 @@
     {
       "id": "AC-1",
       "text": "Finding F-014 and capture 013 record the proposed-state adoption episode and trace the downstream pressure through decision 0023, work item 025, schema and CLI behavior, conformance, release, and adopter rollout evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260722-canonical-research-metadata-and-trace-repair"]
     },
     {
       "id": "AC-2",
       "text": "Canonical research metadata defines lifecycle states, benchmark task counts, hypothesis-to-study mappings, and threat identifiers so repeated facts in the paper, figures, protocols, and threat register are generated or machine-cross-checked rather than independently maintained.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260722-canonical-research-metadata-and-trace-repair"]
     },
     {
       "id": "AC-3",
       "text": "The duplicate T7, missing T9 and T10, four-state lifecycle figure, future-provenance wording, 21-versus-24 task count, and H8-H10 versus H8-H13 protocol drift are repaired without changing the underlying claims.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260722-canonical-research-metadata-and-trace-repair"]
     },
     {
       "id": "AC-4",
       "text": "Regression checks fail on a repeated threat identifier or a research document that contradicts canonical lifecycle, task-count, or hypothesis metadata; the paper, gap audit, findings register, and run log accurately distinguish closed from open gaps.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260722-canonical-research-metadata-and-trace-repair"]
     }
   ],
   "created": "2026-07-18",
-  "updated": "2026-07-18"
+  "updated": "2026-07-22"
 }

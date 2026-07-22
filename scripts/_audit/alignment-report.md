@@ -1,5 +1,16 @@
 # Tooling Alignment Report
 
+## 2026-07-22 canonical research metadata and trace repair
+
+- `research/metadata.json` is the machine source for lifecycle states, PactBench task
+  count, study/hypothesis mappings, threat identifiers, and the proposed-state trace.
+- `validate_research.py` cross-checks repeated human-authored facts without generating
+  or token-substituting semantic research claims.
+- The normal repository gate activates this check only for the upstream research record,
+  so adopters are not required to carry RepoPact's paper metadata.
+- Mutation tests reject duplicate/missing threats, a four-state figure, stale task count,
+  stale hypothesis range, and pre-2.0 provenance wording.
+
 ## 2026-07-18 complete conformance rule coverage
 
 - The conformance manifest now inventories every repository-tree rule named by the

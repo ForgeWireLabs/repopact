@@ -13,6 +13,7 @@ import jsonschema
 
 from frontmatter import FrontMatterError, parse_file
 import generate_dashboard
+import validate_research
 from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
@@ -602,6 +603,17 @@ def validate_dashboard(root: Path, problems: list[Problem]) -> None:
         ))
 
 
+def validate_research_records(root: Path, problems: list[Problem]) -> None:
+    """Validate upstream research facts without imposing that surface on adopters."""
+    research = root / "research"
+    metadata = research / "metadata.json"
+    upstream_record = (research / "paper.md").is_file() and (research / "protocol.md").is_file()
+    if not metadata.is_file() and not upstream_record:
+        return
+    for problem in validate_research.validate(root):
+        problems.append(Problem(problem.path, problem.message))
+
+
 def _validate_records(root: Path, directory: Path, pattern: str, statuses: tuple[str, ...],
                       required: tuple[str, ...], problems: list[Problem]) -> dict[str, Path]:
     seen: dict[str, Path] = {}
@@ -715,6 +727,7 @@ def validate(root: Path) -> list[Problem]:
     validate_decisions(root, problems)
     validate_policies(root, problems)
     validate_dashboard(root, problems)
+    validate_research_records(root, problems)
     return sorted(problems, key=lambda problem: (str(problem.path), problem.message))
 
 

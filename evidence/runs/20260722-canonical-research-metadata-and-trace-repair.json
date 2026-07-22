@@ -1,0 +1,80 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260722-canonical-research-metadata-and-trace-repair",
+  "timestamp": "2026-07-22T17:14:57-05:00",
+  "work_item": "031",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "pip install -r requirements.txt",
+      "exit_code": 0,
+      "summary": "The declared jsonschema dependency and its requirements are installed."
+    },
+    {
+      "command": "python scripts/validate_research.py",
+      "exit_code": 0,
+      "summary": "Canonical lifecycle, benchmark count, study mapping, threat identifiers, and proposed-state trace all matched their configured research documents and source records."
+    },
+    {
+      "command": "python -m unittest tests.test_research_metadata -v",
+      "exit_code": 0,
+      "summary": "All 6 focused tests passed, including deliberate duplicate-threat, four-state lifecycle, 21-task, H8-H10, and future-provenance mutations."
+    },
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed with the upstream research consistency gate enabled."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "All 19 current conformance cases passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "All 118 tests passed; the two declared formal-model obligations remained skipped."
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; python scripts/check_frozen_surface.py --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected. UTF-8 mode avoids the repository's known Windows console decoding failure."
+    },
+    {
+      "command": "git rev-list -n 1 v2.1.0; git -C C:\\Projects\\moto-one-hyper branch -r --contains 0adb522ab4b3e4c33b0beb101ae637ad737c5e91",
+      "exit_code": 0,
+      "summary": "v2.1.0 resolves to f4a237d03105c991afcc4b371259f06200e7b226, and the originating adopter commit is contained by origin/main."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors were found."
+    }
+  ],
+  "artifacts": [
+    "research/metadata.json",
+    "research/captures/013-proposed-lifecycle-adoption-pressure.md",
+    "research/findings.md",
+    "research/figures.md",
+    "research/threats-to-validity.md",
+    "research/benchmark-protocol.md",
+    "research/paper.md",
+    "research/gap-audit-2026-07.md",
+    "research/run-log.md",
+    "scripts/validate_research.py",
+    "scripts/validate_repo.py",
+    "tests/test_research_metadata.py",
+    "work/completed/031-canonical-research-metadata-and-evidence-trace-repair/"
+  ],
+  "environment": {
+    "date": "2026-07-22",
+    "os": "Windows",
+    "python": "3.12.4",
+    "repopact_version": "2.3.0",
+    "focused_tests": 6,
+    "unit_tests": 118,
+    "formal_model_skips": 2,
+    "conformance_cases": 19
+  }
+}

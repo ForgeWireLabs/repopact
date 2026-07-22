@@ -13,6 +13,24 @@ executed; the research record was cross-checked against the paper's citations;
 work-ledger and CI state were inspected directly. Numbers below are from those
 runs, not from memory.
 
+## Current disposition — 2026-07-22
+
+This table preserves the original audit findings below and records later closure
+without rewriting what was observed on 2026-07-15.
+
+| Gap | Disposition | Durable owner or evidence |
+| --- | --- | --- |
+| GA-1 adopter validation | **closed** | five-adopter 2.2.0 rollout, capture 015 / WI 028 |
+| GA-2 missing proposed-state trace | **closed** | F-014, capture 013 / WI 031 |
+| GA-3 CI and cross-platform enforcement | **open, operator-gated** | WI 032; direct PyPI publication is not CI restoration |
+| GA-4 conformance coverage | **closed** | 15 rules / 17 cases, WI 030 |
+| GA-5 statistical plan | **open** | WI 022 AC-4 |
+| GA-6 RealRunner and comparative results | **open, operator-gated** | WI 022 AC-3/AC-5 |
+| GA-7 publication logistics | **open** | WI 021 and publication work remain active |
+| GA-8 stale research facts | **closed** | canonical metadata + regression checks, WI 031 |
+| GA-9 ledger/audit reconciliation | **open** | WI 033 |
+| GA-10 independent reproduction | **open** | WI 034 |
+
 ---
 
 ## GA-1 — Two flagship adopters fail current validation (critical)
@@ -49,6 +67,11 @@ episode with no register entry.
 **Move.** Add **F-014** to the register and **capture 013** documenting the
 adopter pressure, the gap analysis, and the resolution chain (decision 0023 →
 WI 025 → schema/CLI/conformance → release 2.1.0, decision 0024).
+
+**2026-07-22 update.** Closed by F-014 and capture 013. The trace now includes the
+originating Moto adopter commit, decision 0023, WI 025 implementation evidence,
+schema/CLI/semantic/conformance behavior, decision 0024 and release tag 2.1.0, and the
+later public fleet rollout evidence.
 
 ## GA-3 — CI is dead, and CI is the thesis (critical, operator-gated)
 
@@ -153,6 +176,11 @@ also verified ForgeLink, SkillForge, ForgeWire, and Moto One Hyper on 2.2.0 at t
 public default-branch heads. This closes the package-pin bullet, not the other stale-doc
 items in GA-8.
 
+**2026-07-22 update.** Closed. `research/metadata.json` now owns the lifecycle states,
+24-task PactBench count, S1–S6/H8–H13 mapping, T1–T10 identifiers, and proposed-state
+trace. The repository gate cross-checks the paper, figures, protocols, threat register,
+and benchmark ledger; regressions deliberately reintroduce every stale-fact class.
+
 ## GA-9 — Ledger hygiene in our own repos (medium)
 
 - Work items `020`/`021`/`022` have acceptance criteria with **empty
@@ -181,10 +209,10 @@ reproducible script is the cheap version.
 | # | Action | Owner | Target |
 | --- | --- | --- | --- |
 | 1 | `doctor` upgrades on forgewire + skillforge, captured (GA-1) | agent | mid-July |
-| 2 | F-014 + capture 013 for the proposed episode (GA-2) | agent | mid-July |
-| 3 | Conformance suite to full rule coverage incl. provenance (GA-4) | agent | mid-July |
+| 2 | ~~F-014 + capture 013 for the proposed episode (GA-2)~~ **closed 2026-07-22** | agent | mid-July |
+| 3 | ~~Conformance suite to full rule coverage incl. provenance (GA-4)~~ **closed by WI 030** | agent | mid-July |
 | 4 | Statistical amendment to benchmark protocol (GA-5) | agent | mid-July |
-| 5 | Stale-docs batch: threats, figures, protocol intro, PG pin (GA-8) | agent | mid-July |
+| 5 | ~~Stale-docs batch: threats, figures, protocol intro, PG pin (GA-8)~~ **closed 2026-07-22** | agent | mid-July |
 | 6 | RealRunner smoke run, 3 tasks × 1 model (GA-6) | agent + keys | late July |
 | 7 | Clear GitHub billing lock (GA-3) | **operator** | ASAP |
 | 8 | Provision model API keys, ≥2 families (GA-6) | **operator** | end July |

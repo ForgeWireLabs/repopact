@@ -11,7 +11,7 @@ bar is set independently of the results, amendments are dated and appended, and 
 that **disconfirms** RepoPact is recorded with equal weight. The aim is a defensible
 number for the paper, not advocacy.
 
-These studies operationalize hypotheses **H8–H10**, added to `protocol.md` in the
+These studies operationalize hypotheses **H8–H13**, added to `protocol.md` in the
 2026-06-24 amendment.
 
 ## Independent variable

@@ -18,6 +18,7 @@ output produced along the way **are the data**.
 | File | Purpose |
 | --- | --- |
 | [`protocol.md`](protocol.md) | The experiment: research question, hypotheses, method, and falsification criteria. Write before running. |
+| [`metadata.json`](metadata.json) | Canonical lifecycle, benchmark, study-mapping, threat, and proposed-state trace facts cross-checked by `scripts/validate_research.py`. |
 | [`run-log.md`](run-log.md) | Chronological log of every experimental action and its result. Append-only. |
 | [`findings.md`](findings.md) | Findings register: each place the architecture held or cracked, with severity and resolution. |
 | [`paper.md`](paper.md) | The paper draft: "The Repository as the Operating System for Agentic Work" — the full text assembled from this record, targeting an arXiv cs.SE preprint. |

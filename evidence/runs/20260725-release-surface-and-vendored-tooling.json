@@ -1,0 +1,101 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260725-release-surface-and-vendored-tooling",
+  "timestamp": "2026-07-25T18:45:00-05:00",
+  "work_item": "036",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 1,
+      "summary": "Before the repair: the new release-surface rule rejected the live README, reporting both that it advertised 2.2.0 against VERSION 2.3.0 and that its changelog link documented 'Release 2.2.0 with canonical dashboard integrity'. The rule was written first and observed to fail on the real drift."
+    },
+    {
+      "command": "python scripts/validate_repo.py",
+      "exit_code": 0,
+      "summary": "After repairing README.md to 2.3.0 and its changelog link to decision 0027: repository governance validation passed."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests -k readme_release -v",
+      "exit_code": 0,
+      "summary": "Six focused release-surface cases passed: version mismatch, changelog link naming the wrong release, unresolvable link, line without a link, absolute-URL link, and a link outside decisions/ checked for existence only."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests -k readme -v",
+      "exit_code": 0,
+      "summary": "Eight cases including the gating test that a README without the release-line convention is unaffected, confirming the rule costs adopters nothing."
+    },
+    {
+      "command": "python scripts/run_conformance.py",
+      "exit_code": 0,
+      "summary": "All 20 conformance cases passed, including the new readme-release-drift fixture rejected with 'but VERSION is'. Fixture isolation held: the case produced exactly one violation and no unexpected ones."
+    },
+    {
+      "command": "python -c \"import zipfile; ...\" dist-info/top_level.txt of a freshly built wheel",
+      "exit_code": 0,
+      "summary": "A wheel built from this commit declares seventeen top-level import names (adopt_repo, check_frozen_surface, doctor, fleet_verify, frontmatter, generate_dashboard, generate_spec, init_repo, new, plan_import, repo_model, repopact_cli, run_conformance, takeover, track_import, validate_repo, validate_research), confirming the namespace pollution AC-1 will remove. py-modules was separately verified in sync with scripts/*.py at 17/17."
+    },
+    {
+      "command": "python -m venv /tmp/venvcheck; pip install repopact-2.3.0-py3-none-any.whl; repopact init --target /tmp/initcheck",
+      "exit_code": 0,
+      "summary": "Bootstrapping from a wheel install in a clean venv succeeded. The seeded repository's validator also passed \u2014 but only because validate_research resolved from site-packages/validate_research.py, not from the seed. This demonstrates that the flat-module namespace pollution masks the vendoring gap."
+    },
+    {
+      "command": "PYTHONPATH= python scripts/validate_repo.py --root . (inside a checkout-seeded repository)",
+      "exit_code": 1,
+      "summary": "Before the fix: a repository created by `repopact init` died with ModuleNotFoundError: No module named 'validate_research' instead of validating, because init_repo.MODULES copied validate_repo.py without the module it imports at scope."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_bootstrap_vendored_validator_runs_standalone",
+      "exit_code": 0,
+      "summary": "After adding validate_research.py to MODULES: the seeded validator runs standalone as a subprocess with PYTHONPATH cleared. Removing the module from MODULES again makes this test fail with the ModuleNotFoundError assertion, so the regression is genuinely covered."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_vendored_modules_are_closed_under_module_scope_imports",
+      "exit_code": 0,
+      "summary": "The general guard passes: every module in init_repo.MODULES has its module-scope sibling imports vendored. It also fails when validate_research.py is removed from MODULES, and it surfaced that repopact_cli imports doctor, adopt_repo, plan_import, takeover, and fleet_verify lazily \u2014 recorded as an open design question rather than asserted."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "All 127 tests passed (124 ok, the 2 declared formal-model obligations skipped) in 365s. Up from 118 before this work item: nine added here — seven release-surface cases, the vendored-module import-closure guard, and the standalone seeded-validator subprocess test."
+    },
+    {
+      "command": "python scripts/generate_dashboard.py; python scripts/generate_spec.py; diff against pre-generation copies",
+      "exit_code": 0,
+      "summary": "Both derived artifacts regenerate byte-identically, so the CI `git diff --exit-code` gate on dashboard.md and SPEC.md would pass."
+    },
+    {
+      "command": "$env:PYTHONUTF8='1'; python scripts/check_frozen_surface.py --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected. The change set touches scripts/, tests/, conformance/, decisions/, SPEC.md, README.md, and ROADMAP.md; the protected globs (schemas/**, .github/workflows/**, governance/invariants.json, governance/charter.md) are untouched, so INV-6 needs no operator acknowledgement."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors were found."
+    }
+  ],
+  "artifacts": [
+    "scripts/validate_repo.py",
+    "scripts/init_repo.py",
+    "tests/test_validate_repo.py",
+    "decisions/0028-pin-the-readme-release-line-to-version.md",
+    "conformance/manifest.json",
+    "conformance/fixtures/invalid/readme-release-drift/README.md",
+    "SPEC.md",
+    "README.md",
+    "ROADMAP.md",
+    "work/active/036-fix-packaging-namespace-pollution-and-release-surface-drift/"
+  ],
+  "environment": {
+    "date": "2026-07-25",
+    "os": "Windows",
+    "python": "3.12.4",
+    "repopact_version": "2.3.0",
+    "conformance_cases": 20,
+    "unit_tests": 127,
+    "formal_model_skips": 2
+  }
+}

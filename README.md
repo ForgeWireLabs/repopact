@@ -9,8 +9,8 @@ cannot be silently weakened.
 > The repository is the pact: authority, intent, evidence, and history that survive every
 > session.
 
-`pip install repopact` · Apache-2.0 · current release **2.2.0**
-([changelog](decisions/0025-release-2.2.0-dashboard-integrity.md)).
+`pip install repopact` · Apache-2.0 · current release **2.3.0**
+([changelog](decisions/0027-release-2.3.0-optional-release-label.md)).
 
 ## How it relates to `AGENTS.md`
 

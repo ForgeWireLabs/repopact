@@ -147,6 +147,83 @@ def validate_release_label(root: Path, problems: list[Problem]) -> None:
         ))
 
 
+# The README convention this rule is gated on: a release line naming the current
+# version, optionally carrying a changelog link. Both groups are optional-friendly
+# so a README that omits the line (any adopter's, typically) is simply unaffected.
+_README_RELEASE_RE = re.compile(
+    r"current release\s+\*\*(?P<version>[^*\s]+)\*\*"
+    r"(?:[\s.]*\(\[[^\]]*\]\((?P<link>[^)]+)\)\))?"
+)
+
+
+def validate_release_surface(root: Path, problems: list[Problem]) -> None:
+    """Pin the README's release claim to ``VERSION`` (decision 0028).
+
+    The dashboard and SPEC are derived and diffed, but the README — the first
+    document an evaluator reads — carried its release number by hand and drifted
+    a full minor version behind ``VERSION`` while the newer release was already
+    on PyPI. A project that sells drift detection cannot misreport its own
+    version, so the one factual claim in that prose becomes a checked record.
+
+    Gated on the convention being present, following README checkbox parity
+    (decision 0014): a README without a ``current release **X.Y.Z**`` line is
+    unaffected. A changelog link into ``decisions/`` must resolve and must name
+    the same version in its front-matter title; a link anywhere else is checked
+    for existence only, so RepoPact does not impose its changelog convention on
+    adopters.
+    """
+    readme = root / "README.md"
+    version_path = root / "VERSION"
+    if not readme.is_file() or not version_path.is_file():
+        return
+    try:
+        text = readme.read_text(encoding="utf-8")
+        version = version_path.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        problems.append(Problem(readme, str(exc)))
+        return
+    match = _README_RELEASE_RE.search(text)
+    if not match:
+        return
+    claimed = match.group("version")
+    if claimed != version:
+        problems.append(Problem(
+            readme,
+            f"README advertises release '{claimed}' but VERSION is '{version}'; "
+            "update the release line together with VERSION",
+        ))
+    link = match.group("link")
+    if not link:
+        return
+    if re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", link):
+        # An absolute URL (a hosted changelog, say). Out of the repository's
+        # reach, so there is nothing to resolve; the version claim above still
+        # applies.
+        return
+    target = (root / link.split("#", 1)[0]).resolve()
+    try:
+        target.relative_to(root.resolve())
+    except ValueError:
+        problems.append(Problem(readme, f"release changelog link escapes the repository: {link}"))
+        return
+    if not target.is_file():
+        problems.append(Problem(readme, f"release changelog link does not resolve: {link}"))
+        return
+    if target.parent != (root / "decisions").resolve():
+        return
+    try:
+        title = str(parse_file(target).get("title", ""))
+    except FrontMatterError as exc:
+        problems.append(Problem(readme, f"release changelog link has unreadable front matter: {exc}"))
+        return
+    if version not in title:
+        problems.append(Problem(
+            readme,
+            f"release changelog link '{link}' documents '{title}', which does not "
+            f"name the current release '{version}'",
+        ))
+
+
 def validate_invariants(root: Path, problems: list[Problem]) -> None:
     path = root / "governance" / "invariants.json"
     try:
@@ -714,6 +791,7 @@ def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
     validate_version(root, problems)
     validate_release_label(root, problems)
+    validate_release_surface(root, problems)
     validate_contracts(root, problems)
     validate_invariants(root, problems)
     validate_frozen_surface(root, problems)

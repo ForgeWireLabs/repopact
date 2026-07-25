@@ -90,6 +90,11 @@ cross-record consistency.
    work item; orphan narrative directories are invalid.
 10. **Dashboard integrity.** `audits/reports/dashboard.md` exists and is byte-equal
     to the canonical projection generated from source records.
+11. **Release surface (conditional).** Where `README.md` uses the convention
+    `current release **X.Y.Z**`, `X.Y.Z` equals `VERSION`. A repository-relative
+    changelog link on that line resolves; if it points into `decisions/`, that
+    record's front-matter title names the same version. An absolute URL is not
+    resolved. A README without the convention is unconstrained.
 
 ## 5. Lifecycle state machine
 

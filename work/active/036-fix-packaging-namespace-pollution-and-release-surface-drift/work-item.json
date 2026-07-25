@@ -31,18 +31,30 @@
     {
       "id": "AC-3",
       "text": "The validator enforces release-surface parity: the README release line must state the current VERSION and its changelog link must resolve to the matching release decision record. The current README (2.2.0 vs VERSION 2.3.0) is repaired and a regression test covers the rule.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260725-release-surface-and-vendored-tooling"]
     },
     {
       "id": "AC-4",
       "text": "ROADMAP.md no longer claims the `proposed` lifecycle state is unreleased (it shipped in 2.1.0); its 'Now' section reflects the 2.3.0 line.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260725-release-surface-and-vendored-tooling"]
     },
     {
       "id": "AC-5",
       "text": "Test-suite wall time is profiled and reduced from ~5.5 minutes to under 2 minutes locally (shared bootstrap fixtures instead of per-test init/adopt), or a decision records why the cost is accepted.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "A repository created by `repopact init` can run its own vendored tooling. Found live on main and fixed here: `scripts/validate_repo.py` imports `validate_research`, which `init_repo.MODULES` did not copy, so a seeded repo's validator died with ModuleNotFoundError instead of validating. The existing bootstrap test missed it because it validated in-process, where the parent checkout satisfies the import from sys.path. A regression test now executes the seeded validator as a subprocess with PYTHONPATH cleared, and fails without the fix.",
+      "state": "satisfied",
+      "evidence": ["20260725-release-surface-and-vendored-tooling"]
+    },
+    {
+      "id": "AC-6",
+      "text": "Every tracked path resolves to exactly one owner scope, or is explicitly declared unowned. At review time 82 of 323 tracked files (25%) matched no scope in governance/owners.json — including README.md, VERSION, pyproject.toml, CONFORMANCE.md, and all of conformance/, audits/, and templates/ — silently violating the AGENTS.md non-overlap principle and leaving the two surfaces this work item repairs ungoverned. A validator rule enforces the coverage the contract already claims.",
       "state": "pending",
       "evidence": []
     }

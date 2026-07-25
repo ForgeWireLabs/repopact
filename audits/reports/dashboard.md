@@ -13,9 +13,9 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 1 |
-| Decision records | 27 |
+| Decision records | 28 |
 | Policy records | 1 |
-| Evidence runs | 37 |
+| Evidence runs | 38 |
 
 ## Work
 

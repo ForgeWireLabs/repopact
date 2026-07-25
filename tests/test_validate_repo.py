@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -420,6 +422,56 @@ class RepositoryValidationTests(unittest.TestCase):
         (self.root / "VERSION").write_text("v1\n", encoding="utf-8")
         self.assertTrue(any("must be semantic" in v for v in self.problems()))
 
+    # --- release surface (decision 0028) ------------------------------------
+
+    def set_readme_release(self, line: str) -> None:
+        readme = self.root / "README.md"
+        text = readme.read_text(encoding="utf-8")
+        start = text.index("`pip install repopact`")
+        end = text.index("\n\n", start)
+        readme.write_text(text[:start] + line + text[end:], encoding="utf-8")
+
+    def test_readme_release_line_must_match_version(self) -> None:
+        self.set_readme_release(
+            "current release **9.9.9** "
+            "([changelog](decisions/0027-release-2.3.0-optional-release-label.md))."
+        )
+        self.assertTrue(any("advertises release '9.9.9'" in v for v in self.problems()))
+
+    def test_readme_release_changelog_link_must_name_current_release(self) -> None:
+        self.set_readme_release(
+            "current release **2.3.0** "
+            "([changelog](decisions/0025-release-2.2.0-dashboard-integrity.md))."
+        )
+        self.assertTrue(any("does not name the current release" in v for v in self.problems()))
+
+    def test_readme_release_changelog_link_must_resolve(self) -> None:
+        self.set_readme_release(
+            "current release **2.3.0** ([changelog](decisions/9999-nonexistent.md))."
+        )
+        self.assertTrue(any("does not resolve" in v for v in self.problems()))
+
+    def test_readme_release_line_without_link_is_accepted(self) -> None:
+        self.set_readme_release("current release **2.3.0**.")
+        self.assertEqual([], self.problems())
+
+    def test_readme_without_release_line_is_unaffected(self) -> None:
+        """The rule is gated on the convention, so an adopter README that never
+        advertises a release is not forced to adopt one (decision 0028)."""
+        self.set_readme_release("A repository-native governance kernel.")
+        self.assertEqual([], self.problems())
+
+    def test_readme_release_link_may_be_an_external_url(self) -> None:
+        self.set_readme_release(
+            "current release **2.3.0** ([changelog](https://example.invalid/changelog))."
+        )
+        self.assertEqual([], self.problems())
+
+    def test_readme_release_link_outside_decisions_is_existence_checked_only(self) -> None:
+        (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
+        self.set_readme_release("current release **2.3.0** ([changelog](CHANGELOG.md)).")
+        self.assertEqual([], self.problems())
+
     # --- dependency cycles --------------------------------------------------
 
     def test_dependency_cycle_detected(self) -> None:
@@ -451,6 +503,74 @@ class RepositoryValidationTests(unittest.TestCase):
         init_repo.bootstrap(target)
         self.assertTrue((target / "work" / "proposed").is_dir())
         self.assertEqual([], [p.message for p in validate(target)])
+
+    def test_vendored_modules_are_closed_under_module_scope_imports(self) -> None:
+        """`init_repo.MODULES` must contain every sibling its members import at
+        module scope.
+
+        A module-scope import of an uncopied sibling makes the vendored module die
+        on import — the seeded repo cannot run it at all. The subprocess test below
+        proves that for the validator specifically; this proves it for every
+        vendored module at parse speed, so a future entry point cannot quietly
+        acquire an uncopied dependency.
+
+        Deliberately limited to module scope. `repopact_cli` imports `doctor`,
+        `adopt_repo`, `plan_import`, `takeover`, and `fleet_verify` lazily inside
+        their command branches, so it loads fine when they are absent and only
+        those subcommands are unavailable. Whether a seeded repo should vendor the
+        full command set is an open design question recorded in work item 036, not
+        a crash, so it is not asserted here.
+        """
+        import ast
+
+        def module_scope_imports(body: list[ast.stmt]) -> set[str]:
+            """Imports reachable without entering a function or class body."""
+            found: set[str] = set()
+            for node in body:
+                if isinstance(node, ast.Import):
+                    found.update(alias.name.split(".")[0] for alias in node.names)
+                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                    found.add(node.module.split(".")[0])
+                elif isinstance(node, (ast.If, ast.Try, ast.With)):
+                    for attr in ("body", "orelse", "finalbody", "handlers"):
+                        for child in getattr(node, attr, []) or []:
+                            nested = child.body if isinstance(child, ast.ExceptHandler) else [child]
+                            found |= module_scope_imports(nested)
+            return found
+
+        siblings = {path.stem for path in (ROOT / "scripts").glob("*.py")}
+        vendored = {name[:-3] for name in init_repo.MODULES}
+        missing: dict[str, set[str]] = {}
+        for name in sorted(vendored):
+            tree = ast.parse((ROOT / "scripts" / f"{name}.py").read_text(encoding="utf-8"))
+            gap = (module_scope_imports(tree.body) & siblings) - vendored
+            if gap:
+                missing[name] = gap
+        self.assertEqual(
+            {}, missing,
+            f"vendored modules import siblings that init_repo.MODULES does not copy: {missing}",
+        )
+
+    def test_bootstrap_vendored_validator_runs_standalone(self) -> None:
+        """A seeded repository must be able to run its own vendored validator.
+
+        Validating a seeded repo in-process (the test above) proves its *records*
+        are valid but never executes the copied `scripts/`: the parent checkout is
+        already on `sys.path`, so any module the vendored validator imports
+        resolves whether or not it was copied. Running it as a subprocess with an
+        empty PYTHONPATH is what actually exercises the seed, and is what caught
+        `validate_repo` importing a module missing from `init_repo.MODULES`.
+        """
+        target = Path(self.temp.name) / "seeded-standalone"
+        init_repo.bootstrap(target)
+        env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+        proc = subprocess.run(
+            [sys.executable, str(target / "scripts" / "validate_repo.py"), "--root", str(target)],
+            capture_output=True, text=True, env=env, cwd=str(target),
+        )
+        output = proc.stdout + proc.stderr
+        self.assertNotIn("ModuleNotFoundError", output)
+        self.assertEqual(0, proc.returncode, output)
 
     # --- SPEC generator determinism (004) ----------------------------------
 

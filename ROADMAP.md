@@ -4,9 +4,10 @@ A human-curated forward view. The authoritative status of in-flight work is the
 derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file
 adds editorial intent (what we mean to do next and why) that is not derivable.
 
-## Now — shipped in v2.0.x
+## Now — shipped through v2.3.0
 
-RepoPact 2.0 changed the record language itself; the 2.0.x line hardened it:
+RepoPact 2.0 changed the record language itself; the releases since have hardened
+it and the surfaces around it:
 
 - **Mandatory preflight** (decision `0021`, v2.0.0; generalizing the opt-in
   marker of decision `0018`): a work item must exist before implementation
@@ -25,13 +26,35 @@ RepoPact 2.0 changed the record language itself; the 2.0.x line hardened it:
   RepoPact keeps the benchmark *protocol*; the runnable suite lives in
   [`repopact-proving-ground`](https://github.com/ForgeWireLabs/repopact-proving-ground)
   and consumes RepoPact from PyPI.
-- **`proposed` lifecycle state** (decision `0023`; on `main`, unreleased —
-  ships in the next release): candidate work can be captured durably without
-  granting implementation authority; `active`/`completed` items may not depend
-  on `proposed` ones. Driven by a real downstream adopter.
+- **`proposed` lifecycle state** (decision `0023`, shipped v2.1.0): candidate work
+  can be captured durably without granting implementation authority;
+  `active`/`completed` items may not depend on `proposed` ones. Driven by a real
+  downstream adopter.
+- **Canonical dashboard integrity** (decision `0025`, v2.2.0): the committed
+  dashboard is compared against freshly generated output, so a stale derived
+  artifact fails validation instead of quietly misreporting the ledger.
+- **Optional `RELEASE_LABEL`** (decision `0026`, v2.3.0): `VERSION` stays a clean
+  totally-ordered triple that adopter equality keys off, while pre-release
+  maturity (`rc.1`, `beta.2`) gets a declared home whose core is pinned to it.
+- **Complete conformance rule coverage** (work item `030`) and **deterministic
+  adopter fleet verification** (`029`): every published rule has a fixture, and
+  declared public adopters are verified reproducibly rather than by assertion.
 
 ## Next — the active ledger
 
+- **`032` Restore remote governance enforcement** (blocked, and the most
+  consequential item here): GitHub Actions is billing-locked, so the gates run on
+  a maintainer workstation rather than a public checkpoint. Until an operator
+  clears the lock or provisions an alternative, every enforcement claim rests on
+  local discipline. Blocked on a human decision, not on engineering.
+- **`036` Packaging and release-surface repair**: the published distribution
+  installs flat top-level modules that pollute the import namespace of any
+  environment that adopts it; seeds still ship via deprecated `data-files`.
+- **`033` Semantic ledger freshness**: work items can sit `active` and stale
+  without any surface reporting it — audit cadence is checked, ledger freshness
+  is not.
+- **`034` Independent reproduction**: third-party adoption evidence that does not
+  originate from this maintainer.
 - **`020` PactBench ↔ Proving Ground integration**: finish the repo split so the
   benchmark suite runs entirely against the packaged product.
 - **`021` Public launch**: arXiv preprint (cs.SE), launch release on PyPI, Show HN.

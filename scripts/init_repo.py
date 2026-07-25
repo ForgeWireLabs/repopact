@@ -21,9 +21,17 @@ import generate_dashboard
 HERE = Path(__file__).resolve().parent          # directory holding the tooling modules
 CHECKOUT = HERE.parent                          # repo root when running from a checkout
 LIFECYCLE = ("proposed", "active", "blocked", "deferred", "completed")
+# Tooling vendored into a bootstrapped repository. This must be closed under the
+# import graph of every module listed: a seeded repo runs its own `scripts/` as
+# standalone programs, so a module that is imported but not copied makes the
+# vendored validator die on import rather than report a finding. See
+# test_bootstrap_vendored_validator_runs_standalone, which executes the seeded
+# validator as a subprocess — validating a seeded repo in-process cannot catch
+# this, because the parent checkout satisfies the import from sys.path.
 MODULES = (
-    "repo_model.py", "validate_repo.py", "generate_dashboard.py", "generate_spec.py",
-    "init_repo.py", "new.py", "check_frozen_surface.py", "frontmatter.py", "repopact_cli.py",
+    "repo_model.py", "validate_repo.py", "validate_research.py", "generate_dashboard.py",
+    "generate_spec.py", "init_repo.py", "new.py", "check_frozen_surface.py",
+    "frontmatter.py", "repopact_cli.py",
 )
 
 

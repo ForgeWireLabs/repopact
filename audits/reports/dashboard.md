@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 0 |
-| active | 5 |
+| active | 6 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 30 |
@@ -38,4 +38,5 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 033: Semantic ledger freshness and audit reconciliation (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 036: Fix packaging namespace pollution and release-surface drift (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "038",
+  "title": "Release the approved RepoPact 3.0 package boundary",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "tooling",
+    "docs",
+    "evidence",
+    "work"
+  ],
+  "depends_on": [
+    "029",
+    "036"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-26T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "RepoPact's version, conformance claim, README, roadmap, and accepted release decision identify 3.0.0 as the breaking release that replaces the documented vendored scripts interface with the installed `repopact` CLI.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "A deterministic release builder exports a clean committed source tree, builds the sdist and wheel without inheriting stale checkout build products, and fails unless the wheel contains only the `repopact` import root, eight packaged schemas, six packaged templates, and no deprecated data-files entries.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "The exact release wheel installs in an isolated Windows environment outside the checkout; generic flat imports are absent, importlib.resources resolves package seeds, and installed-CLI init/adopt repositories validate.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "The project declares a reproducible development environment including build, twine, and pytest, and current README/ROADMAP guidance no longer presents completed WI-033/WI-036 as active or the pre-3.0 vendored command boundary as current.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "The release tree passes governance validation, all conformance cases, the full unit suite in under two minutes locally, twine metadata checks, and the frozen-surface backstop.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "Commit and annotated v3.0.0 tag are pushed to the public default branch; the exact validated artifacts are published to PyPI and a no-cache clean install verifies the public wheel hash and supported CLI behavior.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "Package publication and adopter rollout remain distinct: public 3.0.0 publication is recorded without claiming ecosystem completion or CI restoration, and WI-037 continues to own downstream migration and stronger Moto parity proof.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-07-26",
+  "updated": "2026-07-26"
+}

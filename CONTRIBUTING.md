@@ -25,15 +25,27 @@ Read [`AGENTS.md`](AGENTS.md) (the contract), then
 ## Required checks
 
 ```
-pip install -r requirements.txt
+python -m pip install -e ".[dev]"
 repopact validate
 python -m unittest discover -s tests -v
 repopact dashboard
 repopact spec
 ```
 
-CI runs the same gates and fails if a derived artifact is stale or validation does
-not pass.
+The `dev` extra supplies the test and release tools (`pytest`, `build`, `twine`)
+inside the active environment. The repository's required suite uses `unittest`;
+`pytest` remains available for focused development runs.
+
+CI is intended to run the same gates and fail if a derived artifact is stale or
+validation does not pass. While GitHub Actions is billing-locked, the local gates
+remain mandatory but do not constitute restored remote enforcement.
+
+Release artifacts must come from a clean commit:
+
+```
+repopact release-build --root . --outdir dist
+python -m twine check dist/repopact-*
+```
 
 ## Touching the frozen surface
 

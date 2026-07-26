@@ -287,17 +287,10 @@ def validate_adopter_manifest(root: Path, problems: list[Problem]) -> None:
         problems.append(Problem(path, "adopter ids must be unique"))
     if len(repositories) != len(set(repositories)):
         problems.append(Problem(path, "adopter remote identities must be unique"))
-    version_path = root / str(data.get("upstream", {}).get("version_file", "VERSION"))
-    try:
-        current_version = version_path.read_text(encoding="utf-8").strip()
-    except OSError:
-        current_version = ""
     for entry in entries:
         consumption = entry.get("consumption", {})
         if not isinstance(consumption, dict) or consumption.get("type") != "vendored":
             continue
-        if consumption.get("upstream_version") != current_version:
-            problems.append(Problem(path, f"vendored adopter '{entry.get('id')}' does not target VERSION {current_version}"))
         for contract in consumption.get("files", []):
             if not isinstance(contract, dict) or contract.get("mode") != "overlay":
                 continue

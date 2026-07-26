@@ -466,25 +466,25 @@ class RepositoryValidationTests(unittest.TestCase):
     def test_readme_release_line_must_match_version(self) -> None:
         self.set_readme_release(
             "current release **9.9.9** "
-            "([changelog](decisions/0027-release-2.3.0-optional-release-label.md))."
+            "([changelog](decisions/0030-release-repopact-3-0-0-package-boundary.md))."
         )
         self.assertTrue(any("advertises release '9.9.9'" in v for v in self.problems()))
 
     def test_readme_release_changelog_link_must_name_current_release(self) -> None:
         self.set_readme_release(
-            "current release **2.3.0** "
+            "current release **3.0.0** "
             "([changelog](decisions/0025-release-2.2.0-dashboard-integrity.md))."
         )
         self.assertTrue(any("does not name the current release" in v for v in self.problems()))
 
     def test_readme_release_changelog_link_must_resolve(self) -> None:
         self.set_readme_release(
-            "current release **2.3.0** ([changelog](decisions/9999-nonexistent.md))."
+            "current release **3.0.0** ([changelog](decisions/9999-nonexistent.md))."
         )
         self.assertTrue(any("does not resolve" in v for v in self.problems()))
 
     def test_readme_release_line_without_link_is_accepted(self) -> None:
-        self.set_readme_release("current release **2.3.0**.")
+        self.set_readme_release("current release **3.0.0**.")
         self.assertEqual([], self.problems())
 
     def test_readme_without_release_line_is_unaffected(self) -> None:
@@ -495,13 +495,13 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_readme_release_link_may_be_an_external_url(self) -> None:
         self.set_readme_release(
-            "current release **2.3.0** ([changelog](https://example.invalid/changelog))."
+            "current release **3.0.0** ([changelog](https://example.invalid/changelog))."
         )
         self.assertEqual([], self.problems())
 
     def test_readme_release_link_outside_decisions_is_existence_checked_only(self) -> None:
         (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
-        self.set_readme_release("current release **2.3.0** ([changelog](CHANGELOG.md)).")
+        self.set_readme_release("current release **3.0.0** ([changelog](CHANGELOG.md)).")
         self.assertEqual([], self.problems())
 
     # --- dependency cycles --------------------------------------------------
@@ -1010,6 +1010,15 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual("deferred", plan_import._section_lifecycle("Later / future"))
         self.assertEqual("completed", plan_import._section_lifecycle("Shipped"))
         self.assertIsNone(plan_import._section_lifecycle("Overview"))
+
+
+class ReadOnlyRepositoryValidationTests(unittest.TestCase):
+    """Checks that can safely use the source tree without cloning it per test."""
+
+    def test_adopter_manifest_allows_rollout_to_lag_package_version(self) -> None:
+        problems: list[validate_repo.Problem] = []
+        validate_repo.validate_adopter_manifest(ROOT, problems)
+        self.assertFalse(any("does not target VERSION" in problem.message for problem in problems))
 
 
 if __name__ == "__main__":

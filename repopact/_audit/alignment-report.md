@@ -1,5 +1,19 @@
 # Tooling Alignment Report
 
+## 2026-07-26 RepoPact 3.0 release boundary
+
+- Decision 0029's package/CLI boundary is released as the approved major version,
+  rather than remaining an unreleased source change under the immutable public
+  2.3.0 artifact.
+- `release-build` constructs artifacts twice from independent exports of the
+  committed tree and structurally rejects stale flat modules even if
+  `top_level.txt` is misleading.
+- Adopter-manifest validation checks declaration structure and local overlay
+  integrity; remote version currency remains the fleet verifier's responsibility,
+  so package publication and ecosystem rollout are genuinely separate phases.
+- The declared development extra installs pytest, build, and twine while the
+  required repository suite remains standard-library unittest.
+
 ## 2026-07-26 semantic freshness and ledger reconciliation
 
 - Audit registry deadlines now block validation after expiry even if the

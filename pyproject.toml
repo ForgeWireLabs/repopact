@@ -8,8 +8,11 @@ dynamic = ["version"]
 description = "A repository-native standard for durable agent work: binding invariants, evidence-gated work items, and drift audits."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
 dependencies = ["jsonschema>=4.20"]
+
+[project.optional-dependencies]
+dev = ["build>=1.2", "pytest>=8", "twine>=6"]
 
 [project.urls]
 Homepage = "https://github.com/ForgeWireLabs/repopact"

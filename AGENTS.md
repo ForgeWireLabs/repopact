@@ -61,8 +61,7 @@ particular role set.
 Run before proposing completion:
 
 ```powershell
-pip install -r requirements.txt
-python -m pip install -e .
+python -m pip install -e ".[dev]"
 repopact validate
 python -m unittest discover -s tests -v
 ```

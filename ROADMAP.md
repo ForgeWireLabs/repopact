@@ -4,7 +4,7 @@ A human-curated forward view. The authoritative status of in-flight work is the
 derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file
 adds editorial intent (what we mean to do next and why) that is not derivable.
 
-## Now — shipped through v2.3.0
+## Now — shipped through v3.0.0
 
 RepoPact 2.0 changed the record language itself; the releases since have hardened
 it and the surfaces around it:
@@ -39,6 +39,14 @@ it and the surfaces around it:
 - **Complete conformance rule coverage** (work item `030`) and **deterministic
   adopter fleet verification** (`029`): every published rule has a fixture, and
   declared public adopters are verified reproducibly rather than by assertion.
+- **Single-package execution boundary** (decision `0029`, v3.0.0): installing
+  RepoPact claims only the `repopact` import name; schemas and templates are
+  package resources, seeded repositories no longer vendor tooling, and operators
+  use the installed `repopact` CLI. This intentionally breaks the documented
+  pre-3.0 `python scripts/validate_repo.py` adopter interface.
+- **Semantic claim freshness** (work item `033`): human-authored audit and
+  research claims carry review deadlines, and expired contracts fail validation
+  rather than hiding behind an exact generated projection.
 
 ## Next — the active ledger
 
@@ -47,13 +55,6 @@ it and the surfaces around it:
   a maintainer workstation rather than a public checkpoint. Until an operator
   clears the lock or provisions an alternative, every enforcement claim rests on
   local discipline. Blocked on a human decision, not on engineering.
-- **`036` Packaging and release-surface repair**: the published distribution
-  installs flat top-level modules that pollute the import namespace of any
-  environment that adopts it; schemas and templates now ship as package
-  resources loaded through `importlib.resources`.
-- **`033` Semantic ledger freshness**: work items can sit `active` and stale
-  without any surface reporting it — audit cadence is checked, ledger freshness
-  is not.
 - **`034` Independent reproduction**: third-party adoption evidence that does not
   originate from this maintainer.
 - **`020` PactBench ↔ Proving Ground integration**: finish the repo split so the

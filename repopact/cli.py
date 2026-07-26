@@ -79,6 +79,14 @@ def main(argv: list[str] | None = None) -> int:
     p_close.add_argument("--package-evidence", type=Path)
     p_close.add_argument("--json", action="store_true", help="Emit deterministic JSON")
 
+    p_release = sub.add_parser(
+        "release-build",
+        help="Build reproducible, structurally verified artifacts from a clean committed tree",
+    )
+    p_release.add_argument("--root", type=Path, default=Path.cwd())
+    p_release.add_argument("--outdir", type=Path, required=True)
+    p_release.add_argument("--revision", default="HEAD")
+
     args = parser.parse_args(argv)
 
     if args.command == "init":
@@ -114,6 +122,20 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = args.root.resolve()
+
+    if args.command == "release-build":
+        from . import release_build
+        try:
+            report = release_build.build_release(
+                root,
+                args.outdir,
+                revision=args.revision,
+            )
+        except release_build.ReleaseBuildError as exc:
+            print(f"Release build failed: {exc}", file=sys.stderr)
+            return 1
+        print(release_build.render_json(report), end="")
+        return 0
 
     if args.command in {"fleet-verify", "release-closeout"}:
         from . import fleet_verify

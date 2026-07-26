@@ -2,7 +2,7 @@
 
 > Canonically generated from source records. Do not edit manually.
 > Validation fails when this file differs from `repopact dashboard` output.
-> RepoPact spec version: 2.3.0
+> RepoPact spec version: 3.0.0
 
 ## Health
 
@@ -12,8 +12,8 @@
 | Frozen-surface entries | 4 |
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
-| Audit findings | 1 |
-| Decision records | 29 |
+| Audit findings | 2 |
+| Decision records | 30 |
 | Policy records | 2 |
 | Evidence runs | 41 |
 
@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 1 |
-| active | 4 |
+| active | 5 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 32 |
@@ -37,4 +37,5 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 038: Release the approved RepoPact 3.0 package boundary (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

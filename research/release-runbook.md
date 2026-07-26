@@ -1,22 +1,31 @@
 # Release runbook
 
-## Current billing-locked Actions fallback (used for 2.2.0)
+## Current billing-locked Actions fallback
 
 When GitHub Actions cannot execute, the OIDC trusted-publishing path is unavailable.
 An operator-authorized direct upload may publish the exact locally validated tag
 artifacts without weakening the release gates:
 
-1. Validate the release tree, run the full unit and conformance suites, regenerate
-   derived artifacts, and require deterministic output.
-2. Build the sdist and wheel from the release commit, run `twine check`, and record
-   SHA-256 hashes.
-3. Merge and push the release commit, create and push the annotated version tag, and
-   confirm the remote tag resolves to that commit.
-4. Run `python -m twine upload <exact-wheel> <exact-sdist>` using an operator-held
+1. Prepare the version, decision, conformance identity, and release narrative;
+   regenerate derived artifacts; run governance, unit, conformance, and frozen
+   checks; then commit the exact release tree.
+2. From that clean commit run
+   `repopact release-build --root . --outdir dist`. The release builder exports
+   the commit twice, fixes `SOURCE_DATE_EPOCH`, requires byte-identical artifacts,
+   and rejects flat root modules, missing package resources, or data-files. Do
+   not publish an unchecked `python -m build --wheel` result from a checkout:
+   setuptools may retain obsolete files in ignored `build/lib` state.
+3. Run `python -m twine check dist/repopact-<version>*` and record exact SHA-256
+   hashes.
+4. Push the release commit, create and push the annotated version tag, and
+   confirm both remote refs resolve to that commit.
+5. Run `python -m twine upload <exact-wheel> <exact-sdist>` using an operator-held
    PyPI token. Never write the token, `.pypirc`, or secret-bearing output to evidence.
-5. Verify the public PyPI JSON/index metadata and install `repopact==<version>` with
-   `--no-cache-dir` in a clean virtual environment. Record installed metadata and a
-   validator smoke test.
+6. Verify the public PyPI JSON/index metadata and download the public wheel with
+   `--no-cache-dir`. Its SHA-256 must equal the locally validated wheel. Install
+   it in a clean virtual environment outside the checkout; verify generic flat
+   imports are absent, package resources resolve from site-packages, and an
+   initialized repository validates.
 
 This proves package publication and package identity. It does not prove the unavailable
 GitHub workflow or restore CI coverage; that limitation remains explicit in the gap

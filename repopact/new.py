@@ -17,6 +17,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 from . import generate_dashboard
+from . import init_repo
 from .repo_model import STATUSES
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +34,13 @@ def _next_numeric(paths: list[Path], width: int, start: int) -> str:
         if match:
             used.append(int(match.group(1)))
     return str(max(used + [start - 1]) + 1).zfill(width)
+
+
+def _template_text(root: Path, name: str) -> str:
+    local = root / "templates" / name
+    if local.is_file():
+        return local.read_text(encoding="utf-8")
+    return init_repo._seed_dir("templates").joinpath(name).read_text(encoding="utf-8")
 
 
 def new_work_item(title: str, today: date, root: Path = ROOT, status: str = "active") -> Path:
@@ -63,7 +71,7 @@ def new_work_item(title: str, today: date, root: Path = ROOT, status: str = "act
     import json
     (manifest_path := directory / "work-item.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     (directory / "README.md").write_text(
-        (root / "templates" / "work-item.README.md").read_text(encoding="utf-8")
+        _template_text(root, "work-item.README.md")
         .replace("NNN", item_id).replace("Title Of The Work", title), encoding="utf-8")
     generate_dashboard.write_dashboard(root, today=today)
     return manifest_path
@@ -76,7 +84,7 @@ def new_markdown(kind: str, title: str, today: date, root: Path = ROOT) -> Path:
     else:
         directory, width, template = root / "governance" / "policies", 3, "policy.md"
     record_id = _next_numeric(list(directory.glob("*.md")), width, 1)
-    text = (root / "templates" / template).read_text(encoding="utf-8")
+    text = _template_text(root, template)
     text = text.replace("NNNN", record_id).replace("NNN", record_id)
     text = text.replace("YYYY-MM-DD", today.isoformat())
     text = text.replace("Decision Title", title).replace("Policy Title", title)

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260726-package-namespace-and-ownership-closure",
   "timestamp": "2026-07-26T13:30:00-05:00",
   "work_item": "036",

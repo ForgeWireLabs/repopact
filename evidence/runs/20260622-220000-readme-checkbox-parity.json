@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260622-220000-readme-checkbox-parity",
   "timestamp": "2026-06-22T22:00:00Z",
   "work_item": "016",

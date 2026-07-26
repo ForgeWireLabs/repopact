@@ -1,0 +1,100 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260726-package-resource-seed-closure",
+  "timestamp": "2026-07-26T13:50:00-05:00",
+  "work_item": "036",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "operator approval in the active Codex task",
+      "exit_code": 0,
+      "summary": "The operator explicitly approved finishing WI-036 before WI-033, authorizing the separate INV-6-gated relocation of the protected schemas/** surface required by AC-2."
+    },
+    {
+      "command": "python -m build --outdir %TEMP%\\repopact-wi036-ac2-...\\dist",
+      "exit_code": 0,
+      "summary": "Built repopact-2.3.0-py3-none-any.whl and its source distribution after moving canonical schemas and templates inside the repopact package."
+    },
+    {
+      "command": "inspect wheel ZIP, dist-info/top_level.txt, package resources, data-files entries, and SHA-256",
+      "exit_code": 0,
+      "summary": "The 38-entry wheel declares only the repopact top-level import, contains eight repopact/schemas resources and six repopact/templates resources, and contains zero .data/data entries. SHA-256: 9FA126761EFA6C92AA3E264136552FAA7D42B035B8894EB5E3CCB75273F6BB56."
+    },
+    {
+      "command": "python -m venv <probe>\\venv; <venv>\\python -m pip install <wheel>",
+      "exit_code": 0,
+      "summary": "Installed the freshly built wheel and dependencies into an isolated Windows virtual environment."
+    },
+    {
+      "command": "PYTHONPATH cleared; run importlib.resources probe outside the checkout",
+      "exit_code": 0,
+      "summary": "The imported module resolved from the probe venv's site-packages. importlib.resources resolved work-item.schema.json and work-item.json beneath site-packages/repopact, proving the checkout and former sys.prefix/share fallback were not involved."
+    },
+    {
+      "command": "<isolated-venv>\\repopact init --target <seeded>; <isolated-venv>\\repopact validate --root <seeded>",
+      "exit_code": 0,
+      "summary": "Clean-wheel initialization passed and copied all eight schemas and six templates into the seeded repository, with no scripts/ tooling copy."
+    },
+    {
+      "command": "git init <adopted>; <isolated-venv>\\repopact adopt --target <adopted>; <isolated-venv>\\repopact validate --root <adopted>",
+      "exit_code": 0,
+      "summary": "Clean-wheel adoption created 27 governed records, copied all eight schemas and six templates, and validated successfully without a scripts/ tooling copy."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q --durations 10",
+      "exit_code": 0,
+      "summary": "All 128 tests passed in the final closeout tree in 117.072 seconds (117.602 seconds wall clock), with only the two declared formal-model obligations skipped. The added regression asserts package-data configuration, absence of data-files, and resource availability."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "All 20 conformance cases passed using canonical packaged schemas injected into the isolated fixtures."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed after satisfying AC-2, moving WI-036 to completed, updating all governed schema references, and regenerating the dashboard and SPEC."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "The frozen-surface gate reported the accepted package-interface paths plus all eight schemas at their new repopact/schemas locations. The operator explicitly approved the AC-2 schema relocation in this task; --ack recorded that authority. No schema content was weakened."
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors were found in the staged closeout."
+    }
+  ],
+  "artifacts": [
+    "pyproject.toml",
+    "repopact/schemas/",
+    "repopact/templates/",
+    "repopact/init_repo.py",
+    "repopact/adopt_repo.py",
+    "repopact/validate_repo.py",
+    "repopact/new.py",
+    "repopact/doctor.py",
+    "repopact/run_conformance.py",
+    "repopact/fleet_verify.py",
+    "governance/frozen-surface.json",
+    "governance/owners.json",
+    "tests/test_validate_repo.py",
+    "work/completed/036-fix-packaging-namespace-pollution-and-release-surface-drift/"
+  ],
+  "environment": {
+    "date": "2026-07-26",
+    "os": "Windows",
+    "python": "3.12.4",
+    "repopact_version": "2.3.0",
+    "wheel_sha256": "9FA126761EFA6C92AA3E264136552FAA7D42B035B8894EB5E3CCB75273F6BB56",
+    "packaged_schemas": 8,
+    "packaged_templates": 6,
+    "deprecated_data_file_entries": 0,
+    "conformance_cases": 20,
+    "unit_tests": 128,
+    "formal_model_skips": 2,
+    "unit_test_wall_seconds": 117.602
+  }
+}

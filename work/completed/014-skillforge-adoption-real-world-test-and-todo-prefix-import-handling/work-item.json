@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "014",
   "title": "SkillForge adoption (real-world test) and TODO-prefix import handling",
   "status": "completed",

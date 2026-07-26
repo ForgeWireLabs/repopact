@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260616-105305-tracking-and-takeover",
   "timestamp": "2026-06-16T10:53:05-05:00",
   "work_item": "015",

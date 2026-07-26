@@ -1,7 +1,7 @@
 """Generate the derived blocks of SPEC.md (work item 004, decision 0004).
 
-The record-type catalog and the invariant list are generated from
-``schemas/*.json`` and ``governance/invariants.json`` so the normative reference
+The record-type catalog and the invariant list are generated from packaged
+``repopact/schemas/*.json`` and ``governance/invariants.json`` so the normative reference
 cannot drift from what the validator enforces (policy 001). Hand-written normative
 prose lives between the generated blocks and is never touched here.
 """
@@ -40,17 +40,20 @@ def catalog_block(root: Path = ROOT) -> str:
         "| --- | --- | --- | --- |",
     ]
     for filename, name, location, _purpose in RECORDS:
-        schema = load_json(root / "schemas" / filename)
+        schema = load_json(root / "repopact" / "schemas" / filename)
         required = ", ".join(f"`{f}`" for f in _required(schema)) or "—"
-        lines.append(f"| {name} | `{location}` | [`{filename}`](schemas/{filename}) | {required} |")
+        lines.append(
+            f"| {name} | `{location}` | "
+            f"[`{filename}`](repopact/schemas/{filename}) | {required} |"
+        )
     # Decision and policy front matter come from the shared definitions schema.
-    fm = load_json(root / "schemas" / "record-frontmatter.schema.json")
+    fm = load_json(root / "repopact" / "schemas" / "record-frontmatter.schema.json")
     for kind, location in (("decision", "decisions/NNNN-slug.md"),
                            ("policy", "governance/policies/NNN-slug.md")):
         required = ", ".join(f"`{f}`" for f in fm["definitions"][kind].get("required", [])) or "—"
         lines.append(
             f"| {kind.capitalize()} (front matter) | `{location}` | "
-            f"[`record-frontmatter.schema.json`](schemas/record-frontmatter.schema.json) | {required} |"
+            f"[`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | {required} |"
         )
     return "\n".join(lines)
 

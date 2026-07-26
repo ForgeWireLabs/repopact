@@ -24,12 +24,10 @@ repopact = "repopact.cli:main"
 # outright with the `python-frontmatter` distribution. See decision 0029.
 [tool.setuptools]
 packages = ["repopact"]
+include-package-data = false
+
+[tool.setuptools.package-data]
+repopact = ["schemas/*.json", "templates/*"]
 
 [tool.setuptools.dynamic]
 version = { file = "VERSION" }
-
-# Seed content shipped so `repopact init` works from an installed wheel. These
-# reference the canonical top-level files (one source of truth — no duplication).
-[tool.setuptools.data-files]
-"share/repopact/schemas" = ["schemas/*.json"]
-"share/repopact/templates" = ["templates/*"]

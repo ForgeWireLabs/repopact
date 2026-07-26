@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/audit-finding.schema.json",
+  "$schema": "../../repopact/schemas/audit-finding.schema.json",
   "id": "001",
   "scope": "tooling",
   "observed": "schemas/*.json existed but validate_repo.py never loaded them; structural rules were re-implemented in Python, so schema and validator could drift silently.",

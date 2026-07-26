@@ -9,8 +9,9 @@ mutate source records as a side effect.
 ## Constraints
 
 - Prefer the Python standard library. Declared, operator-approved dependencies are
-  permitted: `jsonschema` validates records against `schemas/*.json` (decision
-  `0003`). Pin new dependencies in `requirements.txt`.
+  permitted: `jsonschema` validates records against repository-local
+  `schemas/*.json` with packaged `repopact/schemas/*.json` as the upstream
+  fallback (decision `0003`). Pin new dependencies in `requirements.txt`.
 - Validators return nonzero on errors and produce deterministic diagnostics.
 - Schemas are authoritative for record *structure*; the validator is authoritative
   for cross-record *semantics* (references, lifecycle, cycles).

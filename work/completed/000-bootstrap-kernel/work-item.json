@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "000",
   "title": "Bootstrap Repository Kernel",
   "status": "completed",

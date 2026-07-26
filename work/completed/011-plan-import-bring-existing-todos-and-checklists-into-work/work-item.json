@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "011",
   "title": "Plan import: bring existing todos and checklists into work/",
   "status": "completed",

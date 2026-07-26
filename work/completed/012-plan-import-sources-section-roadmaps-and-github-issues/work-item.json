@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "012",
   "title": "Plan import sources: section roadmaps and GitHub issues",
   "status": "completed",

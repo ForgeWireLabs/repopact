@@ -5,7 +5,7 @@ reality — drift, a gap, or a risk — plus its reconciliation. Findings are th
 output of an audit; they are not a second backlog.
 
 Each finding is `NNN-kebab-slug.json` validated against
-[`schemas/audit-finding.schema.json`](../../schemas/audit-finding.schema.json):
+[`repopact/schemas/audit-finding.schema.json`](../../repopact/schemas/audit-finding.schema.json):
 
 - `scope`: a scope id from `governance/owners.json`.
 - `risk`: `low` | `medium` | `high`.

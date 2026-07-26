@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "010",
   "title": "Adopt hardening (F-008 guardrail) and independent OSS adoption evidence",
   "status": "completed",

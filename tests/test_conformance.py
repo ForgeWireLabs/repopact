@@ -2,7 +2,7 @@
 
 Validates the published suite under conformance/: the valid baseline must be
 accepted, and each invalid overlay must be rejected with its declared message.
-Fixtures do not vendor schemas; the canonical schemas/ are injected here so a
+Fixtures do not vendor schemas; the canonical packaged schemas are injected here so a
 fixture can never pass against a stale schema copy (no drift).
 """
 
@@ -30,7 +30,7 @@ INVALID = FIXTURES / "invalid"
 
 def build_repo(dst: Path, overlay: Path | None = None) -> Path:
     shutil.copytree(VALID, dst)
-    shutil.copytree(ROOT / "schemas", dst / "schemas")
+    shutil.copytree(ROOT / "repopact" / "schemas", dst / "schemas")
     generate_dashboard.write_dashboard(dst)
     if overlay is not None:
         for src in overlay.rglob("*"):
@@ -45,7 +45,9 @@ def build_repo(dst: Path, overlay: Path | None = None) -> Path:
 class ConformanceTests(unittest.TestCase):
     def test_manifest_is_structurally_valid(self) -> None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
-        schema = json.loads((ROOT / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8"))
+        schema = json.loads(
+            (ROOT / "repopact" / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8")
+        )
         jsonschema.Draft202012Validator(schema).validate(manifest)
         run_conformance.validate_manifest_coverage(manifest)
         self.assertEqual((ROOT / "VERSION").read_text(encoding="utf-8").strip(), manifest["suite_version"])

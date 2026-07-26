@@ -1,5 +1,5 @@
 {
-  "$schema": "../schemas/invariants.schema.json",
+  "$schema": "../repopact/schemas/invariants.schema.json",
   "version": 1,
   "invariants": [
     {

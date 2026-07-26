@@ -49,7 +49,8 @@ it and the surfaces around it:
   local discipline. Blocked on a human decision, not on engineering.
 - **`036` Packaging and release-surface repair**: the published distribution
   installs flat top-level modules that pollute the import namespace of any
-  environment that adopts it; seeds still ship via deprecated `data-files`.
+  environment that adopts it; schemas and templates now ship as package
+  resources loaded through `importlib.resources`.
 - **`033` Semantic ledger freshness**: work items can sit `active` and stale
   without any surface reporting it — audit cadence is checked, ledger freshness
   is not.

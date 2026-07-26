@@ -2,8 +2,11 @@
 
 *Diataxis mode: how-to (task-oriented).*
 
-Every durable record has a template in [`templates/`](../../templates/) and a
-schema in [`schemas/`](../../schemas/). Stamp the common ones with `repopact new`.
+Every durable record has a packaged template in
+[`repopact/templates/`](../../repopact/templates/) and a schema in
+[`repopact/schemas/`](../../repopact/schemas/). `repopact init` and `adopt` copy
+those resources into the repository's conventional `templates/` and `schemas/`
+directories. Stamp the common records with `repopact new`.
 
 ## Work item
 
@@ -36,7 +39,7 @@ Use a policy for a continuous operating rule that is not itself a binding invari
 
 ## Evidence run
 
-Copy [`templates/evidence-run.json`](../../templates/evidence-run.json) to
+Copy [`repopact/templates/evidence-run.json`](../../repopact/templates/evidence-run.json) to
 `evidence/runs/<id>.json`. Record each command and its exit code. Evidence is
 immutable: a rerun creates a new manifest. Link the run from the acceptance
 criterion it satisfies.

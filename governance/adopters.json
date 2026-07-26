@@ -1,5 +1,5 @@
 {
-  "$schema": "../schemas/adopter-fleet.schema.json",
+  "$schema": "../repopact/schemas/adopter-fleet.schema.json",
   "version": 1,
   "upstream": {
     "repository": "ForgeWireLabs/repopact",

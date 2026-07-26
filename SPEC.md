@@ -35,7 +35,7 @@ governance/invariants.json     binding invariants (required)
 governance/frozen-surface.json protected paths and symbols (required)
 governance/owners.json         scopes, roles, concurrency (required)
 governance/policies/           durable operating rules
-schemas/                       record schemas (required)
+schemas/ or repopact/schemas/  record schemas (one required; packaged source uses the latter)
 decisions/                     decision records (ADRs)
 work/{active,blocked,deferred,completed}/  work items
 evidence/runs/                 evidence manifests
@@ -51,13 +51,13 @@ Structure is defined by the schemas; this catalog is generated from them.
 <!-- generated:catalog -->
 | Record | Location | Schema | Required fields |
 | --- | --- | --- | --- |
-| Work item | `work/<status>/NNN-slug/work-item.json` | [`work-item.schema.json`](schemas/work-item.schema.json) | `id`, `title`, `status`, `owner_scope`, `affected_scopes`, `depends_on`, `acceptance_criteria`, `created`, `updated` |
-| Evidence run | `evidence/runs/<id>.json` | [`evidence-run.schema.json`](schemas/evidence-run.schema.json) | `id`, `timestamp`, `work_item`, `result`, `commands`, `artifacts`, `environment` |
-| Audit finding | `audits/findings/NNN-slug.json` | [`audit-finding.schema.json`](schemas/audit-finding.schema.json) | `id`, `scope`, `observed`, `risk`, `reconciliation`, `state`, `created` |
-| Invariants | `governance/invariants.json` | [`invariants.schema.json`](schemas/invariants.schema.json) | `version`, `invariants` |
-| Frozen surface | `governance/frozen-surface.json` | [`frozen-surface.schema.json`](schemas/frozen-surface.schema.json) | `version`, `protected` |
-| Decision (front matter) | `decisions/NNNN-slug.md` | [`record-frontmatter.schema.json`](schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `date` |
-| Policy (front matter) | `governance/policies/NNN-slug.md` | [`record-frontmatter.schema.json`](schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `applies_to` |
+| Work item | `work/<status>/NNN-slug/work-item.json` | [`work-item.schema.json`](repopact/schemas/work-item.schema.json) | `id`, `title`, `status`, `owner_scope`, `affected_scopes`, `depends_on`, `acceptance_criteria`, `created`, `updated` |
+| Evidence run | `evidence/runs/<id>.json` | [`evidence-run.schema.json`](repopact/schemas/evidence-run.schema.json) | `id`, `timestamp`, `work_item`, `result`, `commands`, `artifacts`, `environment` |
+| Audit finding | `audits/findings/NNN-slug.json` | [`audit-finding.schema.json`](repopact/schemas/audit-finding.schema.json) | `id`, `scope`, `observed`, `risk`, `reconciliation`, `state`, `created` |
+| Invariants | `governance/invariants.json` | [`invariants.schema.json`](repopact/schemas/invariants.schema.json) | `version`, `invariants` |
+| Frozen surface | `governance/frozen-surface.json` | [`frozen-surface.schema.json`](repopact/schemas/frozen-surface.schema.json) | `version`, `protected` |
+| Decision (front matter) | `decisions/NNNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `date` |
+| Policy (front matter) | `governance/policies/NNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `applies_to` |
 <!-- /generated:catalog -->
 
 ## 4. Validation rules (semantics)

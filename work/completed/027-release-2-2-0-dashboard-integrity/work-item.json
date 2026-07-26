@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "027",
   "title": "Release RepoPact 2.2.0 with dashboard integrity",
   "status": "completed",

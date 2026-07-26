@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260624-generalized-preflight",
   "timestamp": "2026-06-24T17:30:00-05:00",
   "work_item": "018",

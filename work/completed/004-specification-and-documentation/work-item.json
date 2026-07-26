@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "004",
   "title": "Specification, Documentation, and First Public Milestone",
   "status": "completed",

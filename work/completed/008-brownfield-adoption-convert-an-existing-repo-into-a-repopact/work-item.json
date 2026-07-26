@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "008",
   "title": "Brownfield adoption: convert an existing repo into a RepoPact",
   "status": "completed",

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260629-provenance-typed-records-closeout",
   "timestamp": "2026-06-29T14:47:16-05:00",
   "work_item": "024",

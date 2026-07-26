@@ -1,8 +1,8 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "036",
   "title": "Fix packaging namespace pollution and release-surface drift",
-  "status": "blocked",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "governance",
@@ -25,8 +25,8 @@
     {
       "id": "AC-2",
       "text": "Seed schemas and templates ship as package data resolved via importlib.resources; the deprecated setuptools data-files mechanism is removed. `repopact init` and `repopact adopt` work from a wheel install in a clean venv (evidence run, at minimum on Windows).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260726-package-resource-seed-closure"]
     },
     {
       "id": "AC-3",

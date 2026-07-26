@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260718-deterministic-dashboard-validation",
   "timestamp": "2026-07-18T18:22:11Z",
   "work_item": "026",

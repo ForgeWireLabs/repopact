@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "016",
   "title": "README checkbox parity with the work-item manifest",
   "status": "completed",

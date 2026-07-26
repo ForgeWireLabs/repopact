@@ -158,4 +158,4 @@ communication governance), but is independently useful on its own.
 
 Apache-2.0 ([`LICENSE`](LICENSE), decision [`0002`](decisions/0002-license-apache-2.0.md)).
 The spec version is in [`VERSION`](VERSION); templates for every record type live in
-[`templates/`](templates/).
+[`repopact/templates/`](repopact/templates/).

@@ -43,7 +43,10 @@ class FleetVerificationTests(unittest.TestCase):
         self.root = Path(self.temp.name) / "repopact"
         (self.root / "schemas").mkdir(parents=True)
         (self.root / "governance" / "overlays").mkdir(parents=True)
-        shutil.copy2(ROOT / "schemas" / "adopter-fleet.schema.json", self.root / "schemas")
+        shutil.copy2(
+            ROOT / "repopact" / "schemas" / "adopter-fleet.schema.json",
+            self.root / "schemas",
+        )
         (self.root / "VERSION").write_text("2.2.0\n", encoding="utf-8")
 
         self.upstream_repo = "ForgeWireLabs/repopact"

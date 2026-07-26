@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "020",
   "title": "Integrate PactBench with RepoPact Proving Ground",
   "status": "active",

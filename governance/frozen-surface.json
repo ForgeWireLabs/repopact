@@ -1,5 +1,5 @@
 {
-  "$schema": "../schemas/frozen-surface.schema.json",
+  "$schema": "../repopact/schemas/frozen-surface.schema.json",
   "version": 1,
   "protected": [
     {
@@ -13,8 +13,8 @@
       "symbols": []
     },
     {
-      "glob": "schemas/**",
-      "reason": "Record schemas are load-bearing contracts that every validator and producer depends on.",
+      "glob": "repopact/schemas/**",
+      "reason": "Packaged record schemas are load-bearing contracts that every validator and producer depends on.",
       "symbols": []
     },
     {

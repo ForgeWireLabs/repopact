@@ -3,17 +3,17 @@
 Writes the minimal set of valid source records into a target directory and copies
 the schemas and templates, then validation passes through the installed package.
 Works both from a source checkout and from an installed wheel, where seed data
-ships under ``<sys.prefix>/share/repopact``.
+is loaded from package resources.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import site
 import sys
 from datetime import date, timedelta
+from importlib.resources import files
+from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from . import __version__
@@ -24,18 +24,33 @@ CHECKOUT = HERE.parent                          # repo root when running from a 
 LIFECYCLE = ("proposed", "active", "blocked", "deferred", "completed")
 
 
-def _seed_dir(name: str) -> Path:
-    """Locate seed content (schemas/templates) in a checkout or an installed wheel."""
-    candidates = [
-        CHECKOUT / name,
-        Path(sys.prefix) / "share" / "repopact" / name,
-        Path(site.USER_BASE) / "share" / "repopact" / name,
-    ]
-    for candidate in candidates:
-        if candidate.is_dir():
-            return candidate
-    looked = ", ".join(str(candidate) for candidate in candidates)
-    raise FileNotFoundError(f"cannot locate seed '{name}' (looked in {looked})")
+def _seed_dir(name: str) -> Traversable:
+    """Return packaged seed content through the standard resource API."""
+    candidate = files("repopact").joinpath(name)
+    if candidate.is_dir():
+        return candidate
+    raise FileNotFoundError(f"package resource '{name}' is missing")
+
+
+def _copy_seed_dir(name: str, target: Path) -> None:
+    """Copy one packaged resource tree into a repository."""
+    for source in _seed_dir(name).iterdir():
+        destination = target / source.name
+        if source.is_dir():
+            _copy_traversable(source, destination)
+        else:
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(source.read_bytes())
+
+
+def _copy_traversable(source: Traversable, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    for item in source.iterdir():
+        target = destination / item.name
+        if item.is_dir():
+            _copy_traversable(item, target)
+        else:
+            target.write_bytes(item.read_bytes())
 
 
 def _write(path: Path, text: str) -> None:
@@ -57,8 +72,8 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
     # the installed `repopact` command against it (decision 0029). Vendoring the
     # modules made a second, unversioned distribution channel whose only test ran it
     # in a mode it is never used in, which is how a seeded validator shipped broken.
-    shutil.copytree(_seed_dir("schemas"), target / "schemas", dirs_exist_ok=True)
-    shutil.copytree(_seed_dir("templates"), target / "templates", dirs_exist_ok=True)
+    _copy_seed_dir("schemas", target / "schemas")
+    _copy_seed_dir("templates", target / "templates")
 
     version = ((CHECKOUT / "VERSION").read_text(encoding="utf-8").strip()
                if (CHECKOUT / "VERSION").is_file() else __version__)

@@ -9,6 +9,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime
+from importlib.resources import files
 from pathlib import Path
 
 import jsonschema
@@ -53,7 +54,8 @@ _VALIDATOR_CACHE: dict[int, jsonschema.Draft202012Validator] = {}
 
 
 def load_schema(root: Path, name: str) -> dict:
-    raw = (root / "schemas" / name).read_bytes()
+    local = root / "schemas" / name
+    raw = local.read_bytes() if local.is_file() else files("repopact").joinpath("schemas", name).read_bytes()
     # Test fixtures and adopter checkouts normally carry byte-identical schemas
     # at different roots. Cache by content, not path, so a full validation suite
     # does not parse and compile the same contracts hundreds of times.

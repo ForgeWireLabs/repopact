@@ -38,7 +38,9 @@ def load_manifest(path: Path = MANIFEST) -> dict:
         data = json.load(handle)
     if not isinstance(data, dict):
         raise ValueError(f"manifest must be a JSON object: {path}")
-    schema = json.loads((ROOT / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8"))
+    schema = json.loads(
+        (ROOT / "repopact" / "schemas" / "conformance-manifest.schema.json").read_text(encoding="utf-8")
+    )
     jsonschema.Draft202012Validator(schema).validate(data)
     validate_manifest_coverage(data)
     return data
@@ -86,7 +88,7 @@ def materialize_case(root: Path, fixtures_root: Path, case: dict) -> Path:
         _copy_overlay(fixtures_root / str(case["path"]), repo)
     else:
         shutil.copytree(fixtures_root / str(case["path"]), repo)
-    shutil.copytree(ROOT / "schemas", repo / "schemas")
+    shutil.copytree(ROOT / "repopact" / "schemas", repo / "schemas")
     # Overlays intentionally mutate source records. Materialize their canonical
     # projection unless the dashboard itself is the isolated signal under test.
     dashboard_mode = case.get("dashboard", "canonical")

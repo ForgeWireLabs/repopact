@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -43,7 +42,10 @@ def _schema_skew(root: Path) -> list[Finding]:
     except FileNotFoundError:
         return []
     out: list[Finding] = []
-    for src in sorted(seed.glob("*.json")):
+    for src in sorted(
+        (item for item in seed.iterdir() if item.is_file() and item.name.endswith(".json")),
+        key=lambda item: item.name,
+    ):
         dest = root / "schemas" / src.name
         if not dest.is_file():
             out.append(Finding("warn", "schema-missing", f"schema {src.name} is missing (installed RepoPact ships it)", True))
@@ -234,11 +236,13 @@ def fix(root: Path, today: date | None = None) -> list[str]:
     #    human review rather than an automatic overwrite.
     try:
         seed = adopt_repo.init_repo._seed_dir("schemas")
-        for src in seed.glob("*.json"):
+        for src in seed.iterdir():
+            if not src.is_file() or not src.name.endswith(".json"):
+                continue
             dest = root / "schemas" / src.name
             if not dest.is_file():
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, dest)
+                dest.write_bytes(src.read_bytes())
                 actions.append(f"added missing schemas/{src.name}")
     except FileNotFoundError:
         pass

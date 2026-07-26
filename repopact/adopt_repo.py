@@ -52,9 +52,10 @@ class Report:
 
     def copy_seed(self, name: str, root: Path) -> None:
         """Copy schemas/ or templates/ from the install, file by file, never clobbering."""
-        import shutil
         src = init_repo._seed_dir(name)
         for item in src.iterdir():
+            if not item.is_file():
+                continue
             dest = root / name / item.name
             rel = f"{name}/{item.name}"
             if dest.exists():
@@ -63,7 +64,7 @@ class Report:
             self.created.append(rel)
             if not self.dry_run:
                 dest.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(item, dest)
+                dest.write_bytes(item.read_bytes())
 
 
 # --- detection --------------------------------------------------------------

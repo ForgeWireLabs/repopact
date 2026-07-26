@@ -5,7 +5,8 @@
 The validator (`repopact/validate_repo.py`) splits work in two layers (decision
 [`0003`](../../decisions/0003-validate-records-against-json-schemas.md)):
 
-- **Schemas** (`schemas/*.json`) are authoritative for record *structure*.
+- **Packaged schemas** (`repopact/schemas/*.json`) are authoritative for record
+  *structure* and are copied to adopter repositories as `schemas/*.json`.
 - **The validator** is authoritative for cross-record *semantics*.
 
 Put each new rule in the right layer.
@@ -13,7 +14,7 @@ Put each new rule in the right layer.
 ## Add a structural rule
 
 Edit the relevant schema. To add a required field to evidence runs, add it to
-`schemas/evidence-run.schema.json`'s `required`. No Python change is needed; records
+`repopact/schemas/evidence-run.schema.json`'s `required`. No Python change is needed; records
 are validated against the schema via `jsonschema`.
 
 ## Add a semantic rule

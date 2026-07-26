@@ -1,8 +1,7 @@
 # 036 — Fix packaging namespace pollution and release-surface drift
 
-> **Status**: ⛔ Blocked — AC-1 and AC-3–AC-6 are proven; AC-7 was superseded
-> by decision `0029`; AC-2 requires separate operator acknowledgement under
-> `INV-6` before the protected schema tree can move.
+> **Status**: ✅ Completed — AC-1 through AC-6 are proven; AC-7 was superseded
+> and waived by decision `0029`.
 > **Owners**: tooling-owner (lead), governance-owner (release-surface rule), docs-owner (README/ROADMAP).
 > **Depends on**: none.
 
@@ -92,9 +91,11 @@ second copy of the tooling, the installed `repopact` command supplies operations
 and the breaking interface change belongs to the 3.0.0 line. The operator
 explicitly selected this direction.
 
-That decision deliberately excludes AC-2. Moving `schemas/` into package data
-would relocate a protected, widely referenced contract surface. `INV-6` therefore
-requires a separate operator acknowledgement before that work begins.
+That decision deliberately excluded AC-2 until the protected, widely referenced
+schema surface received separate `INV-6` approval. The operator explicitly
+approved that relocation on 2026-07-26. Canonical schemas and templates now live
+inside the `repopact` package, and adopter repositories receive conventional
+root copies through `importlib.resources`.
 
 ## Scope
 
@@ -111,20 +112,19 @@ Landed and proven in this work item:
   a `scripts/` distribution into each repository (decision `0029`).
 - `governance/owners.json` opts the upstream checkout into exact tracked-path
   ownership, with deterministic validation for missing and overlapping scopes.
-- The full 127-test suite passes in 114.165 seconds locally (two declared
+- The final full 128-test suite passes in 117.072 seconds locally (two declared
   formal-model skips), below the two-minute acceptance threshold.
-
-Blocked remainder:
-
-- Relocate `schemas/` and `templates/` into package data, replace setuptools
-  `data-files` with `importlib.resources`, and rerun clean-wheel `init`/`adopt`
-  proof (AC-2). No protected schema path was moved in the completed slice.
+- `repopact/schemas/` and `repopact/templates/` are setuptools package data;
+  `data-files` is removed and every seed consumer uses `importlib.resources`.
+- A clean Windows virtual environment installed the built wheel, resolved both
+  resource trees from `site-packages/repopact`, and completed validated `init`
+  and `adopt` runs with all eight schemas and six templates.
 
 ## Acceptance criteria
 
 - [x] **AC-1** Wheel installs exactly one top-level import name (`repopact`); no
   generic top-level modules; verified by evidence run inspecting wheel contents.
-- [ ] **AC-2** Seeds ship as package data via `importlib.resources`; `data-files`
+- [x] **AC-2** Seeds ship as package data via `importlib.resources`; `data-files`
   removed; `init`/`adopt` proven from a wheel install in a clean venv.
 - [x] **AC-3** Validator enforces README release-line parity with `VERSION` and a
   resolving changelog link; current README repaired; regression test added.
@@ -140,7 +140,7 @@ Blocked remainder:
 
 ## Closeout
 
-AC-2 remains pending until the operator separately approves the protected schema
-relocation. Keep the item blocked and regenerate the dashboard after this
-transition; do not move it to `work/completed/` without that approval and linked
-clean-wheel package-data evidence.
+All acceptance criteria are satisfied or explicitly waived with linked evidence.
+The operator-approved frozen-surface relocation is recorded in
+`20260726-package-resource-seed-closure`; move this item to `work/completed/`
+and regenerate the dashboard.

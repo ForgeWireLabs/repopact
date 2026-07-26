@@ -15,7 +15,7 @@
 | Audit findings | 1 |
 | Decision records | 29 |
 | Policy records | 1 |
-| Evidence runs | 39 |
+| Evidence runs | 40 |
 
 ## Work
 
@@ -23,9 +23,9 @@
 | --- | ---: |
 | proposed | 0 |
 | active | 5 |
-| blocked | 2 |
+| blocked | 1 |
 | deferred | 0 |
-| completed | 30 |
+| completed | 31 |
 
 ## Audit freshness
 
@@ -39,4 +39,3 @@ All audit scopes are within their review cadence.
 - 033: Semantic ledger freshness and audit reconciliation (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)
-- 036: Fix packaging namespace pollution and release-surface drift (blocked)

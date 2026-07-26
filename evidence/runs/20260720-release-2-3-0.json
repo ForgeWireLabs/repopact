@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260720-release-2-3-0",
   "timestamp": "2026-07-20T00:00:00Z",
   "work_item": "035",

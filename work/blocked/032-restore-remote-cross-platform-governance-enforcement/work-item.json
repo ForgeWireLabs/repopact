@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "032",
   "title": "Restore remote cross-platform governance enforcement",
   "status": "blocked",

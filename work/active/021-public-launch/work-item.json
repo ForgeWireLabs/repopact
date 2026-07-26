@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "021",
   "title": "RepoPact's slice of the ForgeWire Labs public launch",
   "status": "active",

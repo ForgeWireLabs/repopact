@@ -3,8 +3,8 @@
 The corpus referenced by [`SPEC.md`](../../SPEC.md) §9. A RepoPact-conformant
 implementation must **accept** each `valid*` fixture and **reject** each invalid one.
 
-Fixtures deliberately do **not** vendor `schemas/`. `scripts/run_conformance.py`
-injects the canonical `schemas/` from the repository root before validating, so a
+Fixtures deliberately do **not** vendor `schemas/`. `python -m repopact.run_conformance`
+injects the canonical packaged `repopact/schemas/` before validating, so a
 fixture can never pass against a stale schema copy.
 
 ## valid fixtures

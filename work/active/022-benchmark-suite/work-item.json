@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "022",
   "title": "Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13)",
   "status": "active",

@@ -1,5 +1,17 @@
 # Tooling Alignment Report
 
+## 2026-07-26 package-resource seed closure
+
+- Canonical schemas and templates live inside the `repopact` package and ship
+  through setuptools package data; the deprecated `data-files` install surface
+  is removed.
+- `init`, `adopt`, `doctor`, validation, record stamping, conformance, and fleet
+  verification resolve packaged resources through `importlib.resources`, while
+  adopter repositories retain their conventional root `schemas/` and
+  `templates/` copies.
+- The protected schema surface moved from `schemas/**` to
+  `repopact/schemas/**` with explicit operator approval for WI-036 AC-2.
+
 ## 2026-07-26 single-package execution and ownership closure
 
 - The distribution exposes one top-level package, `repopact`; all internal modules use

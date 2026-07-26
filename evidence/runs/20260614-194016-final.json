@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260614-194016-final",
   "timestamp": "2026-06-14T19:40:16-05:00",
   "work_item": "000",

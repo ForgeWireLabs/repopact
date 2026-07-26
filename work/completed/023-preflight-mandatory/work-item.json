@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "023",
   "title": "Make preflight mandatory by default (2.0)",
   "status": "completed",

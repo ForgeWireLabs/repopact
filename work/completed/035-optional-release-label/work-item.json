@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "035",
   "title": "Optional RELEASE_LABEL pre-release identity",
   "status": "completed",

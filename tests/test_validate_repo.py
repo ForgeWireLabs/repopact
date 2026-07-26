@@ -535,6 +535,16 @@ class RepositoryValidationTests(unittest.TestCase):
         output = proc.stdout + proc.stderr
         self.assertEqual(0, proc.returncode, output)
 
+    def test_seed_data_uses_package_resources_not_data_files(self) -> None:
+        pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+        self.assertIn("[tool.setuptools.package-data]", pyproject)
+        self.assertNotIn("[tool.setuptools.data-files]", pyproject)
+        for resource in ("schemas/work-item.schema.json", "templates/work-item.json"):
+            current = init_repo._seed_dir(resource.split("/", 1)[0]).joinpath(
+                resource.split("/", 1)[1]
+            )
+            self.assertTrue(current.is_file(), resource)
+
     # --- SPEC generator determinism (004) ----------------------------------
 
     def test_spec_generation_is_idempotent(self) -> None:

@@ -1,5 +1,5 @@
 {
-  "$schema": "../../schemas/evidence-run.schema.json",
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260718-complete-conformance-rule-coverage",
   "timestamp": "2026-07-18T21:30:23Z",
   "work_item": "030",

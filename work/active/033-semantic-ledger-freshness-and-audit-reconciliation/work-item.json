@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../schemas/work-item.schema.json",
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "033",
   "title": "Semantic ledger freshness and audit reconciliation",
   "status": "active",

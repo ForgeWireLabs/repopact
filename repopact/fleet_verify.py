@@ -16,6 +16,8 @@ from typing import Protocol
 
 import jsonschema
 
+from .validate_repo import load_schema
+
 
 SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 EXACT_PIN = re.compile(r"(?m)^\s*repopact==([0-9]+\.[0-9]+\.[0-9]+)\s*(?:#.*)?$")
@@ -240,7 +242,7 @@ def load_manifest(root: Path, manifest_path: Path | None = None) -> tuple[Path, 
         path = root / path
     path = path.resolve()
     data = json.loads(path.read_text(encoding="utf-8"))
-    schema = json.loads((root / "schemas" / "adopter-fleet.schema.json").read_text(encoding="utf-8"))
+    schema = load_schema(root, "adopter-fleet.schema.json")
     jsonschema.Draft202012Validator(schema).validate(data)
     ids = [entry["id"] for entry in data["adopters"]]
     repos = [_repo_key(entry["repository"]) for entry in data["adopters"]]

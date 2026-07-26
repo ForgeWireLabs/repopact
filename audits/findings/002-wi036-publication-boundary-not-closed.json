@@ -5,6 +5,6 @@
   "observed": "WI-036 AC-1 claimed the published distribution installed only the repopact package, but public PyPI 2.3.0 still installed the pre-conversion flat modules and data-files; linked evidence inspected a locally built wheel after the immutable public version already existed.",
   "risk": "high",
   "reconciliation": "WI-038 preserves the incorrect closeout as history, releases the approved package boundary as 3.0.0, verifies the public artifact, and adds a clean committed-tree release builder.",
-  "state": "open",
+  "state": "reconciled",
   "created": "2026-07-26"
 }

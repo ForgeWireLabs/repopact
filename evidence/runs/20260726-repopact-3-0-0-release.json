@@ -1,0 +1,110 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260726-repopact-3-0-0-release",
+  "timestamp": "2026-07-26T14:49:19-05:00",
+  "work_item": "038",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "The repository virtual environment installed RepoPact 3.0.0 with the declared build, pytest, and twine development dependencies."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "All 137 tests passed in 105.282 seconds locally (105.898 seconds wall clock), below the two-minute gate with margin; only the two declared formal-model obligations were skipped. Read-only and fresh-bootstrap tests no longer clone the full repository fixture."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "All 20 versioned conformance cases passed."
+    },
+    {
+      "command": "repopact validate",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed on the 3.0.0 release tree."
+    },
+    {
+      "command": "repopact check-frozen --root . --base HEAD",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected in the release slice."
+    },
+    {
+      "command": "repopact release-build --root . --outdir dist/3.0.0 --revision HEAD",
+      "exit_code": 0,
+      "summary": "Two independent exports of commit b8d2cfd7c6e578b40c291f63d4591e1132dee238 produced byte-identical artifacts. The wheel has only the repopact import root, zero flat modules, eight schemas, six templates, and zero data-files entries. Wheel SHA-256: 92bad8a74922a4a77e9ea3f50312268632fba3813927937252974c0c64383018. Sdist SHA-256: 147f4fa0e5efd43cf5ed292f81e65a28e75a5d91a130513d92eb50afabb51c1f."
+    },
+    {
+      "command": "python -m twine check dist/3.0.0/repopact-3.0.0*",
+      "exit_code": 0,
+      "summary": "Twine metadata checks passed for the exact wheel and sdist."
+    },
+    {
+      "command": "python -m venv <external-candidate-venv>; pip install <exact-wheel>; repopact init/adopt/validate",
+      "exit_code": 0,
+      "summary": "An isolated Windows install outside the checkout resolved repopact from site-packages, exposed eight schemas and six templates, left the former generic flat imports absent, and completed validated init and adopt workflows."
+    },
+    {
+      "command": "git push origin main; git tag -a v3.0.0 <release-commit>; git push origin refs/tags/v3.0.0; git ls-remote",
+      "exit_code": 0,
+      "summary": "The public main branch and the peeled annotated v3.0.0 tag both resolved to b8d2cfd7c6e578b40c291f63d4591e1132dee238."
+    },
+    {
+      "command": "python -m twine upload --non-interactive <exact-wheel> <exact-sdist>",
+      "exit_code": 0,
+      "summary": "The operator-authorized direct upload published both exact artifacts to PyPI. GitHub Actions remained billing-locked and was not used or claimed restored."
+    },
+    {
+      "command": "GET https://pypi.org/pypi/repopact/3.0.0/json; pip download --no-cache-dir --no-deps --only-binary=:all: repopact==3.0.0",
+      "exit_code": 0,
+      "summary": "PyPI reported 3.0.0 and the same wheel/sdist hashes. A no-cache public wheel download matched the locally validated wheel SHA-256 92bad8a74922a4a77e9ea3f50312268632fba3813927937252974c0c64383018."
+    },
+    {
+      "command": "python -m venv <external-public-venv>; pip install --no-cache-dir repopact==3.0.0; repopact init/adopt/validate",
+      "exit_code": 0,
+      "summary": "A second clean Windows environment installed from the public index, resolved only the repopact package, found all package resources, and completed validated init and adopt workflows."
+    },
+    {
+      "command": "repopact fleet-verify --root . --json",
+      "exit_code": 1,
+      "summary": "Expected negative control: all five public adopters resolved remotely but remained on declared 2.2.0 or 2.3.0 consumption boundaries. Package publication is complete; WI-037 continues to own the 3.0 migration and Moto parity proof."
+    },
+    {
+      "command": "repopact release-closeout --root . --package-evidence evidence/runs/20260726-repopact-3-0-0-release.json --json",
+      "exit_code": 1,
+      "summary": "Expected separation gate: package_publication was complete while ecosystem_rollout remained incomplete for all five declared adopters."
+    }
+  ],
+  "artifacts": [
+    "VERSION",
+    "README.md",
+    "CONFORMANCE.md",
+    "conformance/manifest.json",
+    "decisions/0030-release-repopact-3-0-0-package-boundary.md",
+    "repopact/release_build.py",
+    "research/release-runbook.md",
+    "https://github.com/ForgeWireLabs/repopact/commit/b8d2cfd7c6e578b40c291f63d4591e1132dee238",
+    "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.0.0",
+    "https://pypi.org/project/repopact/3.0.0/"
+  ],
+  "environment": {
+    "date": "2026-07-26",
+    "os": "Windows",
+    "python": "3.12.4",
+    "release": "3.0.0",
+    "repopact_version": "3.0.0",
+    "release_commit": "b8d2cfd7c6e578b40c291f63d4591e1132dee238",
+    "tag": "v3.0.0",
+    "wheel_sha256": "92bad8a74922a4a77e9ea3f50312268632fba3813927937252974c0c64383018",
+    "sdist_sha256": "147f4fa0e5efd43cf5ed292f81e65a28e75a5d91a130513d92eb50afabb51c1f",
+    "conformance_cases": 20,
+    "unit_tests": 137,
+    "formal_model_skips": 2,
+    "unit_test_seconds": 105.282,
+    "unit_test_wall_seconds": 105.898,
+    "publication_route": "operator-authorized direct PyPI upload; GitHub Actions billing-locked",
+    "adopter_rollout": "incomplete by design; WI-037 owns migration"
+  }
+}

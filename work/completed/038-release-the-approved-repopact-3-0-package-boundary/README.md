@@ -1,6 +1,6 @@
 # 038 — Release the approved RepoPact 3.0 package boundary
 
-> **Status**: Active
+> **Status**: Completed
 > **Owners**: governance-owner (lead); tooling-owner, docs-owner,
 > evidence-owner, and work-coordinator affected.
 > **Depends on**: `029`, `036`.
@@ -37,15 +37,17 @@ Out of scope: restoring billing-locked CI (WI-032) and performing the downstream
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — all release identities and narratives say 3.0.0.
-- [ ] **AC-2** — clean committed-source build rejects namespace/resource drift.
-- [ ] **AC-3** — exact wheel passes isolated init/adopt and import probes.
-- [ ] **AC-4** — dev environment and current documentation are repaired.
-- [ ] **AC-5** — repository, conformance, tests, metadata, and frozen checks pass.
-- [ ] **AC-6** — public commit/tag/PyPI artifact are remotely verified.
-- [ ] **AC-7** — rollout and CI remain explicitly separate/open.
+- [x] **AC-1** — all release identities and narratives say 3.0.0.
+- [x] **AC-2** — clean committed-source build rejects namespace/resource drift.
+- [x] **AC-3** — exact wheel passes isolated init/adopt and import probes.
+- [x] **AC-4** — dev environment and current documentation are repaired.
+- [x] **AC-5** — repository, conformance, tests, metadata, and frozen checks pass.
+- [x] **AC-6** — public commit/tag/PyPI artifact are remotely verified.
+- [x] **AC-7** — rollout and CI remain explicitly separate/open.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+All acceptance criteria are satisfied by
+`20260726-repopact-3-0-0-release`. Package publication is complete; WI-037
+continues to own the five-adopter migration, and billing-locked CI remains
+separate under WI-032.

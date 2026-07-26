@@ -29,9 +29,44 @@ from repopact.validate_repo import validate  # noqa: E402
 
 
 class RepositoryValidationTests(unittest.TestCase):
+    READ_ONLY_TESTS = {
+        "test_repository_is_valid",
+        "test_dashboard_generation_is_stable_between_audit_transitions",
+        "test_readme_without_checkboxes_is_unaffected",
+        "test_symbol_hits_detects_protected_symbol",
+        "test_symbol_hits_ignores_context_lines",
+        "test_seed_data_uses_package_resources_not_data_files",
+        "test_spec_generation_is_idempotent",
+        "test_cli_validate_returns_zero_on_valid_repo",
+        "test_split_num_strips_tracker_prefix",
+        "test_section_lifecycle_keywords",
+    }
+    TEMP_ONLY_TESTS = {
+        "test_bootstrap_produces_valid_repo",
+        "test_bootstrap_uses_installed_tooling_instead_of_vendoring_modules",
+        "test_adopt_existing_repo_validates",
+        "test_adopt_is_non_destructive",
+        "test_adopt_maps_workflows_and_codeowners",
+        "test_adopt_dry_run_writes_nothing",
+        "test_adopt_warns_on_gitignored_records",
+        "test_import_plan_populates_and_validates",
+        "test_import_plan_completed_items_are_waived_not_fabricated",
+        "test_import_plan_is_idempotent",
+        "test_import_plan_dry_run_writes_nothing",
+        "test_tracking_import_maps_to_record_types_and_validates",
+        "test_tracking_import_is_idempotent",
+        "test_import_plan_section_roadmap_without_checkboxes",
+    }
+
     def setUp(self) -> None:
+        self.temp: tempfile.TemporaryDirectory[str] | None = None
+        if self._testMethodName in self.READ_ONLY_TESTS:
+            self.root = ROOT
+            return
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / "repo"
+        if self._testMethodName in self.TEMP_ONLY_TESTS:
+            return
         shutil.copytree(
             ROOT,
             self.root,
@@ -41,7 +76,8 @@ class RepositoryValidationTests(unittest.TestCase):
         )
 
     def tearDown(self) -> None:
-        self.temp.cleanup()
+        if self.temp is not None:
+            self.temp.cleanup()
 
     def problems(self) -> list[str]:
         return [problem.message for problem in validate(self.root)]

@@ -2,7 +2,7 @@
   "version": 1,
   "lifecycle": {
     "states": ["proposed", "active", "blocked", "deferred", "completed"],
-    "implementation_source": "scripts/repo_model.py",
+    "implementation_source": "repopact/repo_model.py",
     "set_documents": [
       {
         "path": "research/paper.md",

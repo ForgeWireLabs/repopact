@@ -1,5 +1,19 @@
 # Tooling Alignment Report
 
+## 2026-07-26 single-package execution and ownership closure
+
+- The distribution exposes one top-level package, `repopact`; all internal modules use
+  package-relative imports and the console script remains the supported interface.
+- Seeded repositories contain governed state but no vendored tooling. The installed
+  package executes validation, generation, and record-stamping (decision 0029).
+- RepoPact enables exact Git-tracked path ownership in `governance/owners.json`.
+  Deterministic diagnostics reject both unowned paths and overlapping ownership,
+  while adopters can opt into the checkout-relative rule after mapping their tree.
+- Test copies exclude virtual environments and build caches, schema validators
+  are reused by content, and exported trees skip unnecessary Git probes. These
+  remove the dominant local suite-time cost while preserving isolated repository
+  state per test.
+
 ## 2026-07-22 canonical research metadata and trace repair
 
 - `research/metadata.json` is the machine source for lifecycle states, PactBench task

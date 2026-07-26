@@ -16,7 +16,7 @@ is `SPEC.md` at the repository root (governance scope), not here.
 ## Required checks
 
 ```powershell
-python scripts/validate_repo.py
+repopact validate
 ```
 
 ## Traceability

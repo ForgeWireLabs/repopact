@@ -22,9 +22,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
-import adopt_repo
-import generate_dashboard
-import validate_repo
+from . import adopt_repo
+from . import generate_dashboard
+from . import validate_repo
 
 
 @dataclass

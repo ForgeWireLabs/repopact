@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from repo_model import STATUSES
+from .repo_model import STATUSES
 
 
 @dataclass(frozen=True)
@@ -76,7 +76,7 @@ def _validate_lifecycle(
     if states != list(STATUSES):
         problems.append(ResearchProblem(
             metadata_path,
-            f"canonical lifecycle states must match scripts/repo_model.py: {', '.join(STATUSES)}",
+            f"canonical lifecycle states must match repopact/repo_model.py: {', '.join(STATUSES)}",
         ))
         return
 

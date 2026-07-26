@@ -8,10 +8,10 @@
   <rect width="561" height="40" rx="12" fill="#0e1729"/><rect y="28" width="561" height="12" fill="#0e1729"/>
   <circle cx="22" cy="20" r="6" fill="#f87171"/><circle cx="44" cy="20" r="6" fill="#fbbf24"/><circle cx="66" cy="20" r="6" fill="#34d399"/>
   <text x="280.5" y="25" text-anchor="middle" class="dim" style="font-size:13px">repopact - governance</text>
-  <text x="28" y="56" xml:space="preserve" class="base"><tspan class="prompt">$</tspan> <tspan class="cmd">python scripts/validate_repo.py</tspan></text>
+  <text x="28" y="56" xml:space="preserve" class="base"><tspan class="prompt">$</tspan> <tspan class="cmd">repopact validate</tspan></text>
   <text x="28" y="80" xml:space="preserve" class="base">Repository governance validation <tspan class="ok">passed</tspan>.</text>
   <text x="28" y="104" xml:space="preserve" class="base"></text>
-  <text x="28" y="128" xml:space="preserve" class="base"><tspan class="prompt">$</tspan> <tspan class="cmd">python scripts/generate_dashboard.py</tspan></text>
+  <text x="28" y="128" xml:space="preserve" class="base"><tspan class="prompt">$</tspan> <tspan class="cmd">repopact dashboard</tspan></text>
   <text x="28" y="152" xml:space="preserve" class="base"><tspan class="ok">Generated</tspan> audits/reports/dashboard.md</text>
   <text x="28" y="176" xml:space="preserve" class="base"></text>
   <text x="28" y="200" xml:space="preserve" class="base"><tspan class="prompt">$</tspan> <tspan class="cmd">cat audits/reports/dashboard.md</tspan></text>

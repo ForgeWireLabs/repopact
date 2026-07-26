@@ -20,4 +20,4 @@ applies_to: [tooling, governance]
   deleting it.
 - `applies_to`: scope IDs from `governance/owners.json`.
 
-Validated by `scripts/validate_repo.py` (`validate_policies`).
+Validated by `repopact validate` (`repopact.validate_repo.validate_policies`).

@@ -28,4 +28,4 @@ supersedes: []
 - `supersedes`: IDs of decisions this one replaces. Never edit a superseded record;
   set its status to `superseded` and link forward.
 
-Validated by `scripts/validate_repo.py` (`validate_decisions`).
+Validated by `repopact validate` (`repopact.validate_repo.validate_decisions`).

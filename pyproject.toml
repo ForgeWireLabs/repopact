@@ -16,31 +16,14 @@ Homepage = "https://github.com/ForgeWireLabs/repopact"
 Repository = "https://github.com/ForgeWireLabs/repopact"
 
 [project.scripts]
-repopact = "repopact_cli:main"
+repopact = "repopact.cli:main"
 
+# One top-level name. Before 3.0.0 this shipped seventeen flat `py-modules`, so
+# installing RepoPact claimed `frontmatter`, `doctor`, `new`, `takeover`, and
+# thirteen other generic names in the environment's import namespace — colliding
+# outright with the `python-frontmatter` distribution. See decision 0029.
 [tool.setuptools]
-py-modules = [
-  "repopact_cli",
-  "repo_model",
-  "validate_repo",
-  "validate_research",
-  "generate_dashboard",
-  "generate_spec",
-  "init_repo",
-  "adopt_repo",
-  "plan_import",
-  "track_import",
-  "takeover",
-  "doctor",
-  "new",
-  "check_frozen_surface",
-  "frontmatter",
-  "fleet_verify",
-  "run_conformance",
-]
-
-[tool.setuptools.package-dir]
-"" = "scripts"
+packages = ["repopact"]
 
 [tool.setuptools.dynamic]
 version = { file = "VERSION" }

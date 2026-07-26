@@ -15,12 +15,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install -r requirements.txt
-      - run: python scripts/validate_repo.py
+      - run: python -m pip install -e .
+      - run: repopact validate
       - run: python -m unittest discover -s tests -v
-      - run: python scripts/run_conformance.py
-      - run: python scripts/generate_dashboard.py
-      - run: python scripts/generate_spec.py
+      - run: python -m repopact.run_conformance
+      - run: repopact dashboard
+      - run: repopact spec
       - name: Ensure derived artifacts are current
         run: git diff --exit-code -- audits/reports/dashboard.md SPEC.md
       # Frozen-surface backstop (INV-6). The binding gate is human operator
@@ -29,4 +29,4 @@ jobs:
       - name: Report frozen-surface changes
         if: github.event_name == 'pull_request'
         continue-on-error: true
-        run: python scripts/check_frozen_surface.py --base "origin/${{ github.base_ref }}"
+        run: repopact check-frozen --base "origin/${{ github.base_ref }}"

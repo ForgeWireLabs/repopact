@@ -7,18 +7,18 @@ trap 'rm -rf "$TMP"' EXIT
 
 step() { printf '\n\033[1;36m$ %s\033[0m\n' "$*"; }
 
-step "python scripts/init_repo.py --target $TMP/demo"
-python "$HERE/scripts/init_repo.py" --target "$TMP/demo"
+step "repopact init --target $TMP/demo"
+python -m repopact.cli init --target "$TMP/demo"
 
 cd "$TMP/demo"
-step "python scripts/validate_repo.py"
-python scripts/validate_repo.py
+step "repopact validate"
+python -m repopact.cli validate
 
-step 'python scripts/new.py work-item "Demo work"'
-python scripts/new.py work-item "Demo work"
+step 'repopact new work-item "Demo work"'
+python -m repopact.cli new work-item "Demo work"
 
-step "python scripts/validate_repo.py   # active item with a pending criterion is fine"
-python scripts/validate_repo.py
+step "repopact validate   # active item with a pending criterion is fine"
+python -m repopact.cli validate
 
 step "mark the criterion satisfied WITHOUT evidence, then validate (expect failure)"
 item="$(ls -d work/active/*/)"
@@ -29,4 +29,4 @@ d = json.load(open(p))
 d["acceptance_criteria"][0]["state"] = "satisfied"
 json.dump(d, open(p, "w"), indent=2)
 PY
-python scripts/validate_repo.py || printf '\n\033[1;33mValidator rejected it — completion requires proof.\033[0m\n'
+python -m repopact.cli validate || printf '\n\033[1;33mValidator rejected it — completion requires proof.\033[0m\n'

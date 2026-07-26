@@ -18,8 +18,8 @@ from pathlib import Path
 
 import jsonschema
 
-import generate_dashboard
-import validate_repo
+from . import generate_dashboard
+from . import validate_repo
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -149,7 +149,7 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument(
         "--command",
-        default=f'"{sys.executable}" "{ROOT / "scripts" / "validate_repo.py"}" --root "{{repo}}"',
+        default=f'"{sys.executable}" -m repopact.cli validate --root "{{repo}}"',
         help="Implementation command template; {repo} is replaced with the fixture repo path.",
     )
     args = parser.parse_args()

@@ -1,9 +1,9 @@
 """Bootstrap RepoPact into a new repository (work item 003 B1; CLI in 005).
 
 Writes the minimal set of valid source records into a target directory and copies
-the schemas, templates, and tooling, then validation passes. Works both from a
-source checkout and from an installed wheel, where seed data ships under
-``<sys.prefix>/share/repopact`` and the modules live in site-packages.
+the schemas and templates, then validation passes through the installed package.
+Works both from a source checkout and from an installed wheel, where seed data
+ships under ``<sys.prefix>/share/repopact``.
 """
 
 from __future__ import annotations
@@ -16,23 +16,12 @@ import sys
 from datetime import date, timedelta
 from pathlib import Path
 
-import generate_dashboard
+from . import __version__
+from . import generate_dashboard
 
-HERE = Path(__file__).resolve().parent          # directory holding the tooling modules
+HERE = Path(__file__).resolve().parent          # the installed/checked-out package
 CHECKOUT = HERE.parent                          # repo root when running from a checkout
 LIFECYCLE = ("proposed", "active", "blocked", "deferred", "completed")
-# Tooling vendored into a bootstrapped repository. This must be closed under the
-# import graph of every module listed: a seeded repo runs its own `scripts/` as
-# standalone programs, so a module that is imported but not copied makes the
-# vendored validator die on import rather than report a finding. See
-# test_bootstrap_vendored_validator_runs_standalone, which executes the seeded
-# validator as a subprocess — validating a seeded repo in-process cannot catch
-# this, because the parent checkout satisfies the import from sys.path.
-MODULES = (
-    "repo_model.py", "validate_repo.py", "validate_research.py", "generate_dashboard.py",
-    "generate_spec.py", "init_repo.py", "new.py", "check_frozen_surface.py",
-    "frontmatter.py", "repopact_cli.py",
-)
 
 
 def _seed_dir(name: str) -> Path:
@@ -63,17 +52,17 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
     next_review = (today + timedelta(days=90)).isoformat()
     target.mkdir(parents=True, exist_ok=True)
 
-    # Tooling, schemas, and templates come from the installed RepoPact (or checkout).
+    # Schemas and templates come from the installed RepoPact (or checkout). Tooling
+    # is deliberately *not* copied: a seeded repository holds its own state and runs
+    # the installed `repopact` command against it (decision 0029). Vendoring the
+    # modules made a second, unversioned distribution channel whose only test ran it
+    # in a mode it is never used in, which is how a seeded validator shipped broken.
     shutil.copytree(_seed_dir("schemas"), target / "schemas", dirs_exist_ok=True)
     shutil.copytree(_seed_dir("templates"), target / "templates", dirs_exist_ok=True)
-    (target / "scripts").mkdir(exist_ok=True)
-    for name in MODULES:
-        src = HERE / name
-        if src.is_file():
-            shutil.copy2(src, target / "scripts" / name)
 
-    _write(target / "VERSION", (CHECKOUT / "VERSION").read_text(encoding="utf-8")
-           if (CHECKOUT / "VERSION").is_file() else "0.1.0\n")
+    version = ((CHECKOUT / "VERSION").read_text(encoding="utf-8").strip()
+               if (CHECKOUT / "VERSION").is_file() else __version__)
+    _write(target / "VERSION", f"{version}\n")
     _write(target / "requirements.txt", "jsonschema>=4.20\n")
     _write(target / "AGENTS.md",
            "# Agent Contract\n\n"
@@ -134,8 +123,8 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
         (target / empty).mkdir(parents=True, exist_ok=True)
 
     _write(target / "README.md",
-           "# Repository\n\nBootstrapped with RepoPact. Run `repopact validate` "
-           "(or `python scripts/validate_repo.py`).\n")
+           "# Repository\n\nBootstrapped with RepoPact. Run `repopact validate` to check "
+           "the records, and `repopact dashboard` to regenerate the derived projection.\n")
     generate_dashboard.write_dashboard(target, today=today)
     return target
 
@@ -147,8 +136,7 @@ def main() -> int:
     target = args.target.resolve()
     bootstrap(target)
 
-    sys.path.insert(0, str(target / "scripts"))
-    import validate_repo  # noqa: E402  (loaded from the freshly seeded repo)
+    from . import validate_repo
 
     problems = validate_repo.validate(target)
     if problems:

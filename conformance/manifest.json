@@ -7,103 +7,103 @@
     {
       "id": "SPEC-4-record-validity",
       "source": "SPEC.md#3-record-types",
-      "enforced_by": "scripts/validate_repo.py:check_schema",
+      "enforced_by": "repopact/validate_repo.py:check_schema",
       "description": "Governance JSON records satisfy their declared schemas."
     },
     {
       "id": "SPEC-4-contract-coverage",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_contracts",
+      "enforced_by": "repopact/validate_repo.py:validate_contracts",
       "description": "The root contract exists and nested contracts are audit-registered."
     },
     {
       "id": "SPEC-4-identity-agreement",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Record ids, filenames, directories, and lifecycle status agree."
     },
     {
       "id": "SPEC-4-reference-resolution",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Dependencies and other governed references resolve to known records or scopes."
     },
     {
       "id": "SPEC-4-acceptance",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Satisfied criteria have evidence and completed work has no pending criteria."
     },
     {
       "id": "SPEC-4-acyclic-dependencies",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:detect_dependency_cycles",
+      "enforced_by": "repopact/validate_repo.py:detect_dependency_cycles",
       "description": "The work dependency graph is acyclic."
     },
     {
       "id": "SPEC-4-disjoint-active-scopes",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_disjoint_scopes",
+      "enforced_by": "repopact/validate_repo.py:validate_disjoint_scopes",
       "description": "When enabled, active work items do not overlap owner or affected scopes."
     },
     {
       "id": "SPEC-4-version",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_version",
+      "enforced_by": "repopact/validate_repo.py:validate_version",
       "description": "VERSION is semantic MAJOR.MINOR.PATCH."
     },
     {
       "id": "SPEC-4-release-label",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_release_label",
+      "enforced_by": "repopact/validate_repo.py:validate_release_label",
       "description": "The optional RELEASE_LABEL is a SemVer pre-release whose MAJOR.MINOR.PATCH core equals VERSION."
     },
     {
       "id": "SPEC-4-release-surface",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_release_surface",
+      "enforced_by": "repopact/validate_repo.py:validate_release_surface",
       "description": "Where a README advertises a release, it names VERSION and links a changelog that documents it."
     },
     {
       "id": "SPEC-4-provenance",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_provenance",
+      "enforced_by": "repopact/validate_repo.py:validate_provenance",
       "description": "Provisional states are admitted, but completion and concrete claims require concrete evidence."
     },
     {
       "id": "SPEC-4-orphan-work-ledger",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_orphan_work_dirs",
+      "enforced_by": "repopact/validate_repo.py:validate_orphan_work_dirs",
       "description": "Planning directories under work are represented by machine-readable work items."
     },
     {
       "id": "SPEC-4-dashboard-integrity",
       "source": "SPEC.md#4-validation-rules-semantics",
-      "enforced_by": "scripts/validate_repo.py:validate_dashboard",
+      "enforced_by": "repopact/validate_repo.py:validate_dashboard",
       "description": "The canonical derived dashboard exists and matches its source records."
     },
     {
       "id": "SPEC-5-lifecycle-proposed",
       "source": "SPEC.md#5-lifecycle-state-machine",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Proposed work is valid candidate state but cannot authorize active or completed dependencies."
     },
     {
       "id": "INV-2",
       "source": "governance/invariants.json#INV-2",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Completed work has no pending acceptance criteria."
     },
     {
       "id": "INV-3",
       "source": "governance/invariants.json#INV-3",
-      "enforced_by": "scripts/validate_repo.py:validate_work",
+      "enforced_by": "repopact/validate_repo.py:validate_work",
       "description": "Satisfied acceptance criteria link evidence."
     },
     {
       "id": "INV-7",
       "source": "governance/invariants.json#INV-7",
-      "enforced_by": "scripts/validate_repo.py:validate_dashboard",
+      "enforced_by": "repopact/validate_repo.py:validate_dashboard",
       "description": "The derived dashboard is generated rather than hand-maintained."
     }
   ],

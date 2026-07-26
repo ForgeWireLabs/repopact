@@ -9,10 +9,10 @@ evidence record, and a passing validator — the full loop, end to end.
 
 ```
 git clone https://github.com/ForgeWireLabs/repopact
-python repopact/scripts/init_repo.py --target ./my-project
+repopact init --target ./my-project
 cd my-project
 pip install -r requirements.txt
-python scripts/validate_repo.py
+repopact validate
 ```
 
 You now have a valid seed: a root contract, one invariant, one frozen-surface
@@ -22,12 +22,12 @@ entry, a scope/owner map, schemas, and empty lifecycle directories.
 
 Open `governance/invariants.json` and write one invariant that matters for *your*
 project — a guarantee you never want silently weakened. Add a protected path to
-`governance/frozen-surface.json`. Re-run `python scripts/validate_repo.py`.
+`governance/frozen-surface.json`. Re-run `repopact validate`.
 
 ## 3. Capture a work item
 
 ```
-python scripts/new.py work-item "Wire up the health check"
+repopact new work-item "Wire up the health check"
 ```
 
 Edit the generated `work/active/NNN-wire-up-the-health-check/work-item.json`: state
@@ -45,8 +45,8 @@ Move the work-item directory from `work/active/` to `work/completed/`, set
 `status` to `completed`, and regenerate the dashboard:
 
 ```
-python scripts/generate_dashboard.py
-python scripts/validate_repo.py
+repopact dashboard
+repopact validate
 ```
 
 The validator now confirms the work is complete *with proof*. That is the whole

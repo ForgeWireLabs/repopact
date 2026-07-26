@@ -1,6 +1,8 @@
 # 036 — Fix packaging namespace pollution and release-surface drift
 
-> **Status**: 🚧 In progress — AC-3, AC-4, AC-7 landed; AC-1, AC-2, AC-5, AC-6 open.
+> **Status**: ⛔ Blocked — AC-1 and AC-3–AC-6 are proven; AC-7 was superseded
+> by decision `0029`; AC-2 requires separate operator acknowledgement under
+> `INV-6` before the protected schema tree can move.
 > **Owners**: tooling-owner (lead), governance-owner (release-surface rule), docs-owner (README/ROADMAP).
 > **Depends on**: none.
 
@@ -84,60 +86,61 @@ freshness (`033`) — this item must not duplicate them.
 
 ## Decisions
 
-- Converting flat modules to a package changes no public API (the only published
-  entry point is the `repopact` console script), so this is a minor release,
-  not a major one. If review disagrees, promote that discussion to `decisions/`.
+Decision `0029` resolves the package and self-containment questions: RepoPact
+ships one package, seeded repositories contain governed state rather than a
+second copy of the tooling, the installed `repopact` command supplies operations,
+and the breaking interface change belongs to the 3.0.0 line. The operator
+explicitly selected this direction.
 
-## Open question — how self-contained is a seeded repository?
-
-Surfaced by the import-closure test, and needing a maintainer answer before AC-1
-lands. `init_repo.MODULES` vendors ten modules, and the vendored `repopact_cli`
-imports `doctor`, `adopt_repo`, `plan_import`, `takeover`, and `fleet_verify`
-*lazily*, inside their command branches. So the vendored CLI loads, but those five
-subcommands fail in a seeded repo that does not also have RepoPact installed.
-
-That is not a crash and may well be intended — the supported path is presumably
-the installed `repopact` console script, with the vendored copy covering only
-validation and generation. But it is currently undocumented and unasserted, which
-is how the `validate_research` gap survived. Either vendor the full command set,
-or state the boundary in `SPEC.md` and assert it. Do not leave it implicit.
+That decision deliberately excludes AC-2. Moving `schemas/` into package data
+would relocate a protected, widely referenced contract surface. `INV-6` therefore
+requires a separate operator acknowledgement before that work begins.
 
 ## Scope
 
-Landed in this work item:
+Landed and proven in this work item:
 
-- `scripts/validate_repo.py`: `validate_release_surface` (decision `0028`), plus
+- `repopact/validate_repo.py`: `validate_release_surface` (decision `0028`), plus
   its `SPEC.md` rule 11, conformance rule `SPEC-4-release-surface`, and the
   `invalid/readme-release-drift` fixture.
-- `scripts/init_repo.py`: `validate_research.py` added to `MODULES`.
 - `README.md`, `ROADMAP.md`: repaired drift.
-- `tests/test_validate_repo.py`: release-surface cases, vendored-module import
-  closure, and the standalone seeded-validator subprocess test.
+- The flat modules are now package-relative `repopact.*` modules; the built
+  wheel declares only `repopact` in `top_level.txt` and exposes no generic root
+  modules.
+- `repopact init` and `repopact adopt` use installed tooling instead of copying
+  a `scripts/` distribution into each repository (decision `0029`).
+- `governance/owners.json` opts the upstream checkout into exact tracked-path
+  ownership, with deterministic validation for missing and overlapping scopes.
+- The full 127-test suite passes in 114.165 seconds locally (two declared
+  formal-model skips), below the two-minute acceptance threshold.
 
-Still to change:
+Blocked remainder:
 
-- `pyproject.toml`, `scripts/` → `repopact/` package layout, seed-data loading
-  in `init_repo`/`adopt_repo`/`doctor` (AC-1, AC-2).
-- `governance/owners.json` + a coverage rule (AC-6).
-- `tests/`: shared bootstrap fixtures to cut wall time (AC-5).
+- Relocate `schemas/` and `templates/` into package data, replace setuptools
+  `data-files` with `importlib.resources`, and rerun clean-wheel `init`/`adopt`
+  proof (AC-2). No protected schema path was moved in the completed slice.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** Wheel installs exactly one top-level import name (`repopact`); no
+- [x] **AC-1** Wheel installs exactly one top-level import name (`repopact`); no
   generic top-level modules; verified by evidence run inspecting wheel contents.
 - [ ] **AC-2** Seeds ship as package data via `importlib.resources`; `data-files`
   removed; `init`/`adopt` proven from a wheel install in a clean venv.
 - [x] **AC-3** Validator enforces README release-line parity with `VERSION` and a
   resolving changelog link; current README repaired; regression test added.
 - [x] **AC-4** ROADMAP reconciled with the released 2.3.0 line.
-- [ ] **AC-5** Test suite under 2 minutes locally, or an accepted decision records
+- [x] **AC-5** Test suite under 2 minutes locally, or an accepted decision records
   why the cost stands.
-- [ ] **AC-6** Every tracked path resolves to one owner scope or is declared
+- [x] **AC-6** Every tracked path resolves to one owner scope or is declared
   unowned, enforced by a validator rule.
-- [x] **AC-7** A `repopact init` repository runs its own vendored validator,
-  proven by a subprocess regression test that fails without the fix.
+- [x] **AC-7 (waived by decision `0029`)** The original vendored-validator
+  failure was reproduced and fixed, then the accepted package architecture
+  removed the vendored-tooling channel entirely. Seeded repositories now use
+  installed tooling, covered by package-install bootstrap tests.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+AC-2 remains pending until the operator separately approves the protected schema
+relocation. Keep the item blocked and regenerate the dashboard after this
+transition; do not move it to `work/completed/` without that approval and linked
+clean-wheel package-data evidence.

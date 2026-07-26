@@ -74,7 +74,7 @@ repopact dashboard
 Alternative implementations can run the published conformance suite:
 
 ```powershell
-python scripts/run_conformance.py --command "your-validator --root {repo}"
+python -m repopact.run_conformance --command "your-validator --root {repo}"
 ```
 
 See [`CONFORMANCE.md`](CONFORMANCE.md) and [`conformance/`](conformance/).

@@ -18,12 +18,9 @@ from pathlib import Path
 import jsonschema
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-from validate_repo import validate  # noqa: E402
-import generate_dashboard  # noqa: E402
-
-import run_conformance  # noqa: E402
+from repopact.validate_repo import validate  # noqa: E402
+from repopact import generate_dashboard, run_conformance  # noqa: E402
 
 MANIFEST = ROOT / "conformance" / "manifest.json"
 FIXTURES = ROOT / "conformance" / "fixtures"
@@ -75,7 +72,7 @@ class ConformanceTests(unittest.TestCase):
 
     def test_manifest_matches_reference_suite(self) -> None:
         results = run_conformance.run_suite(
-            f'"{sys.executable}" "{ROOT / "scripts" / "validate_repo.py"}" --root "{{repo}}"',
+            f'"{sys.executable}" -m repopact.cli validate --root "{{repo}}"',
             MANIFEST,
         )
         self.assertTrue(results, "no conformance cases found")

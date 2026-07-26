@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from repo_model import load_json
+from .repo_model import load_json
 
 ROOT = Path(__file__).resolve().parents[1]
 

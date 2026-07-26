@@ -14,14 +14,14 @@
       "statement": "A completed work item has zero pending acceptance criteria.",
       "rationale": "Completion must mean the declared outcome was actually reached.",
       "escalation": "Move the item back to active or waive the criterion with rationale; never relabel.",
-      "enforced_by": "scripts/validate_repo.py:validate_work (completed item has pending criterion)"
+      "enforced_by": "repopact/validate_repo.py:validate_work (completed item has pending criterion)"
     },
     {
       "id": "INV-3",
       "statement": "A satisfied acceptance criterion has linked evidence.",
       "rationale": "Confidence is not evidence; completion requires proof.",
       "escalation": "Produce an evidence run and link it, or set the criterion to pending or waived.",
-      "enforced_by": "scripts/validate_repo.py:validate_work (satisfied without evidence)"
+      "enforced_by": "repopact/validate_repo.py:validate_work (satisfied without evidence)"
     },
     {
       "id": "INV-4",
@@ -42,7 +42,7 @@
       "statement": "Changes to the declared frozen surface require explicit human operator approval.",
       "rationale": "Some paths and symbols are load-bearing; silent edits to them cause disproportionate damage.",
       "escalation": "Flag the intended change, name the protected entry, and obtain operator sign-off before implementing.",
-      "enforced_by": "scripts/check_frozen_surface.py"
+      "enforced_by": "repopact/check_frozen_surface.py"
     },
     {
       "id": "INV-7",

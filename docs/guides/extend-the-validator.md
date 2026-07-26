@@ -2,7 +2,7 @@
 
 *Diataxis mode: how-to (task-oriented).*
 
-The validator (`scripts/validate_repo.py`) splits work in two layers (decision
+The validator (`repopact/validate_repo.py`) splits work in two layers (decision
 [`0003`](../../decisions/0003-validate-records-against-json-schemas.md)):
 
 - **Schemas** (`schemas/*.json`) are authoritative for record *structure*.

@@ -35,11 +35,11 @@ import sys
 from datetime import date
 from pathlib import Path
 
-import generate_dashboard
+from . import generate_dashboard
 
-import adopt_repo
-import plan_import
-import validate_repo
+from . import adopt_repo
+from . import plan_import
+from . import validate_repo
 
 
 def _git(root: Path, args: list[str]) -> str | None:

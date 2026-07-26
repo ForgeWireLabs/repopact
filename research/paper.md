@@ -421,12 +421,12 @@ This two-layer design keeps the standard implementable. Schema validation handle
 
 ### 4.3 Conformance
 
-A standard without conformance is a convention. RepoPact therefore publishes a versioned conformance surface in the repository itself: `CONFORMANCE.md`, the fixture corpus under `conformance/`, the suite manifest at `conformance/manifest.json`, and the runner `scripts/run_conformance.py`.
+A standard without conformance is a convention. RepoPact therefore publishes a versioned conformance surface in the repository itself: `CONFORMANCE.md`, the fixture corpus under `conformance/`, the suite manifest at `conformance/manifest.json`, and the runner `repopact/run_conformance.py`.
 
 The suite is organized around a minimal valid RepoPact repository plus invalid overlays. Each case declares the rule or invariant it exercises, the expected accept or reject outcome, and the diagnostic text or rule identity required for rejection. Lifecycle and authority semantics are part of the surface, not just record shape: when the `proposed` state was added, the suite gained both a valid fixture containing a proposed item and a rejection overlay in which active work depends on proposed work. A conformant implementation must reproduce the authority semantics, not merely parse the records. The reference implementation is checked with:
 
 ```powershell
-python scripts/run_conformance.py
+python -m repopact.run_conformance
 ```
 
 Alternative implementations are checked by passing a validator command template to the same runner. The runner materializes each fixture repository and invokes the supplied command against it.

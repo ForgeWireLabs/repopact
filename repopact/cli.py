@@ -1,7 +1,7 @@
 """The `repopact` console entry point (work item 005, issue #2).
 
 A thin dispatcher over the existing tooling so adopters can run `repopact init`
-instead of `python scripts/init_repo.py`. Every subcommand except `init` operates
+rather than invoking modules directly. Every subcommand except `init` operates
 on the current working directory (or `--root`), so the installed command works
 against the user's repository rather than the install location.
 """
@@ -15,7 +15,7 @@ from pathlib import Path
 
 import jsonschema
 
-from repo_model import STATUSES
+from .repo_model import STATUSES
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -82,10 +82,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     if args.command == "init":
-        import init_repo
+        from . import init_repo
         target = args.target.resolve()
         init_repo.bootstrap(target)
-        import validate_repo
+        from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
             for p in problems:
@@ -96,14 +96,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "adopt":
-        import adopt_repo
+        from . import adopt_repo
         target = args.target.resolve()
         rep = adopt_repo.adopt(target, dry_run=args.dry_run)
         adopt_repo._print_report(rep)
         if args.dry_run:
             print("\nDry run: nothing written. Re-run without --dry-run to apply.")
             return 0
-        import validate_repo
+        from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
             for p in problems:
@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.resolve()
 
     if args.command in {"fleet-verify", "release-closeout"}:
-        import fleet_verify
+        from . import fleet_verify
         try:
             report = fleet_verify.verify_fleet(
                 root,
@@ -140,7 +140,8 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     if args.command == "doctor":
-        import doctor, validate_repo
+        from . import doctor
+        from . import validate_repo
         if args.fix:
             for a in (doctor.fix(root) or ["nothing to fix"]):
                 print(f"  ~ {a}")
@@ -158,7 +159,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if errs or problems else 0
 
     if args.command == "takeover":
-        import takeover
+        from . import takeover
         report = takeover.takeover(root, delete=args.delete, dry_run=args.dry_run)
         rc = takeover._print(report, args.dry_run)
         if args.dry_run:
@@ -166,13 +167,13 @@ def main(argv: list[str] | None = None) -> int:
         return rc
 
     if args.command == "import-plan":
-        import plan_import
+        from . import plan_import
         rep = plan_import.import_plan(root, dry_run=args.dry_run, import_issues=args.issues)
         plan_import._print(rep)
         if args.dry_run:
             print("\nDry run: nothing written.")
             return 0
-        import validate_repo
+        from . import validate_repo
         problems = validate_repo.validate(root)
         for p in problems:
             print(f"ERROR {p.path.relative_to(root)}: {p.message}")
@@ -181,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if problems else 0
 
     if args.command == "validate":
-        import validate_repo
+        from . import validate_repo
         problems = validate_repo.validate(root)
         for p in problems:
             print(f"ERROR {p.path.relative_to(root)}: {p.message}")
@@ -190,13 +191,13 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if problems else 0
 
     if args.command == "dashboard":
-        import generate_dashboard
+        from . import generate_dashboard
         out = generate_dashboard.write_dashboard(root)
         print(f"Generated {out.relative_to(root)}")
         return 0
 
     if args.command == "spec":
-        import generate_spec
+        from . import generate_spec
         spec = root / "SPEC.md"
         if not spec.is_file():
             print(
@@ -212,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "new":
-        import new
+        from . import new
         if args.kind == "work-item":
             path = new.new_work_item(args.title, date.today(), root, status=args.status)
         else:
@@ -221,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "check-frozen":
-        import check_frozen_surface
+        from . import check_frozen_surface
         hits = check_frozen_surface.violations(root, args.base)
         if not hits:
             print("No frozen-surface changes detected.")

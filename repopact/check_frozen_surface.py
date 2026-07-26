@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from repo_model import load_json
+from .repo_model import load_json
 
 
 # Each entry is a diff range/flags that exposes a class of change: committed branch

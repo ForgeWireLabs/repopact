@@ -18,7 +18,7 @@ A committed second copy would diverge from the real schemas and tooling (policy
 
 ```
 python scripts/init_repo.py --target ./example-repo
-cd example-repo && python scripts/validate_repo.py
+cd example-repo && repopact validate
 ```
 
 That produces the smallest valid RepoPact: a root contract, one invariant, one

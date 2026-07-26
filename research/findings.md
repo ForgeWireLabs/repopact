@@ -124,7 +124,7 @@ readiness bar: an existing project's ownership, enforcement, and contracts becom
 first-class RepoPact records without a rewrite. Greenfield proof (the proving ground)
 plus brownfield proof (forgewire) together support the 1.0 declaration.
 
-**Status:** **shipped.** `scripts/adopt_repo.py` + `repopact adopt` (work item 008,
+**Status:** **shipped.** `repopact/adopt_repo.py` + `repopact adopt` (work item 008,
 decision 0008), 4 regression tests, re-verifiable via capture
 [004](captures/004-brownfield-forgewire.md).
 

@@ -5,18 +5,18 @@ $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("repopact-demo-" + [System.G
 function Step($t) { Write-Host "`n$ $t" -ForegroundColor Cyan }
 
 try {
-    Step "python scripts/init_repo.py --target $tmp/demo"
-    python "$here/scripts/init_repo.py" --target "$tmp/demo"
+    Step "repopact init --target $tmp/demo"
+    python -m repopact.cli init --target "$tmp/demo"
 
     Set-Location "$tmp/demo"
-    Step "python scripts/validate_repo.py"
-    python scripts/validate_repo.py
+    Step "repopact validate"
+    python -m repopact.cli validate
 
-    Step 'python scripts/new.py work-item "Demo work"'
-    python scripts/new.py work-item "Demo work"
+    Step 'repopact new work-item "Demo work"'
+    python -m repopact.cli new work-item "Demo work"
 
-    Step "python scripts/validate_repo.py   # active item with a pending criterion is fine"
-    python scripts/validate_repo.py
+    Step "repopact validate   # active item with a pending criterion is fine"
+    python -m repopact.cli validate
 
     Step "mark the criterion satisfied WITHOUT evidence, then validate (expect failure)"
     $item = (Get-ChildItem work/active -Directory | Select-Object -First 1).FullName
@@ -24,7 +24,7 @@ try {
     $d = Get-Content $manifest -Raw | ConvertFrom-Json
     $d.acceptance_criteria[0].state = "satisfied"
     $d | ConvertTo-Json -Depth 10 | Set-Content $manifest
-    python scripts/validate_repo.py
+    python -m repopact.cli validate
     if ($LASTEXITCODE -ne 0) { Write-Host "`nValidator rejected it — completion requires proof." -ForegroundColor Yellow }
 }
 finally {

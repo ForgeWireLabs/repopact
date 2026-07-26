@@ -58,5 +58,5 @@ If a subtree needs its own `AGENTS.md`, add a row to `audits/registry.json` for 
 ## Verify
 
 ```
-python scripts/validate_repo.py
+repopact validate
 ```

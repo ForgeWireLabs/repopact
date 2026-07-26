@@ -21,7 +21,7 @@ import re
 from datetime import date
 from pathlib import Path
 
-import adopt_repo
+from . import adopt_repo
 
 TRACKING_DIR_NAMES = ("tracking", "track")
 DECISION_STATUSES = ("proposed", "accepted", "rejected", "deferred", "superseded", "deprecated")

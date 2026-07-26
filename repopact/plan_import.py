@@ -29,8 +29,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
 
-import adopt_repo  # reuse Report and _slug
-import generate_dashboard
+from . import adopt_repo  # reuse Report and _slug
+from . import generate_dashboard
 
 PLAN_DIR_NAMES = ("todos", "todo", "tasks", "plan", "planning", "backlog")
 CHECKLIST_FILES = ("TODO.md", "TODOS.md", "ROADMAP.md", "BACKLOG.md", "PLAN.md", "TASKS.md")
@@ -358,7 +358,7 @@ def import_plan(root: Path, today: date | None = None, dry_run: bool = False,
         rep.write(wi_dir / "README.md", header + (narrative or "_(no narrative in source)_\n"), root)
 
     # A `tracking/` governance system maps to decisions/, findings, and work items.
-    import track_import
+    from . import track_import
     track_import.import_tracking(root, rep, today)
     if not dry_run:
         generate_dashboard.write_dashboard(root, today=today)
@@ -391,7 +391,7 @@ def main() -> int:
     if args.dry_run:
         print("\nDry run: nothing written.")
         return 0
-    import validate_repo
+    from . import validate_repo
     problems = validate_repo.validate(root)
     if problems:
         for p in problems:

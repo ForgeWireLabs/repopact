@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -11,10 +13,10 @@ from pathlib import Path
 
 import jsonschema
 
-from frontmatter import FrontMatterError, parse_file
-import generate_dashboard
-import validate_research
-from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
+from .frontmatter import FrontMatterError, parse_file
+from . import generate_dashboard
+from . import validate_research
+from .repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
 REQUIRED_WORK_FIELDS = {
@@ -47,19 +49,27 @@ def validate_dates(value: object, field: str, path: Path, problems: list[Problem
 # --- schema layer (decision 0003) ------------------------------------------
 
 _SCHEMA_CACHE: dict[tuple[str, str], dict] = {}
+_VALIDATOR_CACHE: dict[int, jsonschema.Draft202012Validator] = {}
 
 
 def load_schema(root: Path, name: str) -> dict:
-    key = (str(root), name)
+    raw = (root / "schemas" / name).read_bytes()
+    # Test fixtures and adopter checkouts normally carry byte-identical schemas
+    # at different roots. Cache by content, not path, so a full validation suite
+    # does not parse and compile the same contracts hundreds of times.
+    key = (name, hashlib.sha256(raw).hexdigest())
     if key not in _SCHEMA_CACHE:
-        _SCHEMA_CACHE[key] = load_json(root / "schemas" / name)
+        _SCHEMA_CACHE[key] = json.loads(raw)
     return _SCHEMA_CACHE[key]
 
 
 def check_schema(instance: object, schema: dict, path: Path, problems: list[Problem]) -> None:
     """Structural validation. Schemas are authoritative for shape; the validator
     functions below are authoritative for cross-record semantics (decision 0003)."""
-    validator = jsonschema.Draft202012Validator(schema)
+    validator = _VALIDATOR_CACHE.get(id(schema))
+    if validator is None:
+        validator = jsonschema.Draft202012Validator(schema)
+        _VALIDATOR_CACHE[id(schema)] = validator
     for error in sorted(validator.iter_errors(instance), key=lambda e: list(e.path)):
         location = "/".join(str(part) for part in error.path) or "<root>"
         problems.append(Problem(path, f"schema {location}: {error.message}"))
@@ -300,6 +310,66 @@ def validate_adopter_manifest(root: Path, problems: list[Problem]) -> None:
                 problems.append(Problem(path, f"vendored overlay checksum drift: {contract.get('overlay_path')}"))
 
 
+def discover_tracked_paths(root: Path) -> list[str] | None:
+    """Return Git-tracked paths, or ``None`` when the target is not a checkout.
+
+    Ownership is a source-control property: generated caches and installed seed
+    trees are deliberately outside this rule. A checkout is validated against the
+    index so every path that can be committed has exactly one declared owner.
+    """
+    # Ordinary checkouts use a `.git` directory and linked worktrees use a
+    # `.git` file. Seeded/exported trees have neither, so avoid spawning Git on
+    # every validation pass for those common targets.
+    if not (root / ".git").exists():
+        return None
+    try:
+        probe = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if probe.returncode != 0 or probe.stdout.strip() != "true":
+            return None
+        result = subprocess.run(
+            ["git", "ls-files", "--cached"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    return sorted(path.replace("\\", "/") for path in result.stdout.splitlines() if path)
+
+
+def validate_tracked_path_ownership(
+    root: Path, scopes: list[dict], owners_path: Path, problems: list[Problem]
+) -> None:
+    tracked = discover_tracked_paths(root)
+    if tracked is None:
+        return
+    declared = [
+        (str(scope.get("id", "")), str(pattern))
+        for scope in scopes
+        if isinstance(scope, dict)
+        for pattern in scope.get("paths", [])
+        if isinstance(pattern, str) and pattern
+    ]
+    for relative in tracked:
+        matches = sorted({scope_id for scope_id, pattern in declared if fnmatch.fnmatchcase(relative, pattern)})
+        if not matches:
+            problems.append(Problem(owners_path, f"tracked path '{relative}' has no owner scope"))
+        elif len(matches) > 1:
+            problems.append(Problem(
+                owners_path,
+                f"tracked path '{relative}' has multiple owner scopes: {', '.join(matches)}",
+            ))
+
+
 def validate_owners(root: Path, problems: list[Problem]) -> tuple[set[str], bool]:
     path = root / "governance" / "owners.json"
     try:
@@ -312,6 +382,15 @@ def validate_owners(root: Path, problems: list[Problem]) -> tuple[set[str], bool
     if len(ids) != len(set(ids)):
         problems.append(Problem(path, "scope IDs must be unique"))
     scope_ids = {str(value) for value in ids if value}
+    for scope in scopes:
+        if not isinstance(scope, dict):
+            problems.append(Problem(path, "each scope must be an object"))
+            continue
+        patterns = scope.get("paths")
+        if not isinstance(patterns, list) or not patterns or any(
+            not isinstance(value, str) or not value for value in patterns
+        ):
+            problems.append(Problem(path, f"scope '{scope.get('id')}' must declare non-empty path patterns"))
     for role in data.get("roles", []):
         if not isinstance(role, dict):
             problems.append(Problem(path, "each role must be an object"))
@@ -319,6 +398,8 @@ def validate_owners(root: Path, problems: list[Problem]) -> tuple[set[str], bool
         for scope in role.get("scopes", []):
             if scope not in scope_ids:
                 problems.append(Problem(path, f"role '{role.get('id')}' references unknown scope '{scope}'"))
+    if data.get("enforce_tracked_path_ownership", False):
+        validate_tracked_path_ownership(root, scopes, path, problems)
     enforce_disjoint = bool(data.get("concurrency", {}).get("enforce_disjoint_active_scopes", False))
     return scope_ids, enforce_disjoint
 

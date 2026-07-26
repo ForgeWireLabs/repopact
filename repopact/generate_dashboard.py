@@ -4,7 +4,7 @@ from collections import Counter
 from datetime import date
 from pathlib import Path
 
-from repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
+from .repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
 def _count_markdown_records(directory: Path) -> int:
@@ -20,10 +20,12 @@ def _count_json_records(directory: Path) -> int:
 
 
 def _spec_version(root: Path) -> str:
-    # Prefer a vendored RepoPact version marker (scripts/REPOPACT_VERSION) so an
+    # Prefer an explicit RepoPact version marker (scripts/REPOPACT_VERSION) so an
     # adopter repository can use its root VERSION file for its own product version
     # without mislabelling the dashboard. Falls back to VERSION, which is the
-    # RepoPact version in this repository.
+    # RepoPact version in this repository. The path predates 3.0.0, when `init`
+    # stopped creating scripts/ (decision 0029); it is still honoured because
+    # repositories seeded before then carry the marker there.
     for candidate in (root / "scripts" / "REPOPACT_VERSION", root / "VERSION"):
         if candidate.is_file():
             return candidate.read_text(encoding="utf-8").strip()

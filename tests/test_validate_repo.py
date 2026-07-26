@@ -1,36 +1,44 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import date
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-import adopt_repo  # noqa: E402
-import plan_import  # noqa: E402
-import takeover  # noqa: E402
-import doctor  # noqa: E402
-import check_frozen_surface  # noqa: E402
-import generate_dashboard  # noqa: E402
-import generate_spec  # noqa: E402
-import init_repo  # noqa: E402
-import repopact_cli  # noqa: E402
-from validate_repo import validate  # noqa: E402
+from repopact import (  # noqa: E402
+    adopt_repo,
+    check_frozen_surface,
+    cli as repopact_cli,
+    doctor,
+    generate_dashboard,
+    generate_spec,
+    init_repo,
+    plan_import,
+    takeover,
+    validate_repo,
+)
+from repopact.validate_repo import validate  # noqa: E402
 
 
 class RepositoryValidationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / "repo"
-        shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        shutil.copytree(
+            ROOT,
+            self.root,
+            ignore=shutil.ignore_patterns(
+                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "*.egg-info"
+            ),
+        )
 
     def tearDown(self) -> None:
         self.temp.cleanup()
@@ -195,7 +203,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(any("not registered in audits/registry.json" in v for v in self.problems()))
 
     def test_existing_audit_companion_must_be_complete(self) -> None:
-        (self.root / "scripts" / "_audit" / "inventory.md").unlink()
+        (self.root / "repopact" / "_audit" / "inventory.md").unlink()
         self.assertTrue(any("incomplete _audit companion" in v for v in self.problems()))
 
     # --- invariants ---------------------------------------------------------
@@ -218,6 +226,15 @@ class RepositoryValidationTests(unittest.TestCase):
         path = self.root / "governance" / "owners.json"
         self.write_json(path, lambda d: d["roles"][0].__setitem__("scopes", ["ghost"]))
         self.assertTrue(any("references unknown scope" in v for v in self.problems()))
+
+    def test_tracked_path_must_have_exactly_one_owner_scope(self) -> None:
+        with mock.patch.object(validate_repo, "discover_tracked_paths", return_value=["unowned.txt"]):
+            self.assertTrue(any("has no owner scope" in value for value in self.problems()))
+
+        owners = self.root / "governance" / "owners.json"
+        self.write_json(owners, lambda data: data["scopes"][0]["paths"].append("README.md"))
+        with mock.patch.object(validate_repo, "discover_tracked_paths", return_value=["README.md"]):
+            self.assertTrue(any("has multiple owner scopes" in value for value in self.problems()))
 
     # --- decisions and policies --------------------------------------------
 
@@ -504,72 +521,18 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue((target / "work" / "proposed").is_dir())
         self.assertEqual([], [p.message for p in validate(target)])
 
-    def test_vendored_modules_are_closed_under_module_scope_imports(self) -> None:
-        """`init_repo.MODULES` must contain every sibling its members import at
-        module scope.
-
-        A module-scope import of an uncopied sibling makes the vendored module die
-        on import — the seeded repo cannot run it at all. The subprocess test below
-        proves that for the validator specifically; this proves it for every
-        vendored module at parse speed, so a future entry point cannot quietly
-        acquire an uncopied dependency.
-
-        Deliberately limited to module scope. `repopact_cli` imports `doctor`,
-        `adopt_repo`, `plan_import`, `takeover`, and `fleet_verify` lazily inside
-        their command branches, so it loads fine when they are absent and only
-        those subcommands are unavailable. Whether a seeded repo should vendor the
-        full command set is an open design question recorded in work item 036, not
-        a crash, so it is not asserted here.
-        """
-        import ast
-
-        def module_scope_imports(body: list[ast.stmt]) -> set[str]:
-            """Imports reachable without entering a function or class body."""
-            found: set[str] = set()
-            for node in body:
-                if isinstance(node, ast.Import):
-                    found.update(alias.name.split(".")[0] for alias in node.names)
-                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                    found.add(node.module.split(".")[0])
-                elif isinstance(node, (ast.If, ast.Try, ast.With)):
-                    for attr in ("body", "orelse", "finalbody", "handlers"):
-                        for child in getattr(node, attr, []) or []:
-                            nested = child.body if isinstance(child, ast.ExceptHandler) else [child]
-                            found |= module_scope_imports(nested)
-            return found
-
-        siblings = {path.stem for path in (ROOT / "scripts").glob("*.py")}
-        vendored = {name[:-3] for name in init_repo.MODULES}
-        missing: dict[str, set[str]] = {}
-        for name in sorted(vendored):
-            tree = ast.parse((ROOT / "scripts" / f"{name}.py").read_text(encoding="utf-8"))
-            gap = (module_scope_imports(tree.body) & siblings) - vendored
-            if gap:
-                missing[name] = gap
-        self.assertEqual(
-            {}, missing,
-            f"vendored modules import siblings that init_repo.MODULES does not copy: {missing}",
-        )
-
-    def test_bootstrap_vendored_validator_runs_standalone(self) -> None:
-        """A seeded repository must be able to run its own vendored validator.
-
-        Validating a seeded repo in-process (the test above) proves its *records*
-        are valid but never executes the copied `scripts/`: the parent checkout is
-        already on `sys.path`, so any module the vendored validator imports
-        resolves whether or not it was copied. Running it as a subprocess with an
-        empty PYTHONPATH is what actually exercises the seed, and is what caught
-        `validate_repo` importing a module missing from `init_repo.MODULES`.
-        """
-        target = Path(self.temp.name) / "seeded-standalone"
+    def test_bootstrap_uses_installed_tooling_instead_of_vendoring_modules(self) -> None:
+        """A seeded repository contains state, while the package supplies tooling."""
+        target = Path(self.temp.name) / "seeded-package-tooling"
         init_repo.bootstrap(target)
-        env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+        self.assertFalse((target / "scripts").exists())
         proc = subprocess.run(
-            [sys.executable, str(target / "scripts" / "validate_repo.py"), "--root", str(target)],
-            capture_output=True, text=True, env=env, cwd=str(target),
+            [sys.executable, "-m", "repopact.cli", "validate", "--root", str(target)],
+            capture_output=True,
+            text=True,
+            cwd=str(ROOT),
         )
         output = proc.stdout + proc.stderr
-        self.assertNotIn("ModuleNotFoundError", output)
         self.assertEqual(0, proc.returncode, output)
 
     # --- SPEC generator determinism (004) ----------------------------------

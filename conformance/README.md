@@ -21,14 +21,14 @@ plus unexpected violations are a failure, not a partial pass.
 Run the reference implementation:
 
 ```powershell
-python scripts/run_conformance.py
+python -m repopact.run_conformance
 ```
 
 Run another implementation by passing a command template. The runner replaces
 `{repo}` with a temporary fixture repository path:
 
 ```powershell
-python scripts/run_conformance.py --command "my-repopact-validator --root {repo}"
+python -m repopact.run_conformance --command "my-repopact-validator --root {repo}"
 ```
 
 An implementation claiming conformance must accept every `accept` case and reject

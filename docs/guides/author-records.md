@@ -3,12 +3,12 @@
 *Diataxis mode: how-to (task-oriented).*
 
 Every durable record has a template in [`templates/`](../../templates/) and a
-schema in [`schemas/`](../../schemas/). Stamp the common ones with `scripts/new.py`.
+schema in [`schemas/`](../../schemas/). Stamp the common ones with `repopact new`.
 
 ## Work item
 
 ```
-python scripts/new.py work-item "Short imperative title"
+repopact new work-item "Short imperative title"
 ```
 
 Creates `work/active/NNN-slug/` with `work-item.json` and a README. Set at least
@@ -18,7 +18,7 @@ README current — show the evolution, do not overwrite it.
 ## Decision (ADR)
 
 ```
-python scripts/new.py decision "Adopt X over Y"
+repopact new decision "Adopt X over Y"
 ```
 
 Use a decision when a choice is hard to reverse and its rationale will outlive the
@@ -28,7 +28,7 @@ reconstruct. Never edit a superseded decision; set its status and link forward.
 ## Policy
 
 ```
-python scripts/new.py policy "Durable rule name"
+repopact new policy "Durable rule name"
 ```
 
 Use a policy for a continuous operating rule that is not itself a binding invariant
@@ -51,5 +51,5 @@ it spawns a work item.
 ## Verify
 
 ```
-python scripts/validate_repo.py
+repopact validate
 ```

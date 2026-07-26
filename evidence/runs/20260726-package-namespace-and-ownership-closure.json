@@ -1,0 +1,77 @@
+{
+  "$schema": "../../schemas/evidence-run.schema.json",
+  "id": "20260726-package-namespace-and-ownership-closure",
+  "timestamp": "2026-07-26T13:30:00-05:00",
+  "work_item": "036",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m build --outdir %TEMP%\\repopact-wheel-probe-...\\dist",
+      "exit_code": 0,
+      "summary": "Built repopact-2.3.0-py3-none-any.whl and its source distribution from the package-layout branch."
+    },
+    {
+      "command": "inspect wheel ZIP, dist-info/top_level.txt, and SHA-256",
+      "exit_code": 0,
+      "summary": "The wheel contains 38 entries; top_level.txt is exactly 'repopact', the only import root is repopact, and there are no generic root Python modules. SHA-256: 09EE659C4253C28C1B22EE6E8A6CE91908D139A573C3CE6CEE6B7520A9374984."
+    },
+    {
+      "command": "python -m venv %TEMP%\\repopact-wheel-probe-...\\venv; <venv>\\python -m pip install repopact-2.3.0-py3-none-any.whl",
+      "exit_code": 0,
+      "summary": "Installed the freshly built wheel and its dependencies into an isolated Windows virtual environment. `repopact.__version__` was 2.3.0, while import discovery for the former generic `frontmatter` and `doctor` module names returned None."
+    },
+    {
+      "command": "<isolated-venv>\\repopact init --target <seeded>; <isolated-venv>\\repopact validate --root <seeded>",
+      "exit_code": 0,
+      "summary": "A repository initialized by the installed wheel validated successfully, reported VERSION 2.3.0, and contained governed records but no scripts/ tooling copy, as required by accepted decision 0029."
+    },
+    {
+      "command": "git init <adopted>; <isolated-venv>\\repopact adopt --target <adopted>; <isolated-venv>\\repopact validate --root <adopted>",
+      "exit_code": 0,
+      "summary": "Adoption from the installed wheel created 27 governed records and the adopted repository validated successfully without a scripts/ tooling copy. This is a package-install smoke test; AC-2 remains pending because the wheel still uses setuptools data-files rather than importlib.resources."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "All 127 tests passed in 114.165 seconds (114.757 seconds wall clock), with only the two declared formal-model obligations skipped. Cache-pruned test copies, content-keyed schema/validator reuse, and a no-Git fast path for exported/seeded trees reduced the suite below the two-minute acceptance threshold."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "All 20 conformance cases passed."
+    },
+    {
+      "command": "python -m unittest -v tests.test_validate_repo.RepositoryValidationTests.test_tracked_path_must_have_exactly_one_owner_scope",
+      "exit_code": 0,
+      "summary": "The ownership regression test passed for both failure modes: a tracked path with no owner and a tracked path matching multiple scopes. The upstream owners record explicitly enables the checkout-relative rule; adopters remain unaffected until they opt in."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "The acknowledged diff contains only two protected-path changes: governance/invariants.json updates enforced_by module paths after the accepted package move, and .github/workflows/governance.yml invokes the accepted installed-package interface. Decision 0029 records the operator's explicit selection of that interface change. No schema path or schema content was moved; AC-2 remains blocked on separate INV-6 acknowledgement."
+    }
+  ],
+  "artifacts": [
+    "pyproject.toml",
+    "repopact/",
+    "governance/owners.json",
+    "governance/invariants.json",
+    ".github/workflows/governance.yml",
+    "tests/test_validate_repo.py",
+    "tests/test_conformance.py",
+    "decisions/0029-ship-a-repopact-package-and-stop-vendoring-tooling-into-seeded-repositories.md",
+    "work/blocked/036-fix-packaging-namespace-pollution-and-release-surface-drift/"
+  ],
+  "environment": {
+    "date": "2026-07-26",
+    "os": "Windows",
+    "python": "3.12.4",
+    "repopact_version": "2.3.0",
+    "wheel_sha256": "09EE659C4253C28C1B22EE6E8A6CE91908D139A573C3CE6CEE6B7520A9374984",
+    "conformance_cases": 20,
+    "unit_tests": 127,
+    "formal_model_skips": 2,
+    "unit_test_wall_seconds": 114.757
+  }
+}

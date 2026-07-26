@@ -23,8 +23,8 @@ import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-import generate_dashboard
-import init_repo  # reuse _seed_dir, _json/_write semantics, LIFECYCLE
+from . import generate_dashboard
+from . import init_repo  # reuse _seed_dir, _json/_write semantics, LIFECYCLE
 
 
 # --- non-destructive primitives --------------------------------------------
@@ -116,7 +116,7 @@ def parse_codeowners(root: Path) -> dict[str, list[str]]:
 def find_nested_contracts(root: Path) -> list[Path]:
     """Nested AGENTS.md contracts, using the validator's own discovery (which excludes
     tooling caches and test fixtures) so adopt/doctor stay consistent with validation."""
-    import repo_model
+    from . import repo_model
     return [c for c in repo_model.iter_contracts(root) if c.parent != root]
 
 
@@ -376,7 +376,7 @@ def main() -> int:
         print("\nDry run: nothing written. Re-run without --dry-run to apply.")
         return 0
 
-    import validate_repo
+    from . import validate_repo
     problems = validate_repo.validate(target)
     if problems:
         for p in problems:

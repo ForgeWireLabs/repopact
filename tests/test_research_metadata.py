@@ -1,24 +1,28 @@
 from __future__ import annotations
 
 import shutil
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-import validate_research  # noqa: E402
-from validate_repo import validate as validate_repo  # noqa: E402
+from repopact import validate_research  # noqa: E402
+from repopact.validate_repo import validate as validate_repo  # noqa: E402
 
 
 class ResearchMetadataTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name) / "repo"
-        shutil.copytree(ROOT, self.root, ignore=shutil.ignore_patterns(".git", "__pycache__"))
+        shutil.copytree(
+            ROOT,
+            self.root,
+            ignore=shutil.ignore_patterns(
+                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "*.egg-info"
+            ),
+        )
 
     def tearDown(self) -> None:
         self.temp.cleanup()

@@ -2,7 +2,7 @@
   "$schema": "../../../schemas/work-item.schema.json",
   "id": "036",
   "title": "Fix packaging namespace pollution and release-surface drift",
-  "status": "active",
+  "status": "blocked",
   "owner_scope": "tooling",
   "affected_scopes": [
     "governance",
@@ -19,8 +19,8 @@
     {
       "id": "AC-1",
       "text": "The published distribution installs exactly one top-level import name (a real `repopact` package) plus the console script; no generic top-level modules (`frontmatter`, `doctor`, `new`, `takeover`, `init_repo`, ...) land in site-packages. Verified by an evidence run that inspects the built wheel's contents.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260726-package-namespace-and-ownership-closure"]
     },
     {
       "id": "AC-2",
@@ -43,22 +43,22 @@
     {
       "id": "AC-5",
       "text": "Test-suite wall time is profiled and reduced from ~5.5 minutes to under 2 minutes locally (shared bootstrap fixtures instead of per-test init/adopt), or a decision records why the cost is accepted.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260726-package-namespace-and-ownership-closure"]
     },
     {
       "id": "AC-7",
       "text": "A repository created by `repopact init` can run its own vendored tooling. Found live on main and fixed here: `scripts/validate_repo.py` imports `validate_research`, which `init_repo.MODULES` did not copy, so a seeded repo's validator died with ModuleNotFoundError instead of validating. The existing bootstrap test missed it because it validated in-process, where the parent checkout satisfies the import from sys.path. A regression test now executes the seeded validator as a subprocess with PYTHONPATH cleared, and fails without the fix.",
-      "state": "satisfied",
-      "evidence": ["20260725-release-surface-and-vendored-tooling"]
+      "state": "waived",
+      "evidence": ["20260725-release-surface-and-vendored-tooling", "20260726-package-namespace-and-ownership-closure"]
     },
     {
       "id": "AC-6",
       "text": "Every tracked path resolves to exactly one owner scope, or is explicitly declared unowned. At review time 82 of 323 tracked files (25%) matched no scope in governance/owners.json — including README.md, VERSION, pyproject.toml, CONFORMANCE.md, and all of conformance/, audits/, and templates/ — silently violating the AGENTS.md non-overlap principle and leaving the two surfaces this work item repairs ungoverned. A validator rule enforces the coverage the contract already claims.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260726-package-namespace-and-ownership-closure"]
     }
   ],
   "created": "2026-07-25",
-  "updated": "2026-07-25"
+  "updated": "2026-07-26"
 }

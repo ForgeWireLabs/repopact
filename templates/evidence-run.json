@@ -5,7 +5,7 @@
   "work_item": "NNN",
   "result": "passed",
   "commands": [
-    {"command": "python scripts/validate_repo.py", "exit_code": 0, "summary": "What this command proved."}
+    {"command": "repopact validate", "exit_code": 0, "summary": "What this command proved."}
   ],
   "artifacts": [],
   "environment": {"python": "3.13", "platform": "win32"}

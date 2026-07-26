@@ -12,7 +12,7 @@ Read [`AGENTS.md`](AGENTS.md) (the contract), then
 
 ## The loop
 
-1. **Capture intent.** `python scripts/new.py work-item "Short title"`, then fill in
+1. **Capture intent.** `repopact new work-item "Short title"`, then fill in
    the README and at least one acceptance criterion.
 2. **Stay in scope.** Keep each change within one role's scope
    (`governance/owners.json`). Honor the invariants and the frozen surface.
@@ -26,10 +26,10 @@ Read [`AGENTS.md`](AGENTS.md) (the contract), then
 
 ```
 pip install -r requirements.txt
-python scripts/validate_repo.py
+repopact validate
 python -m unittest discover -s tests -v
-python scripts/generate_dashboard.py
-python scripts/generate_spec.py
+repopact dashboard
+repopact spec
 ```
 
 CI runs the same gates and fails if a derived artifact is stale or validation does
@@ -44,7 +44,7 @@ maintainer approval (INV-6). Call it out explicitly in your PR.
 ## Decisions
 
 If your change makes a material, hard-to-reverse choice, add a decision record
-(`python scripts/new.py decision "..."`) so the rationale outlives the work item.
+(`repopact new decision "..."`) so the rationale outlives the work item.
 
 ## Conduct
 

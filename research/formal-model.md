@@ -2,7 +2,7 @@
 
 *Companion to [`paper-outline.md`](paper-outline.md) §3 ("The model"). This document
 gives RepoPact an operational semantics, stated to remain faithful to the reference
-implementation ([`scripts/validate_repo.py`](../scripts/validate_repo.py)) and SPEC
+implementation ([`repopact/validate_repo.py`](../repopact/validate_repo.py)) and SPEC
 §3–§7. Where this prose and the reference implementation disagree, the discrepancy is a
 defect, resolved by an audit finding rather than by silent divergence (SPEC §1).*
 
@@ -98,7 +98,7 @@ of *derive over declare* (charter principle 8, policy 001).
 ## 2. The well-formedness predicate `I` (what the validator decides)
 
 The reference validator computes a finite set `Viol(s)` of atomic violations
-([`validate`](../scripts/validate_repo.py)). Define
+([`validate`](../repopact/validate_repo.py)). Define
 
 ```
 I(s)  ≡  Viol(s) = ∅           accept(s) ≡ I(s)           R = { s ∈ S : I(s) }.
@@ -210,7 +210,7 @@ Actions partition by their relationship to `R`:
 `adopt` and `import-plan` are not invariant-preserving. On a RepoPact-naive tree they emit
 records mapping the existing signals and then report residual violations: the CLI prints
 *"produced N validation error(s) to resolve"* and exits non-zero
-([`repopact_cli.py`](../scripts/repopact_cli.py)). Their guarantee is verdict soundness —
+([`cli.py`](../repopact/cli.py)). Their guarantee is verdict soundness —
 the result never passes the validator while violating a rule (which would falsify
 H3/H4) — together with the reported worklist.
 
@@ -317,7 +317,7 @@ implementation; `[ci]` machine-checked on every run; `[fix]` covered by the fixt
 
 - **T2 — Constructor correctness (H1).** `effect_init(⊥) ∈ R`.
   `[ci]` — `repopact init` validates its own output and exits non-zero otherwise
-  ([`repopact_cli.py`](../scripts/repopact_cli.py)); every invocation is a proof instance.
+  ([`cli.py`](../repopact/cli.py)); every invocation is a proof instance.
   Capture 001.
 
 - **T3 — Surface closure (H2).** For every advertised action `a` and every `s ∈ Init`,

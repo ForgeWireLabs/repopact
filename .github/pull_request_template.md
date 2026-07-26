@@ -10,7 +10,7 @@ contract, non-trivial changes should originate in a work item.
 ## Checklist
 
 - [ ] Change stays within one owner scope (`governance/owners.json`)
-- [ ] `python scripts/validate_repo.py` passes
+- [ ] `repopact validate` passes
 - [ ] `python -m unittest discover -s tests` passes
 - [ ] Derived artifacts regenerated (`dashboard.md`, `SPEC.md`) and committed
 - [ ] Evidence recorded under `evidence/runs/` and linked from acceptance criteria

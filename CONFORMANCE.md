@@ -19,13 +19,13 @@ of canonical fixture regeneration so dashboard enforcement itself can be tested.
 Reference run:
 
 ```powershell
-python scripts/run_conformance.py
+python -m repopact.run_conformance
 ```
 
 Third-party implementation run:
 
 ```powershell
-python scripts/run_conformance.py --command "your-validator --root {repo}"
+python -m repopact.run_conformance --command "your-validator --root {repo}"
 ```
 
 The runner replaces `{repo}` with a temporary materialized fixture repository.

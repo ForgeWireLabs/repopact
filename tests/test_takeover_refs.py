@@ -9,15 +9,13 @@ nothing caught it.
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-import takeover  # noqa: E402
+from repopact import takeover  # noqa: E402
 
 
 def _work_item(root: Path, status: str, dir_name: str) -> None:

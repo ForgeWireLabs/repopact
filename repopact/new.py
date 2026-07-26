@@ -1,8 +1,8 @@
 """Stamp a new record from a template (work item 003, B2).
 
-    python scripts/new.py work-item "Harden the widget"
-    python scripts/new.py decision "Adopt event sourcing"
-    python scripts/new.py policy "No silent retries"
+    repopact new work-item "Harden the widget"
+    repopact new decision "Adopt event sourcing"
+    repopact new policy "No silent retries"
 
 Fills the next free id and today's date, then writes the record to its canonical
 location. The stamped record is a valid starting point; fill in the body.
@@ -16,8 +16,8 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
-import generate_dashboard
-from repo_model import STATUSES
+from . import generate_dashboard
+from .repo_model import STATUSES
 
 ROOT = Path(__file__).resolve().parents[1]
 

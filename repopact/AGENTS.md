@@ -21,11 +21,12 @@ mutate source records as a side effect.
 
 ```powershell
 pip install -r requirements.txt
-python scripts/validate_repo.py
+python -m pip install -e .
+repopact validate
 python -m unittest discover -s tests -v
 ```
 
 ## Traceability
 
-Maintain `scripts/_audit/inventory.md` and `scripts/_audit/alignment-report.md`
+Maintain `repopact/_audit/inventory.md` and `repopact/_audit/alignment-report.md`
 when enforcement behavior changes.

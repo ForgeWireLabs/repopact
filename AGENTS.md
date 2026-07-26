@@ -20,7 +20,7 @@ enforcement and the responsibility is yours. Principles (judgment) and invariant
 Paths and symbols listed in
 [`governance/frozen-surface.json`](governance/frozen-surface.json) must not be
 changed without operator approval (`INV-6`). Run
-`python scripts/check_frozen_surface.py --base <ref>` before proposing a change
+`repopact check-frozen --base <ref>` before proposing a change
 that may touch them; only pass `--ack` after a human has approved.
 
 ## Invariants
@@ -46,7 +46,8 @@ particular role set.
 - **Governance owner**: `AGENTS.md`, `governance/`, `schemas/`, `decisions/`, `research/`.
 - **Work coordinator**: `work/`, status transitions, dependency records.
 - **Evidence owner**: `evidence/`, validation manifests, reproducibility records.
-- **Tooling owner**: `scripts/`, `tests/`, CI automation.
+- **Tooling owner**: `repopact/`, `scripts/`, `tests/`, `conformance/`, templates,
+  packaging, and CI automation.
 
 ## Durable records
 
@@ -61,12 +62,13 @@ Run before proposing completion:
 
 ```powershell
 pip install -r requirements.txt
-python scripts/validate_repo.py
+python -m pip install -e .
+repopact validate
 python -m unittest discover -s tests -v
 ```
 
 Regenerate `audits/reports/dashboard.md` after changing governed structure or
-work-item status. Run `python scripts/check_frozen_surface.py` when a change may
+work-item status. Run `repopact check-frozen` when a change may
 touch the frozen surface.
 
 ## Change protocol

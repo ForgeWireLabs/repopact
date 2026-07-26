@@ -28,5 +28,5 @@ A clear description of the defect.
 
 ## SPEC reference
 
-If this is a disagreement between `SPEC.md` and `scripts/validate_repo.py`, name the
+If this is a disagreement between `SPEC.md` and `repopact/validate_repo.py`, name the
 rule (§ number) involved.

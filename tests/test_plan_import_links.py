@@ -8,14 +8,12 @@ shipping dangling links throughout `work/`.
 
 from __future__ import annotations
 
-import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
-from plan_import import _rewrite_narrative_links, _first_heading  # noqa: E402
+from repopact.plan_import import _rewrite_narrative_links, _first_heading  # noqa: E402
 
 # A realistic slice of the plan->work map an import pass would build.
 PLAN_TO_WORK = {

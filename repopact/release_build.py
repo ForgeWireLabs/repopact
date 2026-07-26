@@ -120,6 +120,7 @@ def inspect_sdist(path: Path, version: str) -> dict[str, Any]:
 
 
 def _export(root: Path, revision: str, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
     archive_path = destination.parent / "source.zip"
     _run(
         ["git", "archive", "--format=zip", f"--output={archive_path}", revision],

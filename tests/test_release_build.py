@@ -8,6 +8,9 @@ from pathlib import Path
 from repopact import release_build
 
 
+ROOT = Path(__file__).resolve().parents[1]
+
+
 class ReleaseBuildTests(unittest.TestCase):
     def _wheel(self, root: Path, *, flat_module: bool = False) -> Path:
         path = root / "repopact-3.0.0-py3-none-any.whl"
@@ -40,6 +43,12 @@ class ReleaseBuildTests(unittest.TestCase):
                 "import roots.*frontmatter.py",
             ):
                 release_build.inspect_wheel(path, "3.0.0")
+
+    def test_export_creates_nested_temporary_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            destination = Path(temporary) / "first" / "source"
+            release_build._export(ROOT, "HEAD", destination)
+            self.assertTrue((destination / "VERSION").is_file())
 
 
 if __name__ == "__main__":

@@ -10,6 +10,8 @@ must be byte-identical and structurally conformant before they are copied out.
 
 from __future__ import annotations
 
+import copy
+import gzip
 import hashlib
 import json
 import os
@@ -119,6 +121,27 @@ def inspect_sdist(path: Path, version: str) -> dict[str, Any]:
     }
 
 
+def _normalize_sdist(path: Path, epoch: int) -> None:
+    """Rewrite setuptools' timestamp-bearing sdist as a canonical tar.gz."""
+    target = path.with_suffix(path.suffix + ".tmp")
+    with tarfile.open(path, "r:gz") as source:
+        members = sorted(source.getmembers(), key=lambda member: member.name)
+        with target.open("wb") as raw:
+            with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=epoch) as compressed:
+                with tarfile.open(fileobj=compressed, mode="w", format=tarfile.PAX_FORMAT) as output:
+                    for member in members:
+                        normalized = copy.copy(member)
+                        normalized.mtime = epoch
+                        normalized.uid = 0
+                        normalized.gid = 0
+                        normalized.uname = ""
+                        normalized.gname = ""
+                        normalized.pax_headers = {}
+                        payload = source.extractfile(member) if member.isfile() else None
+                        output.addfile(normalized, payload)
+    target.replace(path)
+
+
 def _export(root: Path, revision: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     archive_path = destination.parent / "source.zip"
@@ -152,6 +175,7 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
         raise ReleaseBuildError(
             f"build produced {len(wheels)} wheel(s) and {len(sdists)} sdist(s); expected one each"
         )
+    _normalize_sdist(sdists[0], int(epoch))
     return {
         "version": version,
         "wheel": inspect_wheel(wheels[0], version),

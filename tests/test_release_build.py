@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import gzip
+import hashlib
+import io
+import tarfile
 import tempfile
 import unittest
 import zipfile
@@ -49,6 +53,28 @@ class ReleaseBuildTests(unittest.TestCase):
             destination = Path(temporary) / "first" / "source"
             release_build._export(ROOT, "HEAD", destination)
             self.assertTrue((destination / "VERSION").is_file())
+
+    def test_sdist_normalization_removes_archive_timestamp_drift(self) -> None:
+        def make_sdist(path: Path, timestamp: int) -> None:
+            with path.open("wb") as raw:
+                with gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=timestamp) as compressed:
+                    with tarfile.open(fileobj=compressed, mode="w") as archive:
+                        member = tarfile.TarInfo("repopact-3.0.0/README.md")
+                        member.size = 5
+                        member.mtime = timestamp
+                        archive.addfile(member, io.BytesIO(b"hello"))
+
+        with tempfile.TemporaryDirectory() as temporary:
+            first = Path(temporary) / "first.tar.gz"
+            second = Path(temporary) / "second.tar.gz"
+            make_sdist(first, 1)
+            make_sdist(second, 2)
+            release_build._normalize_sdist(first, 42)
+            release_build._normalize_sdist(second, 42)
+            self.assertEqual(
+                hashlib.sha256(first.read_bytes()).digest(),
+                hashlib.sha256(second.read_bytes()).digest(),
+            )
 
 
 if __name__ == "__main__":

@@ -13,22 +13,28 @@
     {
       "id": "AC-1",
       "text": "RepoPact (the standard) defines the benchmark PROTOCOL only: contract language, validation semantics, evidence expectations, hypotheses (H8-H13), and falsification criteria, in research/benchmark-protocol.md and research/protocol.md. The standard repo does not embed a runnable benchmark implementation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-2",
       "text": "The runnable PactBench suite (task format + tasks, fixtures, harnesses, S5 drift harness, captures, result bundles) is hosted in the RepoPact Proving Ground repo (ForgeWireLabs/repopact-proving-ground), which consumes RepoPact from PyPI and runs the suite against the packaged product.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-3",
       "text": "References are consistent across repos: repopact docs/README/work items point at the Proving Ground for the runnable suite; the Proving Ground points back at RepoPact's protocol. Real cross-model result bundles remain operator-gated (compute/keys).",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-06-24"
+  "updated": "2026-07-26"
 }

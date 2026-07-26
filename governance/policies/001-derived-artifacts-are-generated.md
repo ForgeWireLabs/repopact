@@ -28,3 +28,10 @@ declared surface plus generation keeps the freshness signal reliable. See `INV-7
 - A nested contract's audit coverage is declared once in `audits/registry.json`;
   an `_audit/` companion is optional and only validated for completeness if present.
 - CI fails if a committed derived artifact differs from a fresh regeneration.
+
+## Semantic boundary
+
+Canonical equality proves that a derived artifact exactly projects its declared
+source records. It does not prove that those records or human-authored claims are
+still true about external systems. Policy `002` supplies verification dates and
+review deadlines for that non-derived semantic layer.

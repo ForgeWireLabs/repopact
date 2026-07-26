@@ -2,9 +2,9 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "033",
   "title": "Semantic ledger freshness and audit reconciliation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "work",
-  "affected_scopes": ["work", "governance", "tooling", "evidence"],
+  "affected_scopes": ["work", "governance", "tooling", "evidence", "docs"],
   "depends_on": ["028"],
   "provenance": "concrete",
   "preflight": {
@@ -16,34 +16,44 @@
     {
       "id": "AC-1",
       "text": "The July gap audit is re-verified against current repositories and marks GA-1 and every other resolved sub-gap closed while preserving open CI, conformance, benchmark, publication, documentation, ledger, and independence obligations.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-2",
       "text": "Active work items 020, 021, and 022 are reconciled criterion-by-criterion against delivered artifacts and evidence; satisfied work is linked, truly pending work remains pending, and launch-release wording is resolved without retroactive fabrication.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-3",
       "text": "Non-derived audit and research claims carry an explicit verification date and review deadline or an equivalent freshness contract, and validation warns or fails when that contract expires according to policy.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-4",
       "text": "Documentation states the semantic boundary: canonical dashboard equality proves an exact projection of manifests, not that the manifests or human-authored claims remain true about external reality.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-5",
       "text": "A dated reconciliation evidence run records the inspected repositories, commands, resulting ledger transitions, and any intentionally open obligations; governance validation and tests pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     }
   ],
   "created": "2026-07-18",
-  "updated": "2026-07-18"
+  "updated": "2026-07-26"
 }

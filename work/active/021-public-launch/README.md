@@ -19,7 +19,8 @@ order:
    approval of copy, and **you** post. No automated posting, no upvote solicitation.
 
 I never mark these satisfied on your behalf; they stay `pending` until the real action is
-done and an evidence run records it.
+done and an evidence run records it. A reconciliation evidence run may be linked while
+the criterion remains pending to preserve what was checked and why it is still open.
 
 ## Intent
 
@@ -59,4 +60,15 @@ above AGENTS.md).
   *Operator-gated.*
 - **AC-4** — Show HN posted and launch day handled. *Operator-gated.*
 
-(State tracked in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+## Reconciliation — 2026-07-26
+
+- [ ] **AC-1** — pending: no durable proof of operator approval for the private
+  launch assets is available in this repository.
+- [ ] **AC-2** — pending: no arXiv submission record or public paper URL exists.
+- [ ] **AC-3** — pending: 2.1.0, 2.2.0, and 2.3.0 were infrastructure releases,
+  but none is retroactively designated the operator-approved public *launch*
+  release. Conformance is green; the launch event is not evidenced.
+- [ ] **AC-4** — pending: no Show HN post or launch-day response record exists.
+
+Evidence:
+[`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).

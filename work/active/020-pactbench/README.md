@@ -40,4 +40,20 @@ benchmark implementation embedded directly in the RepoPact standard repository.
 - **AC-3** — cross-repo references are consistent; real cross-model result bundles remain
   operator-gated.
 
-(State in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+## Reconciliation — 2026-07-26
+
+- [x] **AC-1** — satisfied. `git ls-files benchmarks` is empty in the standard
+  repository; the protocol, hypotheses, threats, and falsification criteria remain
+  under `research/`.
+- [x] **AC-2** — satisfied. The clean public Proving Ground default branch at
+  `8f68bc4` contains the 24-task suite, fixtures, shared harness, and S5 mutation
+  harness; its pinned PyPI dependency and deterministic PactBench selftest were
+  verified.
+- [ ] **AC-3** — pending. RepoPact points to the Proving Ground, but the Proving
+  Ground's `benchmarks/README.md` and `benchmarks/harness/README.md` still point
+  to a nonexistent local `research/` tree. Its 2.2.0 package pin is also stale
+  against current 2.3.0. Proposed WI 037 owns those cross-repository repairs;
+  real cross-model bundles remain operator-gated under WI 022.
+
+Evidence:
+[`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).

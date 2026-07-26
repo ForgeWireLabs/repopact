@@ -3,6 +3,7 @@ from __future__ import annotations
 import shutil
 import tempfile
 import unittest
+from datetime import date
 from pathlib import Path
 
 
@@ -38,6 +39,17 @@ class ResearchMetadataTests(unittest.TestCase):
 
     def test_canonical_research_records_validate(self) -> None:
         self.assertEqual([], self.messages())
+
+    def test_expired_research_claim_contract_is_rejected(self) -> None:
+        problems = validate_research.validate(self.root, today=date(2026, 8, 10))
+        self.assertTrue(any("freshness expired on 2026-08-09" in p.message for p in problems))
+
+    def test_unregistered_research_claim_document_is_rejected(self) -> None:
+        (self.root / "research" / "new-claim.md").write_text(
+            "# New current claim\n",
+            encoding="utf-8",
+        )
+        self.assertTrue(any("missing research/new-claim.md" in message for message in self.messages()))
 
     def test_repeated_threat_identifier_is_rejected_by_repo_gate(self) -> None:
         self.replace("research/threats-to-validity.md", "## T10 —", "## T7 —")

@@ -127,7 +127,10 @@ Active and completed work cannot depend on proposed work as if it were accepted.
 
 Anything computable from source records is generated, not authored by hand (the dashboard,
 audit-freshness views, and the derived blocks of `SPEC.md`). Only genuine sources are
-hand-maintained. See policy `001`.
+hand-maintained. Byte-equality with a freshly generated dashboard proves that the view
+exactly projects its manifests; it does **not** prove that those manifests or other
+human-authored claims still describe external reality. Semantic claims therefore carry
+review deadlines under policy `002`. See policies `001` and `002`.
 
 ## Evaluation, formal model & the Proving Ground
 

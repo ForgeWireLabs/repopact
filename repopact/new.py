@@ -55,8 +55,9 @@ def new_work_item(title: str, today: date, root: Path = ROOT, status: str = "act
     # preflight act, so stamp the marker and concrete provenance up front. No work
     # should begin until this record exists and propagates through the pact.
     created_at = datetime.combine(today, datetime.min.time()).isoformat() + "Z"
+    schema_root = "repopact/schemas" if (root / "repopact" / "schemas").is_dir() else "schemas"
     manifest = {
-        "$schema": "../../../schemas/work-item.schema.json",
+        "$schema": f"../../../{schema_root}/work-item.schema.json",
         "id": item_id, "title": title, "status": status,
         "owner_scope": "governance", "affected_scopes": [], "depends_on": [],
         "provenance": "concrete",

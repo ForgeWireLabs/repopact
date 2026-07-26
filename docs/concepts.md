@@ -35,6 +35,13 @@ dashboard, the SPEC catalog, audit freshness. The lesson behind it (policy
 hand-maintained mirrors of derivable state fall out of date faster than they are
 reconciled, and the resulting staleness is indistinguishable from genuine drift.
 
+Canonical generation has a precise boundary: byte-equality with a freshly
+generated dashboard proves an exact projection of the source manifests. It does
+not prove that a manifest, audit alignment statement, remote-repository claim, or
+research assertion remains true about external reality. Those non-derived claims
+need verification dates and review deadlines under policy
+[`002`](../governance/policies/002-semantic-claim-freshness.md).
+
 ## One truth per record
 
 Each record type owns one kind of truth: invariants bind, decisions record choices,

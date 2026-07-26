@@ -118,6 +118,21 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual(first, later)
         self.assertNotIn("> Generated:", first)
 
+    def test_expired_audit_freshness_is_rejected_even_after_regeneration(self) -> None:
+        registry = self.root / "audits" / "registry.json"
+        self.write_json(
+            registry,
+            lambda data: data["scopes"][0].update({
+                "last_reviewed": "2000-01-01",
+                "next_review": "2000-01-02",
+            }),
+        )
+        generate_dashboard.write_dashboard(self.root)
+        self.assertTrue(any(
+            "audit scope '.' freshness expired on 2000-01-02" in value
+            for value in self.problems()
+        ))
+
     # --- work lifecycle -----------------------------------------------------
 
     def test_status_must_match_directory(self) -> None:
@@ -565,6 +580,11 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual(0, rc)
         stamped = list((self.root / "work" / "active").glob("*-cli-probe/work-item.json"))
         self.assertEqual(1, len(stamped))
+        data = json.loads(stamped[0].read_text(encoding="utf-8"))
+        self.assertEqual(
+            "../../../repopact/schemas/work-item.schema.json",
+            data["$schema"],
+        )
         self.assertEqual([], [p.message for p in validate(self.root)])
 
     def test_cli_new_can_stamp_proposed_work_item(self) -> None:
@@ -575,6 +595,19 @@ class RepositoryValidationTests(unittest.TestCase):
         data = json.loads(stamped[0].read_text(encoding="utf-8"))
         self.assertEqual("proposed", data["status"])
         self.assertEqual([], [p.message for p in validate(self.root)])
+
+    def test_cli_new_uses_conventional_root_schema_in_adopter(self) -> None:
+        target = Path(self.temp.name) / "new-adopter"
+        init_repo.bootstrap(target)
+        rc = repopact_cli.main([
+            "new", "work-item", "Adopter Probe", "--root", str(target),
+        ])
+        self.assertEqual(0, rc)
+        stamped = list((target / "work" / "active").glob("*-adopter-probe/work-item.json"))
+        self.assertEqual(1, len(stamped))
+        data = json.loads(stamped[0].read_text(encoding="utf-8"))
+        self.assertEqual("../../../schemas/work-item.schema.json", data["$schema"])
+        self.assertEqual([], [p.message for p in validate(target)])
 
     # --- proving-ground hardening (007) -------------------------------------
 

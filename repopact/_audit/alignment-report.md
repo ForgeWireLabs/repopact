@@ -1,5 +1,18 @@
 # Tooling Alignment Report
 
+## 2026-07-26 semantic freshness and ledger reconciliation
+
+- Audit registry deadlines now block validation after expiry even if the
+  dashboard was regenerated; source review, not projection refresh, is required.
+- Upstream research metadata registers every top-level claim document under a
+  dated, maximum-30-day review contract. Missing documents and expired contracts
+  have regression coverage.
+- `repopact new` stamps upstream work items against
+  `repopact/schemas/work-item.schema.json` after the package-resource move while
+  retaining the conventional root `schemas/` URI in adopter repositories.
+- WI 020–022 preserve partial evidence criterion by criterion without converting
+  missing launch, benchmark, statistical, or real-model proof into completion.
+
 ## 2026-07-26 package-resource seed closure
 
 - Canonical schemas and templates live inside the `repopact` package and ship

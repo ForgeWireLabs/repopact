@@ -6,6 +6,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -63,6 +64,86 @@ def _section(text: str, title: str) -> str | None:
         flags=re.MULTILINE | re.DOTALL,
     )
     return match.group("body") if match else None
+
+
+def _validate_freshness(
+    root: Path,
+    metadata: dict[str, Any],
+    metadata_path: Path,
+    problems: list[ResearchProblem],
+    today: date,
+) -> None:
+    freshness = metadata.get("claim_freshness")
+    if not isinstance(freshness, dict):
+        problems.append(ResearchProblem(
+            metadata_path,
+            "metadata field 'claim_freshness' must be an object",
+        ))
+        return
+
+    policy = freshness.get("policy")
+    if not isinstance(policy, str) or not policy or not (root / policy).is_file():
+        problems.append(ResearchProblem(
+            metadata_path,
+            "research claim freshness policy must name an existing file",
+        ))
+
+    parsed: dict[str, date] = {}
+    for field in ("verified_on", "review_by"):
+        try:
+            parsed[field] = date.fromisoformat(str(freshness.get(field, "")))
+        except ValueError:
+            problems.append(ResearchProblem(
+                metadata_path,
+                f"claim_freshness.{field} must be an ISO date",
+            ))
+    if len(parsed) == 2:
+        if parsed["review_by"] < parsed["verified_on"]:
+            problems.append(ResearchProblem(
+                metadata_path,
+                "research claim review deadline precedes its verification date",
+            ))
+        if parsed["review_by"] > parsed["verified_on"] + timedelta(days=30):
+            problems.append(ResearchProblem(
+                metadata_path,
+                "research claim review deadline exceeds the 30-day policy maximum",
+            ))
+        if parsed["review_by"] < today:
+            problems.append(ResearchProblem(
+                metadata_path,
+                f"research claim freshness expired on {parsed['review_by'].isoformat()}; "
+                "re-verify the registered documents and advance the contract",
+            ))
+
+    documents = freshness.get("documents")
+    if not isinstance(documents, list) or any(not isinstance(value, str) for value in documents):
+        problems.append(ResearchProblem(
+            metadata_path,
+            "claim_freshness.documents must be a list of paths",
+        ))
+        return
+    if len(documents) != len(set(documents)):
+        problems.append(ResearchProblem(
+            metadata_path,
+            "claim_freshness.documents must not contain duplicates",
+        ))
+    expected = sorted(
+        path.relative_to(root).as_posix()
+        for path in (root / "research").glob("*.md")
+    )
+    observed = sorted(documents)
+    if observed != expected:
+        missing = sorted(set(expected) - set(observed))
+        unexpected = sorted(set(observed) - set(expected))
+        details = []
+        if missing:
+            details.append(f"missing {', '.join(missing)}")
+        if unexpected:
+            details.append(f"unexpected {', '.join(unexpected)}")
+        problems.append(ResearchProblem(
+            metadata_path,
+            f"research claim freshness coverage is incomplete: {'; '.join(details)}",
+        ))
 
 
 def _validate_lifecycle(
@@ -286,13 +367,15 @@ def _validate_trace(
             problems.append(ResearchProblem(root / capture, f"proposed-state capture is missing trace token(s): {', '.join(absent)}"))
 
 
-def validate(root: Path) -> list[ResearchProblem]:
+def validate(root: Path, today: date | None = None) -> list[ResearchProblem]:
     root = root.resolve()
+    today = today or date.today()
     problems: list[ResearchProblem] = []
     metadata = _load_metadata(root, problems)
     if metadata is None:
         return problems
     metadata_path = root / "research" / "metadata.json"
+    _validate_freshness(root, metadata, metadata_path, problems, today)
     _validate_lifecycle(root, metadata, metadata_path, problems)
     _validate_benchmark(root, metadata, metadata_path, problems)
     _validate_threats(root, metadata, metadata_path, problems)

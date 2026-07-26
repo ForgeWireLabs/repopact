@@ -8,7 +8,7 @@
       "last_reviewed": "2026-07-26",
       "next_review": "2026-10-24",
       "alignment": "current",
-      "notes": "Repository-level governance contract, including exact tracked-path ownership coverage."
+      "notes": "Repository-level governance contract, including exact tracked-path ownership and semantic-claim freshness policy coverage."
     },
     {
       "path": "repopact",
@@ -17,7 +17,7 @@
       "last_reviewed": "2026-07-26",
       "next_review": "2026-10-24",
       "alignment": "current",
-      "notes": "Packaged validator, generators, bootstrap, record-stamping, conformance, and release tooling."
+      "notes": "Packaged validator, generators, bootstrap, record-stamping, conformance, release tooling, and expired audit/research freshness enforcement."
     },
     {
       "path": "docs",
@@ -26,7 +26,7 @@
       "last_reviewed": "2026-07-26",
       "next_review": "2026-10-24",
       "alignment": "current",
-      "notes": "Diataxis documentation set; governed lightly, no per-page audit inventories (policy 001)."
+      "notes": "Diataxis documentation set, including the canonical-projection semantic boundary; governed lightly with no per-page audit inventories (policies 001 and 002)."
     },
     {
       "path": "work/completed/026-deterministic-dashboard-validation",

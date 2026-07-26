@@ -735,6 +735,22 @@ def validate_audit_registry(root: Path, problems: list[Problem]) -> None:
             problems.append(Problem(path, f"audit scope does not exist: {entry.get('path')}"))
         validate_dates(entry.get("last_reviewed"), "last_reviewed", path, problems)
         validate_dates(entry.get("next_review"), "next_review", path, problems)
+        try:
+            last_reviewed = date.fromisoformat(str(entry.get("last_reviewed", "")))
+            next_review = date.fromisoformat(str(entry.get("next_review", "")))
+        except ValueError:
+            continue
+        if next_review < last_reviewed:
+            problems.append(Problem(
+                path,
+                f"audit scope '{entry.get('path')}' review deadline precedes its last review",
+            ))
+        if next_review < date.today():
+            problems.append(Problem(
+                path,
+                f"audit scope '{entry.get('path')}' freshness expired on {next_review.isoformat()}; "
+                "re-review the scope and advance the registry dates",
+            ))
 
 
 def validate_dashboard(root: Path, problems: list[Problem]) -> None:

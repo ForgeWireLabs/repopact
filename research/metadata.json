@@ -1,5 +1,24 @@
 {
   "version": 1,
+  "claim_freshness": {
+    "policy": "governance/policies/002-semantic-claim-freshness.md",
+    "verified_on": "2026-07-26",
+    "review_by": "2026-08-09",
+    "documents": [
+      "research/README.md",
+      "research/benchmark-protocol.md",
+      "research/figures.md",
+      "research/findings.md",
+      "research/formal-model.md",
+      "research/gap-audit-2026-07.md",
+      "research/paper-outline.md",
+      "research/paper.md",
+      "research/protocol.md",
+      "research/release-runbook.md",
+      "research/run-log.md",
+      "research/threats-to-validity.md"
+    ]
+  },
   "lifecycle": {
     "states": ["proposed", "active", "blocked", "deferred", "completed"],
     "implementation_source": "repopact/repo_model.py",

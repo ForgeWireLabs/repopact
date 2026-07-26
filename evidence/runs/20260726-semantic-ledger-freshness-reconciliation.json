@@ -1,0 +1,135 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260726-semantic-ledger-freshness-reconciliation",
+  "timestamp": "2026-07-26T13:59:44-05:00",
+  "work_item": "033",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m repopact.cli fleet-verify --root .",
+      "exit_code": 1,
+      "summary": "The expected fail-closed result re-opened current fleet drift: ForgeLink ea5421c, ForgeWire c64e15b, and RepoPact Proving Ground 8f68bc4 declare 2.2.0 while current release is 2.3.0. SkillForge 687dfbb passes on an exact 2.3.0 pin; Moto c073adb passes its checksum-backed vendored parity contract. The historical five-adopter 2.2.0 rollout remains valid evidence and was not repeated."
+    },
+    {
+      "command": "git -C C:\\Projects\\repopact-proving-ground status --short --branch; git rev-parse HEAD; git ls-remote origin refs/heads/master",
+      "exit_code": 0,
+      "summary": "The Proving Ground checkout is clean and its local master exactly equals public origin/master at 8f68bc4ba38aadfb85c11f51d0e21f89201cc274."
+    },
+    {
+      "command": "python C:\\Projects\\repopact-proving-ground\\benchmarks\\harness\\run.py --selftest",
+      "exit_code": 0,
+      "summary": "The deterministic PactBench pipeline passed all 24 tasks. MockRunner confusion-matrix values remain illustrative plumbing output, not empirical findings."
+    },
+    {
+      "command": "python -m unittest discover for calc-rounding and api-orders fixture suites",
+      "exit_code": 0,
+      "summary": "The two built Proving Ground fixtures passed 3 and 5 tests respectively."
+    },
+    {
+      "command": "python C:\\Projects\\repopact-proving-ground\\benchmarks\\drift\\harness.py --selftest",
+      "exit_code": 1,
+      "summary": "The S5 selftest failed before execution with ModuleNotFoundError for flat module init_repo. WI-036 removed that pre-3.0 import surface; proposed WI-037 owns the Proving Ground package-boundary repair."
+    },
+    {
+      "command": "inspect Proving Ground benchmark references and requirements-repopact.txt at 8f68bc4",
+      "exit_code": 0,
+      "summary": "The public tree contains the runnable 24-task suite and pins PyPI repopact==2.2.0, but benchmarks/README.md and benchmarks/harness/README.md link to a nonexistent local research/benchmark-protocol.md. WI-020 AC-1 and AC-2 are satisfied; AC-3 remains pending."
+    },
+    {
+      "command": "python -m pip index versions repopact",
+      "exit_code": 0,
+      "summary": "The public index reports RepoPact 2.3.0 as latest, with 2.2.0 and earlier releases also available. Publication existence does not designate any release as the operator-approved public launch for WI-021."
+    },
+    {
+      "command": "inspect conformance/manifest.json",
+      "exit_code": 0,
+      "summary": "The current manifest declares 17 machine-enforced rules and 20 bidirectionally mapped conformance cases, replacing the stale audit count."
+    },
+    {
+      "command": "python -m unittest tests.test_research_metadata -v",
+      "exit_code": 0,
+      "summary": "All 8 canonical-research tests passed, including new regressions for expired review deadlines and unregistered top-level research claim documents."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_expired_audit_freshness_is_rejected_even_after_regeneration -v",
+      "exit_code": 0,
+      "summary": "The audit regression passed: an expired registry scope fails validation even after the derived dashboard is regenerated."
+    },
+    {
+      "command": "python -m pip install -r requirements.txt; python -m pip install -e .",
+      "exit_code": 0,
+      "summary": "Declared dependencies were present and the current RepoPact checkout installed successfully as an editable package."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed after closing WI-033, recording proposed WI-037, and regenerating the canonical dashboard."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "All 20 of 20 conformance cases passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "The final suite completed successfully: 132 tests ran in 116.709 seconds (117.317 seconds wall), with the two declared formal-model obligations skipped."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected; no operator acknowledgement was required for WI-033."
+    }
+  ],
+  "artifacts": [
+    "research/gap-audit-2026-07.md",
+    "research/metadata.json",
+    "governance/policies/002-semantic-claim-freshness.md",
+    "work/active/020-pactbench/",
+    "work/active/021-public-launch/",
+    "work/active/022-benchmark-suite/",
+    "work/completed/033-semantic-ledger-freshness-and-audit-reconciliation/",
+    "work/proposed/037-reconcile-the-2-3-adopter-fleet-and-proving-ground-package-boundary/",
+    "repopact/validate_research.py",
+    "repopact/validate_repo.py",
+    "tests/test_research_metadata.py",
+    "tests/test_validate_repo.py",
+    "README.md",
+    "docs/concepts.md"
+  ],
+  "environment": {
+    "date": "2026-07-26",
+    "os": "Windows",
+    "python": "3.12.4",
+    "current_release": "2.3.0",
+    "conformance_cases": 20,
+    "unit_tests": 132,
+    "formal_model_skips": 2,
+    "unit_test_wall_seconds": 117.317,
+    "inspected_repositories": [
+      "ForgeWireLabs/ForgeLink",
+      "ForgeWireLabs/forgewire",
+      "ForgeWireLabs/moto-one-hyper-forgewire-rom-lab",
+      "ForgeWireLabs/repopact-proving-ground",
+      "ForgeWireLabs/skillforge-academy"
+    ],
+    "ledger_transitions": [
+      "WI-020 AC-1 pending -> satisfied",
+      "WI-020 AC-2 pending -> satisfied",
+      "WI-020 AC-3 remains pending",
+      "WI-021 AC-1 through AC-4 remain pending",
+      "WI-022 AC-1 through AC-5 remain pending",
+      "WI-037 recorded as proposed; no cross-repository implementation authority inferred"
+    ],
+    "open_obligations": [
+      "WI-032: GitHub Actions billing lock and cross-platform CI restoration",
+      "WI-037: three stale 2.3 consumer pins, Proving Ground links, and S5 package imports",
+      "WI-022 AC-1/AC-2: complete S2-S6 drivers and instrumentation",
+      "WI-022 AC-3/AC-5: provisioned real-model results and RealRunner smoke",
+      "WI-022 AC-4: dated statistical analysis amendment",
+      "WI-021: operator-approved launch assets, arXiv, designated launch release, and Show HN",
+      "WI-034: independent public reproduction and third-party adoption evidence"
+    ]
+  }
+}

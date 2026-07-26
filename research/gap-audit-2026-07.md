@@ -13,22 +13,26 @@ executed; the research record was cross-checked against the paper's citations;
 work-ledger and CI state were inspected directly. Numbers below are from those
 runs, not from memory.
 
-## Current disposition — 2026-07-22
+**Freshness contract.** The original observations remain dated 2026-07-15.
+Current dispositions were re-verified on **2026-07-26** and must be reviewed by
+**2026-08-09** under policy `002` and `research/metadata.json`.
+
+## Current disposition — 2026-07-26
 
 This table preserves the original audit findings below and records later closure
 without rewriting what was observed on 2026-07-15.
 
 | Gap | Disposition | Durable owner or evidence |
 | --- | --- | --- |
-| GA-1 adopter validation | **closed** | five-adopter 2.2.0 rollout, capture 015 / WI 028 |
+| GA-1 adopter validation | **reopened: 3 of 5 stale** | 2.2.0 rollout remains historical evidence; current 2.3 reconciliation proposed as WI 037 |
 | GA-2 missing proposed-state trace | **closed** | F-014, capture 013 / WI 031 |
 | GA-3 CI and cross-platform enforcement | **open, operator-gated** | WI 032; direct PyPI publication is not CI restoration |
-| GA-4 conformance coverage | **closed** | 15 rules / 17 cases, WI 030 |
+| GA-4 conformance coverage | **closed** | 17 rules / 20 cases, WI 030 |
 | GA-5 statistical plan | **open** | WI 022 AC-4 |
-| GA-6 RealRunner and comparative results | **open, operator-gated** | WI 022 AC-3/AC-5 |
+| GA-6 RealRunner and comparative results | **open, operator-gated; S5 package boundary regressed** | WI 022 AC-1–AC-5; Proving Ground repair proposed as WI 037 |
 | GA-7 publication logistics | **open** | WI 021 and publication work remain active |
-| GA-8 stale research facts | **closed** | canonical metadata + regression checks, WI 031 |
-| GA-9 ledger/audit reconciliation | **open** | WI 033 |
+| GA-8 stale research facts | **upstream facts closed; downstream pin/links reopened** | canonical metadata / WI 031; Proving Ground repair proposed as WI 037 |
+| GA-9 ledger/audit reconciliation | **closed** | criterion-level reconciliation + freshness enforcement / WI 033 |
 | GA-10 independent reproduction | **open** | WI 034 |
 
 ---
@@ -55,6 +59,15 @@ finding about `doctor` coverage. Either outcome strengthens the paper.
 
 **Move.** `doctor --fix` both repos from the 2.1.0 package; capture; new findings
 register entries; re-validate.
+
+**2026-07-26 update.** The completed five-adopter 2.2.0 rollout remains valid
+historical evidence, but it does not prove current fleet state. Running
+`repopact fleet-verify` against immutable public default-branch heads found
+ForgeLink, ForgeWire, and RepoPact Proving Ground still declaring 2.2.0 while
+RepoPact's public current release is 2.3.0. SkillForge passes with an exact 2.3.0
+pin; Moto passes the stronger checksum-backed vendored overlay proof. The
+current-release obligation is reopened and routed to proposed WI 037 rather than
+silently rewriting or repeating the 2.2.0 rollout.
 
 ## GA-2 — The proposed-state episode has no finding or capture (critical)
 
@@ -117,6 +130,11 @@ unregistered-contract, dependency-cycle.
 **Move.** Grow the suite to ~14–15 cases (one rejection per machine-checkable
 rule, plus provenance accept/reject pairs); until then, weaken the T1 wording.
 
+**2026-07-26 update.** Closed. The current conformance manifest declares all 17
+machine-enforced repository-tree rules and maps them bidirectionally to 20
+isolated accept/reject cases. WI 030 owns the closure; the extra release-surface
+case added later remains covered.
+
 ## GA-5 — No statistical plan in the benchmark protocol (high)
 
 [`benchmark-protocol.md`](benchmark-protocol.md) pre-registers hypotheses,
@@ -129,6 +147,10 @@ pre-registration without an analysis plan erodes the pre-registration claim.
 **Move.** Dated amendment before real runs: runs-per-task-per-arm (e.g. 3–5
 seeds), rubric version pinning, analysis plan (proportions with Wilson CIs,
 paired per-task comparison), and a stopping rule.
+
+**2026-07-26 update.** Still open as WI 022 AC-4. No dated statistical
+amendment satisfying the enumerated analysis choices exists, and no live result
+may be interpreted before it does.
 
 ## GA-6 — All comparative results remain operator-gated; RealRunner untested (high, schedule risk)
 
@@ -145,6 +167,14 @@ S2/S3/S4 have no harness. Realistic triage: implement **S4** (token economy —
 no SWE-bench dependency; Figure 5 is the headline figure) as the second study;
 explicitly defer S2/S3 in the paper.
 
+**2026-07-26 update.** Still open. Proving Ground's deterministic 24-task
+PactBench selftest and its two built fixture suites pass. S2, S3, S4, and S6b
+drivers remain absent; there is no three-task RealRunner smoke and no result
+bundle from two model families. The S5 selftest now fails at import because it
+uses removed flat module names rather than `repopact.*`; WI 037 owns that
+downstream package-boundary repair. These are plumbing and readiness facts, not
+agent-behavior findings.
+
 ## GA-7 — Publication logistics with lead times (high, operator-gated)
 
 - **No renderable figures exist.** [`figures.md`](figures.md) is ASCII mockups;
@@ -154,6 +184,13 @@ explicitly defer S2/S3 in the paper.
 - **arXiv cs.SE endorsement** for a first-time submitter can take weeks; the
   account + endorsement request should happen in July, not August. Same for the
   2–3-week HN karma warm-up (work item `021`).
+
+**2026-07-26 update.** Still open. No repository evidence proves operator
+approval of the private launch assets, an arXiv submission, a designated PyPI
+*launch* release, or a Show HN post. The published 2.1.0, 2.2.0, and 2.3.0
+infrastructure releases are not retroactively relabelled as the public launch.
+Renderable figures, bibliography, and a paper build pipeline remain publication
+work rather than completed WI 021 criteria.
 
 ## GA-8 — Stale and inconsistent documents (medium)
 
@@ -181,6 +218,12 @@ items in GA-8.
 trace. The repository gate cross-checks the paper, figures, protocols, threat register,
 and benchmark ledger; regressions deliberately reintroduce every stale-fact class.
 
+**2026-07-26 update.** The upstream canonical facts remain closed and now carry
+an enforceable review deadline. The downstream Proving Ground slice is reopened:
+it pins 2.2.0 while 2.3.0 is current, two benchmark READMEs point at a nonexistent
+local `research/` tree, and the S5 harness uses the removed flat import surface.
+Proposed WI 037 owns those external repairs.
+
 ## GA-9 — Ledger hygiene in our own repos (medium)
 
 - Work items `020`/`021`/`022` have acceptance criteria with **empty
@@ -194,6 +237,20 @@ and benchmark ledger; regressions deliberately reintroduce every stale-fact clas
   published 2026-07-15; decide whether 2.1.0 is the launch release and, if so,
   satisfy AC-3 with an evidence run.
 
+**2026-07-26 update.** Closed by WI 033 without manufacturing completion:
+
+- WI 020 now records substantive criterion text. Its protocol-only standard
+  boundary and remotely verified 24-task Proving Ground placement are satisfied;
+  cross-repository reference consistency remains pending because the Proving
+  Ground links are broken and current-release coherence is open.
+- WI 021 remains entirely pending. No earlier package release is relabelled as
+  the operator-approved public launch.
+- WI 022 links its deterministic partial foundation while keeping all S2–S6
+  completeness, instrumentation, statistical, real-model, and comparative-result
+  criteria pending.
+- Policy `002` and validator regressions make expired audit and research review
+  contracts fail instead of allowing a canonical dashboard to mask stale claims.
+
 ## GA-10 — Independence of the evidence base (medium, standing)
 
 All conformant adopters are ForgeWireLabs repositories. Flask (F-009) is the
@@ -201,6 +258,9 @@ only non-org datum and exists only as a local capture. Threats T1/T2 remain the
 paper's soft underbelly. One genuinely third-party adopter before August would
 be worth more than any documentation polish; publishing the flask adoption as a
 reproducible script is the cheap version.
+
+**2026-07-26 update.** Still open as WI 034. No public, independently executed
+reproduction beyond ForgeWireLabs-controlled repositories was found or claimed.
 
 ---
 

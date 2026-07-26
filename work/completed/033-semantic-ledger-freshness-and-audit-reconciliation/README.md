@@ -1,7 +1,8 @@
 # 033 — Semantic ledger freshness and audit reconciliation
 
-> **Status**: Active
-> **Owners**: work-coordinator (lead); governance-owner, tooling-owner, and evidence-owner affected.
+> **Status**: Complete — 2026-07-26
+> **Owners**: work-coordinator (lead); governance-owner, tooling-owner,
+> evidence-owner, and docs-owner affected.
 > **Depends on**: `028`.
 
 ## Intent
@@ -36,13 +37,20 @@ an expiry policy rather than pretending they can be regenerated.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — re-verify and accurately restate every July gap.
-- [ ] **AC-2** — reconcile work items 020–022 against current evidence.
-- [ ] **AC-3** — enforce review freshness for non-derived claims.
-- [ ] **AC-4** — document the dashboard's semantic boundary.
-- [ ] **AC-5** — preserve the reconciliation in a dated evidence run.
+- [x] **AC-1** — re-verified every July gap. Current fleet drift and the
+  Proving Ground package/reference regression were reopened rather than hidden.
+- [x] **AC-2** — reconciled WI 020–022 criterion by criterion; only WI-020 AC-1
+  and AC-2 transitioned to satisfied.
+- [x] **AC-3** — policy `002`, research metadata, and repository validation now
+  enforce audit and research review deadlines.
+- [x] **AC-4** — README, concepts documentation, and policy `001` state the
+  canonical-projection semantic boundary.
+- [x] **AC-5** — evidence
+  `20260726-semantic-ledger-freshness-reconciliation` records repositories,
+  commands, transitions, and intentionally open obligations.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+All criteria are linked to the dated reconciliation evidence. WI 037 is proposed,
+not activated: it preserves the newly observed cross-repository obligation
+without inferring authority for another adopter rollout.

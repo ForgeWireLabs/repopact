@@ -15,33 +15,45 @@
       "id": "AC-1",
       "text": "Implement the shared multi-arm benchmark harness covering S2 (recovery + efficiency), S3 (multi-agent coordination), S4 (context-provisioning token economy incl. C0-C9 and the C2+C3 hybrid), S5 (drift detection/staleness), and S6 (security enforcement + injection resistance) per research/benchmark-protocol.md. Task sets and per-task expected outcomes are pre-registered before runs (threats T5, T6, T8).",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260624-pactbench-harness-selftest",
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-2",
       "text": "Instrumentation: token/cost reporting (per-request input/output tokens, context-vs-task split, requests-per-task, USD, cache-adjusted tokens); drift reporting (detection rate, time-to-detection, silent-staleness, reconciliation cost); security reporting (confusion matrix + injection-followed/detection rates).",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260624-pactbench-harness-selftest",
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-3",
       "text": "Results across >=2 model families, reproducible from the published task sets, with the Pareto frontier (cost vs success) and scaling-curve figures. Disconfirming results recorded in findings.md with equal weight; feeds paper section 6.",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-4",
       "text": "Before any live comparative result is interpreted, a dated protocol amendment freezes runs per task and arm, seed and temperature policy, model/version pinning, rubric version, paired analysis, effect sizes and confidence intervals, multiple-comparison handling, missing-run treatment, and stopping rules.",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     },
     {
       "id": "AC-5",
       "text": "RealRunner completes a documented smoke run on at least three pre-registered tasks with one real model before full studies begin; raw command, provider/model version, prompts, outputs, token/cost telemetry, grader results, and failures are captured, and no MockRunner output is presented as empirical evidence.",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260726-semantic-ledger-freshness-reconciliation"
+      ]
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-07-18"
+  "updated": "2026-07-26"
 }

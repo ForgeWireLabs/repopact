@@ -55,7 +55,7 @@ governed by threats T5, T6, T7, T8.
 - **AC-4** — freeze the statistical analysis plan before interpreting any live result.
 - **AC-5** — run and capture a three-task RealRunner smoke against one real model.
 
-## Progress (2026-06-24)
+## Progress (reconciled 2026-07-26)
 
 Foundation landed; criteria stay `pending` because the live-model runs they ultimately
 require are operator-gated. Evidence:
@@ -76,4 +76,25 @@ require are operator-gated. Evidence:
   choices, and AC-5 prevents an untested RealRunner interface from becoming the critical
   path for the full experiment.
 
-(State tracked in [`work-item.json`](work-item.json); `pending` until evidence-backed.)
+## Criterion state
+
+- [ ] **AC-1** — pending. S1/S6a and S5 foundations exist; S2, S3, S4, and S6b
+  drivers/task sets do not.
+- [ ] **AC-2** — pending. Confusion-matrix and illustrative token/cost plumbing
+  exist, but the full token/context, drift-cost, and injection instrumentation
+  contract is not implemented across S2–S6.
+- [ ] **AC-3** — pending and operator-gated. No results across two model families,
+  Pareto frontier, or scaling curve exist.
+- [ ] **AC-4** — pending. No dated statistical amendment freezes the enumerated
+  analysis choices.
+- [ ] **AC-5** — pending and operator-gated. No three-task RealRunner smoke exists.
+
+The 2026-07-26 live check also found that Proving Ground's S5 selftest fails
+against the current package boundary because it imports removed flat module
+names. Proposed WI 037 owns that repair. Deterministic MockRunner output remains
+plumbing evidence only.
+
+Evidence:
+[`20260624-pactbench-harness-selftest`](../../../evidence/runs/20260624-pactbench-harness-selftest.json)
+and
+[`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).

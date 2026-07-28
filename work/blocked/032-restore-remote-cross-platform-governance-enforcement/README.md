@@ -15,6 +15,29 @@ and Linux on every change.
 GitHub Actions is payment-locked. Progress requires an operator to clear that lock or
 authorize and provision an alternative CI service and its repository credentials.
 
+**Narrowed 2026-07-27** (decision [`0031`](../../../decisions/0031-restore-remote-enforcement-on-github-actions-with-an-appveyor-fallback.md)).
+The blocker is smaller than this framing implied, and the operator choice is now a
+yes/no rather than an open question:
+
+- This repository is **public**, and Actions on standard runners is **free and
+  unlimited** for public repositories. There is no CI bill to authorize.
+- Actions is **enabled** at the repository level; workflows are dispatched and
+  rejected in 2–6 seconds with *"your account is locked due to a billing issue"*
+  (most recently run `30218026017`). The lock is account-level, not repository- or
+  cost-related.
+- The lock is a widely reported failure mode on free-tier accounts with nothing
+  owed, often caused by an unverified primary email or a failed payment-method
+  authorization hold. Its cause **on this account is not established** — only the
+  symptom — and community reports show it can persist for weeks, so decision `0031`
+  time-boxes the attempt at 14 days and pre-commits **AppVeyor** as the fallback
+  (free for open source, hosted Windows and Linux images).
+- Cirrus CI, the option a reader would otherwise reach for, **shut down on
+  2026-06-01** and must not be proposed.
+
+Independently of the lock: `main` has **no branch protection** (`404 Branch not
+protected`). AC-3 requires a *required* gate, so there is currently nothing to make
+required under any provider. Protected branches are free for public repositories.
+
 ## Decisions
 
 Do not treat direct PyPI publication as CI restoration. The chosen remote service and

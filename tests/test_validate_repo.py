@@ -253,6 +253,19 @@ class RepositoryValidationTests(unittest.TestCase):
         (extra / "AGENTS.md").write_text("# unregistered\n", encoding="utf-8")
         self.assertTrue(any("not registered in audits/registry.json" in v for v in self.problems()))
 
+    def test_worktree_scratch_checkouts_are_not_scanned_as_nested_contracts(self) -> None:
+        # A `worktrees/<name>/` directory is a second, independent working
+        # copy of this same repository (the convention agent tooling uses for
+        # a scratch `git worktree` checkout) -- its own AGENTS.md belongs to
+        # that checkout, not this one, and must not be flagged as an
+        # unregistered nested contract just because it happens to be reachable
+        # on disk under this root, including several levels deep and left
+        # behind after the session that created it ended.
+        worktree = self.root / "worktrees" / "some-agent-session" / "crates" / "example"
+        worktree.mkdir(parents=True)
+        (worktree / "AGENTS.md").write_text("# from a scratch worktree checkout\n", encoding="utf-8")
+        self.assertFalse(any("not registered in audits/registry.json" in v for v in self.problems()))
+
     def test_existing_audit_companion_must_be_complete(self) -> None:
         (self.root / "repopact" / "_audit" / "inventory.md").unlink()
         self.assertTrue(any("incomplete _audit companion" in v for v in self.problems()))

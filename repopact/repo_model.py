@@ -8,11 +8,19 @@ from typing import Any
 
 STATUSES = ("proposed", "active", "blocked", "deferred", "completed")
 
-# Directories that are not part of the governed tree: tooling caches and, notably,
-# test fixtures, which are self-contained sub-repositories validated on their own.
+# Directories that are not part of the governed tree: tooling caches, test
+# fixtures (self-contained sub-repositories validated on their own), and
+# `worktrees` -- the conventional directory name agent tooling (Claude Code's
+# Agent isolation, Codex, etc.) uses for a scratch `git worktree` checkout.
+# A worktree is a second working copy of the SAME repository; its own
+# AGENTS.md files are already governed at their origin and must not be
+# re-validated as if they were a nested subtree of this checkout, and a
+# worktree can outlive the session that created it (left on disk after an
+# agent's task completes) with no reliable, portable signal other than its
+# name to distinguish it from a real nested contract.
 IGNORED_PARTS = {
     ".git", "__pycache__", "node_modules", ".venv", ".pytest_cache",
-    "build", "dist", "fixtures",
+    "build", "dist", "fixtures", "worktrees",
 }
 
 

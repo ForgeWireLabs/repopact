@@ -8,34 +8,61 @@ plainly including where it is unfavorable to RepoPact.
 ## 1. What did WI230 demonstrate RepoPact CAN do?
 
 When actually invoked, RepoPact's validator correctly and completely
-enumerated real drift: 269–297 genuine violations, correctly classified by
-type (unregistered work directories, missing preflight markers, invalid
-scope references, non-concrete evidence citations, one provenance error, one
-stale-dashboard error), none of which turned out to be a false accusation
-once investigated. WI230's own closeout evidence (`0 WI230 errors, 26 at the
-start`) shows the validator can be run mid-stream, on-demand, by an agent
-choosing to check its own work, and correctly gate that agent's own closeout
-— this is C3/C1 working exactly as designed, for the *portion* of the
-repository someone chose to check. The dashboard-staleness fixpoint
-(`I_derive_dash`, RepoPact 2.2.0's own headline improvement) worked flawlessly
-every single time it was exercised in this incident and in the WI236/237
-session, with zero CI involvement required. This is real, repeated, positive
-evidence for the specific claims C1 and C3 make.
+enumerated what it was designed to check, given the record state and its own
+implementation at the time. The reported error counts require the
+reported/confirmed/false-positive distinction established in
+`04-forgewire-case-timeline.md` item 11: of the 269 errors reported at the
+WI237 starting state, ~98 were **confirmed governance discrepancies**
+(unregistered work directories, missing preflight markers, invalid scope
+references, non-concrete evidence citations, one provenance error, one
+stale-dashboard error), each independently repaired and traced to a commit —
+this is real, positive evidence the validator correctly flags genuine drift
+when run. But 171 (~64%) were a **version-specific validator false
+positive** (the `.claude/worktrees` walk defect in the pinned 2.2.0, already
+fixed on RepoPact's `origin/main` before this incident — `03-version-
+delta.md`), not confirmed governance discrepancies at all. The correct
+statement is therefore: RepoPact's validator, when invoked, correctly
+surfaced ~98 real discrepancies *and* one class of its own version-specific
+false positives, in the same reported count, undifferentiated until manual
+investigation separated them — itself a finding, not a caveat to bury. WI230's
+own closeout evidence (`0 WI230 errors, 26 at the start` — a separate,
+WI230-local reported count) shows the validator can be run mid-stream,
+on-demand, by an agent choosing to check its own work, and correctly gate
+that agent's own closeout — this is C3/C1 working exactly as designed, for
+the *portion* of the repository someone chose to check. The dashboard-
+staleness fixpoint (`I_derive_dash`, RepoPact 2.2.0's own headline
+improvement) worked flawlessly every single time it was exercised in this
+incident and in the WI236/237 session, with zero CI involvement required.
+This remains real, repeated, positive evidence for the specific claims C1
+and C3 make — narrowed by the false-positive finding for C6, not undermined
+by it.
 
 ## 2. What did WI230 demonstrate RepoPact DOES NOT guarantee merely by being adopted?
 
-That the validator will actually be *run*. Being "under RepoPact" in the
-sense of having valid, conformant `governance/*.json` files, a `work/` ledger,
-and an `evidence/runs/` directory did not, by itself, cause the validator to
-execute at any point during the (at minimum) 34-day period between GA-1's
-discovery (39 errors) and WI230's own starting state (297 errors). Adoption
+That confirmed governance discrepancies will be caught before they
+accumulate — because nothing guarantees the validator is actually *run*.
+Being "under RepoPact" in the sense of having valid, conformant
+`governance/*.json` files, a `work/` ledger, and an `evidence/runs/`
+directory did not, by itself, cause the validator to execute at any point
+during the (at minimum) 34-day period between GA-1's discovery (39 reported
+errors) and WI230's own starting state (297 reported errors, an
+undifferentiated mix of confirmed discrepancies and — per the same
+false-positive class identified above, likely already present at some
+level during this window too, though this case study did not independently
+verify the false-positive/confirmed split at the 39- or 297-error snapshots
+specifically, only at the 269-error WI237 starting state). Adoption
 established L0 (the record store exists and can be checked); it did not
 establish that anything in the ordinary commit/CI loop *would* check it.
 This is the central, unfavorable-to-a-naive-reading finding of this case
-study, and it recurred twice independently in the evidence gathered here:
-once in ForgeWire (this incident) and once in RepoPact's own repository
-(WI-032/decision 0031, no branch protection, CI billing-locked for over a
-month, "the maintainer's current workflow is direct-to-`main` commits").
+study, and a structurally related failure recurred independently in the
+evidence gathered here: once in ForgeWire (this incident, a **checkpoint-
+coverage** failure — CI ran but never called RepoPact) and once in
+RepoPact's own repository (WI-032/decision 0031: a **checkpoint-invocation**
+failure — CI billing-locked — compounded by a **checkpoint-effectiveness**
+failure — no branch protection). Both are enforcement-closure failures at
+the same higher level of description; they are not the same failure
+mechanism (see `05-claim-evidence-matrix.md`'s coverage/invocation/
+effectiveness decomposition), and this document does not claim they are.
 
 ## 3. What did WI237 change?
 
@@ -59,7 +86,8 @@ on a real, not staged, frozen-surface change; a fabricated stale-HEAD
 evidence run being detectably inconsistent with the actual current
 `git rev-parse HEAD`) show the *new* arrangement's gates are not merely
 declared but demonstrably fire and block when exercised — which is precisely
-the property (invoked *and* effective, not merely executable) that was
+the property (coverage, invocation, *and* effectiveness together, not merely
+executability — see `05-claim-evidence-matrix.md`'s definition) that was
 missing before. This is real, if narrow and freshly-produced, evidence that
 the specific gap identified in this case study (enforcement closure) is what
 was actually closed, not a peripheral improvement.
@@ -94,41 +122,64 @@ Yes — two, both identified precisely in `05-claim-evidence-matrix.md`:
   as "guaranteed to be invoked on every run of CI" — the current tag
   conflates these, and this case study (plus RepoPact's own WI-032) shows
   the conflation is not merely theoretical.
-- **H12/S5's drift-visibility claim** should be understood as measured over
-  *discrete, promptly-checked mutations*, not over *unbounded periods of
-  zero invocation* — the current framing's honest acknowledgment of F-011 as
-  a blind spot is correct but understates the blind spot's actual severity
-  observed here (a 297-error, multi-week accumulation, not a single missed
-  mutation).
+- **H12/S5's drift-visibility claim** should be understood as measured along
+  one axis — *detection efficacy conditional on invocation*, over discrete,
+  promptly-checked mutations — not over *invocation latency/absence* or
+  *accumulated reported-error volume over an extended zero-invocation
+  window*, which this case study's evidence (a multi-week accumulation
+  reaching a reported count in the hundreds, only part of which — see item 1
+  — turned out to be confirmed governance discrepancy rather than a
+  version-specific false positive) exercises and the current framing's
+  honest acknowledgment of F-011 as a blind spot does not yet score.
 
 ## 7. Is there a new hypothesis or primitive suggested by "enforcement closure"?
 
-Yes. This case study proposes naming it explicitly: **enforcement closure**
-— the property that a checkpoint capable of deciding `s ∈ R` is guaranteed
-to actually run, on a bounded cadence, with a binding consequence, for every
-change that could move the repository out of `R`. The kernel model (L0–L5)
-currently assumes this rather than modeling, guaranteeing, or even naming
-it as a distinct concern from L2's invariant-monitor predicate `I`. A
-candidate formal treatment: an additional layer or cross-cutting property,
-call it `L2.5` or a meta-invariant analogous to INV-1 ("no critical state
-lives only in conversation") but for the checkpoint itself — "no invariant
-enforcement lives only in a checkpoint that may never run." This is offered
-as a hypothesis for future work, not a proven necessity; RepoPact's own
-WI-032 is independent, first-party evidence that its authors are already
-converging on needing exactly this distinction operationally, ahead of it
-being named in the formal model.
+Yes, refined during maintainer review into an admission-boundary definition
+rather than a continuous-checking one (the earlier draft's "guaranteed to
+actually run... on a bounded cadence" phrasing risked reading as conflicting
+with RepoPact's own checkpoint-based, not precondition-based, design — see
+C1 — which this case study does not dispute). This case study now proposes:
+
+> **Enforcement closure** is the property that every transition promoting
+> repository state across a governed admission boundary is necessarily
+> evaluated by the applicable checkpoint, and a nonconformant state cannot
+> cross that boundary merely because the checkpoint was absent, unavailable,
+> ignored, or misconfigured.
+
+— composed of three independently-failable sub-properties: **checkpoint
+coverage** (every governed admission path routes through the applicable
+checker), **checkpoint invocation** (the checker actually executes for the
+candidate state), and **checkpoint effectiveness** (a failing result actually
+prevents the promotion). Full definitions and the ForgeWire-vs-RepoPact-repo
+contrast (a coverage failure vs. an invocation-plus-effectiveness failure) are
+in `05-claim-evidence-matrix.md`. The kernel model (L0–L5) currently assumes
+this triad holds rather than modeling, guaranteeing, or naming it as a
+distinct concern from L2's invariant-monitor predicate `I`. A candidate
+formal treatment: an additional layer or cross-cutting property, provisionally
+`L2.5`, stated as three composable predicates over the admission-boundary
+transition relation rather than a single meta-invariant, since this case
+study's own evidence shows the three sub-properties fail independently and a
+single boolean "closure holds/fails" would lose that distinction. This is
+offered as a hypothesis for future work, not a proven necessity; RepoPact's
+own WI-032 is independent, first-party evidence that its authors are already
+converging on needing exactly this three-way distinction operationally, ahead
+of it being named in the formal model.
 
 ## 8. Does "declared gate" need to be distinguished from "exercised/effective gate"?
 
-Yes, unambiguously, on the evidence gathered here. `05-claim-evidence-
-matrix.md`'s "specified/executable/invoked/effective" analysis found the
-current corpus distinguishes *specified* (a record exists) from *executable*
-(a mechanism could check it) cleanly, via the typed enforcement lattice —
-but has no first-class vocabulary for *invoked* (was it actually run) or
-*effective* (did running it actually bind the outcome) as distinct from
-*executable*. RepoPact's own work item 032 acceptance criteria (AC-1 through
-AC-4) are, read closely, exactly an ad-hoc decomposition of invoked and
-effective as separate deliverables from executable — evidence the
+Yes, unambiguously, on the evidence gathered here — and more precisely than
+a single invoked/effective pair. `05-claim-evidence-matrix.md`'s refined
+analysis found the current corpus distinguishes *specified* (a record
+exists) from *executable* (a mechanism could check it) cleanly, via the
+typed enforcement lattice — but has no first-class vocabulary for
+*checkpoint coverage*, *checkpoint invocation*, or *checkpoint
+effectiveness* as distinct from *executable*, and this case study's own two
+field instances (ForgeWire: coverage absent; RepoPact's own repository:
+coverage present, invocation and effectiveness both absent) show these three
+need to stay separate rather than collapsing into one "invoked or not"
+binary. RepoPact's own work item 032 acceptance criteria (AC-1 through AC-4)
+are, read closely, almost exactly a decomposition onto coverage, invocation,
+and effectiveness plus an honesty constraint — evidence the three-way
 distinction is operationally necessary even where it isn't yet theoretically
 named.
 

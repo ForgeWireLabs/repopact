@@ -1,48 +1,77 @@
 # Case study: ForgeWire WI230 → WI237, and the "enforcement closure" gap
 
 A naturalistic (not pre-registered) field observation of RepoPact's
-progenitor/reflexive adopter, ForgeWire, drifting to 269–297 unreconciled
-`repopact validate` errors while fully governed and while its test suite
-stayed green, followed by a deliberate intervention (WI236/237) that
-reconciled the drift to zero and built a canonical local-CI runner. Produced
-across 11 documents (`00`–`10`), each phase answering a specific question set
-out in the commissioning brief; read `10-preliminary-conclusions.md` first
-for the synthesis, or `00-evidence-freeze.md` for the raw git state each
-subsequent document builds on.
+progenitor/reflexive adopter, ForgeWire, accumulating a repository-level
+`repopact validate` reported-error count in the hundreds while fully
+governed and while its test suite stayed green, followed by a deliberate
+intervention (WI236/237) that reconciled the reported count to zero and
+built a canonical local-CI runner. Produced across 11 documents (`00`–`10`),
+each phase answering a specific question set out in the commissioning
+brief; read `10-preliminary-conclusions.md` first for the synthesis, or
+`00-evidence-freeze.md` for the raw git state each subsequent document
+builds on.
 
-**Status: preliminary, not yet reviewed or incorporated into the paper,
-findings register, or formal model.** No claim in this case study should be
-cited as an accepted RepoPact finding until the owning maintainer(s) review
-it, per the process this case study itself recommends in `10`.
+**Status: preliminary, reviewed once for internal consistency
+(`11-maintainer-review.md`), not yet incorporated into the paper, findings
+register, formal model, PactBench, or the RepoPact implementation.** No claim
+in this case study should be cited as an accepted RepoPact finding until the
+owning maintainer(s) complete the promotion review `11` recommends.
+
+**Terminology note, read before the headline findings below.** This case
+study distinguishes four things that earlier drafts conflated: *reported
+RepoPact validation errors* (the raw count `repopact validate` prints),
+*version-specific validator false positives* (reported errors caused by a
+defect in the validator itself, not by anything wrong in ForgeWire's
+records — see finding 3), *confirmed governance discrepancies* (reported
+errors independently traced to a real problem in a governed record, each
+with its own specific repair), and *WI230-local confirmed governance
+errors* (the subset of reported errors WI230's own closeout evidence
+attributes to its own work-item record specifically). "269–297" below always
+means the first of these unless a finding explicitly narrows it.
 
 ## Headline findings
 
 1. **Enforcement closure is not currently a modeled property.** RepoPact's
    kernel distinguishes governance that is *specified* from governance that
-   is *executable*, but has no named primitive for governance that is
-   *invoked* (actually run) or *effective* (actually binding) as distinct
-   from executable. WI230's drift (39 errors on 2026-07-15, per RepoPact's
-   own `gap-audit-2026-07.md` GA-1; 297 by 2026-08-18) accumulated entirely
-   because the validator was never wired into ForgeWire's CI, not because the
-   validator failed when run. See `05-claim-evidence-matrix.md`'s discussion
-   of the specified/executable/invoked/effective distinction, and the
-   proposed `enforcement closure` primitive in `10`, item 7.
-2. **RepoPact's own repository independently exhibits the identical gap.**
+   is *executable*, but has no named primitive for an admission boundary
+   having *checkpoint coverage* (every governed path routes through the
+   checker), *checkpoint invocation* (the checker actually executes), or
+   *checkpoint effectiveness* (a failing result actually blocks the
+   promotion) — three properties this case study found fail independently
+   in the field. ForgeWire's reported-error count (39 on 2026-07-15 per
+   RepoPact's own `gap-audit-2026-07.md` GA-1; 297 by 2026-08-18) accumulated
+   through a **checkpoint-coverage** failure specifically: ForgeWire's CI ran
+   on every push but no workflow step ever called the RepoPact CLI. This is
+   one of at least three independently-contributing factors this case study
+   separates (the other two are covered in findings 2 and 3 below); it is
+   not offered as the sole cause of the full reported-error volume. See
+   `05-claim-evidence-matrix.md`'s enforcement-closure definition and its
+   coverage/invocation/effectiveness decomposition, and `10`, items 7–8.
+2. **RepoPact's own repository independently exhibits the same higher-level
+   enforcement-closure failure, through a different mechanism.**
    `origin/main` has no branch protection (`404 Branch not protected`,
-   reconfirmed live via `gh api` while writing this case study) and its
-   Governance-validation workflow has been failing in single-digit seconds on
-   every push for weeks (billing lock; reconfirmed via `gh run list`). Work
-   item `032` / decision `0031` — still `blocked`, all four acceptance
-   criteria `pending` — is RepoPact's own first-party attempt to close this
-   for its own repository. See `03-version-delta.md`.
-3. **The worktree-walk false-positive class (171 of ForgeWire's 269 errors,
-   ~64%) was already fixed upstream** (`0096d70`, PR #7, merged 2026-07-28)
-   before this incident — ForgeWire's pin had simply not moved past 2.2.0.
-   This reclassifies most of the incident's error volume as a *version-
-   currency* gap rather than a standing design gap, though the fixed
-   mechanism (a literal directory-name allowlist) is narrowed, not closed
-   structurally: a worktree under any other name reproduces it in both 2.2.0
-   and current `origin/main`. See `03-version-delta.md`'s correction note.
+   reconfirmed live via `gh api` while writing this case study — a
+   **checkpoint-effectiveness** failure) and its Governance-validation
+   workflow has been dispatching and failing in single-digit seconds on
+   every push for weeks due to a billing lock (a **checkpoint-invocation**
+   failure; reconfirmed via `gh run list`) — coverage itself is present
+   (the workflow does call the validator). This is a different mechanism
+   from ForgeWire's coverage failure, not "the identical gap." Work item
+   `032` / decision `0031` — still `blocked`, all four acceptance criteria
+   `pending` — is RepoPact's own first-party attempt to close this for its
+   own repository. See `03-version-delta.md`.
+3. **The worktree-walk false-positive class (171 of ForgeWire's 269
+   *reported* errors at the WI237 starting state, ~64% of that count) was
+   already fixed upstream** (`0096d70`, PR #7, merged 2026-07-28) before this
+   incident — ForgeWire's pin had simply not moved past 2.2.0. This
+   reclassifies most of that specific count as a *version-currency* gap
+   rather than a confirmed governance discrepancy or a standing RepoPact
+   design gap — a third, independent contributing category alongside
+   enforcement closure (finding 1) and the remaining confirmed discrepancies
+   (`04-forgewire-case-timeline.md` item 11). The fixed mechanism (a literal
+   directory-name allowlist) is narrowed, not closed structurally: a
+   worktree under any other name reproduces it in both 2.2.0 and current
+   `origin/main`. See `03-version-delta.md`'s correction note.
 4. **A work-item README's heading can silently disagree with its own
    manifest's `id`**, invisibly to `repopact validate` in both 2.2.0 and
    current `origin/main` — reproduced in an isolated throwaway fixture, not
@@ -76,3 +105,4 @@ it, per the process this case study itself recommends in `10`.
 | `08-pactbench-coverage-gap.md` | 8 | Proving Ground coverage of this incident's features |
 | `09-threats-to-validity.md` | 9 | Why this case is uncontrolled, and why it's still worth having |
 | `10-preliminary-conclusions.md` | 10 | Synthesis, answering the commissioning brief's 11 questions |
+| `11-maintainer-review.md` | review | Correction pass: fixes, retained/narrowed claims, revised definition, promotion candidates |

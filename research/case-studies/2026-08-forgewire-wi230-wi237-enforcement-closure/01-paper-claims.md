@@ -57,15 +57,28 @@ admits `sk` iff `sk ∈ R`." Tagged `[ci]` = machine-checked on every run, and
 (workflow files exist, reference "governance") but never actually invokes
 `repopact validate`/`check-frozen`, so no commit is ever admitted-or-rejected
 by the checkpoint — the checkpoint doesn't run, so T5's "admits iff conformant"
-guarantee is vacuous for every commit in that window, not merely untested. A
-literal reading of `[ci]` ("machine-checked on every run") presupposes CI
+guarantee is vacuous for every commit in that window, not merely untested.
+This does **not** falsify T5's conditional admission logic (T5 says nothing
+about what happens when the checkpoint fails to execute at all); it narrows
+what `[ci]` should be read to certify. Using the terminology fixed in
+`05-claim-evidence-matrix.md`'s enforcement-closure definition: T5 as stated
+covers checkpoint *effectiveness* (a failing result blocks admission) once
+the checkpoint executes; `[ci]` ("machine-checked on every run") reads as
+also promising checkpoint *coverage* and *invocation*, which the theorem
+does not itself establish and this case study's evidence shows do not follow
+automatically from adoption. A literal reading of `[ci]` presupposes CI
 *performs* the check; a CI pipeline that exists but does not call the
 validator is not covered by `[ci]`'s discharge, and the formal model does not
-name this gap explicitly. See RepoPact's own `research/gap-audit-2026-07.md`
-GA-3 and work item `032` (`C:\Projects\repopact\work\blocked\032-...`) for a
-first-party instance of exactly this: RepoPact's own `main` branch has no
-branch-protection requiring the governance workflow to pass, and the workflow
-itself was billing-locked for over a month.
+name this three-way distinction explicitly. See RepoPact's own
+`research/gap-audit-2026-07.md` GA-3 and work item `032`
+(`C:\Projects\repopact\work\blocked\032-...`) for a first-party instance of
+the same higher-level failure class through a different mechanism: RepoPact's
+own `main` branch has no branch protection requiring the governance workflow
+to pass (a coverage/effectiveness gap), and the workflow itself was
+billing-locked for over a month (an invocation gap) — distinct from
+ForgeWire's mechanism, where CI ran on every push but its steps simply never
+called the RepoPact CLI (a pure coverage gap, with invocation and
+effectiveness never at issue because the check was never present to invoke).
 
 **Preconditions required by the claim.** CI (or an equivalent checkpoint) is
 (a) actually configured to invoke the validator, and (b) actually running,
@@ -156,19 +169,40 @@ F-011 case)"); `benchmark-protocol.md` S5; `findings.md` F-011;
 **Supporting observation.** Every mutation *other than* M4/M5/M7/M9 has a
 concrete, named validator predicate that fires when `validate` is *run*.
 
-**Falsifying/narrowing observation.** This is the central hit. WI230's
-269–297 accumulated errors are not a case of the validator running and
-missing something (which is what M1–M15 model — detection accuracy on
-invocation). They are a case of the validator *not being invoked at all* as
-part of ordinary workflow for an extended period, while unrelated
-architecture work proceeded and tests stayed green. This is a *different*
-mechanism from F-011 (which is version-drift: an old adopter's records go
-invalid as the *standard* evolves) and from M9 (same mechanism, modeled as a
-mutation). WI230's mechanism is: the standard did not change, the repository
-was never RepoPact-naive, but the checkpoint was simply not exercised as part
-of the loop that produced the 269–297 errors' worth of drift. See
-`08-pactbench-coverage-gap.md` for the precise gap this exposes in the
-mutation set, and `05-claim-evidence-matrix.md` for the classification.
+**Falsifying/narrowing observation.** This is the central hit, but it needs
+three distinct axes kept apart, which M1–M15 (and H12/S5 as currently
+constructed) substantially collapse into one:
+
+1. **Detection efficacy conditional on invocation** — when `validate` *is*
+   run, does it correctly flag a given divergence? This is what M1–M3, M6,
+   M8, M10–M12, M14–M15 measure, and what this case study's evidence
+   confirms works well (see `04-forgewire-case-timeline.md`, `05`).
+2. **Invocation latency or absence** — how long, and by what mechanism, does
+   it take for `validate` to actually be *run* against a drifted state? This
+   is only partially modeled (S5's `latency` field assumes some run-cadence
+   to measure latency against; it does not model zero-cadence).
+3. **Accumulated drift/error volume over time** — how much, and what kind of,
+   divergence compounds across an extended zero-invocation window? Not
+   modeled by any existing mutation.
+
+RepoPact's own reported figures for this incident (`repopact validate`
+reporting 269–297 repository-level errors at different points; WI230's own
+closeout citing 26 errors attributable to its own record; see
+`04-forgewire-case-timeline.md` for the full breakdown and the important
+caveat that a substantial share of the 269-count, ~64%, is separately
+attributable to a version-specific validator false-positive rather than
+confirmed governance drift) are not a case of axis 1 failing — every
+confirmed governance discrepancy this case study traced was correctly
+flagged once `validate` ran. They are a case of axis 2/3: the validator was
+not invoked at all as part of ordinary workflow for an extended period,
+while unrelated architecture work proceeded and tests stayed green. This is
+a *different* mechanism from F-011 (which is version-drift: an old adopter's
+records go invalid as the *standard* evolves) and from M9 (same mechanism,
+modeled as a mutation) — the standard did not change here, the repository
+was never RepoPact-naive, but the checkpoint was simply not exercised as
+part of the loop over an extended window. See `08-pactbench-coverage-gap.md`
+for the precise gap this exposes in the mutation set, and
+`05-claim-evidence-matrix.md` for the full classification.
 
 **Preconditions.** H12 is stated as a claim about behavior "under RepoPact" —
 which implicitly presumes RepoPact's validator is exercised at the boundaries

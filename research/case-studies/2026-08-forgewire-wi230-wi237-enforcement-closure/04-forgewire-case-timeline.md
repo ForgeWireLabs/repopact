@@ -86,17 +86,44 @@ imports, per `governance/invariants.json` INV-3's escalation clause), and
 `scripts/wi230_closeout_scan.py`'s 11 durable invariant checks, all reported
 clean at closeout.
 
-## 8. Green tests vs. governance drift, concurrently
+## 8. Green tests vs. reported governance drift, concurrently
+
+**Terminology used from here on**, to avoid the conflation the first pass of
+this case study made:
+
+- **Reported RepoPact validation errors** — the raw count `repopact validate`
+  prints at a given commit. This is what all the headline numbers (26, 269,
+  279, 297) are, unless stated otherwise.
+- **Version-specific validator false positives** — reported errors later
+  traced to a defect in the validator itself (specifically, the pinned
+  2.2.0's `IGNORED_PARTS` walking local `git worktree` checkouts as if they
+  were governed content — `01-paper-claims.md` C6, `03-version-delta.md`).
+  Not a governance discrepancy in ForgeWire's records at all.
+- **Confirmed governance discrepancies** — reported errors independently
+  traced to a real, verifiable problem in a governed record (an unregistered
+  work directory, a missing preflight marker, an invalid scope reference, a
+  criterion citing prose instead of an evidence-run id, etc.), each with a
+  specific, checkable repair.
+- **WI230-local confirmed governance errors** — the 26 reported errors WI230's
+  own closeout evidence attributes specifically to WI230's own work-item
+  record (a subset of, not additional to, the repository-wide reported
+  count at that point).
 
 **[HARD]** WI230's own closeout line: "**11059 passed, 0 failed.** RepoPact:
 **0 WI230 errors** (26 at the start of closeout)." — the full test suite was
 green (11,059 passing tests) at a point where RepoPact's validator, if run,
 reported 26 errors attributable to WI230's own record and (per item 9 below)
-297 repository-wide. Test greenness and governance conformance were
-independent axes during this period; nothing in the test suite's pass/fail
-status reflected the RepoPact drift.
+297 repository-wide. This case study did **not** independently re-classify
+each of those 26 WI230-local errors into confirmed-discrepancy vs.
+false-positive; WI230's own closeout evidence records them as resolved by
+real repairs to WI230's own record (evidence-link corrections, an
+`affected_scope` fix, a preflight marker), not as a blanket exemption — see
+the evidence run's own summary text quoted in item 9. Test greenness and
+reported governance-error count were independent axes during this period;
+nothing in the test suite's pass/fail status reflected either the confirmed
+discrepancies or the false-positive count.
 
-## 9. Discovery of the repository-wide 297 → 269 state
+## 9. Discovery of the repository-wide 297 → 269 reported-error state
 
 **[HARD]** `evidence/runs/20260820-230-closeout.json`, field
 `repopact_repository_errors_before: 297`, measured at commit `b75af681`
@@ -106,31 +133,59 @@ moved to work/completed/; 279 while it was still active. Both are below the
 entries on FMR-001..FMR-009." The same evidence run's summary field states
 the residual 269 were "predominantly unknown `affected_scope` 'security-team'
 and missing preflight markers across `work/proposed/213, 214, 217-223`" —
-i.e., WI230's own closeout *partially* reconciled repo-wide drift as a
-side effect of repairing its own evidence, without that being WI230's
-stated purpose, and left the residual 269 for a later, dedicated effort.
+i.e., WI230's own closeout *partially* reconciled repo-wide *reported error
+count* as a side effect of repairing its own evidence, without that being
+WI230's stated purpose, and left a residual 269 *reported* errors for a
+later, dedicated effort. Neither this evidence run nor this case study
+independently classifies each of those 269 as confirmed-discrepancy vs.
+false-positive at this point in the timeline — that classification is first
+established at item 11.
 
 ## 10. WI236/237 intervention (2026-08-20)
 
 **[HARD]** The user's directive opening the WI236 session named this residual
-269-error state as the starting condition, cross-confirmed independently by
-this session's own first `repopact validate --root .` run at the start of the
-WI236/237 work, which reported exactly 269 errors before any change — a
-second, independent confirmation of the figure recorded in item 9.
+269-*reported-error* state as the starting condition, cross-confirmed
+independently by this session's own first `repopact validate --root .` run
+at the start of the WI236/237 work, which reported exactly 269 errors before
+any change — a second, independent confirmation of the figure recorded in
+item 9. At this point in the timeline, "269" is still an unclassified
+reported-error count, not yet separated into false positives and confirmed
+discrepancies.
 
-## 11. 269 → 0 reconciliation
+## 11. 269 → 0 reconciliation, and the reported/confirmed/false-positive breakdown
 
 **[HARD]** Documented in this session's own commits
 (`e02aec1e`, `0d3d7608`) and evidence
 (`evidence/runs/20260820-236-repopact-zero.json`, later renamed to
-`20260820-237-repopact-zero.json`). 171 of the 269 (about 64%) were the
-`.claude/worktrees` false-positive class (see `01-paper-claims.md` C6); the
-remaining ~98 were genuine record-level drift (unregistered work
-directories, missing preflight markers, invalid owner-scope references,
-prose-instead-of-evidence-run citations, one provenance-state error, one
-stale-dashboard error) reconciled with real, re-verified repairs (see the
-commit message of `e02aec1e` for the itemization) — never a fabricated
-baseline exemption.
+`20260820-237-repopact-zero.json`). Of the 269 reported errors:
+
+- **171 (about 64%) were the `.claude/worktrees` version-specific validator
+  false-positive class** — traced to the pinned 2.2.0's `IGNORED_PARTS`
+  walking local, untracked `git worktree` checkouts as governed content (see
+  `01-paper-claims.md` C6); each was resolved by removing the stale worktree
+  checkouts, not by any change to a governed record, and none represented a
+  discrepancy in ForgeWire's actual governance state. **Correction
+  (post-maintainer-review)**: this class was already fixed on RepoPact's
+  `origin/main` three weeks before this incident (`03-version-delta.md`) —
+  ForgeWire's pin had simply not moved past 2.2.0.
+- **The remaining ~98 reported errors were resolved with real, individually
+  traceable repairs to governed records** — unregistered work directories,
+  missing preflight markers, invalid owner-scope references,
+  prose-instead-of-evidence-run citations, one provenance-state error, one
+  stale-dashboard error (see the commit message of `e02aec1e` for the
+  itemization, and the corresponding `work/`/`governance/` diffs for each).
+  This case study treats these as **confirmed governance discrepancies**
+  because each was independently repaired with a specific, checkable fix
+  traced to a commit — not because a blanket count was declared genuine
+  without inspection. It does **not** independently re-derive or re-audit
+  each of the ~98 individual repairs from first principles within this case
+  study; it relies on `e02aec1e`'s own itemization and the fact that
+  `repopact validate` reported zero errors after those specific, named
+  repairs were applied — which is evidence the repairs addressed what was
+  actually flagged, not evidence that every one of the ~98 was independently
+  re-verified by a third party. No repair in that commit was a fabricated
+  baseline exemption (no error was suppressed, ignored, or excluded from
+  scoring); each corresponds to an edited record.
 
 ## 12. Declared-but-ineffective gates discovered by actually exercising them
 

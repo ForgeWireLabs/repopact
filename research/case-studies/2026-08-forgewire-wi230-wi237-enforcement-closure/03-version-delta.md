@@ -23,13 +23,16 @@ item's confirmation note.
 
 ## Unchanged (confirmed identical logic)
 
-- **Work-item id allocation** (`new.py:_next_numeric`): byte-for-byte the same
-  local-tree-scan-and-increment logic in both versions. `max(existing numeric
-  prefixes) + 1`, computed from `(root/"work").glob("*/*/work-item.json")` at
-  the moment `new` runs. No `git fetch`, no remote registry, no lock, in
-  either version. **The concurrent-agent id-collision gap that produced the
-  WI236/WI237 renumbering is present, unaddressed, in the current development
-  head, not merely in the pinned 2.2.0.** See `07-concurrency-id-collision.md`.
+- **Work-item id allocation** (`new.py:_next_numeric`): confirmed
+  byte-for-byte identical between 2.2.0 and `origin/main` directly (not just
+  the feature branch) — same local-tree-scan-and-increment logic
+  (`max(existing numeric prefixes) + 1`, computed from
+  `(root/"work").glob("*/*/work-item.json")` at the moment `new` runs). No
+  `git fetch`, no remote registry, no lock, in either. **The concurrent-agent
+  id-collision gap that produced the WI236/WI237 renumbering is present,
+  unaddressed, on RepoPact's actual current `main`.** See
+  `07-concurrency-id-collision.md` — no conclusion is drawn here about what
+  the fix should be, only that the gap is confirmed current.
 - **`check-frozen`**: same `--base origin/main` default, same working-tree
   union (F-002's fix), same bare `--ack` flag with no separate authorization
   record, confirmed present in both 2.2.0 and `origin/main`.
@@ -39,13 +42,6 @@ item's confirmation note.
   ratcheting), confirmed identical in both 2.2.0 and `origin/main`. No new
   repair class for the id-allocation or README-heading gaps (still absent —
   see below).
-- **Work-item id allocation** (`new.py:_next_numeric`): confirmed
-  byte-for-byte identical between 2.2.0 and `origin/main` directly (not just
-  the feature branch) — same local-tree-scan-and-increment logic, no `git
-  fetch`, no remote registry, no lock, in either. **The concurrent-agent
-  id-collision gap that produced the WI236/WI237 renumbering is present,
-  unaddressed, on RepoPact's actual current `main`.** See
-  `07-concurrency-id-collision.md`.
 
 ## Changed (confirmed additions on `origin/main`, absent from 2.2.0)
 
@@ -119,11 +115,18 @@ item's confirmation note.
     until this is configured.
   - The decision's own text states plainly: "the maintainer's current
     workflow is direct-to-`main` commits" — RepoPact's own repository has
-    been operating, for at least a month, in exactly the "governance
-    declared, checkpoint not actually gating merges" state this case study
-    investigates in ForgeWire, for a structurally different but
-    phenomenologically identical reason (billing lock + absent branch
-    protection, vs. ForgeWire's CI workflows simply never calling the CLI).
+    been operating, for at least a month, without a merge gate that binds a
+    checkpoint's result to admission. This is **the same higher-level
+    enforcement-closure failure class as ForgeWire's, through a different
+    mechanism**, not an identical causal chain: ForgeWire's hosted CI was
+    functioning and simply never invoked RepoPact (a checkpoint-coverage
+    failure, §"Refined terminology" in `05-claim-evidence-matrix.md`);
+    RepoPact's own repository has a governance workflow that exists and is
+    dispatched, but GitHub Actions has been billing-impaired (a checkpoint-
+    invocation failure) *and* `main` lacks a required merge gate (a
+    checkpoint-effectiveness failure) — two distinct, compounding mechanisms,
+    neither of which is "the CI workflow never calls the CLI," which is
+    ForgeWire's specific mechanism and not RepoPact's.
   - **Re-confirmed directly against `origin/main` (not just the feature
     branch), live, at the time of this correction**: `gh api
     repos/ForgeWireLabs/repopact/branches/main/protection` still returns
@@ -135,11 +138,11 @@ item's confirmation note.
     merely as of a stale feature-branch snapshot. It remains the single
     most directly relevant piece of version-delta evidence this case study
     found: RepoPact's own maintainers are, concurrently with this case
-    study's writing, mid-decision on the identical class of gap — and, per
-    the freshly-confirmed CI run list, RepoPact's *own* governance workflow
-    has been failing on every single push to its own `main` for at least the
-    period 2026-07-26 through 2026-07-28 inclusive, immediately surrounding
-    the worktree-exclusion fix itself.
+    study's writing, mid-decision on the same higher-level failure class —
+    and, per the freshly-confirmed CI run list, RepoPact's *own* governance
+    workflow has been failing on every single push to its own `main` for at
+    least the period 2026-07-26 through 2026-07-28 inclusive, immediately
+    surrounding the worktree-exclusion fix itself.
 
 ## Absent in both versions (not merely unmentioned — verified absent)
 
@@ -149,34 +152,43 @@ item's confirmation note.
   policy/invariant). `adopt`'s CI mapping records that workflows *exist*; it
   does not and cannot introspect what each workflow step *does*.
 - No self-requirement that RepoPact's own CLI participate in the loop that
-  produces commits — the checkpoint-not-precondition design (C1 in
-  `01-paper-claims.md`) is unchanged in dev HEAD; WI-032/decision-0031 is an
-  attempt to close this gap operationally (branch protection + a required
-  status check) for RepoPact's *own* repository specifically, not a change to
-  the kernel model itself (no new `I_*` predicate, no schema change, no CLI
-  surface change addresses this in dev HEAD as inspected).
+  produces commits — the checkpoint-based (not precondition-based) design
+  (C1 in `01-paper-claims.md`) is unchanged in `origin/main`; WI-032/
+  decision-0031 is an attempt to establish checkpoint coverage and
+  checkpoint effectiveness (branch protection + a required status check) for
+  RepoPact's *own* repository specifically, not a change to the kernel model
+  itself (no new `I_*` predicate, no schema change, no CLI surface change
+  addresses this on `origin/main` as inspected).
 
 ## Conclusion for this phase
 
-**Corrected conclusion.** Of the two structural gaps that produced the bulk
-of ForgeWire's 269 errors: the worktree-walk false-positive class (~64% of
-the total) **was already fixed on RepoPact's actual `origin/main`** three
-weeks before either WI230 or WI236/237 — ForgeWire simply hadn't received it,
-because its pin stayed at 2.2.0. This means roughly two-thirds of this
-incident's error volume is better classified as a *version-currency* gap
-(the fix existed; the adopter's pin lagged it) than as a RepoPact design gap
-— an important distinction the first pass of this phase got wrong by
-checking a stale feature branch instead of `origin/main` directly. The
-concurrent-agent id-collision gap **is** confirmed still present,
+**Corrected conclusion.** Of the two structural gaps that contributed to the
+volume of ForgeWire's reported validation errors: the worktree-walk
+false-positive class (171 of 269 reported errors at the WI237 starting
+state, ~64% of that count — see `04-forgewire-case-timeline.md` for the
+distinction between reported errors and confirmed governance discrepancies)
+**was already fixed on RepoPact's actual `origin/main`** three weeks before
+either WI230 or WI236/237 — ForgeWire simply hadn't received it, because its
+pin stayed at 2.2.0. This means most of that specific count is better
+classified as a *version-currency* gap (the fix existed; the adopter's pin
+lagged it) than as a standing RepoPact validator defect — an important
+distinction the first pass of this phase got wrong by checking a stale
+feature branch instead of `origin/main` directly. It says nothing about the
+remaining, independently confirmed governance discrepancies (unregistered
+work directories, missing preflight markers, invalid scope references,
+non-concrete evidence citations, WI230's own 26 record-level errors, etc.),
+which are a separate category not addressed by this specific upstream fix.
+The concurrent-agent id-collision gap **is** confirmed still present,
 unaddressed, on `origin/main`'s actual current tip, by direct source
 comparison. Do not claim RepoPact 3.0.0-in-progress would have prevented
 WI236/237's specific id collision — it would not have. Do claim it would have
-prevented the worktree-driven 171 errors specifically, had ForgeWire's pin
-been current. The one narrative-drift-adjacent improvement found (decision
-0028) narrows a different, related class (root README's version claim)
-without covering the work-item-README case this incident surfaced. The most
-significant version
-delta is not a code change at all: it is that RepoPact's own repository is,
-as of dev HEAD, in active, self-acknowledged, unresolved deliberation over
-the same "declared vs. actually-enforced checkpoint" gap this case study
-investigates in ForgeWire (work item 032, decision 0031).
+prevented the worktree-driven false positives specifically, had ForgeWire's
+pin been current. The one narrative-drift-adjacent improvement found
+(decision 0028) narrows a different, related class (root README's version
+claim) without covering the work-item-README case this incident surfaced.
+The most significant version delta is not a code change at all: it is that
+RepoPact's own repository is, as of `origin/main`'s current tip, in active,
+self-acknowledged, unresolved deliberation over the same higher-level
+enforcement-closure failure class this case study investigates in ForgeWire
+(work item 032, decision 0031) — reached by a different mechanism, per the
+distinction above.

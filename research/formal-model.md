@@ -30,13 +30,14 @@ home below.
 | **L2** | Invariant monitor | the predicate `I`; `R` = recognized language | §2 |
 | **L3** | Enforcement lattice | invariants typed state / transition / temporal / relational → tiered enforcers | §5 |
 | **L4** | Derive layer | projections `π` (dashboard, SPEC); derive-over-declare | §1, §4 |
-| **L5** | Adoption boundary | migration of naive/external reality → the pact; the trilemma; provenance | §4, §7 |
+| **L5** | Adoption boundary | migration of naive/external reality → the pact; the trilemma; provenance | §4, §8 |
 
 The layers are ordered by how much of the repository's environment they touch. L0–L3 are
 internal: everything they govern already lives in the tree. L4 derives artifacts from the
 tree. L5 is the boundary at which the repository meets state it does not contain —
 external trackers, design documents, and intent or history that were never committed. The
-limits of RepoPact in its current version (§7) are L5 limits.
+limits of RepoPact in its current version (§8) are L5 limits. §7 treats a distinct,
+cross-cutting concern — enforcement closure at the admission boundary — orthogonal to L5.
 
 ## 1. State
 
@@ -267,7 +268,7 @@ item backed by **inferred** evidence, so the migration is **both Closed and Fait
 trilemma is resolved in the implementation, not merely relaxed. The L2 monitor enforces P2
 (a `completed` item must be concrete) and P3 (a `concrete` item may not rest on non-concrete
 evidence); `doctor` ratchets `provisional → concrete` (conservative, monotone) once concrete
-evidence is attached. §7 develops the still-open direction (external project memory).
+evidence is attached. §8 develops the still-open direction (external project memory).
 
 ---
 
@@ -357,7 +358,135 @@ implementation; `[ci]` machine-checked on every run; `[fix]` covered by the fixt
 
 ---
 
-## 7. Contributions and limits
+## 7. Enforcement closure: an admission-boundary property
+
+*Added 2026-08-21, work item 039, motivated by a naturalistic field
+observation — see [`findings.md`](findings.md)'s "Field-study synthesis:
+enforcement closure" and the accepted case study it cites. This section adds
+a property to the model; it does not amend or replace T5 (§6), which is
+clarified in a dated note at the end of this section.*
+
+§3 established that L1 (the lifecycle automaton) is checkpoint-based, not
+precondition-based: an edit trace `s0 → s1 → … → s_k` may pass through
+arbitrary, even non-conformant, intermediate states, and L2 decides
+admissibility only *at* a checkpoint. §6's T5 (monitor non-bypass) states
+that such a checkpoint, when it runs, admits `s_k` iff `s_k ∈ R`. Neither §3
+nor §6 models what guarantees a checkpoint exists on a given admission path,
+executes for a given candidate state, or binds its decision to the actual
+promotion. This section names and formalizes that gap as a cross-cutting
+property of the admission boundary — deliberately not a seventh kernel
+layer: `A` is a distinguished subset of the transition relation `T` already
+defined in §4, and `Cov`/`Inv`/`Eff`/`EC` are predicates over it, not new
+governed state, a new record type, or a new derive projection. L0–L5 are
+unchanged.
+
+### 7.1 Governed admission transitions
+
+Let `A ⊆ →` be the subset of the transition relation (§4) whose target state
+`s'` is promoted across a **governed admission boundary** — a distinguished
+class of transitions the deployment treats as consequential: a branch merge
+onto a protected ref, a release publication, a work item's move into
+`completed`, or an equivalent promotion a deployment designates. `A` is a
+deployment-supplied subset of `→`, not a fixed set the kernel derives; L0–L6
+place no constraint on which transitions a deployment designates as
+admission boundaries, only on what happens at one once designated. This is
+deliberately narrower than "every edit": intermediate working-tree states
+and non-admission-boundary transitions remain unconstrained exactly as §3
+describes, and this section does not turn RepoPact into a runtime or
+pre-edit gate.
+
+For `τ = (s, a, s') ∈ A`, define three predicates:
+
+```
+Cov(τ)   checkpoint coverage:        the admission path producing τ routes
+                                      through the applicable checker at all
+Inv(τ)   checkpoint invocation:      the checker actually executes for τ,
+                                      given Cov(τ)
+Eff(τ)   checkpoint effectiveness:   a rejecting result (χ_R(s') = reject)
+                                      prevents τ's promotion from completing
+```
+
+**Enforcement closure** over `A`:
+
+```
+EC(A) := ∀τ ∈ A. Cov(τ) ∧ Inv(τ) ∧ Eff(τ)
+```
+
+Equivalently, in prose: *enforcement closure is the property that every
+transition promoting repository state across a governed admission boundary
+is necessarily evaluated by the applicable checkpoint, and a nonconformant
+state cannot cross that boundary merely because the checkpoint was absent,
+unavailable, ignored, or misconfigured.*
+
+The three conjuncts are logically independent, and the case study motivating
+this section documents both failing separately in the field: an admission
+path can lack `Cov` entirely (a CI pipeline that runs but never calls the
+validator — no checker is wired to that path at all), or possess `Cov` while
+lacking `Inv` (a checker is wired in but does not execute — e.g. the
+execution environment refuses to start the job) or `Eff` (the checker
+executes and correctly rejects, but nothing requires its result to gate the
+promotion — e.g. no required-status-check equivalent on the target ref).
+
+**Availability.** Whether the infrastructure a checkpoint depends on (a CI
+provider, a runner, network access) is reachable at all is not modeled as a
+fourth independent conjunct. It is treated as one possible *cause* of
+`Inv(τ) = false` — unavailability prevents execution — kept distinct from
+`Cov` and `Eff` because both of those can fail independently of
+availability: `Cov` can fail with perfect availability (nothing calls the
+checker), and `Eff` can fail with perfect availability and successful
+invocation (the checker runs and rejects, but nothing binds that result to
+the promotion).
+
+**Substrate neutrality.** `EC(A)` names a property of the admission boundary,
+not a mechanism. A required GitHub status check on a protected branch is one
+possible way to supply `Eff`; a repository-local canonical runner that
+developers and agents are disciplined (or required by tooling) to invoke
+before every promotion, a self-hosted CI system, a release-gate script that
+refuses to publish on a failing check, or a future distributed-runner
+admission check ahead of a control-plane merge could each supply `Cov`,
+`Inv`, or `Eff` through a different substrate. The model does not privilege
+any one mechanism.
+
+### 7.2 Relationship to T5 — a clarification, not an amendment
+
+T5 (§6) states: for an edit trace `s0 → … → s_k`, "the CI checkpoint admits
+the commit producing `s_k` iff `s_k ∈ R`." Read precisely, T5 is a claim
+about the **correctness of the checkpoint's decision function** — that it
+correctly recognizes `R` (extending T1's one-tree recognizer correctness to
+a trace) — stated in a context that presupposes the checkpoint exists on the
+relevant path and executes for the candidate state. Formally, using this
+section's predicates: **T5 establishes, for `τ ∈ A` with `Cov(τ) ∧ Inv(τ)`,
+that the checkpoint's decision on `τ` correctly equals `s' ∈ R`.** T5 does
+not itself establish `Cov(τ)`, `Inv(τ)`, or `Eff(τ)` for any particular
+`τ` — it is silent on whether a checkpoint exists on a given path, whether
+it runs, and whether its correct decision is actually binding. This is not
+a defect in T5: nothing in its statement or the `[ci]` discharge tag claims
+otherwise once read at this precision. It is, however, a common and natural
+over-reading — the informal prose around T5 ("no invalid state is admitted
+past a checkpoint") is easy to read as already including `Cov`/`Inv`/`Eff`,
+when in fact:
+
+```
+monitor non-bypass (operational sense) = T5's decision-correctness ∧ EC(A)
+```
+
+`T5` is unchanged and not falsified by this clarification — its literal
+quantified statement (a checkpoint that executes decides correctly) is
+sound and remains `[ci]`/`[conj]` exactly as before. What changes is that
+the *operational* guarantee a reader infers from "monitor non-bypass" —
+that invalid states cannot reach an admitted repository state in
+practice — additionally requires `EC(A)` as a **deployment precondition**
+this document did not previously separate out. RepoPact's reference
+implementation supplies the mechanism for `T1`/`T5`'s decision correctness
+(the validator); it does not supply, guarantee, or check `EC(A)` for a given
+deployment's admission set `A` — that remains the deployment's
+responsibility, exactly as `Init`, `Act`'s wiring into a CI system, and
+branch-protection-equivalent configuration are deployment facts outside the
+kernel's own `S`.
+
+---
+
+## 8. Contributions and limits
 
 **Contributions.** (1) A precise definition of the validator's decision (T1) and a
 conformance target for alternative implementations. (2) The action taxonomy of §4 and T6.
@@ -414,7 +543,7 @@ how much of the project's memory is reachable from within the repository.
 
 ---
 
-## 8. Map to the paper
+## 9. Map to the paper
 
 This document is the formal spine of [`paper-outline.md`](paper-outline.md) §3 (the model)
 and §4 (the validator as reference semantics). In its vocabulary, §5–§6 of the outline (the
@@ -423,7 +552,9 @@ falsification is a `findings.md` entry citing a capture.
 
 The contributions beyond the SPEC are the kernel-layer model (§0), which presents the
 architecture with the lifecycle automaton as L1; the adoption trilemma and provenance
-typing (§4); the typed invariant lattice (§5); and the L5 boundary (§7), which states the
+typing (§4); the typed invariant lattice (§5); the enforcement-closure admission-boundary
+property (§7, added 2026-08-21, motivated by a naturalistic field case rather than the
+reflexive proving-ground protocol); and the L5 boundary (§8), which states the
 repository-as-kernel thesis precisely together with its present limits. In each, the
 architecture's enforcement tiers and adoption guarantees follow from the logic rather than
 from convenience.

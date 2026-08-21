@@ -505,6 +505,7 @@ The pre-registered studies are:
 | S4    | H11        | context-token economy                         | cost-success Pareto frontier, scaling curve                  | protocol defined; results pending                                                  |
 | S5    | H12        | drift detection and staleness                 | detection rate, latency, silent-staleness rate               | runnable drift harness in Proving Ground; comparative results pending              |
 | S6    | H13        | security enforcement and injection resistance | security catch rate, injection-followed rate, detection rate | tasks included in PactBench scope; real model results pending                      |
+| S7    | H14        | enforcement closure and longitudinal drift    | coverage/invocation/effective-block rates, nonconformant-admission rate, confirmed-discrepancy vs. false-positive counts (kept separate) | pre-registered 2026-08-21 (§6.6); not implemented; no runs performed |
 
 The current benchmark maturity states are:
 
@@ -642,6 +643,88 @@ The paper will be updated with:
 
 only after real runs are complete across the stated model families.
 
+### 6.6 A naturalistic longitudinal field case: enforcement closure
+
+Distinct from both the reflexive falsification protocol (§5.1) and the
+pre-registered comparative program (§5.2, §6.5), one further evidentiary
+source is reported here: an **endogenous longitudinal naturalistic field
+case**, not a controlled experiment and not offered as causal proof. Over
+an extended period of ordinary, real engineering work on ForgeWire —
+RepoPact's progenitor repository (§6.3's confirmatory-not-independent
+caveat applies in full here too) — `repopact validate` accumulated a
+reported repository-level error count in the hundreds while the project's
+own test suite stayed green throughout, because no checkpoint in ForgeWire's
+ordinary commit/CI loop invoked the validator. A deliberate, self-motivated
+intervention, designed only after this state was observed (not
+pre-registered, not blind, not causally isolated from the observation that
+prompted it), reconciled the reported count to zero and wired a canonical
+local runner into the project's ordinary workflow. Independently, RepoPact's
+own repository — also ForgeWireLabs-controlled — was found, during the same
+period, to exhibit a structurally related but mechanistically distinct gap:
+its `main` branch has no required merge gate and its own governance-
+validation workflow has been failing on every push due to an account-level
+CI billing lock (work item 032, decision 0031, both open as of this
+writing). Full evidence, method, and a maintainer review pass are recorded
+in `research/case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/`.
+
+**What is and is not claimed.** The reported error count itself is not a
+clean "governance drift" figure: independent investigation traced roughly
+two-thirds of it to a version-specific validator defect (a raw filesystem
+walk scanning local scratch `git worktree` checkouts as governed content),
+already fixed upstream before the incident but unreceived because the
+adopter's package pin had not been updated — not a confirmed discrepancy in
+any governed record. The remainder were confirmed, individually repaired
+governance discrepancies. Both figures are reported in `findings.md` (F-015,
+F-016) and the case study rather than a single undifferentiated number.
+
+The conclusions this case supports, stated at the precision the evidence
+warrants:
+
+**A.** When invoked, RepoPact's validator detected real governance
+discrepancies that the project's own automated test suite did not reveal
+and gave no signal about — direct evidence for the value of the mechanism
+when exercised.
+
+**B.** Adoption together with an executable, correct validator does not, by
+itself, establish that the validator is exercised at the boundaries that
+matter. A repository can be fully RepoPact-governed in the L0 sense (§3.1)
+and still accumulate unreconciled reported drift for an extended period if
+nothing in its ordinary workflow invokes the checkpoint.
+
+**C.** The case motivates separating three properties of a governed
+admission boundary that this paper's model had not previously distinguished:
+**checkpoint coverage** (an admission path routes through the checker at
+all), **checkpoint invocation** (the checker executes for a given
+candidate), and **checkpoint effectiveness** (a rejecting result actually
+prevents the promotion). Formalized in `formal-model.md` §7 as **enforcement
+closure**, `EC(A) = ∀τ∈A. Cov(τ)∧Inv(τ)∧Eff(τ)`, and clarified there as a
+deployment precondition that T5 (monitor non-bypass) presupposes rather than
+establishes — T5 itself is unchanged and not falsified by this observation.
+
+**D.** The current H12/S5 drift-detection program measures *detection
+efficacy conditional on invocation* — how well a validator that does run
+catches a given mutation — substantially better than it measures invocation
+absence or accumulated divergence under an extended zero-invocation window.
+This is a scoping clarification, recorded as a dated protocol amendment
+(`protocol.md`, `benchmark-protocol.md`), not a retraction: H12's original
+falsification criteria and F-011's honest disclosure of RepoPact's own
+longitudinal-drift blind spot stand as originally stated.
+
+**E.** This naturalistic case motivates a new, prospective, falsifiable
+hypothesis — **H14, enforcement closure** — and a corresponding
+pre-registered comparative study, **S7** (§5.2, Appendix C). It does **not**
+itself confirm H14. Treating a naturalistic, post-hoc observation as
+confirmation of the hypothesis it motivated would be exactly the kind of
+retroactive validation this paper's own evaluation discipline (§5, T1, T5)
+is designed to prevent. H14 remains untested pending S7.
+
+**F.** The one derive-layer invariant already moved fully into the one-tree
+validator — `I_derive_dash`, the dashboard fixpoint introduced in 2.2.0
+(§3.5) — received strong positive field evidence in this same case: every
+dashboard-staleness check exercised, local and CI-independent, caught
+staleness correctly. This is reported as direct support for that specific
+design choice, not for the architecture's coverage in general.
+
 ## 7. Discussion
 
 ### 7.1 Why repository-native governance
@@ -703,7 +786,7 @@ When those conditions do not hold, an instruction file and tests may be enough.
 
 ### T1: Reflexivity
 
-RepoPact was distilled from real practices in the author's agentic development workflow. That is a strength for relevance but a threat to generality. A project adopting the system that it helped inspire is confirmatory, not independent. Mitigation requires unrelated repositories, different domains, and third-party reproduction.
+RepoPact was distilled from real practices in the author's agentic development workflow. That is a strength for relevance but a threat to generality. A project adopting the system that it helped inspire is confirmatory, not independent. Mitigation requires unrelated repositories, different domains, and third-party reproduction. The enforcement-closure field observation (§6.6) is a second instance of the same threat, not a mitigation of it: it was found in ForgeWire (the progenitor) and independently in RepoPact's own repository — both ForgeWireLabs-controlled. It is reported as motivating evidence for a new prospective hypothesis (H14), not as independent confirmation.
 
 ### T2: Single evaluator and operator effects
 
@@ -749,7 +832,7 @@ RepoPact turns the version-controlled repository into that contract. It models a
 
 The formal model shows why enforcement cannot be treated as one mechanism. State invariants, transition invariants, temporal invariants, relational invariants, and meta-coverage claims require different enforcers. It also shows why brownfield adoption is difficult. In a concrete-only record language, total, faithful, and closed migration cannot all hold. RepoPact 2.0 resolves that by adding provenance-typed records. Reconstructed state can be valid without pretending to be proven, while completed work still requires concrete evidence.
 
-The evaluation so far is reflexive, adversarial, and honest about defects. Some failures cracked the architecture and were fixed. Some adversarial cases held. Comparative value claims remain forthcoming, but the benchmark infrastructure has moved from plan to runnable public artifacts in RepoPact Proving Ground.
+The evaluation so far is reflexive, adversarial, and honest about defects. Some failures cracked the architecture and were fixed. Some adversarial cases held. Comparative value claims remain forthcoming, but the benchmark infrastructure has moved from plan to runnable public artifacts in RepoPact Proving Ground. A naturalistic longitudinal field case (§6.6) additionally surfaced that adoption plus an executable, correct validator does not by itself establish that the validator is exercised where it matters — motivating a new admission-boundary property, enforcement closure (`formal-model.md` §7), and a prospective hypothesis (H14) this paper does not claim is yet confirmed.
 
 Future work includes:
 
@@ -762,7 +845,8 @@ Future work includes:
 7. developing a refinement order for nested contracts,
 8. expanding external ingestion across trackers and design documents,
 9. hardening provenance review and ratcheting flows,
-10. and inviting third-party conformance implementations.
+10. inviting third-party conformance implementations,
+11. and running S7 to test H14 (enforcement closure) under controlled, pre-registered conditions — including, per T1, at least one deployment outside ForgeWireLabs' own repositories.
 
 The repository is already the substrate software engineering trusts. RepoPact's claim is that it can also be the operating system for durable agentic work.
 
@@ -839,6 +923,7 @@ In a provenance-aware language, adoption can be total, faithful, and closed by e
 | S4    | Context-token economy                   | RepoPact improves cost-success frontier and bounded context scaling                          | protocol defined                                      |
 | S5    | Drift detection                         | RepoPact lowers silent staleness and detection latency                                       | drift harness present; comparative results pending    |
 | S6    | Security and injection resistance       | RepoPact improves defensive invariant preservation and lowers injected-context-followed rate | tasks scoped; real results pending                    |
+| S7    | Enforcement closure and longitudinal drift | A deployment with checkpoint coverage, invocation, and effectiveness admits less known-nonconformant state across governed boundaries than one lacking any of the three | pre-registered 2026-08-21 (§6.6, `benchmark-protocol.md`); not implemented; motivated by a naturalistic field case, not itself confirmed by it |
 
 ### Appendix D: Figures and tables planned
 

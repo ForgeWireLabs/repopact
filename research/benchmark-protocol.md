@@ -11,8 +11,12 @@ bar is set independently of the results, amendments are dated and appended, and 
 that **disconfirms** RepoPact is recorded with equal weight. The aim is a defensible
 number for the paper, not advocacy.
 
-These studies operationalize hypotheses **H8–H13**, added to `protocol.md` in the
-2026-06-24 amendment.
+These studies operationalize hypotheses **H8–H14**: S1–S6 test H8–H13, added to
+`protocol.md` in the 2026-06-24 amendment; S7 tests H14, added in the dated
+2026-08-21 amendment below and in `protocol.md`. The original H8–H13
+hypotheses and their falsification criteria are unchanged by the later
+addition; only this summary line reflects the document's current, cumulative
+range.
 
 ## Independent variable
 
@@ -151,6 +155,121 @@ exploit development, no live targets (threat T8).
   record is an injection vector. The defense is *integrity* (validated evidence, frozen
   surface, provenance, escalation), not un-injectability. Measure RepoPact's own exposure;
   do not claim immunity.
+
+### S7 — Enforcement closure and longitudinal governance drift → H14
+
+*Added 2026-08-21 (dated amendment, appended per this protocol's own
+discipline — S1–S6 are unchanged). Preregistered here; not implemented or
+run as part of this amendment. See `protocol.md`'s H14 amendment for the
+hypothesis and `formal-model.md` §7 for `Cov`/`Inv`/`Eff`/`EC`.*
+
+S5 measures whether a validator, when invoked, detects a pre-registered
+mutation — **detection efficacy conditional on invocation**. S7 measures a
+different, independent question S5's construct does not isolate: whether
+the admission boundary itself has coverage, invocation, and effectiveness in
+the first place, and what happens to admitted repository state when one or
+more of those is missing. S5 remains the correct instrument for its own
+question and is not retrofitted or reinterpreted by this addition.
+
+- **Construct.** Four (at minimum) deployment arms over an otherwise
+  identical governed repository, source, and task sequence, distinguished
+  by which of `Cov`/`Inv`/`Eff` hold for the deployment's designated
+  admission boundary (e.g. merge to a protected branch):
+  1. **Coverage-absent** — the validator is installed, correct, and could be
+     invoked, but no admission path (CI, pre-commit, merge process) ever
+     calls it. (`Cov = false`.)
+  2. **Invocation-absent** — the admission path is wired to call the
+     validator, but the checker does not execute for a given candidate
+     transition (e.g. the CI provider is unavailable, the job is rejected
+     before running, a misconfiguration silently skips the step).
+     (`Cov = true, Inv = false`.)
+  3. **Effectiveness-absent** — the checker executes and correctly detects a
+     violation, but nothing binds that result to the promotion (no required
+     status check, no equivalent gate). (`Cov = true, Inv = true, Eff = false`.)
+  4. **Closed** — coverage, invocation, and effectiveness all hold.
+     (`EC(A) = true` for the study's admission set.)
+  A fifth, optional controlled scenario directly reproduces the naturalistic
+  case's most salient joint observation: ordinary unit/integration tests
+  remain green throughout while governance-record divergence accumulates
+  unnoticed under arm 1 or 2, to test whether test-suite health is (as
+  observed in the field) an uninformative proxy for governance conformance.
+- **Task sequence.** A pre-registered sequence of realistic, confirmed
+  governance-record mutations (candidates drawn from S5's own mutation
+  vocabulary, `MUTATION-SET.md`, applied at a chosen cadence over simulated
+  ordinary work) interleaved with **simulated ordinary admissions** (commits/
+  merges that do not themselves touch governance records) at a
+  pre-registered ratio, so the study measures accumulation under realistic
+  admission volume rather than isolated single-mutation events as S5 does.
+- **Metrics — kept structurally separate, not conflated into one "error
+  count."** This distinction is the central lesson of the motivating field
+  case and is binding on this study's scoring:
+  - **Checkpoint coverage rate** — fraction of governed admission paths that
+    route through the applicable checker.
+  - **Checkpoint invocation rate** — of covered paths, fraction where the
+    checker actually executes for a given candidate transition.
+  - **Checkpoint effective-block rate** — of invocations that correctly
+    detect a violation, fraction that actually prevent the promotion.
+  - **Nonconformant-admission rate** — fraction of admission-boundary
+    transitions that promote a state outside `R` despite a violation being
+    present, decomposed by which of `Cov`/`Inv`/`Eff` failed.
+  - **Commits/admissions (or elapsed time) to first detection**, for arms
+    where a checkpoint eventually does run.
+  - **Accumulated confirmed governance-discrepancy count** — reported
+    violations independently verified as real, kept **separate** from —
+  - **Validator false-positive count** — reported violations traced to a
+    defect in the checker itself rather than the governed records (the
+    field case's own worktree-scan class is the motivating example; a
+    version-specific false-positive class must never be summed into a
+    "total drift" figure without this decomposition).
+  - **Reconciliation cost** — effort (steps, tool invocations) to return to
+    a conformant state once detected, per arm.
+- **Explicit non-metric.** Raw `repopact validate` reported error count is
+  **not, by itself, a study output** — it is decomposed into confirmed
+  discrepancy count and false-positive count before being reported, per the
+  metrics above. The field case's own headline number (a reported count in
+  the hundreds) would have been actively misleading if reported without this
+  decomposition, and S7's scoring must not repeat that.
+
+**Falsification.** As stated under H14 in `protocol.md`'s 2026-08-21
+amendment (¬H14a, ¬H14b).
+
+**Controls, stopping rules, and scoring** must be pre-registered, following
+GA-5's still-open statistical-plan requirement (sample sizes, repetition
+counts, seed/temperature policy, effect-size/confidence-interval plan), 
+**before** any implementation or run — this amendment preregisters the
+construct and metrics only and does not itself satisfy that requirement.
+
+### Registered future scenario candidates (not S7; not implemented)
+
+*Added 2026-08-21, alongside S7. These two candidates are deliberately
+**not** folded into S7's construct — one belongs to S5's drift-mutation
+vocabulary, the other to S3's coordination construct, and treating an
+id-collision as an enforcement-closure question would conflate a
+coordination/allocation defect with an admission-boundary defect, which are
+different research constructs even though both surfaced in the same
+motivating field case.*
+
+- **S5 candidate mutation** (join `MUTATION-SET.md`'s M1–M15 as a future
+  M16, not added to that file in this pass): a work item's human-readable
+  README heading/id/title diverges from its sibling `work-item.json`
+  without the manifest itself changing. Expected RepoPact signal per the
+  motivating field case: **not detected** by either `2.2.0` or current
+  `main` (`findings.md` F-016) — recorded as a candidate blind-spot mutation
+  alongside M4/M5/M7/M9, not implemented here.
+- **S3 candidate fixture** (S3 itself remains "protocol defined," no
+  runnable harness exists yet in Proving Ground): two independent agents,
+  each unaware of the other's not-yet-merged branch, both invoke `repopact
+  new work-item` before either pushes, and each independently computes the
+  same "next free" numeric id via the current local-tree-scan allocator
+  (`new.py:_next_numeric`). Expected signal: no pre-merge detection by
+  either agent; `repopact validate` correctly reports a duplicate id once
+  both branches are merged into one tree (confirmed by direct source
+  inspection in the motivating case, not yet exercised as a Proving Ground
+  fixture). This is a **coordination/allocation** question — this
+  registration takes no position on whether RepoPact should gain a
+  cross-branch id-reservation mechanism; that is a separate, unweighed
+  implementation question for a future work item, not a benchmark
+  preregistration decision.
 
 ## Controls and fairness
 

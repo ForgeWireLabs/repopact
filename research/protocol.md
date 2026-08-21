@@ -141,3 +141,46 @@ part**, if any of:
 A result that **disconfirms** RepoPact is recorded with equal weight, in `findings.md`,
 and the relevant threat (T5/T6 in [`threats-to-validity.md`](threats-to-validity.md)) is
 re-examined before the number is reported.
+
+## Amendment 2026-08-21 — enforcement closure (H14)
+
+A naturalistic, post-hoc field observation (an accepted case study of RepoPact's
+progenitor adopter, ForgeWire, plus an independent instance in RepoPact's own
+repository — see `findings.md`'s "Field-study synthesis: enforcement
+closure" and `formal-model.md` §7) motivates a new prospective hypothesis.
+Per this protocol's own discipline, the observation that motivates a
+hypothesis is not evidence *for* it: the naturalistic case is not
+pre-registered, has no baseline arm, and does not itself confirm what
+follows. It is recorded here as motivation only; the hypothesis is
+untested until S7 (`benchmark-protocol.md`) runs.
+
+- **H14 — Enforcement closure.** A RepoPact deployment that establishes
+  checkpoint coverage, checkpoint invocation, and checkpoint effectiveness
+  (`formal-model.md` §7: `Cov`, `Inv`, `Eff`) at its governed admission
+  boundaries admits a materially lower rate of known-nonconformant
+  repository states across those boundaries than an otherwise identical
+  deployment that has an executable, correct validator but lacks one or
+  more of coverage, invocation, or effectiveness. This is a claim about
+  *admission-time outcomes*, not about whether the validator decides
+  correctly when run — that is T1/T5's claim, not H14's, and is not in
+  dispute here.
+
+**Falsification.** H14 is disproven, in whole or part, if any of:
+
+14. A deployment lacking one or more of coverage, invocation, or
+    effectiveness at its admission boundaries shows no higher rate of
+    known-nonconformant states crossing those boundaries than a deployment
+    with all three established — i.e., enforcement closure makes no
+    measurable difference to admitted nonconformance (¬H14a); or a
+    deployment with all three established still accumulates
+    known-nonconformant admitted states at a rate statistically
+    indistinguishable from one lacking them, once ceremony/friction costs
+    of establishing closure are accounted for (¬H14b, the construct-validity
+    mirror of T6).
+
+H14 is deliberately scoped narrower than "RepoPact prevents governance
+drift" — it isolates the admission-boundary mechanism (coverage, invocation,
+effectiveness) as the independent variable, holding the validator's own
+decision correctness (T1/T5) constant and out of dispute, consistent with
+this protocol's practice of testing one mechanism at a time rather than a
+compound claim.

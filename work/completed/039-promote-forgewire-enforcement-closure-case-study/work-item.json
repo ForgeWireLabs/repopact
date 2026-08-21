@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "039",
+  "title": "Promote ForgeWire Enforcement-Closure Case Study",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "work", "docs"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-21T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The two reproduced defect classes from the accepted ForgeWire case study (worktree-scan version-currency false positives; work-item README/manifest representation drift) are recorded as normal findings-register entries, mapped to existing hypotheses, with severity reflecting actual adopter impact.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-2",
+      "text": "A field-study synthesis section on enforcement closure is added to the findings register, explicitly labeled naturalistic/post-hoc and not a preregistered benchmark finding, and not double-counted as a normal F-0XX confirmation.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-3",
+      "text": "Enforcement closure (coverage/invocation/effectiveness over governed admission transitions) is added to formal-model.md as a cross-cutting admission property with a transition-level formal statement, without contradicting the checkpoint-based (non-precondition) design or the literal statement of T5.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-4",
+      "text": "protocol.md receives a dated 2026-08-21 amendment (appended, not rewritten) introducing a new prospective, falsifiable hypothesis (enforcement closure) motivated by but not confirmed by the naturalistic case.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-5",
+      "text": "benchmark-protocol.md receives a dated amendment preregistering a new comparative study for the enforcement-closure hypothesis, with arms distinguishing coverage/invocation/effectiveness failures and metrics that keep validator-reported error count separate from confirmed governance discrepancy count.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-6",
+      "text": "Concrete future PactBench/drift-harness scenario candidates are recorded (README/manifest mismatch mutation, two-agent id-collision S3 fixture, longitudinal zero-invocation scenario, invoked-but-ineffective scenario, unavailable-checkpoint scenario) without implementing or running any of them.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-7",
+      "text": "paper.md integrates the case conservatively as an endogenous longitudinal naturalistic field case (not a controlled experiment or causal proof), retaining the reflexivity/short-observation-window caveats, and does not headline the raw 269-297 reported-error count without its false-positive qualification.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-8",
+      "text": "Work item 032 / decision 0031 receive at most a narrow durable cross-reference to this case study as additional field motivation, with no criterion marked satisfied, no status change, and no rewrite of the chosen remote-enforcement design.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    },
+    {
+      "id": "AC-9",
+      "text": "repopact validate, repopact dashboard, and repopact spec all pass cleanly on the resulting tree, with no ForgeWire file changed and no RepoPact implementation or PactBench execution performed.",
+      "state": "satisfied",
+      "evidence": ["20260821-039-promote-forgewire-enforcement-closure-case-study"]
+    }
+  ],
+  "created": "2026-08-21",
+  "updated": "2026-08-21"
+}

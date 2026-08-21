@@ -10,6 +10,23 @@ Restore a public, cross-platform commit checkpoint. Direct PyPI upload recovered
 distribution, but it did not restore the paper's CI enforcement claim or exercise Windows
 and Linux on every change.
 
+**Cross-reference (2026-08-21, work item 039, narrow — no criterion here is
+satisfied and no status changes as a result).** An independent, naturalistic
+field observation in ForgeWire's own repository (RepoPact's progenitor
+adopter) demonstrated the same higher-level failure class this item exists
+to close, through a different mechanism: ForgeWire's hosted CI ran on every
+push but never invoked the RepoPact CLI at all (a checkpoint-*coverage*
+gap), whereas this repository's gap — documented above and in decision 0031
+— is checkpoint-*invocation* (the billing lock) compounded by checkpoint-
+*effectiveness* (no branch protection), with coverage itself present. The
+case study (`research/case-studies/2026-08-forgewire-wi230-wi237-
+enforcement-closure/`) and the resulting formal treatment
+(`formal-model.md` §7: `Cov`/`Inv`/`Eff`/`EC`) independently motivate why
+this item's AC-1–AC-3 need to be evaluated as three distinct properties
+rather than one "CI is restored" outcome — they do not resolve this item's
+own provider/operator decision, and the chosen remote-enforcement design
+(GitHub Actions primary, AppVeyor fallback, decision 0031) is unchanged.
+
 ## Blocker
 
 GitHub Actions is payment-locked. Progress requires an operator to clear that lock or

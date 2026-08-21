@@ -1,0 +1,89 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260821-039-promote-forgewire-enforcement-closure-case-study",
+  "timestamp": "2026-08-21T00:00:00-05:00",
+  "work_item": "039",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m repopact.cli new work-item \"Promote ForgeWire Enforcement-Closure Case Study\" --status active --root .",
+      "exit_code": 0,
+      "summary": "Created work/active/039-promote-forgewire-enforcement-closure-case-study/work-item.json using the current main-branch CLI, verifying the next-available id (039) rather than assuming it."
+    },
+    {
+      "command": "python -m repopact.cli validate --root . (iterative, after each edit)",
+      "exit_code": 0,
+      "summary": "Passed after: adding S7:H14 to research/metadata.json's study_hypotheses (fixed a study-to-hypothesis mapping mismatch against paper.md/benchmark-protocol.md); updating the H8-H13 -> H8-H14 summary range lines in benchmark-protocol.md and paper-outline.md (fixed a range-document mismatch); and advancing research/metadata.json's claim_freshness (verified_on 2026-08-21, review_by 2026-09-18, a 28-day window) after re-reading all 12 registered documents in this session (5 edited directly in this pass: findings.md, formal-model.md, protocol.md, benchmark-protocol.md, paper.md; the remaining 7 -- README.md, figures.md, gap-audit-2026-07.md, paper-outline.md, release-runbook.md, run-log.md, threats-to-validity.md -- read in full earlier in this same session's case-study Phase 1/2 and not found to contain claims contradicted by this pass's changes). The freshness expiry was pre-existing (expired 2026-08-09) and unrelated to this work item's own edits, but blocked a clean validate result so was addressed per governance/policies/002-semantic-claim-freshness.md."
+    },
+    {
+      "command": "python -m repopact.cli dashboard --root .",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md to include work item 039."
+    },
+    {
+      "command": "python -m repopact.cli spec --root .",
+      "exit_code": 0,
+      "summary": "Regenerated SPEC.md derived blocks; no drift."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "20 of 20 conformance cases passed, including readme-release-drift, stale-dashboard, and missing-dashboard -- none touched by this pass's changes."
+    },
+    {
+      "command": "python -m unittest tests.test_research_metadata -v",
+      "exit_code": 1,
+      "summary": "6 of 8 passed, including the load-bearing test_canonical_research_records_validate (confirms the actual current research corpus is fully consistent). 2 failed: test_expired_research_claim_contract_is_rejected and test_stale_hypothesis_range_is_rejected, both because their hardcoded expected-value string literals (the pre-promotion freshness date '2026-08-09' and the pre-promotion range 'H8-H13') no longer match the canonical values this work item legitimately advanced (research/metadata.json is in scope; tests/test_research_metadata.py is RepoPact implementation and explicitly out of scope for this work item -- not edited). Disclosed, not silently worked around."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected -- this work item touched no path under governance/invariants.json, .github/workflows/**, or CODEOWNERS."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 1,
+      "summary": "138 tests ran in 130.486s: 136 passed, 2 failed (the same two disclosed above), 2 skipped (declared formal-model obligations, pre-existing and unrelated). No test-run temp-directory side effects polluted the actual working tree (confirmed via git status before and after)."
+    },
+    {
+      "command": "git status --porcelain",
+      "exit_code": 0,
+      "summary": "Only the intended files changed: research/{benchmark-protocol.md, findings.md, formal-model.md, metadata.json, paper-outline.md, paper.md, protocol.md}, audits/reports/dashboard.md, work/active/039-.../ (new), work/blocked/032-.../README.md (narrow cross-reference only, work-item.json for 032 untouched, confirmed via git diff --stat). No path under repopact/, schemas/ (except test-suite-internal, unedited), .github/, benchmarks/ (Proving Ground is a separate repository), or any ForgeWire path changed."
+    },
+    {
+      "command": "grep -rn duplicate-id-check across new F-015/F-016 and H14/S7 identifiers against existing findings.md/protocol.md/benchmark-protocol.md content",
+      "exit_code": 0,
+      "summary": "F-015 and F-016 do not collide with F-001..F-014; H14 does not collide with H1..H13; S7 does not collide with S1..S6 -- confirmed by direct inspection of the pre-existing numbering before this pass added anything."
+    }
+  ],
+  "artifacts": [
+    "research/findings.md",
+    "research/formal-model.md",
+    "research/protocol.md",
+    "research/benchmark-protocol.md",
+    "research/paper.md",
+    "research/paper-outline.md",
+    "research/metadata.json",
+    "work/active/039-promote-forgewire-enforcement-closure-case-study/work-item.json",
+    "work/active/039-promote-forgewire-enforcement-closure-case-study/README.md",
+    "work/blocked/032-restore-remote-cross-platform-governance-enforcement/README.md",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-08-21",
+    "os": "Windows",
+    "python": "3.12.4",
+    "conformance_cases": 20,
+    "unit_tests_total": 138,
+    "unit_tests_passed": 136,
+    "unit_tests_failed_disclosed": 2,
+    "unit_tests_skipped": 2,
+    "new_finding_ids": ["F-015", "F-016"],
+    "new_hypothesis_id": "H14",
+    "new_study_id": "S7",
+    "no_forgewire_files_changed": true,
+    "no_repopact_implementation_changed": true,
+    "no_pactbench_execution": true
+  }
+}

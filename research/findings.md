@@ -24,6 +24,8 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-012 | H7 | holds | Full lifecycle (adopt+import-plan+doctor) on an independent, different-domain real app (SkillForge, a Tauri cert-learning app) reached conformant RepoPact, non-destructively | [011](captures/011-skillforge-adoption.md) | shipped (WI 014); motivated TODO-prefix import fix |
 | F-013 | H7 | holds | RepoPact adapts to governance-folder planning (tracking/ → decisions/findings/milestones) and `takeover` retires the migrated old method, leaving one ledger without losing un-captured data | [012](captures/012-tracking-and-takeover.md) | shipped (WI 015, dec 0012) |
 | F-014 | H6,H7 | holds | A downstream adopter exposed the missing `proposed` authority state; the resolution is recoverable through decision, implementation, conformance, release, and adopter records | [013](captures/013-proposed-lifecycle-adoption-pressure.md) | shipped (WI 025, dec 0023/0024, release 2.1.0) |
+| F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/) | **fixed upstream** for the conventional `worktrees/` directory name (`0096d70`, PR #7) — fix predates the incident by three weeks but the adopter's pin had not moved past 2.2.0; general class (any other directory name) remains open |
+| F-016 | H6,H12 | minor | A work item's human-readable README heading can disagree with its own canonical `work-item.json` `id`/`title` while `repopact validate` stays green; reproduced in an isolated fixture, present in 2.2.0 and current `main`, decision 0014/0028's parity checks do not cover it | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/06-representation-drift.md) | open — no fix implemented or prescribed |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -209,3 +211,135 @@ tolerating a false assertion. More importantly for the paper's meta-claim, a rea
 recover the motivation, accepted decision, enforcement behavior, release, and downstream
 use from linked records without the initiating conversation. This is one positive case,
 not proof that the evolution process is universally complete.
+
+## F-015 — worktree-walk validator false positives, and a version-currency lag
+
+**Hypothesis tested:** H7 (brownfield adoptability — a real, longitudinally
+governed adopter's actual disk state, not a synthetic fixture, surfaced this).
+
+**Observed.** A longitudinal ForgeWire adoption incident (see the accepted
+[case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/)),
+running `repopact validate` under pinned `2.2.0`, reported 171 of 269 total
+errors as `AGENTS.md` files "not registered" inside `.claude/worktrees/**` —
+local `git worktree` checkouts used for parallel agent sessions. `2.2.0`'s
+`repo_model.IGNORED_PARTS` (the raw filesystem contract walk's exclusion
+set: `.git, __pycache__, node_modules, .venv, .pytest_cache, build, dist,
+fixtures`) had no concept of `git`-tracked status or worktree checkouts, so
+every file inside a scratch worktree was scanned as if it were governed
+nested content. None of these 171 were a real discrepancy in the adopter's
+governed records; each disappeared once the stale worktree checkouts were
+removed from local disk, with no change to any governed record.
+
+**Why it matters — and why it is two findings in one, not one.** This is
+not solely a validator defect. Upstream `main` had already fixed the
+specific, conventionally-named `worktrees/` case (`0096d70`, PR #7, merged
+2026-07-28) **three weeks before** the incident window this case study
+examines — but the adopter's `requirements-repopact.txt` remained pinned to
+`2.2.0`, released before that fix, and no upgrade occurred in the interim.
+The incident therefore demonstrates two distinct things at once: (1) a real,
+historical validator false-positive defect in `2.2.0`'s filesystem walk, and
+(2) an adopter version-currency lag — the fix existed and was not received.
+Severity is recorded against the false-positive defect specifically (the
+validator producing incorrect output on a real, non-synthetic adopter tree,
+obscuring genuine signal at scale), not against the version-currency
+mechanism, which is a separate, already-recognized class (see GA-1/GA-8's
+"stale adopter pin" concern and `fleet_verify.py`, work item `034`/`037`).
+
+**Do not read this as closed.** The upstream fix adds the literal string
+`"worktrees"` to `IGNORED_PARTS` — it remains a convention-name allowlist,
+not genuine `git`-tracked-status awareness. A worktree checked out under any
+other directory name reproduces the identical false-positive class on both
+`2.2.0` and current `main`. `fleet_verify.py` checks an adopter's declared
+version *pin* against RepoPact's current release; it does not check whether
+a specific historical defect's fix has been received, so it would not by
+itself have surfaced this particular lag.
+
+**Status:** open (general class); the one specific, conventionally-named
+instance is fixed upstream, unreceived by the adopter at incident time.
+
+## F-016 — a work-item README can silently disagree with its own manifest
+
+**Hypotheses tested:** H6 (recoverability — a reader relying on a work
+item's own self-identifying heading gets a wrong answer) and H12 (drift
+visibility — documented state diverging from canonical state, undetected).
+
+**Observed.** `repopact new work-item` writes the same id/title into both
+`work-item.json` and the generated `README.md` heading (`# {id} — {title}`)
+at creation time, so the two start in sync by construction, not by any
+ongoing cross-check. Reproduced in an isolated, throwaway fixture (not the
+governed adopter repository itself): after hand-editing only the README
+heading to a different number, leaving the manifest's `id` field unchanged,
+`repopact validate` reported the tree conformant — unchanged, and passing —
+for both the pinned `2.2.0` and current `main`. The only existing
+README-content check, `validate_readme_checkbox_parity` (decision 0014),
+is narrowly scoped to the `- [ ] **ID** ...` checklist convention's
+checked/unchecked state and does not activate at all for a README that
+states its criteria as prose (as in the live adopter instance below). A
+structurally similar, later, independently-added check (decision 0028) pins
+only the *repository-root* `README.md`'s release-version line to `VERSION`
+— narrower still, and does not cover work-item READMEs either.
+
+**Why it matters.** The work-item README's identity line (`# {id} —
+{title}`) is exactly the kind of fact the derive-over-declare principle
+(`formal-model.md` §1/§4; charter principle 8, policy 001) says should be
+generated rather than hand-maintained, since it is nothing but the
+manifest's own `id`/`title` restated. The dashboard and `SPEC.md` receive
+that fixpoint treatment (`I_derive_dash` since 2.2.0); the work-item
+README's own identity line does not. This is a narrow instance of a general
+representation-coverage gap: RepoPact's narrative-consistency checks so far
+grow by one narrowly-scoped fix per discovered instance (decision 0014,
+then decision 0028) rather than by a general "any prose restating typed
+state must match it" invariant.
+
+**What this is not.** The canonical typed record (`work-item.json`) is
+unaffected and remains internally valid throughout — this is a projection/
+narrative-consistency defect, not corruption or loss of the canonical
+state. Severity is recorded as minor for exactly that reason, matching the
+precedent set by F-002 (a real but narrow-impact gap where the core
+guarantee — here, `I_ID`'s status-directory agreement and every schema/
+referential-integrity check on the canonical record — still holds).
+
+**Status:** open. No fix is implemented or prescribed by this finding; two
+directions were identified and left as options for a future work item
+(a narrow fixpoint check at `validate`/`dashboard` time analogous to
+`I_derive_dash`, or a further decision following the 0014/0028 precedent),
+deliberately not chosen here.
+
+## Field-study synthesis: enforcement closure
+
+**This section is explicitly not a normal `F-0XX` finding.** It does not
+test a single preregistered hypothesis against a single adversarial case;
+it synthesizes a pattern observed across a naturalistic, post-hoc field
+case (the accepted
+[ForgeWire WI230/WI237 case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/)),
+not a designed proving-ground run. Recording it here, clearly labeled, is a
+deliberate choice: burying it inside F-015/F-016 would misstate its
+evidentiary weight in either direction — folding it into a normal finding
+would overstate it as a single adversarial-case result; omitting it from
+the register entirely would understate that it is derived from *accepted*,
+reviewed evidence, not idle speculation.
+
+**What was observed.** A fully RepoPact-governed adopter (ForgeWire, the
+progenitor repository) accumulated a `repopact validate` reported-error
+count in the hundreds over an extended period while its own test suite
+stayed green, because no checkpoint in its ordinary commit/CI loop ever
+invoked the validator — not because the validator, when eventually run,
+decided incorrectly. RepoPact's own repository independently exhibits the
+same higher-level failure through a different mechanism: `main` has no
+branch protection and its governance-validation workflow has been failing
+on every push due to an account-level billing lock (work item `032`,
+decision `0031`, both still open as of this synthesis).
+
+**What this motivates, and what it does not establish.** This pattern
+motivates a new, prospective, falsifiable hypothesis — **H14, enforcement
+closure** — preregistered in a dated amendment to
+[`protocol.md`](protocol.md) (2026-08-21) and a corresponding preregistered
+comparative study, **S7**, in
+[`benchmark-protocol.md`](benchmark-protocol.md). **The naturalistic case
+does not itself confirm H14.** It is the motivating field observation for a
+hypothesis that has not yet been tested under S7's controlled, pre-registered
+conditions; treating the naturalistic case as if it already confirmed H14
+would be exactly the kind of retroactive-confirmation dishonesty
+`threats-to-validity.md` (T1, T5) exists to guard against. See
+`formal-model.md`'s new cross-cutting admission-boundary treatment (§7) for
+the formal statement, and `protocol.md`/`benchmark-protocol.md` for H14/S7.

@@ -2,8 +2,8 @@
   "version": 1,
   "claim_freshness": {
     "policy": "governance/policies/002-semantic-claim-freshness.md",
-    "verified_on": "2026-07-26",
-    "review_by": "2026-08-09",
+    "verified_on": "2026-08-21",
+    "review_by": "2026-09-18",
     "documents": [
       "research/README.md",
       "research/benchmark-protocol.md",
@@ -57,7 +57,8 @@
       "S3": "H10",
       "S4": "H11",
       "S5": "H12",
-      "S6": "H13"
+      "S6": "H13",
+      "S7": "H14"
     },
     "range_documents": [
       {

@@ -20,6 +20,18 @@ package boundary. PactBench's 24-task deterministic selftest still passes.
 This item is a new 2.3 reconciliation, not a repetition or rewrite of the
 completed 2.2.0 rollout.
 
+**Cross-reference (2026-08-21, work item 041, narrow — no criterion here is
+satisfied and no status changes as a result).** ForgeWire independently
+completed its own migration to the current public release
+(`repopact==3.0.0`, ForgeWire work item 238) outside of, and not counted
+toward, this item's AC-1. That migration's field evidence exposed two
+separate upstream product-correctness limitations, now findings F-015
+(updated) and F-017 (new) in `research/findings.md`, with proposed
+implementation work items `042` and `043`. Those are product defects in
+RepoPact itself, not adopter-fleet reconciliation, and this item's scope —
+migrating the remaining stale adopters and repairing Proving Ground — is
+unchanged and not taken over.
+
 ## Decisions
 
 Package publication and ecosystem rollout remain separate phases (WI-029).

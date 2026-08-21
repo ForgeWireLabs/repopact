@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "043",
+  "title": "Define and Enforce source_of_truth Path-Resolution Semantics",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-21T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A formal, documented path-resolution rule for `source_of_truth:` frontmatter is written (a decisions/ record), stating explicitly that it is record-relative (resolved against the directory of the file declaring it), matching decision 0016's existing treatment and takeover.py's existing implementation -- the only documented and implemented precedent found during F-017's investigation (research/captures/016-forgewire-wi238-3-0-0-field-evidence.md).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "A fixture reproduces ForgeWire's exact valid case from F-017: a record at a nested path declaring a `../`-prefixed source_of_truth pointer to a real sibling-directory file, and doctor's resolution correctly does not flag it.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "doctor.py's `_dead_source_of_truth` is updated to resolve every token according to the documented rule from AC-1, and the existing `test_doctor_flags_dead_source_of_truth_pointer` fixture (a bare, `/`-free token from decisions/9999-probe.md) is re-examined: if the documented rule changes its expected outcome for a bare token, the fixture and its expectation are updated deliberately, not left silently contradicting the new rule.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "A `source_of_truth:` token that is unambiguously repository-root-relative by convention (if the AC-1 decision preserves any such case, e.g. a bare filename with no `../` matching a well-known root-level contract name) continues to resolve correctly -- the fix must not regress the one existing passing case.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "No existing governed record anywhere in RepoPact's own repository, or in any adopter this work item can check, is silently reinterpreted as newly invalid by the resolution-rule change without being surfaced to an operator first.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "Regression tests cover both a record-relative token with a `../` prefix and a bare token, and doctor's `--fix` behavior for `source-of-truth-stale` remains non-destructive (no auto-repair of an ambiguous or ostensibly-dead pointer without operator judgment) -- consistent with the existing docstring's own stated rationale.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-08-21",
+  "updated": "2026-08-21"
+}

@@ -1,0 +1,138 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260821-041-wi238-upstream-findings-recording",
+  "timestamp": "2026-08-21T16:00:00-05:00",
+  "work_item": "041",
+  "result": "passed",
+  "commands": [
+    {
+      "command": "git status --short",
+      "exit_code": 0,
+      "summary": "Clean before this pass began."
+    },
+    {
+      "command": "git pull --ff-only",
+      "exit_code": 0,
+      "summary": "Already up to date."
+    },
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "768567a (WI 040's closing commit) -- confirms no concurrent work landed since the prior recording pass; not mixing unrelated state into this one."
+    },
+    {
+      "command": "cat VERSION",
+      "exit_code": 0,
+      "summary": "3.0.0"
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "Ran 138 tests, OK (skipped=2) -- both disclosed, pre-existing, legitimate skips. Confirms the narrow research-metadata test repair following WI 039/WI 040 already landed and main's full suite is currently green, before attributing anything to this pass."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "20/20 conformance cases passed."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed (run before and after this pass's edits)."
+    },
+    {
+      "command": "python -m repopact.cli dashboard --root .",
+      "exit_code": 0,
+      "summary": "Dashboard regenerated, no unexpected diff."
+    },
+    {
+      "command": "python -m repopact.cli spec --root .",
+      "exit_code": 0,
+      "summary": "SPEC.md derived blocks regenerated cleanly."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected."
+    },
+    {
+      "command": "grep -rln source_of_truth --include=*.md --include=*.py .",
+      "exit_code": 0,
+      "summary": "Located every reference before recording anything: decisions/0016-takeover-repoints-inbound-references.md, repopact/doctor.py, repopact/takeover.py, tests/test_takeover_refs.py, tests/test_validate_repo.py. No JSON schema references the field -- it is free-form frontmatter."
+    },
+    {
+      "command": "Read decisions/0016-takeover-repoints-inbound-references.md",
+      "exit_code": 0,
+      "summary": "The only existing specification of source_of_truth: resolution. Treats it identically to a Markdown link target, resolved relative to the declaring file, with a leading '../' run preserved verbatim during takeover's repointing rewrite."
+    },
+    {
+      "command": "Read repopact/takeover.py (rewrite_inbound_references, _map_ref)",
+      "exit_code": 0,
+      "summary": "Confirms the regex `(?:\\.\\./)*(?:{retired}...)/...` is written specifically to preserve leading '../' segments -- implements record-relative resolution for exactly this field, matching decision 0016."
+    },
+    {
+      "command": "Read repopact/doctor.py (_dead_source_of_truth, lines 121-159)",
+      "exit_code": 0,
+      "summary": "Resolves every token with `not (root / token).exists()` -- unconditionally against the repository root, with no record-relative or '../' handling. Inconsistent with takeover.py's treatment of the identical field."
+    },
+    {
+      "command": "Read tests/test_validate_repo.py::test_doctor_flags_dead_source_of_truth_pointer; Read repopact/init_repo.py (bootstrap)",
+      "exit_code": 0,
+      "summary": "The one existing doctor-side test only exercises a bare, '/'-free token (AGENTS.md) from a record one level below root; it passes under root-relative resolution only because that token coincides with the well-known root-level contract file bootstrap always creates. It does not exercise, and does not establish semantics for, a '../'-prefixed token -- the exact shape both ForgeWire's records and takeover.py's own logic use. Conclusion: record-relative is the documented/implemented intent; doctor.py's root-relative resolution is the outlier -- a definite implementation bug, not a semantic ambiguity and not an invalid ForgeWire record."
+    },
+    {
+      "command": "python -m repopact.cli new work-item \"Record WI238 Upstream Findings -- Worktree Release Lag and Doctor Path Resolution\" --status active --root .",
+      "exit_code": 0,
+      "summary": "Allocated id 041 -- the actual next available id, not assumed."
+    },
+    {
+      "command": "python -m repopact.cli new work-item \"Structural Git-Worktree Awareness in Contract Discovery\" --status proposed --root .",
+      "exit_code": 0,
+      "summary": "Allocated id 042."
+    },
+    {
+      "command": "python -m repopact.cli new work-item \"Define and Enforce source_of_truth Path-Resolution Semantics\" --status proposed --root .",
+      "exit_code": 0,
+      "summary": "Allocated id 043."
+    },
+    {
+      "command": "python -m repopact.cli validate --root . (re-run after all findings.md / capture / work-item / WI037 README edits)",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed."
+    },
+    {
+      "command": "python -m repopact.cli dashboard --root . (re-run after edits)",
+      "exit_code": 0,
+      "summary": "Dashboard regenerated."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main (re-run after edits)",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected."
+    },
+    {
+      "command": "python -m repopact.run_conformance (re-run after edits)",
+      "exit_code": 0,
+      "summary": "20/20 conformance cases passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q (re-run after edits)",
+      "exit_code": 0,
+      "summary": "138 tests, OK (skipped=2) -- unchanged; this pass is records-only and touched no implementation code."
+    }
+  ],
+  "artifacts": [
+    "research/findings.md",
+    "research/captures/016-forgewire-wi238-3-0-0-field-evidence.md",
+    "work/proposed/042-structural-git-worktree-awareness-in-contract-discovery/work-item.json",
+    "work/proposed/043-define-and-enforce-source-of-truth-path-resolution-semantics/work-item.json",
+    "work/proposed/037-reconcile-the-2-3-adopter-fleet-and-proving-ground-package-boundary/README.md",
+    "audits/reports/dashboard.md",
+    "SPEC.md"
+  ],
+  "environment": {
+    "platform": "win32",
+    "python": "3.13 (repopact repository environment)",
+    "purpose": "WI238 upstream recording/triage pass: source field evidence directly from ForgeWire's WI238 evidence records, update finding F-015 with release-lag evidence, verify source_of_truth semantics and record finding F-017 if the diagnosis holds, preserve durable field evidence (capture 016), and record proposed (not active) implementation work items 042 and 043. No RepoPact implementation change, no release, no ForgeWire change."
+  }
+}

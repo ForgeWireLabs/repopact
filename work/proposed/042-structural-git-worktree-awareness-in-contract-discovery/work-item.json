@@ -1,0 +1,55 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "042",
+  "title": "Structural Git-Worktree Awareness in Contract Discovery",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-21T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The ForgeWire `.claude/worktrees/wi238-regression-test` reproduction (finding F-015, capture 016) is reproduced as a durable, checked-in fixture and passes after the fix, without depending on the literal directory name `worktrees` alone.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "A genuine nested `AGENTS.md` contract (a real sub-repository or intentionally nested governed tree, not a worktree) is still discovered and validated correctly after the fix — the fix must not turn into a blanket exclusion that hides real nested contracts.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "The fix does not rely solely on one literal directory-name allowlist entry (extending `IGNORED_PARTS` with more hardcoded names is an acceptable fallback layer, not the primary mechanism). The work explicitly evaluates at least one structural signal for distinguishing a linked git-worktree checkout from the primary working tree (e.g. `.git` being a file pointing at `.git/worktrees/<name>` rather than a directory, or `git worktree list --porcelain` cross-referenced against the scan root) before choosing an implementation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Regression coverage includes Windows-style paths (backslash separators, drive letters), not only POSIX-style paths, given RepoPact's adopters include Windows-hosted repositories (ForgeWire).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "`repopact validate` is proven unaffected on an ordinary repository with no worktrees present — the fix introduces no new false negative or performance regression on the common case.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "The work item's own record explicitly states how nested repositories and worktrees are to be treated going forward (the decision itself, not just the code), following the precedent of a dated decisions/ record for a structural contract-discovery change.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-08-21",
+  "updated": "2026-08-21"
+}

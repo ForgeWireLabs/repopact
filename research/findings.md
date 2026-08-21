@@ -24,8 +24,9 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-012 | H7 | holds | Full lifecycle (adopt+import-plan+doctor) on an independent, different-domain real app (SkillForge, a Tauri cert-learning app) reached conformant RepoPact, non-destructively | [011](captures/011-skillforge-adoption.md) | shipped (WI 014); motivated TODO-prefix import fix |
 | F-013 | H7 | holds | RepoPact adapts to governance-folder planning (tracking/ → decisions/findings/milestones) and `takeover` retires the migrated old method, leaving one ledger without losing un-captured data | [012](captures/012-tracking-and-takeover.md) | shipped (WI 015, dec 0012) |
 | F-014 | H6,H7 | holds | A downstream adopter exposed the missing `proposed` authority state; the resolution is recoverable through decision, implementation, conformance, release, and adopter records | [013](captures/013-proposed-lifecycle-adoption-pressure.md) | shipped (WI 025, dec 0023/0024, release 2.1.0) |
-| F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/) | **fixed upstream** for the conventional `worktrees/` directory name (`0096d70`, PR #7) — fix predates the incident by three weeks but the adopter's pin had not moved past 2.2.0; general class (any other directory name) remains open |
+| F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident); re-reproduced live on the current **public 3.0.0 release** during a second adopter migration (WI 238) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/), [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md) | **fixed on upstream `main`** for the conventional `worktrees/` path (`0096d70`, PR #7) — **not present in the packaged `3.0.0` release** (the fix landed two days after the `3.0.0` tag); general worktree-discovery class (any other checkout convention) remains structurally open |
 | F-016 | H6,H12 | minor | A work item's human-readable README heading can disagree with its own canonical `work-item.json` `id`/`title` while `repopact validate` stays green; reproduced in an isolated fixture, present in 2.2.0 and current `main`, decision 0014/0028's parity checks do not cover it | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/06-representation-drift.md) | open — no fix implemented or prescribed |
+| F-017 | H12 | minor | `repopact doctor`'s `source-of-truth-stale` check resolves a record's relative `source_of_truth:` pointer against the repository root instead of the declaring record's own directory, false-positiving legitimate record-relative pointers (3 of 3 observed on a real adopter tree); inconsistent with `takeover.py`'s own established record-relative treatment of the same field (decision 0016) | [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md) | open — no fix implemented or prescribed |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -254,8 +255,56 @@ version *pin* against RepoPact's current release; it does not check whether
 a specific historical defect's fix has been received, so it would not by
 itself have surfaced this particular lag.
 
-**Status:** open (general class); the one specific, conventionally-named
-instance is fixed upstream, unreceived by the adopter at incident time.
+**Second reproduction — release lag, not just adopter lag (WI 238).** A
+later, independent ForgeWire migration ([capture 016](captures/016-forgewire-wi238-3-0-0-field-evidence.md))
+upgraded the adopter's pin to `repopact==3.0.0` — the current public
+release, installed fresh from PyPI, not a stale pin — and re-ran the exact
+class of check. A real, throwaway `git worktree` was added under the
+`.claude/worktrees/` convention (detached `HEAD`, zero uncommitted files),
+`repopact validate` was run, and it reported the identical false-positive
+shape: 19 "nested contract is not registered in audits/registry.json"
+errors, one per `AGENTS.md` under the worktree, plus a stale-dashboard
+error. The worktree was then fully removed and `validate` returned clean.
+Source inspection of the installed `3.0.0` package confirmed why: its
+`repo_model.IGNORED_PARTS` is `{".git", "__pycache__", "node_modules",
+".venv", ".pytest_cache", "build", "dist", "fixtures"}` — no `"worktrees"`
+entry. Cross-referencing commit dates against the `v3.0.0` tag
+(`f4039a6`/`f1db6b4`, 2026-07-26) shows the worktree fix (`0096d70`,
+2026-07-28) landed on `main` **two days after** the `3.0.0` package was
+tagged and published — the fix exists upstream but was never packaged into
+any released version an adopter could install.
+
+**This distinguishes two version-drift classes that this finding previously
+conflated as one "version-currency lag":**
+
+- **Adopter version lag** (the original incident) — a fix is packaged and
+  released, but the adopter's own pin has not moved past an older release
+  that predates it.
+- **Release lag** (WI 238's reproduction) — the adopter is pinned to the
+  *current* public release, correctly, but a real fix exists only on
+  upstream `main` and has not yet been packaged into any release the
+  adopter could have installed. No adopter action — upgrading further —
+  would have avoided this; only a new RepoPact release containing the fix
+  would.
+
+The one silver lining, confirmed by re-reading `repo_model.py`'s exclusion
+check (`any(part in IGNORED_PARTS for part in path.relative_to(root).parts)`,
+a per-path-*component* match): had `0096d70` been included in the `3.0.0`
+package, it would have correctly excluded ForgeWire's exact
+`.claude/worktrees/<name>/` layout — `"worktrees"` is literally one of that
+path's components. This is not a case of the fix failing to generalize to
+ForgeWire's convention; it is a case of the fix simply not having shipped
+yet. That does not change the finding's open status — the fix is still a
+directory-name allowlist, not a structural, git-aware solution to a worktree
+checked out under an arbitrary name — but it does mean this specific
+adopter's specific layout is not, in principle, an unsolved case, only an
+unreleased one.
+
+**Status:** open (general class — arbitrary-named worktree discovery has no
+structural solution). The conventionally-named `worktrees/` instance is
+fixed on upstream `main` but was not present in the `3.0.0` public release
+and, as of this finding's last update, has not shipped in any released
+package version an adopter can install.
 
 ## F-016 — a work-item README can silently disagree with its own manifest
 
@@ -304,6 +353,80 @@ directions were identified and left as options for a future work item
 (a narrow fixpoint check at `validate`/`dashboard` time analogous to
 `I_derive_dash`, or a further decision following the 0014/0028 precedent),
 deliberately not chosen here.
+
+## F-017 — `doctor` resolves `source_of_truth` against the repo root, not the declaring record
+
+**Hypothesis tested:** H12 (drift visibility — the mechanism that is
+supposed to surface documented state diverging from actual state instead
+manufactured a divergence signal where none existed). Discovered on a real,
+longitudinally governed adopter tree ([capture 016](captures/016-forgewire-wi238-3-0-0-field-evidence.md)), the same H7 context F-015 shares, though the defect itself is in the
+drift-detection mechanism, not adoptability.
+
+**Observed.** During ForgeWire's WI 238 migration to `repopact==3.0.0`,
+`repopact doctor --root .` reported 3 `[source-of-truth-stale]` warnings
+against records that were not, in fact, stale: three `_audit/` companion
+files under `work/active/114-forgewire-fabric/_audit/` each declare
+`source_of_truth: ../AGENTS.md`, correctly pointing at
+`work/active/114-forgewire-fabric/AGENTS.md`, which exists. `repopact
+validate` never flagged these records; only the separate, advisory `doctor`
+diagnostic did.
+
+**Root cause.** `doctor.py`'s `_dead_source_of_truth` resolves each token
+with `not (root / token).exists()` — against the repository root,
+unconditionally, regardless of where the declaring record lives or whether
+the token carries a `../` prefix.
+
+**Semantics were verified before recording this, not assumed.** `source_of_truth:`
+is free-form frontmatter — it appears in no JSON schema — so the only
+existing specification is decision
+[0016](../decisions/0016-takeover-repoints-inbound-references.md) ("Takeover
+Repoints Inbound References Before Retiring a Plan Directory"), which
+explicitly treats `source_of_truth:` frontmatter identically to a Markdown
+link target: both are rewritten by `takeover.py`'s
+`rewrite_inbound_references`, whose matching pattern
+(`(?:\.\./)*(?:{retired}...)/...`) is written specifically to preserve a
+leading run of `../` segments — behavior that only makes sense under a
+record-relative (relative to the file declaring the token) resolution rule,
+the same rule Markdown link targets follow. `takeover.py` already implements
+and relies on this rule for exactly the `../`-prefixed shape ForgeWire's
+records use. The one existing unit test covering `doctor`'s resolution,
+`test_doctor_flags_dead_source_of_truth_pointer`, exercises only a *bare*
+token with no `/` or `../` (`AGENTS.md`) from a record one level below root
+(`decisions/9999-probe.md`); root-relative resolution happens to succeed
+there only because that bare token coincides with the well-known top-level
+contract file every bootstrapped repo has at its root
+(`init_repo.bootstrap` writes only `AGENTS.md` at the repo root, never a
+nested `decisions/AGENTS.md`) — the test does not exercise, and therefore
+does not establish authoritative semantics for, a `../`-prefixed token, the
+exact shape both ForgeWire's records and `takeover.py`'s own rewrite logic
+use.
+
+**Conclusion: this is a definite implementation bug, not a semantic
+ambiguity.** The only documented treatment of `source_of_truth:` in the
+corpus (decision 0016) is record-relative, and `takeover.py` already
+implements that rule elsewhere in the same codebase. `doctor.py`'s
+`_dead_source_of_truth` resolves the identical field root-relative, contrary
+to the only specification that exists and inconsistent with the codebase's
+own other consumer of the same field — an internal inconsistency between two
+modules, not a case where ForgeWire's records are wrong.
+
+**Impact, honestly bounded.** `repopact validate` — the actual enforcement
+gate — was and remained clean throughout; this defect lives entirely in
+`doctor`, an advisory diagnostic. The finding's `Finding(..., False)`
+fixability flag confirms `source-of-truth-stale` is not auto-repaired by
+`doctor --fix` even today — the docstring already notes "the correct target
+needs judgment" — so this defect cannot silently corrupt a record by itself.
+The real risk is indirect: an operator or agent trusting a false `doctor`
+warning at face value could manually "repair" a genuinely correct
+`source_of_truth:` pointer, introducing the very drift the check exists to
+prevent. Recorded as **minor**: the architecture's real gate (`validate`)
+holds, and the defect requires a human or agent acting on bad advice to
+cause any actual harm — consistent with the severity precedent set by F-002
+(a diagnostic-correctness gap in a non-blocking check, not a gate failure).
+
+**Status:** open. No fix is implemented or prescribed by this finding; see
+proposed work item 043 for a candidate direction (deliberately not chosen
+here).
 
 ## Field-study synthesis: enforcement closure
 

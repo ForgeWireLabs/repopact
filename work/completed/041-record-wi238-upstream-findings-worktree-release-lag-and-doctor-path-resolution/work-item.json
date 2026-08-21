@@ -1,0 +1,95 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "041",
+  "title": "Record WI238 Upstream Findings — Worktree Release Lag and Doctor Path Resolution",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "governance",
+    "work",
+    "docs"
+  ],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-21T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "Current RepoPact main state is verified before recording anything: git status/pull/HEAD, VERSION, latest findings-register id, current proposed/active work-item ids, full test suite, conformance, and governance validation all checked and confirmed green with no unrelated pre-existing red state mixed into this pass's attribution.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "F-015 (worktree-scan false positives) is updated, not duplicated, with WI 238's new evidence: reproduction on the current public repopact==3.0.0 release, and a corrected interpretation distinguishing adopter version lag from release lag as two different classes.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "text": "source_of_truth: path-resolution semantics are verified against the actual corpus (documentation, existing usage, tests, parser/validator behavior) before any new finding is recorded, and the verification's conclusion (record-relative, repository-root-relative, or genuinely ambiguous) is stated explicitly with the evidence that established it.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "text": "If the AC-3 verification confirms a genuine doctor defect, a new finding is recorded using the actual next available F-0XX id (not assumed in advance), mapped to the most defensible existing hypothesis after inspection, with severity chosen against the findings-register's own severity definitions and the finding's actual observed impact rather than intuition.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "text": "A durable field-evidence capture is added recording public-version context, the worktree reproduction (exact experiment shape, observed behavior, cleanup, and the distinction between the released 3.0.0 and the later upstream-main fix), the doctor reproduction (exact pointers, diagnostics, source cause, semantic verification result), and the downstream impact (ForgeWire nonetheless reached fully green fast/full/closeout) -- recorded as adopter field evidence, not manufactured as a benchmark result.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-6",
+      "text": "Proposed (not active) implementation work items are recorded for each issue, using repopact new with the actual next available ids, split rather than combined because the two defects have materially different root causes and acceptance criteria, each with acceptance criteria that require evaluating a structural/documented solution rather than assuming the implementation technique in advance.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-7",
+      "text": "No 3.0.1 or other release is created or authorized by this pass; the register/work item records only that a future backward-compatible patch release is likely appropriate once the fixes are implemented, tested, and their package/semver impact is actually evaluated -- without promising a specific version number.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-8",
+      "text": "Work item 037 (the five-adopter migration) is not repurposed, not marked completed, and no other adopter is migrated; at most a narrow cross-reference is added noting ForgeWire now declares repopact==3.0.0 while the WI238 field evidence exposed two separate upstream product-correctness limitations.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    },
+    {
+      "id": "AC-9",
+      "text": "repopact validate, repopact dashboard, repopact spec, repopact check-frozen --base origin/main, python -m repopact.run_conformance, and the full unittest suite all pass cleanly on the resulting tree, with no RepoPact implementation change, no release, and no ForgeWire file touched.",
+      "state": "satisfied",
+      "evidence": [
+        "20260821-041-wi238-upstream-findings-recording"
+      ]
+    }
+  ],
+  "created": "2026-08-21",
+  "updated": "2026-08-21"
+}

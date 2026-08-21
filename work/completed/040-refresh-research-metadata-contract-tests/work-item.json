@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "040",
+  "title": "Refresh Research Metadata Contract Tests",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "work"],
+  "depends_on": ["039"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-21T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "tests/test_research_metadata.py's two stale negative-test fixtures (test_expired_research_claim_contract_is_rejected, test_stale_hypothesis_range_is_rejected) are updated to the canonical values WI039 legitimately introduced (review_by 2026-09-18; hypothesis range H8-H14), preserving each test's semantic purpose as a genuine negative test, not weakened or deleted.",
+      "state": "satisfied",
+      "evidence": ["20260821-040-refresh-research-metadata-contract-tests"]
+    },
+    {
+      "id": "AC-2",
+      "text": "The full RepoPact test suite is restored to green: all 138 unit tests pass except only the two pre-existing, legitimately declared formal-model skips; 20/20 conformance cases pass; repopact validate/dashboard/spec/check-frozen all pass clean.",
+      "state": "satisfied",
+      "evidence": ["20260821-040-refresh-research-metadata-contract-tests"]
+    },
+    {
+      "id": "AC-3",
+      "text": "The WI039 evidence-run's result/exit_code semantics are reviewed: whether the evidence-run schema, validator, or documentation intentionally permit a `passed` result alongside individually-failing diagnostic commands, or require all commands to exit 0. WI039 itself is not reopened or rewritten regardless of the conclusion.",
+      "state": "satisfied",
+      "evidence": ["20260821-040-refresh-research-metadata-contract-tests"]
+    }
+  ],
+  "created": "2026-08-21",
+  "updated": "2026-08-21"
+}

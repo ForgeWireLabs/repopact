@@ -41,8 +41,8 @@ class ResearchMetadataTests(unittest.TestCase):
         self.assertEqual([], self.messages())
 
     def test_expired_research_claim_contract_is_rejected(self) -> None:
-        problems = validate_research.validate(self.root, today=date(2026, 8, 10))
-        self.assertTrue(any("freshness expired on 2026-08-09" in p.message for p in problems))
+        problems = validate_research.validate(self.root, today=date(2026, 9, 19))
+        self.assertTrue(any("freshness expired on 2026-09-18" in p.message for p in problems))
 
     def test_unregistered_research_claim_document_is_rejected(self) -> None:
         (self.root / "research" / "new-claim.md").write_text(
@@ -66,8 +66,8 @@ class ResearchMetadataTests(unittest.TestCase):
         self.assertTrue(any("expected 24; observed 21" in message for message in self.messages()))
 
     def test_stale_hypothesis_range_is_rejected(self) -> None:
-        self.replace("research/benchmark-protocol.md", "H8–H13", "H8–H10")
-        self.assertTrue(any("expected H8–H13; observed H8–H10" in message for message in self.messages()))
+        self.replace("research/benchmark-protocol.md", "H8–H14", "H8–H10")
+        self.assertTrue(any("expected H8–H14; observed H8–H10" in message for message in self.messages()))
 
     def test_future_provenance_wording_is_rejected(self) -> None:
         self.replace(

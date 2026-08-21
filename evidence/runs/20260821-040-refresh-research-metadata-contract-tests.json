@@ -1,0 +1,98 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260821-040-refresh-research-metadata-contract-tests",
+  "timestamp": "2026-08-21T00:00:00-05:00",
+  "work_item": "040",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m repopact.cli new work-item \"Refresh Research Metadata Contract Tests\" --status active --root .",
+      "exit_code": 0,
+      "summary": "Created work/active/040-refresh-research-metadata-contract-tests/work-item.json using the current main-branch CLI, verifying the next-available id (040) rather than assuming it."
+    },
+    {
+      "command": "edit tests/test_research_metadata.py: test_expired_research_claim_contract_is_rejected",
+      "exit_code": 0,
+      "summary": "Changed the probe date from date(2026,8,10) to date(2026,9,19) -- after WI039's new review_by (2026-09-18) -- and the asserted message from 'freshness expired on 2026-08-09' to 'freshness expired on 2026-09-18'. The test's semantic purpose (proving an expired contract is rejected) is unchanged; only the fixture values follow the canonical values WI039 legitimately introduced."
+    },
+    {
+      "command": "edit tests/test_research_metadata.py: test_stale_hypothesis_range_is_rejected",
+      "exit_code": 0,
+      "summary": "Changed the mutated-from value from 'H8-H13' to 'H8-H14' (the current canonical range after WI039 added S7:H14) and the asserted message from 'expected H8-H13; observed H8-H10' to 'expected H8-H14; observed H8-H10'. The mutation target ('H8-H10') is unchanged -- still a deliberately wrong range. Confirmed via grep that 'H8-H14' occurs exactly once in benchmark-protocol.md (the bolded summary line), so text.replace(...,1) targets the intended occurrence unambiguously."
+    },
+    {
+      "command": "python -m unittest tests.test_research_metadata -v",
+      "exit_code": 0,
+      "summary": "All 8 tests pass, including both fixed negative tests."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "138 tests ran in 129.434s: OK (skipped=2, the same pre-existing, legitimately declared formal-model obligations as before). Zero failures. git status confirmed no test-run temp-directory pollution of the actual working tree."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "20 of 20 conformance cases passed."
+    },
+    {
+      "command": "python -m repopact.cli dashboard --root .",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md to include work items 039 and 040."
+    },
+    {
+      "command": "python -m repopact.cli spec --root .",
+      "exit_code": 0,
+      "summary": "Regenerated SPEC.md derived blocks; no drift."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected."
+    },
+    {
+      "command": "evidence-run semantics review: read repopact/schemas/evidence-run.schema.json in full",
+      "exit_code": 0,
+      "summary": "The schema imposes no cross-field constraint between top-level `result` and any `commands[].exit_code`. `commands[].exit_code` is required to be an integer, nothing more; `result` is a free-standing enum (passed/failed/partial/blocked) with no conditional relationship to the commands array expressed in the schema."
+    },
+    {
+      "command": "grep -n \"def validate_evidence\" -A 40 repopact/validate_repo.py",
+      "exit_code": 0,
+      "summary": "validate_evidence() performs only structural/referential checks (schema validation, id-matches-filename, duplicate-id detection, ISO-8601 timestamp, work_item existence). It never inspects commands[].exit_code or cross-checks it against result. Confirmed directly from the enforcement code, not inferred."
+    },
+    {
+      "command": "grep -n \"evidence.*result|result.*evidence|exit_code\" SPEC.md",
+      "exit_code": 1,
+      "summary": "No explicit prose in SPEC.md defines a relationship between `result` and individual command exit codes beyond listing the required fields -- diagnostic grep, no hits, expected as part of the review rather than a defect (this command's own exit_code reflects the diagnostic search finding nothing, not a gating failure of this work item)."
+    },
+    {
+      "command": "inspect evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json (WI-033's closeout evidence)",
+      "exit_code": 0,
+      "summary": "Found direct, accepted precedent: result:\"passed\" with 2 of 15 commands recording exit_code 1 (a fleet-verify diagnostic that intentionally re-opened known fleet drift, and an S5 selftest failure explicitly routed to proposed WI-037 rather than treated as a WI-033 blocker) alongside 13 commands at exit_code 0."
+    }
+  ],
+  "artifacts": [
+    "tests/test_research_metadata.py",
+    "work/completed/040-refresh-research-metadata-contract-tests/work-item.json",
+    "work/completed/040-refresh-research-metadata-contract-tests/README.md",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-08-21",
+    "os": "Windows",
+    "python": "3.12.4",
+    "conformance_cases": 20,
+    "unit_tests_total": 138,
+    "unit_tests_passed": 138,
+    "unit_tests_failed": 0,
+    "unit_tests_skipped": 2,
+    "evidence_run_semantics_conclusion": "Schema and validator intentionally permit a passed result alongside non-gating diagnostic command failures. Not a defect. No change made to the evidence-run schema, validate_repo.py, or WI039.",
+    "wi039_reopened_or_rewritten": false
+  }
+}

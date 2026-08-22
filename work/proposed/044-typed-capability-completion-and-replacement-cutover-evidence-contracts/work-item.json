@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "044",
+  "title": "Typed Capability Completion and Replacement Cutover Evidence Contracts",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "tooling", "docs"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-08-22T20:56:00Z",
+    "note": "Recorded before RepoPact implementation work began. Origin: ForgeWire ADR 0010 / INV-4 and the 2026-08-22 production-reachability audit; this item is research/reconciliation-first and does not authorize a predetermined schema design."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A durable field-evidence capture classifies the repeated completion/cutover failure shapes from ForgeWire ADR 0010 / INV-4, WI233, and WI239-WI246, separating product-unreachable implementations, incomplete replacements, synthetic-success/degraded paths, experimental-vs-product claims, duplicate authorities, no-op advertised actions, and known-breach architectural migrations. The capture records which observations are ForgeWire-specific and which are plausible generic governance classes.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "The work formally reconciles the candidate completion/claim-closure concept with RepoPact's existing H14 enforcement-closure model (coverage, invocation, effectiveness). It states whether the concepts are distinct, overlapping, or reducible; it does not rewrite H14 retroactively. If a new hypothesis/property is warranted, it is preregistered with prospective falsification criteria before any benchmark result is counted as support.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Before any kernel/schema implementation, at least four candidate record placements are evaluated: work-item-level claim, acceptance-criterion-level claim, evidence-run-level typing, and a separate claim/evidence-contract record (or an explicitly justified equivalent set). The chosen design records why its placement, extensibility, reference semantics, and lifecycle are preferable and explicitly rejects simply hard-coding ForgeWire's INV-4 vocabulary into every adopter.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "The chosen generic model can express a capability-completion claim whose required evidence includes a real production/application entry or composition path and composition/end-to-end proof of that path, plus explicit degraded/unavailable behavior when relevant; an implementation/service plus green unit tests alone is representable as insufficient rather than product-complete.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "The chosen generic model can express a replacement/cutover claim whose evidence establishes replacement implementation, caller migration, predecessor retirement/unreachability, and a static or contract-level absence guard preventing predecessor reintroduction. A replacement that leaves the predecessor load-bearing or available as an accidental fallback is rejected by a negative fixture when this claim type is used.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "The work decides how fail-closed/degraded-success truthfulness relates to completion evidence: an operation that did not actually persist, deliver, or execute cannot silently satisfy a success-shaped completion proof. The decision either incorporates typed/unambiguous degraded outcomes into the generic claim contract or records a separate upstream work item with rationale.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "The resulting RepoPact contract is additive/opt-in for existing repositories and historical completed work unless a separate explicit breaking-version decision is accepted. Existing work items without typed completion claims remain valid under current semantics; experimental/library-only work can remain intentionally production-unreachable when it is explicitly classified rather than represented as product-complete.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "text": "After AC-1 through AC-3 choose the abstraction, the selected model is implemented consistently across the necessary schema/validator/SPEC/template/documentation/conformance surfaces. Derived artifacts are regenerated rather than hand-maintained, and any frozen-surface change follows the existing approval contract.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-9",
+      "text": "Conformance/regression coverage contains positive and negative cases for at least: a production-reachable capability with composition proof; a service with only unit tests and no production path; a complete replacement; a replacement whose predecessor remains reachable; a replacement missing an absence guard; and explicitly experimental/unavailable capability state that is not falsely promoted to product-complete.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-10",
+      "text": "The chosen abstraction is validated against ForgeWire-shaped cases and at least one non-ForgeWire synthetic/adopter-neutral fixture. Closeout evidence explains what would falsify the claim that the abstraction is generic rather than overfit to ForgeWire's architecture.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-11",
+      "text": "A durable upstream-candidate disposition matrix covers at minimum: known-breach shrink-only ratchets; canonical-record/human-representation parity (including F-016); concurrent work-item identifier allocation; and fail-closed success semantics. Each is either incorporated here with explicit justification, linked to an existing RepoPact finding/work item, spawned as a separate proposed work item, or rejected as adopter-specific with rationale. WI042/F-015 and WI043/F-017 remain separate and are not taken over by WI044.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-08-22",
+  "updated": "2026-08-22"
+}

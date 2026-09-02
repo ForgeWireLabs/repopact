@@ -55,6 +55,27 @@ Independently of the lock: `main` has **no branch protection** (`404 Branch not
 protected`). AC-3 requires a *required* gate, so there is currently nothing to make
 required under any provider. Protected branches are free for public repositories.
 
+### Temporary local-only operator directive — 2026-09-01
+
+The operator has explicitly suspended **all GitHub-hosted task execution** while the
+account lock is active. RepoPact's `governance.yml` and `release.yml` remain checked in
+for history/provider-adapter reference, but their hosted jobs are deliberately guarded
+with `if: ${{ false }}` so no GitHub-hosted runner is allocated.
+
+Until the operator explicitly lifts this stop:
+
+- do not retry or re-run GitHub Actions;
+- run governance, tests, conformance, dashboard/spec generation, release-build checks,
+  and work-item acceptance validation on operator-owned/local hardware;
+- commit concrete local evidence under `evidence/runs/` in the normal RepoPact format;
+- do not represent a successful local run as proof that the remote/public admission
+  boundary is effective — WI032 remains blocked and AC-1 through AC-3 remain pending.
+
+This temporary execution policy is also a motivating field case for proposed WI046,
+which investigates a runner-neutral verification/admission-checkpoint architecture.
+WI046 does not satisfy any WI032 criterion and does not replace this item's remote
+checkpoint requirement.
+
 ## Decisions
 
 Do not treat direct PyPI publication as CI restoration. The chosen remote service and

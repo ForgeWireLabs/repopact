@@ -13,8 +13,14 @@ on:
 permissions:
   contents: read
 
+# TEMPORARY LOCAL-ONLY MODE (operator directive, 2026-09-01):
+# GitHub-hosted execution is intentionally suspended while the account is
+# payment-locked. The workflow remains checked in as the hosted publication
+# adapter/reference, but no hosted build/publish runner may be allocated until
+# the operator explicitly lifts the stop.
 jobs:
   build:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +37,7 @@ jobs:
           path: dist/
 
   publish:
+    if: ${{ false }}
     needs: build
     runs-on: ubuntu-latest
     environment: pypi

@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "047",
+  "title": "Documentation Impact and Code/Documentation Closure",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "tooling", "docs", "evidence", "work"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-02T21:30:00Z",
+    "note": "Recorded before RepoPact implementation work began. Triggered by the operator requirement that governed code changes must not close with documentation impact left unknown."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A durable decision defines documentation closure: any work item that changes governed implementation code must explicitly resolve documentation impact before completion. Resolution is either documented impact with affected documentation created, updated, or regenerated, or an explicit no-documentation-impact determination with rationale. Silence cannot satisfy closeout.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "The work distinguishes documentation closure from F-016 README/manifest parity, WI044 completion-claim evidence closure, and WI046 verification/admission closure, reusing those concepts where appropriate without duplicating them.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Before implementation, candidate representations are compared at work-item, acceptance-criterion, evidence, and dedicated documentation-impact or source-to-documentation mapping layers. The chosen design records source-of-truth, lifecycle, references, migration, and compatibility behavior.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "The chosen model can classify documentation impact for user-visible behavior, public API or CLI, configuration, architecture or decisions, operations or runbooks, contributor workflow, experimental or maturity status, examples, and generated documentation without prescribing one repository layout.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "A no-documentation-impact outcome is allowed only with an explicit reviewable rationale. Internal refactors that do not change documented behavior, interfaces, configuration, architecture, operations, maturity, or user/developer contracts are not forced to create meaningless documentation edits.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "When documentation impact is declared, closeout requires concrete evidence linking the implementation change to identifiable documentation surfaces and proving those surfaces were created, updated, or regenerated. A bare 'docs updated' statement is insufficient.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "The architecture supports adopter-declared source-to-documentation mappings or an equivalent mechanism so RepoPact can detect structural freshness risks when mapped source changes and related documentation remains unchanged, without claiming generic analysis can prove prose semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "text": "Generated documentation follows derive-over-declare: when a governed generator or source changes, stale generated documentation is detectable and closeout requires regeneration/reconciliation rather than hand-maintained divergence.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-9",
+      "text": "The selected design enforces documentation closure at work-item completion: a work item with governed code changes cannot transition to completed while documentation impact is unresolved. WI046 checkpoints may invoke the same rule, but no CI provider becomes the source of truth.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-10",
+      "text": "Doctor and audit behavior is reconciled with documentation closure so RepoPact can surface stale, missing, or suspiciously unchanged mapped documentation non-destructively after closeout.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-11",
+      "text": "Conformance and regression coverage includes: code changed plus affected docs updated; internal refactor plus justified no-impact declaration; code changed with no documentation-impact resolution; mapped public or configuration source changed while docs remain untouched; documentation required but evidence absent; and generated documentation source changed while output is stale.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-12",
+      "text": "The design is validated against at least one ForgeWire-shaped change and one adopter-neutral fixture, with closeout evidence explaining what would falsify the claim that the mechanism is generic.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-13",
+      "text": "Backward compatibility and versioning are decided before implementation lands. Existing repositories and historical completed work remain valid unless an explicit breaking-version decision is accepted; the new rule applies prospectively from a governed adoption or epoch boundary.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-14",
+      "text": "After contract and compatibility decisions are accepted, the selected mechanism is implemented consistently across required schema, validator, CLI, templates, SPEC, workflow guidance, doctor/audit, reporting, conformance, and tests. Closeout includes negative proof that unresolved documentation impact is rejected.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-02",
+  "updated": "2026-09-02"
+}

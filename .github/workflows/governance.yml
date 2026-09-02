@@ -5,8 +5,13 @@ on:
   push:
     branches: [main]
 
+# TEMPORARY LOCAL-ONLY MODE (operator directive, 2026-09-01):
+# GitHub-hosted execution is intentionally suspended while the account is
+# payment-locked. Preserve this workflow as the hosted adapter/reference, but
+# do not allocate a hosted runner until the operator explicitly lifts the stop.
 jobs:
   validate:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

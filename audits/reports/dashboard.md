@@ -2,7 +2,7 @@
 
 > Canonically generated from source records. Do not edit manually.
 > Validation fails when this file differs from `repopact dashboard` output.
-> RepoPact spec version: 3.0.1
+> RepoPact spec version: 3.0.2
 
 ## Health
 
@@ -13,9 +13,9 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 2 |
-| Decision records | 35 |
+| Decision records | 36 |
 | Policy records | 2 |
-| Evidence runs | 50 |
+| Evidence runs | 51 |
 
 ## Work
 

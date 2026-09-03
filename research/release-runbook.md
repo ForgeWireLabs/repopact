@@ -1,6 +1,18 @@
 # Release runbook
 
-## Current 3.0.1 corrective release
+## Current 3.0.2 corrective release
+
+The 3.0.2 release contains the record-relative `source_of_truth:` correction
+and structural same-repository linked-worktree contract-discovery correction
+from WI043 and WI042. Keep `VERSION=3.0.2` and omit `RELEASE_LABEL` on the
+exact stable release commit. Build only from that clean committed tree with
+`repopact release-build --root . --outdir dist`, inspect the wheel/sdist, and
+run `python -m twine check dist\\repopact-3.0.2*`. Publish only those exact
+files, then verify public hashes and a fresh `site-packages` installation.
+This local procedure does not restore GitHub-hosted enforcement; WI032 remains
+blocked under its temporary local-only directive.
+
+## Historical 3.0.1 corrective release
 
 The 3.0.1 release contains the post-3.0.0 `worktrees/` contract-discovery
 exclusion and its regression coverage. Keep `VERSION=3.0.1` and omit

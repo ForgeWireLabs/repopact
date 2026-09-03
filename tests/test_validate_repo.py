@@ -609,7 +609,7 @@ class RepositoryValidationTests(unittest.TestCase):
     def _tag_identity_fixture(self) -> None:
         self.root.joinpath("VERSION").write_text("9.9.9\n", encoding="utf-8")
         # The source checkout carries the post-release development label for
-        # 3.0.1. A synthetic stable v9.9.9 fixture must model an unlabeled
+        # 3.0.2. A synthetic stable v9.9.9 fixture must model an unlabeled
         # release tree before testing later source identity changes.
         label = self.root / "RELEASE_LABEL"
         if label.exists():
@@ -668,19 +668,19 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_readme_release_changelog_link_must_name_current_release(self) -> None:
         self.set_readme_release(
-            "current release **3.0.1** "
+            "current release **3.0.2** "
             "([changelog](decisions/0025-release-2.2.0-dashboard-integrity.md))."
         )
         self.assertTrue(any("does not name the current release" in v for v in self.problems()))
 
     def test_readme_release_changelog_link_must_resolve(self) -> None:
         self.set_readme_release(
-            "current release **3.0.1** ([changelog](decisions/9999-nonexistent.md))."
+            "current release **3.0.2** ([changelog](decisions/9999-nonexistent.md))."
         )
         self.assertTrue(any("does not resolve" in v for v in self.problems()))
 
     def test_readme_release_line_without_link_is_accepted(self) -> None:
-        self.set_readme_release("current release **3.0.1**.")
+        self.set_readme_release("current release **3.0.2**.")
         self.assertEqual([], self.problems())
 
     def test_readme_without_release_line_is_unaffected(self) -> None:
@@ -691,13 +691,13 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_readme_release_link_may_be_an_external_url(self) -> None:
         self.set_readme_release(
-            "current release **3.0.1** ([changelog](https://example.invalid/changelog))."
+            "current release **3.0.2** ([changelog](https://example.invalid/changelog))."
         )
         self.assertEqual([], self.problems())
 
     def test_readme_release_link_outside_decisions_is_existence_checked_only(self) -> None:
         (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
-        self.set_readme_release("current release **3.0.1** ([changelog](CHANGELOG.md)).")
+        self.set_readme_release("current release **3.0.2** ([changelog](CHANGELOG.md)).")
         self.assertEqual([], self.problems())
 
     # --- dependency cycles --------------------------------------------------

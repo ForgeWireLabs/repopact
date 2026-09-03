@@ -1,0 +1,52 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-048-release-delta",
+  "timestamp": "2026-09-02T22:05:47-05:00",
+  "work_item": "048",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status --short; git fetch origin --tags; git rev-parse HEAD; git rev-parse origin/main; git rev-parse v3.0.1^{}",
+      "exit_code": 0,
+      "summary": "Started from clean main at b41b383496a7bd5e2a60df4463e1e27d630c4768, equal to origin/main; v3.0.1 remains peeled at 181e35a84605a966487199a6ee22cb5e4dfb9176."
+    },
+    {
+      "command": "git diff --name-status v3.0.1..HEAD; git log --reverse --format='%H %s' v3.0.1..HEAD",
+      "exit_code": 0,
+      "summary": "Complete delta inventory classified all changed paths: doctor.py and repo_model.py are the only runtime/package-affecting files; tests cover them, while all other changes are governance, research, evidence, audits/derived output, or work-item lifecycle records."
+    },
+    {
+      "command": "Compare v3.0.1..HEAD source and packaging surfaces",
+      "exit_code": 0,
+      "summary": "No package_version.py, release_build.py, pyproject.toml, MANIFEST.in, or other packaging implementation changed after v3.0.1; those release-boundary mechanisms are inherited unchanged from 3.0.1."
+    }
+  ],
+  "artifacts": [
+    "decisions/0036-release-repopact-3-0-2.md",
+    "repopact/doctor.py",
+    "repopact/repo_model.py",
+    "tests/test_validate_repo.py",
+    "work/completed/042-structural-git-worktree-awareness-in-contract-discovery/README.md",
+    "work/completed/043-define-and-enforce-source-of-truth-path-resolution-semantics/README.md",
+    "research/findings.md",
+    "evidence/runs/20260902-042-structural-worktree-awareness.json",
+    "evidence/runs/20260902-043-source-of-truth-resolution.json",
+    "evidence/runs/20260902-045-release-3-0-1-local-validation.json",
+    "work/active/048-release-repopact-3-0-2-corrective-path-and-worktree-fixes/work-item.json"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "release_base": "v3.0.1",
+    "release_base_commit": "181e35a84605a966487199a6ee22cb5e4dfb9176",
+    "starting_commit": "b41b383496a7bd5e2a60df4463e1e27d630c4768",
+    "runtime_delta": [
+      "doctor.py: declaring_record.parent / token source_of_truth resolution",
+      "repo_model.py: registered and embedded same-repository linked-worktree pruning with independent nested repository preservation"
+    ],
+    "non_runtime_delta": "tests, decision/research/evidence/audit records, derived dashboard/SPEC, and WI048 lifecycle records",
+    "excluded_scope": ["WI032", "WI037", "WI044", "WI046", "WI047"],
+    "github_hosted_execution": "not used"
+  }
+}

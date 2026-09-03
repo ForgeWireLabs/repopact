@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -96,6 +97,21 @@ class RepositoryValidationTests(unittest.TestCase):
         data = json.loads(path.read_text(encoding="utf-8"))
         mutate(data)
         path.write_text(json.dumps(data), encoding="utf-8")
+
+    def commit_fixture(self, timestamp: str = "2026-09-01T00:00:00+00:00") -> datetime:
+        """Give a copied fixture deterministic Git recording metadata."""
+        run = lambda args, **kwargs: subprocess.run(
+            args, cwd=self.root, check=True, capture_output=True, text=True, **kwargs
+        )
+        run(["git", "init", "-q"])
+        run(["git", "config", "user.email", "fixture@example.invalid"])
+        run(["git", "config", "user.name", "RepoPact fixture"])
+        run(["git", "add", "-A"])
+        env = os.environ.copy()
+        env["GIT_AUTHOR_DATE"] = timestamp
+        env["GIT_COMMITTER_DATE"] = timestamp
+        run(["git", "commit", "-qm", "fixture recording"], env=env)
+        return datetime.fromisoformat(timestamp).astimezone(timezone.utc)
 
     def add_work_item(
         self,
@@ -247,34 +263,67 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(any("unknown work_item" in v for v in self.problems()))
 
     def test_evidence_timestamp_far_in_the_future_is_rejected(self) -> None:
-        # An evidence record cannot document work that was produced before
-        # the record itself was written -- a timestamp materially ahead of
-        # "now" is an impossible ordering (found in practice: a hand-typed
-        # timestamp hours later than the Git commit that recorded it).
+        # A recording-backed evidence record cannot claim execution after the
+        # commit that already contains it. This is the deterministic form of
+        # the field defect that motivated f2c80b7.
         path = next((self.root / "evidence" / "runs").glob("*.json"))
-        self.write_json(path, lambda d: d.__setitem__("timestamp", "2099-01-01T00:00:00+00:00"))
-        self.assertTrue(any("is in the future" in v for v in self.problems()))
+        self.commit_fixture()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", "2099-01-01T00:00:00+00:00"), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertTrue(any("recording commit" in v for v in self.problems()))
 
     def test_evidence_timestamp_at_now_is_accepted(self) -> None:
         path = next((self.root / "evidence" / "runs").glob("*.json"))
-        now = datetime.now(timezone.utc).isoformat()
-        self.write_json(path, lambda d: d.__setitem__("timestamp", now))
-        self.assertFalse(any("is in the future" in v for v in self.problems()))
+        now = self.commit_fixture()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", now.isoformat()), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertFalse(any("recording commit" in v for v in self.problems()))
 
     def test_evidence_timestamp_within_clock_skew_tolerance_is_accepted(self) -> None:
-        # A few minutes of real clock drift between machines must not be
-        # rejected as an impossible future timestamp.
+        # A few minutes of write/commit clock drift remain explicitly allowed.
         path = next((self.root / "evidence" / "runs").glob("*.json"))
-        near_future = (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat()
-        self.write_json(path, lambda d: d.__setitem__("timestamp", near_future))
-        self.assertFalse(any("is in the future" in v for v in self.problems()))
+        commit_time = self.commit_fixture()
+        near_future = (commit_time + timedelta(minutes=2)).isoformat()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", near_future), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertFalse(any("recording commit" in v for v in self.problems()))
 
     def test_evidence_timestamp_without_timezone_is_still_checked(self) -> None:
-        # A naive (timezone-less) ISO timestamp must be treated as UTC for
-        # this comparison rather than silently skipped.
+        # A naive (timezone-less) ISO timestamp is UTC, not local machine time.
         path = next((self.root / "evidence" / "runs").glob("*.json"))
-        self.write_json(path, lambda d: d.__setitem__("timestamp", "2099-01-01T00:00:00"))
-        self.assertTrue(any("is in the future" in v for v in self.problems()))
+        self.commit_fixture()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", "2099-01-01T00:00:00"), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertTrue(any("recording commit" in v for v in self.problems()))
+
+    def test_evidence_timestamp_aware_offset_is_normalized_to_utc(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        commit_time = self.commit_fixture()
+        offset_value = (commit_time + timedelta(hours=2)).isoformat().replace("+00:00", "+02:00")
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", offset_value), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertFalse(any("recording commit" in v for v in self.problems()))
+
+    def test_evidence_timestamp_historical_value_is_accepted(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        self.commit_fixture()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", "2020-01-01T00:00:00Z"), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertFalse(any("recording commit" in v for v in self.problems()))
+
+    def test_evidence_timestamp_malformed_iso_is_rejected(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        self.write_json(path, lambda d: d.__setitem__("timestamp", "not-an-iso-timestamp"))
+        self.assertTrue(any("timestamp must be ISO 8601" in v for v in self.problems()))
+
+    def test_evidence_timestamp_future_does_not_heal_and_repeats_deterministically(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        commit_time = self.commit_fixture()
+        too_late = (commit_time + timedelta(minutes=6)).isoformat()
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", too_late), d.__setitem__("timestamp_basis", "git-recording")))
+        first = self.problems()
+        second = self.problems()
+        self.assertEqual(first, second)
+        self.assertTrue(any("recording commit" in v for v in first))
+
+    def test_evidence_timestamp_git_free_export_skips_history_check(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        self.write_json(path, lambda d: (d.__setitem__("timestamp", "2099-01-01T00:00:00Z"), d.__setitem__("timestamp_basis", "git-recording")))
+        self.assertFalse(any("recording commit" in v for v in self.problems()))
 
     # --- contracts and audit coverage --------------------------------------
 

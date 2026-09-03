@@ -1,6 +1,6 @@
 # 049 — Reconcile Post-3.0.2 Evidence-Timestamp Hotfix and Development Identity
 
-> **Status**: 🚧 Active.
+> **Status**: ✅ Completed.
 > **Owners**: governance-owner (lead); tooling-owner, evidence-owner, and work-coordinator affected.
 > **Depends on**: WI045 (stable source/artifact identity), WI048 (3.0.2 release boundary).
 
@@ -27,4 +27,12 @@ This work does **not** pretend that change was preflight-governed. The historica
 
 ## Closeout
 
-WI049 completes only when current `main` is governance-valid, development identity is explicit if the runtime hotfix remains, the hotfix has concrete regression/evidence coverage, the historical ordering is documented truthfully, full local validation passes, and the closeout is pushed.
+WI049 completed on 2026-09-03. The landed wall-clock comparison was replaced
+with the deterministic, opt-in Git-recording chronology in decision 0037:
+`timestamp_basis: "git-recording"` records normalize to UTC and must be no
+later than their first recording commit plus five minutes; legacy backfills and
+Git-free exports retain structural-only validation. The post-release runtime
+identity is explicitly `VERSION=3.0.2`, `RELEASE_LABEL=3.0.2-dev.1`, with
+derived package version `3.0.2dev1`. The stable `v3.0.2` tag is unchanged, no
+stable release was cut, and WI044/WI046/WI047 remain unimplemented. Full
+criterion evidence is [`20260903-049-evidence-timestamp-reconciliation`](../../../evidence/runs/20260903-049-evidence-timestamp-reconciliation.json).

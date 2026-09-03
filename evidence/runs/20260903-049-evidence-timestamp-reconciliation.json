@@ -1,0 +1,87 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-049-evidence-timestamp-reconciliation",
+  "timestamp": "2026-09-03T15:58:01Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "049",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git fetch origin --tags; git pull --ff-only origin main; git rev-parse HEAD; git rev-parse origin/main; git rev-parse v3.0.2^{}",
+      "exit_code": 0,
+      "summary": "Started clean and current at c6710f7182d61b0e678610e45c5227e17cec7646 (HEAD == origin/main); v3.0.2 remains peeled at dfab8cb8ca010a865ebb3291c526179fb5cb4b2c."
+    },
+    {
+      "command": "git log --reverse --oneline v3.0.2..HEAD; git show f2c80b7dcdc54ff9f4753bc996ef0b6dfba539bf --stat --oneline",
+      "exit_code": 0,
+      "summary": "Confirmed post-tag order: f2c80b7 (ungoverned timestamp hotfix), then WI049 activation/criteria/dashboard commits; no prior RepoPact WI governed f2c80b7."
+    },
+    {
+      "command": "Inspect ForgeWire evidence and Git history under C:\\Projects\\forgewire",
+      "exit_code": 0,
+      "summary": "The local checkout has no literal WI260 record or reachable WI260 commit. Retained evidence 20260826-252-bdr004-endpoint-tariff-predicate-semantics-correction.json documents the same failure shape: originally claimed 2026-08-26T21:30:00Z versus containing commit f9c894bb authored 2026-08-26T17:39:16Z; its chronology_correction recovers the actual write at 17:26:59.391Z."
+    },
+    {
+      "command": "Controlled Git fixture reproduction",
+      "exit_code": 0,
+      "summary": "A copied RepoPact tree with a fixed recording commit rejects a timestamp six minutes after that commit and accepts a two-minute value; repeated validation returns identical diagnostics and the failure never heals. A Git-free export skips only the unavailable history comparison."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_far_in_the_future_is_rejected tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_at_now_is_accepted tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_within_clock_skew_tolerance_is_accepted tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_without_timezone_is_still_checked tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_aware_offset_is_normalized_to_utc tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_historical_value_is_accepted tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_malformed_iso_is_rejected tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_future_does_not_heal_and_repeats_deterministically tests.test_validate_repo.RepositoryValidationTests.test_evidence_timestamp_git_free_export_skips_history_check -v",
+      "exit_code": 0,
+      "summary": "9 focused evidence-timestamp regressions passed."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Editable package installed successfully as repopact 3.0.2.dev1."
+    },
+    {
+      "command": "repopact validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed after dashboard regeneration."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "160 tests passed, 2 disclosed pre-existing skips, 0 failures."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "20/20 conformance cases passed."
+    },
+    {
+      "command": "repopact dashboard --root .; repopact spec --root .; repopact check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "Dashboard and SPEC regenerated deterministically; frozen-surface verification reported no protected changes."
+    }
+  ],
+  "artifacts": [
+    "repopact/validate_repo.py",
+    "tests/test_validate_repo.py",
+    "decisions/0037-evidence-timestamp-recording-chronology.md",
+    "research/captures/017-forgewire-wi260-evidence-timestamp-chronology.md",
+    "research/findings.md",
+    "research/release-runbook.md",
+    "SPEC.md",
+    "repopact/_audit/inventory.md",
+    "repopact/_audit/alignment-report.md",
+    "RELEASE_LABEL",
+    "work/active/049-reconcile-post-3-0-2-evidence-timestamp-hotfix-and-development-identity/README.md"
+  ],
+  "environment": {
+    "platform": "win32",
+    "python": "3.13",
+    "git": "2.53.0.windows.3",
+    "github_hosted_execution": "not used",
+    "wi032": "blocked/local-only",
+    "version": "3.0.2",
+    "release_label": "3.0.2-dev.1",
+    "package_version": "3.0.2dev1",
+    "disposition": "replaced f2c80b7 wall-clock comparison with deterministic opt-in Git-recording chronology; retained the generic future-timestamp safety property",
+    "decision": "0037",
+    "historical_boundary": "f2c80b7 remains an ungoverned post-v3.0.2 historical change; WI049 does not retroactively satisfy its preflight"
+  }
+}

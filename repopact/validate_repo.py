@@ -29,11 +29,15 @@ REQUIRED_WORK_FIELDS = {
 DECISION_STATUSES = ("proposed", "accepted", "rejected", "deferred", "superseded", "deprecated")
 POLICY_STATUSES = ("active", "retired")
 
-# An evidence-run timestamp records when the work it describes was actually
-# produced; it can never be later than "now" by more than ordinary clock
-# skew. A small tolerance absorbs real clock drift between machines without
-# accepting a record that is hours or days ahead of the present.
+# An explicitly recording-backed evidence timestamp is compared with the
+# commit that first recorded that file.  Five minutes covers ordinary clock
+# drift and the write/commit gap without making validation depend on the
+# validator's wall clock.  Legacy records without ``timestamp_basis`` retain
+# structural-only timestamp validation: their historical timestamps were often
+# backfilled before the file was imported, and completed history must not be
+# rewritten to manufacture commit chronology.
 FUTURE_TIMESTAMP_TOLERANCE = timedelta(minutes=5)
+EVIDENCE_TIMESTAMP_BASIS = "git-recording"
 
 # A work-item README may use the "- [ ] **CRIT-1** ..." checklist convention to
 # mirror acceptance-criterion state. Where it does, the checkboxes must not
@@ -782,21 +786,77 @@ def validate_evidence(root: Path, work_ids: set[str], problems: list[Problem]) -
             problems.append(Problem(path, "timestamp must be ISO 8601"))
         else:
             if parsed_timestamp.tzinfo is None:
+                # Naive timestamps are deliberately UTC, matching the
+                # historical RepoPact interpretation and avoiding local-zone
+                # dependence across exported checkouts.
                 parsed_timestamp = parsed_timestamp.replace(tzinfo=timezone.utc)
-            now = datetime.now(timezone.utc)
-            if parsed_timestamp - now > FUTURE_TIMESTAMP_TOLERANCE:
+            else:
+                parsed_timestamp = parsed_timestamp.astimezone(timezone.utc)
+
+            timestamp_basis = data.get("timestamp_basis")
+            if timestamp_basis is not None and timestamp_basis != EVIDENCE_TIMESTAMP_BASIS:
                 problems.append(
                     Problem(
                         path,
-                        f"timestamp {data['timestamp']} is in the future (now is "
-                        f"{now.isoformat()}): an evidence record cannot be produced "
-                        "before it is written; use the actual execution/closeout "
-                        "time, or the recording commit's authored time as a "
-                        "documented recovery basis if the exact time was not captured",
+                        f"timestamp_basis must be '{EVIDENCE_TIMESTAMP_BASIS}' when present",
                     )
                 )
+            elif timestamp_basis == EVIDENCE_TIMESTAMP_BASIS:
+                recording = _evidence_recording_commit(root, path)
+                if recording is not None:
+                    commit_timestamp, commit_sha = recording
+                    if parsed_timestamp > commit_timestamp + FUTURE_TIMESTAMP_TOLERANCE:
+                        problems.append(
+                            Problem(
+                                path,
+                                f"timestamp {data['timestamp']} is later than its recording "
+                                f"commit {commit_sha} ({commit_timestamp.isoformat()}) "
+                                f"by more than {FUTURE_TIMESTAMP_TOLERANCE}; evidence "
+                                "timestamps must describe execution no later than the "
+                                "recording commit plus the allowed clock-skew tolerance",
+                            )
+                        )
         if data["work_item"] not in work_ids:
             problems.append(Problem(path, f"unknown work_item '{data['work_item']}'"))
+
+
+def _evidence_recording_commit(root: Path, path: Path) -> tuple[datetime, str] | None:
+    """Return the first Git commit that recorded *path*, when available.
+
+    This is intentionally best-effort.  Exported trees, uncommitted evidence,
+    and environments without usable Git metadata still receive schema and ISO
+    validation, but cannot make a history-dependent claim.  The command uses
+    only repository content and therefore returns the same result on every
+    repeated validation of an unchanged tree.
+    """
+    try:
+        relative = path.relative_to(root).as_posix()
+    except ValueError:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "git", "-C", str(root), "log", "--follow", "--diff-filter=A",
+                "--format=%ct:%H", "--reverse", "--", relative,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    first = next((line.strip() for line in result.stdout.splitlines() if line.strip()), "")
+    if not first or ":" not in first:
+        return None
+    seconds, commit_sha = first.split(":", 1)
+    try:
+        commit_timestamp = datetime.fromtimestamp(int(seconds), tz=timezone.utc)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
+    return commit_timestamp, commit_sha
 
 
 def validate_audit_registry(root: Path, problems: list[Problem]) -> None:

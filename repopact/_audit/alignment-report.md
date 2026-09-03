@@ -1,5 +1,19 @@
 # Tooling Alignment Report
 
+## 2026-09-03 deterministic evidence timestamp chronology
+
+- `validate_repo.validate_evidence` retains ISO-8601 validation for all runs and
+  applies the explicit `timestamp_basis: "git-recording"` rule against the first
+  recording commit plus a five-minute clock/write tolerance.
+- Naive timestamps are UTC; aware timestamps normalize to UTC. Git-free,
+  exported, and uncommitted records retain structural validation without a
+  fabricated history comparison, preserving deterministic behavior and legacy
+  evidence history.
+- Regression coverage proves far-future rejection, tolerance/offset/naive and
+  historical acceptance, malformed input rejection, Git-free behavior, and
+  repeated validation that cannot heal through passage of time. Decision 0037
+  records the alternatives and the WI049 reconciliation boundary.
+
 ## 2026-09-02 structural worktree-aware contract discovery
 
 - `repo_model.iter_contracts` now prunes same-repository linked worktrees using

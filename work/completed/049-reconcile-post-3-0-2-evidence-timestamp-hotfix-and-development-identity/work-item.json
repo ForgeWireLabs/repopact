@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "049",
   "title": "Reconcile Post-3.0.2 Evidence-Timestamp Hotfix and Development Identity",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": ["governance", "tooling", "evidence", "work", "docs"],
   "depends_on": ["045", "048"],
@@ -16,44 +16,44 @@
     {
       "id": "AC-1",
       "text": "A durable evidence record reproduces the motivating future-evidence-timestamp defect, identifies commit f2c80b7dcdc54ff9f4753bc996ef0b6dfba539bf as a post-v3.0.2 runtime change that landed without a RepoPact work item or required post-release RELEASE_LABEL, and preserves that ordering without retroactive preflight claims.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-2",
       "text": "The landed future-timestamp rule is reviewed as a generic RepoPact contract. A durable decision or equivalent governed rationale either retains it with explicit semantics for tolerance, timezone handling, deterministic diagnostics, and scope, or reverts it with rationale; the work does not merely accept the hotfix because it already landed.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-3",
       "text": "If the runtime hotfix is retained, current main restores decision-0032 development identity with a valid VERSION-pinned RELEASE_LABEL at VERSION 3.0.2 and package metadata derives a distinct development version. If the hotfix is reverted so the package/runtime tree again matches v3.0.2, the absence of RELEASE_LABEL is proven valid instead.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-4",
       "text": "Focused regression coverage proves the chosen timestamp semantics, including materially future timestamps, accepted clock-skew tolerance, timezone-aware values, and timezone-less values, plus at least one negative/control case showing ordinary historical/current evidence remains valid.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-5",
       "text": "Relevant SPEC, tooling audit, findings/field evidence, and documentation surfaces are reconciled with the retained/reverted behavior without rewriting completed history. No frozen schema, invariant, or workflow change is made by WI049.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-6",
       "text": "The final reconciled tree passes RepoPact validation, focused tests, the full unit suite, all conformance cases, dashboard/SPEC regeneration checks, and frozen-surface verification locally; WI032 remains blocked/local-only and no GitHub-hosted execution is used.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     },
     {
       "id": "AC-7",
       "text": "WI049 closes with concrete linked evidence, moves to work/completed, and is pushed with HEAD matching origin/main. VERSION remains 3.0.2, v3.0.2 remains unchanged, no stable release is cut, and WI044/WI046/WI047 remain unimplemented during this reconciliation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260903-049-evidence-timestamp-reconciliation"]
     }
   ],
   "created": "2026-09-03",

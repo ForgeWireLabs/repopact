@@ -12,6 +12,16 @@ files, then verify public hashes and a fresh `site-packages` installation.
 This local procedure does not restore GitHub-hosted enforcement; WI032 remains
 blocked under its temporary local-only directive.
 
+## Post-3.0.2 development baseline (WI049)
+
+The exact stable release tree described above remains unlabeled at `v3.0.2`.
+Current `main` is intentionally later than that tag because WI049 reconciles a
+post-release validator correction. It therefore keeps `VERSION=3.0.2` and
+requires `RELEASE_LABEL=3.0.2-dev.1`; package metadata derives `3.0.2dev1`.
+This is a development identity, not a stable release and not a package
+publication instruction. Do not move `v3.0.2`, cut 3.0.3, or publish artifacts
+from this baseline. WI032 remains local-only/blocked.
+
 ## Historical 3.0.1 corrective release
 
 The 3.0.1 release contains the post-3.0.0 `worktrees/` contract-discovery

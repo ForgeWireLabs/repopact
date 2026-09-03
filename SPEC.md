@@ -111,6 +111,14 @@ cross-record consistency.
     unowned path has no accountable writer; an overlap violates the non-overlap
     principle. Repositories that have not enabled the rule, and exported/seeded
     trees without Git metadata, skip the index check.
+13. **Evidence timestamp chronology (conditional, recording-backed).** Every
+    evidence timestamp is ISO 8601; timezone-less values mean UTC. A record that
+    declares `timestamp_basis: "git-recording"` must not be later than the first
+    Git commit recording that file plus five minutes. This comparison uses only
+    repository history, so an unchanged tree cannot become valid merely because
+    time passes. Exported, uncommitted, or Git-free trees retain structural ISO
+    validation and skip the unavailable history comparison; legacy records
+    without the opt-in basis are not rewritten to invent chronology.
 
 ## 5. Lifecycle state machine
 

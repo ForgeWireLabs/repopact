@@ -1,5 +1,23 @@
 # Tooling Alignment Report
 
+## 2026-09-03 WI050 opt-in provider boundary
+
+- `admission.evaluate_action` checks the adopter-owned policy before guard or
+  lease state: no policy and `enabled=false` are valid standalone modes with
+  `instruction-only`/`enforcement_required=false`; enabled policy remains
+  fail-closed when registration or required provider coverage is absent.
+- `repopact.enforcement.EnforcementProvider` is the generic health,
+  discovery, authorization, check, delegation, and revoke contract. Adapters
+  and providers report separate classes and the resolver computes their
+  non-widening intersection. `NativeGuardClient` implements the contract but
+  is not its definition; external providers are covered by a fixture without
+  built-in guard classes.
+- Package metadata keeps `jsonschema` as the base dependency and moves
+  cryptography to the optional `enforcement` (and `dev`) extras. No frozen
+  schema was changed; `minimum_enforcement` and `failure_mode` retain their
+  existing structure while the resolver ensures degraded mode cannot satisfy
+  an unmet explicit minimum.
+
 ## 2026-09-03 WI050 admission architecture review
 
 - Reviewed validate_repo.py, check_frozen_surface.py, init_repo.py,

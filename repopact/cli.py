@@ -264,7 +264,12 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
                 print(json.dumps({k: str(v) for k, v in result.items() if k != "signer"}, sort_keys=True)); return 0
             if args.admission_command == "status":
-                print(json.dumps(admission.diagnose(root, protected), sort_keys=True)); return 0 if admission.verify_registration(root, protected).allowed else 1
+                status = admission.diagnose(root, protected)
+                print(json.dumps(status, sort_keys=True))
+                # A missing or explicitly disabled policy is a valid
+                # standalone RepoPact state.  Only an opted-in policy with an
+                # unhealthy registration makes status fail.
+                return 0 if not any(item.get("enforcement_required") and item.get("valid") is False for item in status) else 1
             if args.admission_command == "begin":
                 try: print(json.dumps(admission.make_request(root, args.work_item, args.session, profile=args.profile, protected_dir=protected), sort_keys=True)); return 0
                 except Exception as exc: print(f"Admission request denied: {exc}", file=sys.stderr); return 1

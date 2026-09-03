@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from .enforcement import EnforcementProvider
+
 PROTOCOL_VERSION = "1"
 WINDOWS_PIPE = r"\\.\pipe\RepoPactGuard"
 WINDOWS_PROTOCOL_TAG = b"RepoPactGuard.protocol.v1"
@@ -312,7 +314,7 @@ def peer_identity(sock: Any) -> IPCIdentity:
     return IPCIdentity("unknown")
 
 
-class NativeGuardClient:
+class NativeGuardClient(EnforcementProvider):
     """Production client; it never reads protected state directly."""
     def __init__(self, endpoint: str | Path | None = None, *, root: Path | None = None,
                  expected_server_path: str | Path | None = None, service_name: str = "RepoPactGuard"):

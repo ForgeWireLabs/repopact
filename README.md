@@ -24,6 +24,13 @@ That, plus evidence-gated completion and a filesystem state machine, is what tur
 convention into a contract. `repopact adopt` ingests an existing `AGENTS.md` rather than
 replacing it (decision [`0020`](decisions/0020-launch-positioning-layer-above-agents-md.md)).
 
+WI050's protected admission plane is optional. Repositories remain valid
+standalone RepoPact adopters without a privileged provider; an adopter-owned
+policy can explicitly require stronger session-start, pre-action, or
+sandbox/process enforcement. The base package has no cryptography or provider
+dependency for ordinary governance, while `repopact[enforcement]` supplies the
+optional signing/reference-provider support.
+
 ## Core loop
 
 ```text

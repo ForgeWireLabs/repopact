@@ -75,6 +75,31 @@ Native destructive proof is intentionally not run in this correction pass.
 AC-14, AC-15, AC-16, and AC-18 remain pending until an operator performs the
 elevated installation and the real multi-process Windows/Linux/macOS proofs.
 
+## Opt-in capability boundary (clarification pass)
+
+WI050 enforcement is an optional RepoPact capability, not a universal adoption
+prerequisite. A repository with no `governance/admission-policy.json`, or with
+an adopter-owned policy whose `enabled` value is `false`, remains independently
+conformant in standalone mode. The policy core reports
+`enforcement_required=false`, provider `none`, and effective class
+`instruction-only`; it does not require a lease, guard, privileged daemon, or
+downstream application. Existing adopters retain ordinary work-item,
+preflight, validation, doctor, dashboard, and governance behavior.
+
+When `enabled=true`, the declared `minimum_enforcement` becomes an explicit
+requirement. The canonical resolver combines the adapter and provider classes
+by intersection and fails closed below the required class, regardless of a
+`degraded` failure mode. `repopact.enforcement.EnforcementProvider` is the
+adopter-neutral runtime contract (`health`, `discover`, `authorize`, `check`,
+`delegate`, and `revoke`). `NativeGuardClient` is only a reference provider
+implementation; arbitrary downstream providers may satisfy the same contract
+without becoming RepoPact dependencies or semantic-kernel special cases.
+
+The built-in reference provider and platform backends remain optional and
+platform-specific. This clarification does not alter historical Decision
+0038; it records the implementation boundary that keeps support separate from
+requirement.
+
 ## Interpreter trust-chain correction pass
 
 The next pre-install review found that checking only whether an import was

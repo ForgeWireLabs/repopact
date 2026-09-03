@@ -7,7 +7,13 @@ from typing import Any, Callable, Mapping
 import subprocess
 
 from .admission import AdmissionDecision, iso
-from .guard import ProtectedGuard
+from .enforcement import (
+    EnforcementProvider,
+    adapter_enforcement_class,
+    intersect_enforcement,
+    provider_enforcement_class,
+    resolve_enforcement_requirement,
+)
 
 
 @dataclass(frozen=True)
@@ -57,39 +63,53 @@ class AdapterCapabilities:
 
 
 class PreActionAdapter:
-    def __init__(self, guard: ProtectedGuard, capabilities: AdapterCapabilities | None = None):
-        self.guard = guard; self.capabilities = capabilities or AdapterCapabilities("repopact-reference")
+    """Reference pre-action adapter over any adopter-owned provider.
+
+    ``guard`` remains the parameter name for source compatibility, but it is
+    deliberately typed and treated as the generic provider SPI.  No adapter
+    imports or requires the built-in ``ProtectedGuard`` implementation.
+    """
+    def __init__(self, provider: EnforcementProvider | Any, capabilities: AdapterCapabilities | None = None):
+        self.provider = provider
+        # Compatibility for callers that used the old attribute; semantics are
+        # provider-based and do not depend on the concrete guard class.
+        self.guard = provider
+        self.capabilities = capabilities or AdapterCapabilities("repopact-reference")
 
     def before(self, action: Mapping[str, Any], callback: Callable[[], Any], lease: Mapping[str, Any] | None = None) -> tuple[AdmissionDecision, Any | None]:
-        decision = self.guard.check(action, lease)
+        decision = self.provider.check(action, lease)
         if not decision.allowed: return decision, None
         return decision, callback()
 
     def start(self, action: Mapping[str, Any]) -> AdmissionDecision:
-        return self.guard.check(action)
+        return self.provider.check(action)
 
     def enforcement_class(self, required: str = "pre-action") -> str:
-        """Compute a class only after backend-owned guard health is verified."""
-        health = self.guard.health()
-        if not health.healthy or not health.protected:
-            return "not-covered"
-        return self.capabilities.enforcement_class(required)
+        """Return adapter/provider assurance intersection, never an adapter claim."""
+        return intersect_enforcement(
+            adapter_enforcement_class(self.capabilities, required),
+            provider_enforcement_class(self.provider),
+        )
+
+    def enforcement_resolution(self, policy: Mapping[str, Any] | None, *, root: Path | None = None):
+        return resolve_enforcement_requirement(policy, self.provider, self.capabilities, root=root)
 
     def capability_record(self) -> dict[str, Any]:
         record = self.capabilities.record()
-        record["health"] = {"status": "healthy" if self.guard.health().healthy and self.guard.health().protected else "failed", "checked_at": iso()}
+        health = self.provider.health()
+        record["health"] = {"status": "healthy" if health.healthy and health.protected else "failed", "checked_at": iso()}
         return record
 
 
 class LauncherAdapter(PreActionAdapter):
     """Independent launcher gate; child creation happens only after admission."""
-    def __init__(self, guard: ProtectedGuard, capabilities: AdapterCapabilities | None = None):
-        super().__init__(guard, capabilities or AdapterCapabilities(
+    def __init__(self, provider: EnforcementProvider | Any, capabilities: AdapterCapabilities | None = None):
+        super().__init__(provider, capabilities or AdapterCapabilities(
             "repopact-launcher-reference", pre_action_interception=False,
             path_reporting=False, session_start_gate=True))
 
     def launch(self, action: Mapping[str, Any], launch: Callable[[], Any] | list[str] | tuple[str, ...], lease: Mapping[str, Any] | None = None, *, cwd: str | Path | None = None, env: Mapping[str, str] | None = None) -> tuple[AdmissionDecision, Any | None]:
-        decision = self.guard.check(action, lease)
+        decision = self.provider.check(action, lease)
         if not decision.allowed:
             return decision, None
         if callable(launch):
@@ -102,8 +122,8 @@ class LauncherAdapter(PreActionAdapter):
 
 
 class CodexReferenceAdapter(PreActionAdapter):
-    def __init__(self, guard: ProtectedGuard): super().__init__(guard, AdapterCapabilities("repopact-codex-reference", host="coding-surface"))
+    def __init__(self, provider: EnforcementProvider | Any): super().__init__(provider, AdapterCapabilities("repopact-codex-reference", host="coding-surface"))
 
 
 class ClaudeReferenceAdapter(PreActionAdapter):
-    def __init__(self, guard: ProtectedGuard): super().__init__(guard, AdapterCapabilities("repopact-claude-reference", host="coding-surface"))
+    def __init__(self, provider: EnforcementProvider | Any): super().__init__(provider, AdapterCapabilities("repopact-claude-reference", host="coding-surface"))

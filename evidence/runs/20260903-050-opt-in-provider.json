@@ -1,0 +1,59 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-opt-in-provider",
+  "timestamp": "2026-09-03T19:30:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m unittest tests.test_opt_in_provider -q", "exit_code": 0, "summary": "Standalone no-policy, disabled-policy, required-without-provider, external-provider narrowing/loss, and NativeGuardClient SPI tests passed."},
+    {"command": "python -m unittest tests.test_admission tests.test_admission_security -q", "exit_code": 0, "summary": "Existing WI050 admission and security regressions remained green."},
+    {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Legacy conformance 20/20 and WI050 admission corpus 8/8 passed."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "Portable semantic conformance passed; native protected service cases were correctly not-run on this host."},
+    {"command": "python -m repopact.cli validate --root .; python -m repopact.cli dashboard --root .; python -m repopact.cli spec --root .", "exit_code": 0, "summary": "Repository validation and derived dashboard/SPEC regeneration passed."},
+    {"command": "python -m build --wheel --outdir %TEMP%/repopact-wheel-optin --no-isolation", "exit_code": 0, "summary": "Wheel metadata contains jsonschema as the base dependency and cryptography only in enforcement/dev extras."},
+    {"command": "isolated base-wheel proof (venv without cryptography)", "exit_code": 0, "summary": "Installed base wheel plus jsonschema only; import/help/init/adopt/validate/doctor/dashboard worked and Ed25519 signing returned the clear optional-dependency diagnostic."},
+    {"command": "isolated enforcement-extra wheel proof", "exit_code": 0, "summary": "Installed wheel[enforcement] and generated an Ed25519 signer successfully."},
+    {"command": "python -m repopact.cli check-frozen --root . --base e2e6d0f7b2a8bd83f4c0fa2d1bee6351f96296d5", "exit_code": 0, "summary": "No frozen-surface changes; no INV-6 approval was needed."}
+  ],
+  "artifacts": [
+    "repopact/enforcement.py",
+    "repopact/admission.py",
+    "repopact/adapters.py",
+    "repopact/guard_ipc.py",
+    "repopact/doctor.py",
+    "repopact/cli.py",
+    "repopact/init_repo.py",
+    "pyproject.toml",
+    "requirements.txt",
+    "tests/test_opt_in_provider.py",
+    "decisions/0039-opt-in-enforcement-provider-boundary.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "baseline": "e2e6d0f7b2a8bd83f4c0fa2d1bee6351f96296d5",
+    "linux_matrix": "not run on this machine; reserved for another machine",
+    "macos_matrix": "not run on this machine; reserved for another machine",
+    "native_service": "not installed; no UAC/service mutation performed"
+  },
+  "compatibility": {
+    "no_policy": "valid standalone RepoPact; instruction-only; no lease/provider/guard prerequisite",
+    "disabled_policy": "valid standalone RepoPact; instruction-only; no lease/provider/guard prerequisite",
+    "required_policy_without_provider": "fail-closed and unsatisfied",
+    "external_provider": "satisfies pre-action when adapter/provider both prove it; narrows paths; provider loss fails closed",
+    "native_guard": "NativeGuardClient structurally satisfies the public provider SPI without defining it"
+  },
+  "policy_semantics": {
+    "minimum_enforcement": "explicit enabled policy requirement",
+    "failure_mode": "degraded does not satisfy a missing/weaker explicit minimum",
+    "effective_assurance": "adapter/provider intersection; downstream may narrow, never widen"
+  },
+  "acceptance_criteria_satisfied": ["AC-13", "AC-19", "AC-25"],
+  "acceptance_criteria_pending": ["AC-14", "AC-15", "AC-16", "AC-18"],
+  "scope_guard": {"new_frozen_change_authorized": false, "unapproved_frozen_changes": []},
+  "native_platform_proof": "pending: native Windows service and Linux/macOS proofs require their respective operator/platform machines; this pass did not install UAC/service components."
+}

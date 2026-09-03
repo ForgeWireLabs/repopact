@@ -268,6 +268,34 @@ def _public_paths(root: Path) -> tuple[Path, Path, Path]:
     return root / "governance" / "admission-policy.json", root / "governance" / "operator-authority.json", root / "governance" / "repository-registration.json"
 
 
+def admission_policy(root: Path) -> dict[str, Any] | None:
+    """Read the adopter-owned policy, if this repository opted in.
+
+    Absence is meaningful: standalone RepoPact has no hidden guard or lease
+    prerequisite.  Callers that need strict registration verification should
+    continue to use :func:`verify_registration` after this opt-in check.
+    """
+    path = root / "governance" / "admission-policy.json"
+    if not path.is_file():
+        return None
+    try:
+        value = _record(path)
+    except Exception as exc:
+        raise ValueError("admission policy is invalid JSON") from exc
+    if not isinstance(value, dict):
+        raise ValueError("admission policy must be an object")
+    return value
+
+
+def admission_requirement(root: Path):
+    """Return the canonical opt-in requirement without touching guard state."""
+    from .enforcement import policy_requirement
+    try:
+        return policy_requirement(admission_policy(root))
+    except ValueError:
+        return policy_requirement({"enabled": True, "minimum_enforcement": "pre-action", "failure_mode": "fail-closed"})
+
+
 def frozen_surface_digest(root: Path) -> str:
     """Digest the repository's declared frozen surface, not caller assertions."""
     path = root / "governance" / "frozen-surface.json"
@@ -423,6 +451,33 @@ def _profile_rank(name: Any) -> int:
 def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, Any] | None = None,
                     guard_health: GuardHealth | None = None, protected_dir: Path | None = None,
                     now: datetime | None = None) -> AdmissionDecision:
+    # Admission is an opt-in capability.  Keep the ordinary RepoPact policy
+    # core usable for adopters that have no policy, and make an explicitly
+    # disabled policy equally non-blocking.  This check must precede health,
+    # lease, and registration checks so consulting the API cannot accidentally
+    # turn a standalone repository into a fail-closed protected repository.
+    try:
+        policy = admission_policy(root)
+    except ValueError as exc:
+        return AdmissionDecision.deny("UNREGISTERED_REPO", str(exc))
+    if policy is None:
+        return AdmissionDecision.allow("instruction-only", enforcement_required=False,
+                                      provider="none", effective_class="instruction-only",
+                                      reason_code="not-required")
+    if policy.get("enabled") is False:
+        return AdmissionDecision.allow("instruction-only", enforcement_required=False,
+                                      provider="none", effective_class="instruction-only",
+                                      reason_code="not-required")
+    if policy.get("enabled") is not True:
+        return AdmissionDecision.deny("UNREGISTERED_REPO", "admission policy must explicitly set enabled=true or false")
+    from .enforcement import enforcement_rank, policy_requirement
+    requirement = policy_requirement(policy)
+    # An enabled policy is an explicit adopter choice.  Registration is checked
+    # before runtime lease/health checks so missing provider state fails closed
+    # with a truthful registration diagnostic.
+    identity = verify_registration(root, protected_dir)
+    if not identity.allowed:
+        return identity
     health = guard_health or GuardHealth(True, protected=False, backend_id="policy-core-unbound")
     # A bare GuardHealth object is not an attestation.  Only a backend-owned
     # identity (or an explicitly marked testing backend) may assert protection.
@@ -446,6 +501,18 @@ def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, A
                                  actual.installed_code_path, actual.protected_state_path,
                                  actual.ipc_endpoint, actual.backend_id, False)
     action_kind = _action_kind(action)
+    # The explicit in-process TestingBackend is a semantic fixture used by the
+    # legacy corpus; it is allowed to exercise policy checks without claiming
+    # host/process protection.  Production/provider health remains subject to
+    # the required-class comparison below.
+    if (requirement.required and not health.testing_only
+            and enforcement_rank(health.security_level) < enforcement_rank(requirement.minimum_class)):
+        return AdmissionDecision.deny(
+            "NOT_COVERED",
+            f"required {requirement.minimum_class} enforcement is unavailable",
+            enforcement_required=True, required_class=requirement.minimum_class,
+            effective_class=health.security_level, failure_mode=requirement.failure_mode,
+        )
     if lease is None and action_kind not in _NO_LEASE_KINDS:
         # Make the missing operator proof explicit even when the host guard is
         # also unavailable.  Both paths fail closed; this stable code helps an
@@ -453,12 +520,9 @@ def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, A
         return AdmissionDecision.deny("NO_OPERATOR_PROOF", "mutating actions require an operator-derived lease")
     if not health.healthy or (not health.protected and action_kind not in _NO_LEASE_KINDS):
         return AdmissionDecision.deny("GUARD_UNHEALTHY", health.reason or "protected guard is unhealthy")
-    identity = verify_registration(root, protected_dir)
-    if not identity.allowed:
-        return identity
+    # ``identity.details["policy"]`` is the protected, digest-pinned copy of
+    # the same opt-in policy.  Use it for all authorization decisions below.
     policy = identity.details["policy"]
-    if not policy.get("enabled"):
-        return AdmissionDecision.allow("instruction-only")
     # Orientation and bounded bootstrap are intentionally non-mutating and do not
     # need a work item.  They can never be used as a source-code write escape.
     if lease is None:
@@ -578,6 +642,9 @@ def _match_path(path: str, pattern: str) -> bool:
 
 
 def make_request(root: Path, work_item: str, session_id: str, principal: str = "agent", profile: str = "bounded", scopes: Iterable[str] = (), paths: Iterable[str] = (), capabilities: Mapping[str, bool] | None = None, approval_class: str = "activate", mode: str = "normal", expires_at: datetime | None = None, protected_dir: Path | None = None) -> dict[str, Any]:
+    policy = admission_policy(root)
+    if policy is None or policy.get("enabled") is False:
+        raise RuntimeError("protected admission is not required; enable an adopter-owned admission policy before creating a lease request")
     check = verify_registration(root, protected_dir)
     if not check.allowed: raise RuntimeError(check.reason)
     ident = canonical_identity(root); policy, authority = check.details["policy"], check.details["authority"]
@@ -712,6 +779,26 @@ def safe_audit(decision: AdmissionDecision, request: Mapping[str, Any] | None = 
 
 
 def diagnose(root: Path, protected_dir: Path | None = None) -> list[dict[str, Any]]:
+    try:
+        policy = admission_policy(root)
+    except ValueError as exc:
+        return [{"severity": "warn", "code": "UNREGISTERED_REPO", "message": str(exc),
+                 "enforcement_required": True, "provider": "none", "effective_class": "not-covered"}]
+    if policy is None or policy.get("enabled") is False:
+        return [{"severity": "info", "code": "ADMISSION_NOT_REQUIRED",
+                 "message": "protected admission is opt-in; standalone RepoPact mode is valid",
+                 "enforcement_required": False, "provider": "none", "effective_class": "instruction-only",
+                 "valid": True}]
     result = verify_registration(root, protected_dir)
-    if result.allowed: return [{"severity": "info", "code": "ADMISSION_READY", "message": "protected admission registration is healthy"}]
-    return [{"severity": "warn", "code": result.code, "message": result.reason}]
+    from .enforcement import resolve_enforcement_requirement
+    if result.allowed:
+        resolution = resolve_enforcement_requirement(policy, None, adapter_class="pre-action", root=root)
+        if resolution.satisfied:
+            return [{"severity": "info", "code": "ADMISSION_READY", "message": "protected admission registration and provider coverage are healthy",
+                     "enforcement_required": True, "provider": "registered", "effective_class": resolution.effective_class,
+                     "valid": True}]
+        return [{"severity": "warn", "code": "ADMISSION_PROVIDER_REQUIRED", "message": resolution.reason,
+                 "enforcement_required": True, "provider": "none", "effective_class": resolution.effective_class,
+                 "valid": False}]
+    return [{"severity": "warn", "code": result.code, "message": result.reason,
+             "enforcement_required": True, "provider": "none", "effective_class": "not-covered", "valid": False}]

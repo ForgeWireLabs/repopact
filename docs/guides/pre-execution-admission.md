@@ -2,6 +2,23 @@
 
 RepoPact's WI050 admission plane is opt-in. It is useful when a host must ask
 whether a session or action may mutate a repository before the mutation occurs.
+Installing or adopting RepoPact does not require this capability, a privileged
+daemon, or a particular host product.
+
+## Standalone and opted-in modes
+
+With no `governance/admission-policy.json`, or with that policy's `enabled`
+field set to `false`, the ordinary RepoPact core remains valid. `evaluate_action`
+and `repopact admission status` report `enforcement_required=false` and the
+truthful `instruction-only` class; no lease, provider, or guard prerequisite is
+created. Existing adopters can therefore continue to use work items, preflight,
+validation, doctor, dashboard, and other governance commands independently.
+
+An adopter that sets `enabled=true` explicitly opts into the policy's
+`minimum_enforcement`. A missing or weaker provider is then unsatisfied even
+when `failure_mode` is `degraded`; degraded mode changes diagnostics, not the
+required assurance. The canonical resolver reports adapter class, provider
+class, and their effective intersection.
 
 Run `repopact admission setup --root PATH --key-file OUTSIDE_REPO` once during
 operator-controlled setup. The command writes three public, schema-validated
@@ -20,7 +37,11 @@ are checked again at action time. Every pre-action adapter calls the guard befor
 its callback; a denial means the callback is not invoked. `repopact admission status` and `repopact doctor`
 expose safe health diagnostics only.
 
-The adapter SPI reports facts, not a marketing flag. The reference coding
+The public `EnforcementProvider` SPI is implemented by any adopter-owned
+provider with health, discovery, authorization, check, delegation, and revoke
+operations. The built-in `NativeGuardClient` is one reference implementation;
+it does not define the SPI, and downstream providers do not become RepoPact
+dependencies. The adapter SPI reports facts, not a marketing flag. The reference coding
 adapter provides pre-action checks; the independent launcher adapter gates
 child creation but reports its lower session-start class and does not claim
 arbitrary child process or filesystem confinement. Host backends can report

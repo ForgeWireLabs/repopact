@@ -174,12 +174,12 @@ def diagnose(root: Path) -> list[Finding]:
     findings += _schema_skew(root)
     findings += _gitignored_records(root)
     findings += _dead_source_of_truth(root)
-    # WI050 is opt-in: only repositories with an admission policy get guard
-    # diagnostics, so existing adopters retain their prior compatibility.
-    if (root / "governance" / "admission-policy.json").is_file():
-        from . import admission
-        for item in admission.diagnose(root):
-            findings.append(Finding(item.get("severity", "warn"), item.get("code", "admission"), item.get("message", "admission unavailable"), False))
+    # WI050 is opt-in.  The diagnostic API is consulted for every repository so
+    # status/doctor can expose an explicit ``not-required`` baseline, while an
+    # absent policy still contributes no warning or error to legacy adopters.
+    from . import admission
+    for item in admission.diagnose(root):
+        findings.append(Finding(item.get("severity", "info"), item.get("code", "admission"), item.get("message", "admission unavailable"), False))
     return findings
 
 

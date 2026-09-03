@@ -1,4 +1,5 @@
 # RepoPact runtime dependencies.
 # Per decision 0003, records are validated against schemas/*.json with jsonschema.
 jsonschema>=4.20
-cryptography>=43
+# Optional WI050 enforcement/signing support is installed with the
+# ``repopact[enforcement]`` extra (or the development extra).

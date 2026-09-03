@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date, timedelta
 from importlib.resources import files
@@ -77,6 +78,14 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
 
     version = ((CHECKOUT / "VERSION").read_text(encoding="utf-8").strip()
                if (CHECKOUT / "VERSION").is_file() else __version__)
+    # A wheel intentionally carries the development distribution identity in
+    # metadata (for example ``3.0.2.dev1``), while an adopted repository's
+    # VERSION record is the stable MAJOR.MINOR.PATCH contract.  Do not seed an
+    # invalid PEP 440 suffix into a repository when the installed package is
+    # used outside its source checkout.
+    stable = re.match(r"^(\d+\.\d+\.\d+)", version)
+    if stable:
+        version = stable.group(1)
     _write(target / "VERSION", f"{version}\n")
     _write(target / "requirements.txt", "jsonschema>=4.20\n")
     _write(target / "AGENTS.md",

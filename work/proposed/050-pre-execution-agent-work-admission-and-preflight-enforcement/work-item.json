@@ -1,0 +1,103 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "050",
+  "title": "Pre-Execution Agent Work Admission and Preflight Enforcement",
+  "status": "proposed",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "tooling", "docs", "work", "evidence"],
+  "depends_on": ["023", "049"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-03T15:40:00Z",
+    "note": "Recorded before WI050 implementation begins. Triggered by the repeated distinction between RepoPact's existing mandatory-preflight contract and the absence of a pre-execution enforcement boundary for coding agents, with the post-3.0.2 f2c80b7/WI049 incident as direct field evidence."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A durable field-evidence and threat/bypass analysis documents at least the post-v3.0.2 f2c80b7/WI049 case and distinguishes four moments: workflow authority recorded before work, first mutating action, post-change local validation/Git hooks, and remote CI/promotion checks. It demonstrates why current mandatory preflight is detectable but not mechanically pre-execution for an autonomous coding agent.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "The work formally distinguishes instruction/advisory guidance, session-start admission, pre-tool/action admission, sandbox/OS enforcement, and Git/CI backstops. RepoPact records a truthful coverage/capability model and does not claim that AGENTS.md, Git hooks, or CI can prevent the first filesystem mutation when they cannot.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Before implementation, at least four architecture placements are evaluated: repository instructions only, Git hooks, a RepoPact launcher/session gate, and host-native pre-tool/before-run adapters or a tool-execution proxy/sandbox. The accepted decision defines an agent-neutral RepoPact policy core plus replaceable execution adapters and explains why the chosen layers are sufficient for each advertised enforcement class.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "A generic work-admission contract is defined from canonical RepoPact state rather than a parallel authority system. For ordinary mutation-capable work it can require, as applicable: an active concrete work item, valid mandatory preflight, resolved dependency authority, applicable AGENTS/owner scopes, repository validity, decision-0032 development identity, and explicit frozen-surface operator approval. The contract also defines a narrow recovery/reconciliation mode for repairing an already-nonconformant baseline without making recovery impossible.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "The selected runtime authorization/lease design is bound at minimum to repository identity, work-item id, base repository state, allowed scope/path authority, adapter/session identity, and explicit expiry/invalidation semantics. The authorization is derived from durable RepoPact records, is not itself project authority, and cannot be replayed successfully for a different repository/work item or after material authority drift.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "Read-only orientation remains possible before authorization so an agent can inspect AGENTS/contracts, status, doctor/validate output, and determine the correct work item. Any bootstrap exception that permits creating/activating the minimum governance records needed for admission is explicitly bounded and has negative coverage proving it cannot be used as a general source-code mutation escape hatch.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "The agent-neutral policy core and command/API surface can answer an action-admission question before mutation with deterministic allow/deny diagnostics. Negative coverage includes at least: no work item, proposed-only work, missing/invalid preflight, wrong lifecycle state, unresolved authority/dependency, out-of-scope path, frozen path without approval, invalid development identity when required, stale authorization, and authorization issued for another repository/work item. Valid authorized actions are accepted.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "text": "At least two materially different agent/runtime integrations are demonstrated against the same RepoPact admission contract, including one host with a true pre-tool interception point and one independent launcher/before-run/sandbox-style path. For a registered adapter advertised as enforced, missing/broken gate execution fails closed. Unsupported or session-start-only hosts are reported at their actual coverage level rather than counted as pre-tool enforcement.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-9",
+      "text": "Executable end-to-end negative proof shows a covered agent/runtime attempting an unauthorized mutating action and being refused before the target filesystem state changes. Additional proof shows an authorized session can mutate within declared scope, an out-of-scope/frozen-surface action is denied or requires re-authorization, and loss/corruption of the adapter authorization cannot silently downgrade enforced mode to advisory behavior.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-10",
+      "text": "Adopt/init/doctor behavior is reconciled with agent admission. The work decides how a repository declares required adapter/enforcement coverage, how supported adapters are installed or generated non-destructively, how existing adopters migrate, and how doctor reports missing, stale, bypassable, or degraded enforcement without overwriting adopter-owned customization. Agent-vendor configuration remains an adapter, not canonical RepoPact authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-11",
+      "text": "Admission/denial evidence and diagnostics are privacy- and secret-safe and sufficient to establish which repository/work item/policy check admitted or rejected a session/action without storing prompts, credentials, or unnecessary source content. The design states what is durable repository evidence versus ephemeral local runtime state.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-12",
+      "text": "The work is explicitly reconciled with WI046: WI050 owns admission to begin/continue covered agent mutation, while WI046 owns verification/promotion admission after work. It also records how future canonical requirements from WI044/WI047 may be consumed without making those proposed items implementation dependencies or duplicating their semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-13",
+      "text": "Compatibility and failure semantics are defined before rollout. Existing repositories remain valid unless they opt into or migrate to enforced agent admission; new/adopted repositories can declare required coverage honestly; a configured enforced adapter fails closed; and RepoPact never claims protection against arbitrary out-of-band processes unless an actual OS/sandbox boundary provides it.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-14",
+      "text": "After architecture decisions and any required frozen-surface operator approval, the chosen design is implemented consistently across the necessary CLI/API, policy/config, validator, init/adopt/doctor, adapter templates/integrations, SPEC/docs, tests/conformance, audit inventory/alignment, and evidence surfaces. Derived artifacts are regenerated, frozen changes follow INV-6, and closeout includes both positive and fail-closed negative enforcement proof on Windows plus an adopter-neutral fixture.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-03",
+  "updated": "2026-09-03"
+}

@@ -118,6 +118,14 @@ def _windows_runtime_is_protected(path: Path) -> bool:
     """Conservatively reject a service interpreter writable by Users."""
     if os.name != "nt" or not path.is_file():
         return False
+    # A per-user/AppData interpreter is writable by its owner even when an
+    # ``icacls`` summary happens not to print a generic Users:(F) ACE.
+    try:
+        user_root = Path(os.environ.get("USERPROFILE", str(Path.home()))).resolve()
+        if path.resolve().is_relative_to(user_root):
+            return False
+    except (OSError, ValueError):
+        return False
     code, output = _command_output(["icacls", str(path)])
     if code != 0:
         return False
@@ -198,6 +206,7 @@ class WindowsBackend(PlatformBackend):
         object.__setattr__(self, "manifest_path", install_root / "install.json")
         object.__setattr__(self, "runtime_path", install_root / "runtime")
         object.__setattr__(self, "ipc_endpoint", r"\\.\pipe\RepoPactGuard")
+        object.__setattr__(self, "registrations_path", self.protected_state_location / "registrations")
 
     def _service_running(self) -> bool:
         code, output = _command_output(["sc.exe", "query", self.service_name])
@@ -280,64 +289,124 @@ class WindowsBackend(PlatformBackend):
                 "`python -m repopact.cli guard install --root <repo>` in the elevated shell"
             )
 
-    def install(self, root: Path | None = None, **_: Any) -> dict[str, Any]:
+    def preflight(self, root: Path | None = None) -> dict[str, Any]:
+        """Run all non-mutating install checks and return a deterministic report."""
+        checks: dict[str, Any] = {}
+        checks["platform"] = os.name == "nt"
+        checks["operator_elevated"] = _is_windows_admin()
+        source_package = Path(__file__).resolve().parent
+        checks["source_package"] = source_package.is_dir() and (source_package / "windows_guard_service.py").is_file()
+        revision = ""
+        if root is not None:
+            code, revision_output = _command_output(["git", "-C", str(root.resolve()), "rev-parse", "HEAD"])
+            revision = revision_output.strip() if code == 0 else ""
+            status_code, status = _command_output(["git", "-C", str(root.resolve()), "status", "--porcelain"])
+            checks["source_revision"] = bool(revision)
+            checks["source_tree_clean"] = status_code == 0 and not status.strip()
+        else:
+            checks["source_revision"] = False
+            checks["source_tree_clean"] = False
+        checks["scm_api"] = shutil.which("sc.exe") is not None if os.name == "nt" else False
+        checks["acl_api"] = shutil.which("icacls.exe") is not None if os.name == "nt" else False
+        checks["runtime_target_absent"] = not self.install_root.exists()
+        checks["service_name_available"] = not bool(self._service_configuration()[0] or self._service_running())
+        # The service uses the selected protected interpreter and its installed
+        # system site-packages. Reject repo-local/per-user interpreters and
+        # ensure the receipt verifier is importable before mutation.
+        interpreter = Path(sys.executable).resolve()
+        checks["interpreter_path"] = str(interpreter)
+        checks["interpreter_protected"] = _windows_runtime_is_protected(interpreter) if os.name == "nt" else False
+        dependency_origins: list[str] = []
+        try:
+            import importlib.util
+            for name in ("cryptography", "cffi"):
+                spec = importlib.util.find_spec(name)
+                if spec is None or not spec.origin:
+                    checks[f"dependency_{name}"] = False
+                else:
+                    origin = str(Path(spec.origin).resolve()); dependency_origins.append(origin)
+                    checks[f"dependency_{name}"] = not (root and Path(origin).is_relative_to(root.resolve())) and ".venv" not in origin.lower()
+        except (ImportError, OSError, ValueError):
+            checks["dependency_cryptography"] = False; checks["dependency_cffi"] = False
+        checks["required_dependency_closure"] = all(checks.get(f"dependency_{name}", False) for name in ("cryptography", "cffi"))
+        checks["windows_api"] = os.name == "nt"
+        checks["ready"] = all(value for key, value in checks.items() if key not in {"interpreter_path"})
+        return {"backend": self.name, "service_name": self.service_name, "install_root": str(self.install_root),
+                "runtime_path": str(self.runtime_path), "state_path": str(self.protected_state_location),
+                "interpreter": str(interpreter), "source_revision": revision,
+                "dependency_origins": dependency_origins, "checks": checks,
+                "mutations": [], "rollback": "not-needed" if checks["ready"] else "no machine mutation performed"}
+
+    def install(self, root: Path | None = None, *, preflight: bool = False, **_: Any) -> dict[str, Any]:
+        report = self.preflight(root)
+        if preflight:
+            return report
         self._require_admin()
         if os.name != "nt":
             raise PrivilegeRequired("Windows guard installation requires Windows")
+        if not report["checks"].get("ready"):
+            failures = [key for key, value in report["checks"].items() if key not in {"interpreter_path"} and not value]
+            raise RuntimeError("guard install preflight failed (zero machine mutation): " + ", ".join(failures))
         source_package = Path(__file__).resolve().parent
-        self.runtime_path.mkdir(parents=True, exist_ok=True)
-        self.protected_state_location.mkdir(parents=True, exist_ok=True)
-        for source in source_package.rglob("*.py"):
-            relative = source.relative_to(source_package)
-            target = self.runtime_path / "repopact" / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
-        code, revision = _command_output(["git", "-C", str(root or Path.cwd()), "rev-parse", "HEAD"])
-        manifest = {
-            "protocol_version": "1",
-            "service_name": self.service_name,
-            "service_identity": "NT AUTHORITY\\SYSTEM",
-            "installed_code_path": str(self.runtime_path),
-            "protected_state_path": str(self.protected_state_location),
-            "ipc_endpoint": self.ipc_endpoint,
-            "runtime_digest": self._runtime_digest(),
-            "source_revision": revision.strip() if code == 0 else "",
-        }
-        self.install_root.mkdir(parents=True, exist_ok=True)
-        self.manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
-        commands = [
-            ["icacls", str(self.install_root), "/inheritance:r"],
-            ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-            ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
-            ["icacls", str(self.install_root), "/setowner", "SYSTEM"],
-        ]
-        for command in commands:
-            code, output = _command_output(command)
-            if code != 0:
-                raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
-        service_entry = self.runtime_path / "repopact" / "windows_guard_service.py"
-        if not service_entry.exists():
-            raise RuntimeError("installed guard runtime is missing windows_guard_service.py")
-        python_path = Path(sys.executable).resolve()
-        if not _windows_runtime_is_protected(python_path):
-            raise RuntimeError("service interpreter is not host-protected; install/use a Python runtime under an administrator-protected location")
-        code, output = _command_output(["sc.exe", "create", self.service_name,
-                                         "binPath=", f'"{python_path}" "{service_entry}" --service --root "{(root or Path.cwd()).resolve()}" --protected-dir "{self.protected_state_location}"',
-                                         "start=", "auto", "obj=", "LocalSystem"])
-        if code != 0 and "EXISTS" not in output.upper():
-            raise RuntimeError(f"Windows service registration failed: {output.strip()}")
-        start_code, start_output = _command_output(["sc.exe", "start", self.service_name])
-        if start_code != 0 and "ALREADY_RUNNING" not in start_output.upper():
-            raise RuntimeError(f"Windows service start failed: {start_output.strip()}")
-        return self.attest(root).record()
+        parent = self.install_root.parent
+        staging = parent / f".RepoPactGuard.install-{os.getpid()}-{os.urandom(6).hex()}"
+        created_service = False
+        try:
+            staging.mkdir(parents=True, exist_ok=False)
+            stage_runtime = staging / "runtime"; stage_state = staging / "state"
+            for source in source_package.rglob("*.py"):
+                relative = source.relative_to(source_package); target = stage_runtime / "repopact" / relative
+                target.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(source, target)
+            stage_state.mkdir(parents=True, exist_ok=True)
+            service_entry = stage_runtime / "repopact" / "windows_guard_service.py"
+            if not service_entry.exists(): raise RuntimeError("installed guard runtime is missing windows_guard_service.py")
+            stage_digest = hashlib.sha256()
+            for path in sorted(stage_runtime.rglob("*.py")):
+                stage_digest.update(_normalise(path).encode()); stage_digest.update(path.read_bytes())
+            code, revision = _command_output(["git", "-C", str(root or Path.cwd()), "rev-parse", "HEAD"])
+            manifest = {"protocol_version": "1", "service_name": self.service_name, "service_identity": "NT AUTHORITY\\SYSTEM",
+                        "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
+                        "registrations_path": str(self.registrations_path), "ipc_endpoint": self.ipc_endpoint,
+                        "runtime_digest": stage_digest.hexdigest(), "source_revision": revision.strip() if code == 0 else "",
+                        "interpreter": str(Path(sys.executable).resolve()), "dependency_closure": report["dependency_origins"]}
+            (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
+            if self.install_root.exists(): raise RuntimeError("install root appeared after preflight; refusing overwrite")
+            staging.replace(self.install_root)
+            commands = [["icacls", str(self.install_root), "/inheritance:r"],
+                        ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
+                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
+                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"]]
+            for command in commands:
+                code, output = _command_output(command)
+                if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
+            service_entry = self.runtime_path / "repopact" / "windows_guard_service.py"
+            python_path = Path(sys.executable).resolve()
+            code, output = _command_output(["sc.exe", "create", self.service_name, "binPath=",
+                f'"{python_path}" "{service_entry}" --service --state-root "{self.protected_state_location}"',
+                "start=", "auto", "obj=", "LocalSystem"])
+            if code != 0: raise RuntimeError(f"Windows service registration failed: {output.strip()}")
+            created_service = True
+            start_code, start_output = _command_output(["sc.exe", "start", self.service_name])
+            if start_code != 0: raise RuntimeError(f"Windows service start failed: {start_output.strip()}")
+            return self.attest(root).record()
+        except Exception:
+            if created_service: _command_output(["sc.exe", "stop", self.service_name]); _command_output(["sc.exe", "delete", self.service_name])
+            if self.install_root.exists(): shutil.rmtree(self.install_root, ignore_errors=True)
+            if staging.exists(): shutil.rmtree(staging, ignore_errors=True)
+            raise
 
     def register(self, root: Path, **kwargs: Any) -> dict[str, Any]:
         self._require_admin()
         signer = kwargs.get("signer")
         if signer is None:
             raise PrivilegeRequired("guard register requires an explicit external operator signer")
-        from .admission import setup_admission
-        result = setup_admission(root.resolve(), self.protected_state_location, signer)
+        from .admission import setup_admission, verify_registration
+        if not self.install_root.exists():
+            raise PrivilegeRequired("guard must be installed before repository registration")
+        if verify_registration(root.resolve(), self.registrations_path).allowed:
+            raise RuntimeError("repository is already registered; explicit rotation/unregister is required")
+        self.registrations_path.mkdir(parents=True, exist_ok=True)
+        result = setup_admission(root.resolve(), self.registrations_path, signer, registry_key="adoption")
         return {"backend": self.name, "root": str(root.resolve()), "status": "registered", **{k: str(v) for k, v in result.items() if k != "signer"}}
 
     def uninstall(self, **_: Any) -> dict[str, Any]:

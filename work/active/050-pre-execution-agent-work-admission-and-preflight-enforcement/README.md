@@ -45,6 +45,36 @@ cross-platform platform-conformance harness. Until an elevated operator
 installs and proves the native Windows service, the native backend remains
 `not-covered`; testing-only attestations are never production evidence.
 
+## Protected-service correction pass
+
+The follow-up security review found that the first substrate pass still returned
+client-forgeable lease dictionaries, embedded one checkout in the Windows SCM
+command, and disconnected production adapters from the service. The correction
+keeps the prior evidence unchanged and adds:
+
+* `LeaseStore`, which mints high-entropy opaque tokens and keeps authoritative
+  lease state only in the guard process; restart therefore invalidates live
+  capabilities. The portable dictionary returned by `issue_lease` remains a
+  reference-policy helper and is never accepted over production IPC.
+* `NativeGuardClient` and a complete `health`/`discover`/`authorize`/`check`/
+  `revoke`/`delegate` service protocol. Native adapters use this client and fail
+  closed on endpoint, server-identity, or token errors.
+* transport-derived peer binding (PID, SID where available, process-start
+  identity, and transport) rather than caller-supplied principal/session/PID
+  claims; a different process cannot replay a lease.
+* a global service state root with adoption-id registration directories. The
+  service install command has no repository `--root`; repository registration is
+  a separate operator transition and linked worktrees resolve through the Git
+  common-dir binding.
+* explicit Windows named-pipe SDDL and server PID/SCM/LocalSystem checks, plus a
+  non-mutating preflight and transactional staging/rollback installer. The
+  preflight rejects dirty source, unprotected interpreters, missing dependency
+  closure, API gaps, or service collisions before machine mutation.
+
+Native destructive proof is intentionally not run in this correction pass.
+AC-14, AC-15, AC-16, and AC-18 remain pending until an operator performs the
+elevated installation and the real multi-process Windows/Linux/macOS proofs.
+
 ## Intent
 
 RepoPact already requires a work item to exist before implementation begins, and an `active`

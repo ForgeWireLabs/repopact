@@ -71,7 +71,7 @@ class PreActionAdapter:
     def enforcement_class(self, required: str = "pre-action") -> str:
         """Compute a class only after backend-owned guard health is verified."""
         health = self.guard.health()
-        if not health.healthy or not health.protected or not health.service_identity_verified and required != "pre-action":
+        if not health.healthy or not health.protected:
             return "not-covered"
         return self.capabilities.enforcement_class(required)
 

@@ -1,0 +1,74 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-protected-service-correction",
+  "timestamp": "2026-09-03T20:38:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "baseline": "118602743a711d9b5072eb077031dd665e1fec8b",
+  "artifacts": [
+    "repopact/admission.py",
+    "repopact/guard.py",
+    "repopact/guard_ipc.py",
+    "repopact/windows_guard_service.py",
+    "repopact/platform_backends.py",
+    "repopact/adapters.py",
+    "repopact/cli.py",
+    "repopact/run_admission_platform_conformance.py",
+    "tests/test_guard_authority.py"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "native_install": "not performed by instruction; no UAC or service mutation",
+    "linux": "not run; reserved for another machine",
+    "macos": "not run; reserved for another machine"
+  },
+  "findings": {
+    "client_forgeable_lease": "issue_lease returned an ordinary dictionary that a caller could construct or edit",
+    "native_authorize_missing": "service protocol exposed no authorize/check lifecycle and adapters were disconnected from IPC",
+    "single_repository_service": "Windows SCM command embedded --root for one checkout",
+    "ipc_identity_overclaim": "public authkey was described as authentication and caller PID/session claims were trusted",
+    "installer_transaction": "installer created ProgramData runtime/state before interpreter suitability was checked",
+    "runtime_closure": "copied Python modules did not record or preflight cryptography/cffi dependency closure"
+  },
+  "remediations": {
+    "lease_authority": "LeaseStore mints 48-byte URL-safe opaque tokens, stores canonical records in process memory, and returns safe metadata only; restart drops all live capabilities",
+    "peer_binding": "native transport derives peer PID, SID where available, process-start identity, image/transport facts; check rejects a different binding",
+    "service_protocol": "GuardService and NativeGuardClient implement health, discover, authorize, check, revoke, and strict-subset delegate",
+    "global_registry": "service receives only a protected state root; adoption-id registrations under state/registrations resolve canonical root/common-dir identity",
+    "named_pipe": "native Windows pipe uses explicit SDDL DACL and client verifies server PID against SCM plus LocalSystem service configuration",
+    "installer": "guard install --preflight performs non-mutating checks; install stages runtime and rolls back exact service/root artifacts after later failure",
+    "dependency_model": "preflight requires protected system interpreter and importable cryptography/cffi outside checkout/.venv; manifest records origins",
+    "adapter_boundary": "NativeGuardClient is the production transport seam; it never reads protected state and fails closed on IPC errors"
+  },
+  "negative_regressions": [
+    "Forged/unknown opaque token is denied before action.",
+    "Lease token replay with a different peer binding is denied WRONG_SESSION.",
+    "A new GuardService instance cannot check a token minted by the prior instance.",
+    "Caller-provided metadata does not change authoritative lease paths/scopes.",
+    "NativeGuardClient returns unhealthy/denied results when the endpoint is absent.",
+    "guard install --preflight reports no mutations and rejects the dirty checkout.",
+    "Production guard check rejects legacy caller-supplied lease dictionaries; only TestingBackend permits reference compatibility."
+  ],
+  "commands": [
+    {"command": "python -m compileall -q repopact", "exit_code": 0, "summary": "All modified Python modules compiled."},
+    {"command": "python -m unittest discover -s tests -q", "exit_code": 0, "summary": "Full suite passed: 196 tests, 2 skipped."},
+    {"command": "python -m unittest tests.test_guard_authority -q", "exit_code": 0, "summary": "7 opaque lease, peer-binding, IPC client, global registry, install-preflight, and restart tests passed."},
+    {"command": "python -m unittest tests.test_admission.AdmissionTests.test_receipt_lease_and_revocation tests.test_admission_security.SecurityCorrectionTests.test_new_session_cannot_reuse_lease tests.test_protected_substrate.ProtectedSubstrateTests.test_ipc_envelope_is_canonical_and_versioned -q", "exit_code": 0, "summary": "3 existing lease/session/IPC regressions passed."},
+    {"command": "python -m pip install -e \".[dev]\"", "exit_code": 0, "summary": "Editable package and declared development dependencies installed successfully."},
+    {"command": "python -m build --wheel --outdir temp/wheel-correction --no-isolation", "exit_code": 0, "summary": "Development wheel repopact-3.0.2.dev1 built successfully."},
+    {"command": "python -m repopact.cli guard install --root C:\\Projects\\repopact --preflight", "exit_code": 0, "summary": "Non-mutating report: source tree dirty and operator not elevated; mutations=[] and ready=false."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "Portable semantic corpus passed; native case matrix remained not-run because the protected service is absent."}
+  ],
+  "native_e2e_readiness": {
+    "ready_for_operator_review": true,
+    "installed_service_proof": false,
+    "required_before_AC_close": ["real Windows service lifecycle", "multi-process replay", "two-repository registry", "linked worktree", "service restart", "protected runtime/state tamper", "Linux proof", "macOS proof"]
+  },
+  "acceptance_criteria_pending": ["AC-14", "AC-15", "AC-16", "AC-18"],
+  "scope_guard": {"new_frozen_change_authorized": false, "unapproved_frozen_changes": []},
+  "operator_action": "Do not install during development. After review, run the exact elevated preflight and install commands reported in the final handoff; this run did not invoke UAC."
+}

@@ -17,6 +17,7 @@ from typing import Any
 
 from .admission import Ed25519Signer, evaluate_action, issue_lease, issue_receipt, make_request, setup_admission
 from .guard import ProtectedGuard
+from .guard_ipc import NativeGuardClient
 from .platform_backends import TestingBackend, current_backend
 
 
@@ -51,8 +52,24 @@ def run(root: Path) -> dict[str, Any]:
             "expiry_or_revocation_semantics_present": bool(lease and "expires_at" in lease and "revocation_epoch" in lease),
             "guard_health_is_backend_owned": guard.health().backend_id == "testing-only-attested-backend" and guard.health().testing_only,
         }
+        native_cases = [
+            "connect_real_service", "verify_server_identity", "unregistered_repo_denied", "authorize_opaque_token",
+            "token_mutation_forgery_denied", "cross_process_peer_binding_denied", "restart_invalidates_token",
+            "linked_worktree_same_registration", "independent_repo_unregistered", "service_stop_fail_closed",
+            "checkout_runtime_modification_irrelevant", "protected_state_and_service_config_denied",
+        ]
+        native = {"executed": False, "cases": {name: "not-run" for name in native_cases},
+                  "reason": "native protected service is not installed"}
+        if backend.attest(root).healthy:
+            client = NativeGuardClient(root=root)
+            health = client.health(root)
+            native["executed"] = bool(health.healthy)
+            native["cases"]["connect_real_service"] = "passed" if health.healthy else "failed"
+            native["cases"]["verify_server_identity"] = "passed" if health.service_identity_verified else "failed"
+            native["reason"] = "service health and identity reached through NativeGuardClient; full destructive matrix requires registered fixtures"
         return {"result": "passed" if all(cases.values()) else "failed", "os": backend.os_name,
                 "backend": backend.health(), "semantic_backend": guard.health().__dict__, "cases": cases,
+                "native": native,
                 "fixture": "temporary Git repository; testing-only backend is not platform proof"}
     finally:
         holder.cleanup()

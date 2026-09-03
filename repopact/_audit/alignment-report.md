@@ -219,3 +219,27 @@
 - Current Windows token is non-elevated, so native installation and tamper E2E
   are pending operator elevation; the backend reports `not-covered` and the
   enforced path fails closed rather than using a fake service.
+
+## 2026-09-03 WI050 protected-service correction review
+
+- The prior substrate's ordinary lease dictionary was a client-forgeable
+  authority representation. `LeaseStore` now mints opaque high-entropy tokens,
+  keeps canonical lease records in the guard process, and invalidates all live
+  capabilities on restart; `issue_lease` is retained only as a reference policy
+  helper and is not accepted over production IPC.
+- `NativeGuardClient` is the production adapter seam for health, discovery,
+  authorization, checks, revocation, and delegation. It never reads ProgramData
+  state and fails closed on unavailable/spoofed IPC. Service-side delegation
+  mints child tokens only after strict-subset validation.
+- Windows IPC now has an explicit SDDL DACL and verifies the server PID against
+  SCM plus LocalSystem service configuration. Client lease binding is derived
+  from the pipe peer (PID, process-start identity, SID where available, and
+  transport), not caller-provided session or PID fields.
+- The SCM image is machine-wide and contains only the protected state root;
+  adoption-id registration directories support multiple repositories and
+  linked-worktree common-dir resolution. `guard install --preflight` performs
+  all possible checks without mutation, and installation stages/rolls back its
+  exact root/service artifacts on failure.
+- Native destructive proof remains intentionally unrun. AC-14, AC-15, AC-16,
+  and AC-18 remain pending until elevated installation and real cross-process,
+  multi-repository, and three-OS evidence exist.

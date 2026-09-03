@@ -276,20 +276,30 @@ def frozen_surface_digest(root: Path) -> str:
     return digest({"frozen_surface": []})
 
 
-def setup_admission(root: Path, protected_dir: Path | None = None, signer: Ed25519Signer | None = None) -> dict[str, Any]:
+def setup_admission(root: Path, protected_dir: Path | None = None, signer: Ed25519Signer | None = None,
+                    *, registry_key: str = "root") -> dict[str, Any]:
     """Explicit opt-in setup. Existing protected registration is never replaced."""
     root = root.resolve(); policy_path, authority_path, registration_path = _public_paths(root)
-    protected = (protected_dir or (Path.home() / ".repopact" / "registrations")) / digest(normalize_path(root))
-    if (protected / "registration.json").exists(): raise RuntimeError("protected registration already exists; explicit rotation required")
+    base = protected_dir or (Path.home() / ".repopact" / "registrations")
+    # Testing/reference installations historically use a root digest.  A
+    # host-managed global guard uses the adoption id as the registry key so a
+    # single service can hold independent registrations for many repositories.
+    protected = base / digest(normalize_path(root)) if registry_key == "root" else base / "_pending"
+    if protected.exists() and (protected / "registration.json").exists():
+        raise RuntimeError("protected registration already exists; explicit rotation required")
     if signer is None:
         raise SignerError("explicit operator signer required; unattended setup cannot establish trust")
     policy, authority = default_policy(), default_authority(signer.public_key, signer.operator_id, signer.key_id)
     ident = canonical_identity(root)
     registration = {"registration_version": 1, "adoption_id": str(uuid.uuid4()), "repository_identity": {"root_digest": digest(ident["repository_root"]), "common_dir_digest": digest(ident["git_common_dir"]), "assurance": "git-common-dir"}, "repopact_root_digest": digest(ident["repopact_root"]), "git": {"common_dir_hint": ident["git_common_dir"], "worktree_hint": ident["repository_root"]}, "policy_version": policy["policy_version"], "authority_version": authority["authority_version"]}
+    if registry_key != "root":
+        protected = base / registration["adoption_id"]
+        if protected.exists():
+            raise RuntimeError("protected registration adoption id already exists")
     for p, data in ((policy_path, policy), (authority_path, authority), (registration_path, registration)):
         p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(canonical_json(data) + b"\n")
     protected.mkdir(parents=True, exist_ok=True)
-    state = {"registration": registration, "registration_digest": digest(registration), "authority_digest": digest(authority), "policy_digest": digest(policy), "revocation_epoch": 0, "guard_version": "1", "guard_id": secrets.token_hex(8), "common_dir_digest": digest(ident["git_common_dir"]), "registered_root_digest": digest(ident["repopact_root"])}
+    state = {"registration": registration, "registration_digest": digest(registration), "authority_digest": digest(authority), "policy_digest": digest(policy), "revocation_epoch": 0, "guard_version": "1", "guard_id": secrets.token_hex(8), "adoption_id": registration["adoption_id"], "common_dir_digest": digest(ident["git_common_dir"]), "registered_root_digest": digest(ident["repopact_root"]), "registered_root": ident["repopact_root"], "registry_key": registry_key}
     state_key = os.urandom(32)
     (protected / "registration.key").write_bytes(state_key)
     try: os.chmod(protected / "registration.key", 0o600)
@@ -324,7 +334,9 @@ def _protected_state(root: Path, protected_dir: Path | None) -> tuple[dict[str, 
     ident = canonical_identity(root)
     common_digest = digest(ident["git_common_dir"])
     if base.is_dir():
-        for candidate in base.glob("*/registration.json"):
+        # Global host guards keep registrations below ``state/registrations``;
+        # reference backends keep them directly below the supplied base.
+        for candidate in base.rglob("registration.json"):
             state = _read_protected_state(candidate)
             if state is not None and state.get("common_dir_digest") == common_digest:
                 return state, candidate

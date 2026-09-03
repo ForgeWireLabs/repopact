@@ -88,6 +88,37 @@ Cursor, MCP hosts, IDEs, generic agent CLIs, and future hosts are replaceable
 clients. A vendor-specific hook can improve coverage but cannot change the
 RepoPact authority model.
 
+### Protected-service correction
+
+The implementation correction makes the service the lease authority. A
+successful `authorize` verifies the signed receipt and canonical request, then
+stores the complete lease record in an ephemeral `LeaseStore` and returns only a
+high-entropy opaque token plus safe display metadata. `check` accepts the token
+and action, looks up state, verifies the OS-derived peer binding, and
+re-evaluates current policy. A guard restart drops the in-memory table and
+fails all live tokens closed. `delegate` applies the same strict-subset rules
+and mints a new guard token; clients cannot construct child authority records.
+
+`NativeGuardClient` is the production adapter boundary. It uses authenticated
+native IPC for `health`, `discover`, `authorize`, `check`, `revoke`, and
+`delegate`; it never reads protected state and returns `GUARD_UNHEALTHY` on
+transport or identity failure. The Windows transport uses an explicit SDDL
+DACL granting Users connection/read-write access while denying write/delete/
+ACL changes to the installed root, and checks the peer PID against SCM's
+`RepoPactGuard` PID plus LocalSystem service configuration. The service derives
+client PID, SID where available, process-start identity, and transport from the
+named pipe; JSON principal/session/PID claims are metadata only.
+
+The service command line contains only the machine-wide protected state root.
+Registration is a separate operator action keyed by adoption id under the
+global registry, with canonical Git common-dir/root binding so linked worktrees
+resolve to the same registration and independent repositories do not inherit
+one another. Installer preflight performs all non-mutating checks (elevation,
+clean known revision, protected interpreter, dependency closure, APIs, and SCM
+collision) before staging. A later failure removes only the exact staged/root
+and service artifacts and emits a deterministic failure; no half-installed
+trusted root is retained.
+
 ## 3. Canonical repository identity
 
 Path strings and prompt text are insufficient identity. The adopted repository

@@ -9,6 +9,7 @@ against the user's repository rather than the install location.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -24,10 +25,12 @@ def main(argv: list[str] | None = None) -> int:
 
     p_init = sub.add_parser("init", help="Bootstrap a new RepoPact repository")
     p_init.add_argument("--target", type=Path, required=True)
+    p_init.add_argument("--admission", action="store_true", help="Opt in to protected pre-execution admission")
 
     p_adopt = sub.add_parser("adopt", help="Adopt RepoPact into an existing repository")
     p_adopt.add_argument("--target", type=Path, required=True)
     p_adopt.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
+    p_adopt.add_argument("--admission", action="store_true", help="Opt in to protected pre-execution admission")
 
     p_imp = sub.add_parser("import-plan", help="Import existing plan items (todos, checklists, issues) into work/")
     p_imp.add_argument("--root", type=Path, default=Path.cwd())
@@ -87,12 +90,50 @@ def main(argv: list[str] | None = None) -> int:
     p_release.add_argument("--outdir", type=Path, required=True)
     p_release.add_argument("--revision", default="HEAD")
 
+    p_adm = sub.add_parser("admission", help="Manage opt-in pre-execution admission")
+    adm_sub = p_adm.add_subparsers(dest="admission_command", required=True)
+    p_setup = adm_sub.add_parser("setup", help="Explicitly register this repository")
+    p_setup.add_argument("--root", type=Path, default=Path.cwd())
+    p_setup.add_argument("--protected-dir", type=Path)
+    p_setup.add_argument("--key-file", type=Path, help="External encrypted operator key file")
+    p_setup.add_argument("--passphrase", help=argparse.SUPPRESS)
+    p_status = adm_sub.add_parser("status", help="Show safe admission health")
+    p_status.add_argument("--root", type=Path, default=Path.cwd())
+    p_status.add_argument("--protected-dir", type=Path)
+    p_begin = adm_sub.add_parser("begin", help="Create a canonical authorization request")
+    p_begin.add_argument("--root", type=Path, default=Path.cwd()); p_begin.add_argument("--work-item", required=True); p_begin.add_argument("--session", required=True); p_begin.add_argument("--profile", default="bounded"); p_begin.add_argument("--protected-dir", type=Path)
+    p_revoke = adm_sub.add_parser("revoke", help="Increment protected revocation epoch")
+    p_revoke.add_argument("--root", type=Path, default=Path.cwd()); p_revoke.add_argument("--protected-dir", type=Path)
+
+    p_work = sub.add_parser("work", help="Bounded bootstrap work operations")
+    work_sub = p_work.add_subparsers(dest="work_command", required=True)
+    p_prop = work_sub.add_parser("propose", help="Create proposed work without implementation authority")
+    p_prop.add_argument("title"); p_prop.add_argument("--root", type=Path, default=Path.cwd())
+    p_amend = work_sub.add_parser("amend-proposal", help="Change only the title of proposed work")
+    p_amend.add_argument("work_item"); p_amend.add_argument("title"); p_amend.add_argument("--root", type=Path, default=Path.cwd())
+
+    p_appr = sub.add_parser("approval", help="Operator approval receipt operations")
+    appr_sub = p_appr.add_subparsers(dest="approval_command", required=True)
+    p_req = appr_sub.add_parser("request", help="Create and save an authorization request")
+    p_req.add_argument("--root", type=Path, default=Path.cwd()); p_req.add_argument("--work-item", required=True); p_req.add_argument("--session", required=True); p_req.add_argument("--output", type=Path, required=True); p_req.add_argument("--protected-dir", type=Path)
+    p_approve = appr_sub.add_parser("approve", help="Interactively sign a request")
+    p_approve.add_argument("--request", type=Path, required=True); p_approve.add_argument("--key-file", type=Path, required=True); p_approve.add_argument("--output", type=Path, required=True)
+    p_pending = appr_sub.add_parser("pending", help="List safe pending request metadata")
+    p_pending.add_argument("--root", type=Path, default=Path.cwd())
+    p_show = appr_sub.add_parser("show", help="Show a request or receipt record")
+    p_show.add_argument("record", type=Path)
+    p_deny = appr_sub.add_parser("deny", help="Decline a request without minting a receipt")
+    p_deny.add_argument("record", type=Path)
+
     args = parser.parse_args(argv)
 
     if args.command == "init":
         from . import init_repo
         target = args.target.resolve()
         init_repo.bootstrap(target)
+        if args.admission:
+            from . import admission
+            admission.setup_admission(target)
         from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
@@ -111,6 +152,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run:
             print("\nDry run: nothing written. Re-run without --dry-run to apply.")
             return 0
+        if args.admission:
+            from . import admission
+            admission.setup_admission(target)
         from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
@@ -120,6 +164,61 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print("\nAdopted repository validates as a conformant RepoPact.")
         return 0
+
+    if args.command in {"admission", "work", "approval"}:
+        from . import admission
+        if args.command == "admission":
+            root = args.root.resolve(); protected = args.protected_dir.resolve() if args.protected_dir else None
+            if args.admission_command == "setup":
+                signer = None
+                if args.key_file:
+                    from getpass import getpass
+                    phrase = args.passphrase if args.passphrase is not None else getpass("Operator key passphrase: ")
+                    if args.key_file.exists(): signer = admission.Ed25519Signer.load(args.key_file, phrase)
+                    else:
+                        signer = admission.Ed25519Signer.generate(); signer.save(args.key_file, phrase)
+                result = admission.setup_admission(root, protected, signer)
+                print(json.dumps({k: str(v) for k, v in result.items() if k != "signer"}, sort_keys=True)); return 0
+            if args.admission_command == "status":
+                print(json.dumps(admission.diagnose(root, protected), sort_keys=True)); return 0 if admission.verify_registration(root, protected).allowed else 1
+            if args.admission_command == "begin":
+                try: print(json.dumps(admission.make_request(root, args.work_item, args.session, profile=args.profile, protected_dir=protected), sort_keys=True)); return 0
+                except Exception as exc: print(f"Admission request denied: {exc}", file=sys.stderr); return 1
+            if args.admission_command == "revoke":
+                try: print(json.dumps({"revocation_epoch": admission.revoke(root, protected)})); return 0
+                except Exception as exc: print(f"Revocation failed: {exc}", file=sys.stderr); return 1
+        if args.command == "work":
+            root = args.root.resolve()
+            from . import new
+            if args.work_command == "propose":
+                path = new.new_work_item(args.title, date.today(), root, status="proposed"); print(f"Created proposed {path.relative_to(root)}"); return 0
+            path = next(root.glob(f"work/*/{args.work_item}*/work-item.json"), None)
+            if path is None: print("Unknown work item", file=sys.stderr); return 1
+            data = json.loads(path.read_text(encoding="utf-8"));
+            if data.get("status") != "proposed": print("Only proposed work may be amended", file=sys.stderr); return 1
+            data["title"] = args.title; data["updated"] = date.today().isoformat(); path.write_bytes(admission.canonical_json(data) + b"\n"); print(f"Updated {path.relative_to(root)}"); return 0
+        if args.command == "approval":
+            if args.approval_command == "pending":
+                root = args.root.resolve(); req_dir = root / "evidence" / "admission" / "requests"
+                rows = []
+                for path in sorted(req_dir.glob("*.json")) if req_dir.is_dir() else []:
+                    try:
+                        rec = json.loads(path.read_text(encoding="utf-8")); rows.append({"request_id": rec.get("request_id"), "work_item": rec.get("work_item"), "profile": rec.get("profile"), "path": str(path.relative_to(root))})
+                    except Exception: continue
+                print(json.dumps(rows, sort_keys=True)); return 0
+            if args.approval_command == "show":
+                try: print(json.dumps(json.loads(args.record.read_text(encoding="utf-8")), sort_keys=True)); return 0
+                except Exception as exc: print(f"Cannot read record: {exc}", file=sys.stderr); return 1
+            if args.approval_command == "deny":
+                if not args.record.is_file(): print("Unknown request", file=sys.stderr); return 1
+                print(json.dumps({"allowed": False, "code": "NO_OPERATOR_PROOF", "request": str(args.record)})); return 0
+            if args.approval_command == "request":
+                root = args.root.resolve(); req = admission.make_request(root, args.work_item, args.session, protected_dir=args.protected_dir.resolve() if args.protected_dir else None); args.output.parent.mkdir(parents=True, exist_ok=True); args.output.write_bytes(admission.canonical_json(req) + b"\n"); print(f"Wrote {args.output}"); return 0
+            if not sys.stdin.isatty(): print("Operator approval requires an interactive terminal", file=sys.stderr); return 1
+            from getpass import getpass
+            try:
+                req = json.loads(args.request.read_text(encoding="utf-8")); signer = admission.Ed25519Signer.load(args.key_file, getpass("Operator key passphrase: ")); receipt = admission.issue_receipt(req, signer); args.output.parent.mkdir(parents=True, exist_ok=True); args.output.write_bytes(admission.canonical_json(receipt) + b"\n"); print(f"Wrote {args.output}"); return 0
+            except Exception as exc: print(f"Approval failed: {exc}", file=sys.stderr); return 1
 
     root = args.root.resolve()
 
@@ -237,6 +336,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "new":
         from . import new
         if args.kind == "work-item":
+            if args.status != "proposed" and (root / "governance" / "admission-policy.json").is_file():
+                print("WI050 admission requires operator-controlled activation; create proposed work first.", file=sys.stderr)
+                return 1
             path = new.new_work_item(args.title, date.today(), root, status=args.status)
         else:
             path = new.new_markdown(args.kind, args.title, date.today(), root)
@@ -252,6 +354,9 @@ def main(argv: list[str] | None = None) -> int:
         print("Frozen-surface changes detected (INV-6 requires operator approval):")
         for name, reason in hits:
             print(f"  {name}: {reason}")
+        if args.ack and (args.root.resolve() / "governance" / "admission-policy.json").is_file():
+            print("--ack is advisory only while WI050 admission is enabled; provide a protected operator receipt.", file=sys.stderr)
+            return 1
         return 0 if args.ack else 1
 
     return 2

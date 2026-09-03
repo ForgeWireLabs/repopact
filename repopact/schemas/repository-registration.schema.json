@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "repository-registration.schema.json",
+  "title": "RepoPact public repository registration",
+  "description": "Recoverable identity metadata; protected local registration is separate.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["registration_version", "adoption_id", "repository_identity", "repopact_root_digest", "policy_version"],
+  "properties": {
+    "registration_version": {"type": "integer", "const": 1},
+    "adoption_id": {"type": "string", "pattern": "^[0-9a-fA-F-]{16,}$"},
+    "repository_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["root_digest", "common_dir_digest", "assurance"],
+      "properties": {
+        "root_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "common_dir_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+        "assurance": {"enum": ["git-common-dir", "protected-root-only"]}
+      }
+    },
+    "repopact_root_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "git": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "common_dir_hint": {"type": "string", "minLength": 1},
+        "worktree_hint": {"type": "string", "minLength": 1},
+        "remote_hints": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+      }
+    },
+    "policy_version": {"type": "string", "minLength": 1},
+    "authority_version": {"type": "string", "minLength": 1}
+  }
+}

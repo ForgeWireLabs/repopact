@@ -32,3 +32,10 @@ The runner replaces `{repo}` with a temporary materialized fixture repository.
 A conformant implementation must accept every `accept` case and reject every
 `reject` case with the expected diagnostic. Passing the suite is a compatibility
 claim for the named RepoPact version, not a claim about future versions.
+
+WI050 admission conformance is additive: `tests/test_admission.py` exercises
+canonicalization, Ed25519 verification, protected registration/tamper failure,
+policy denials, lease revocation, delegation subset checks, and two reference
+pre-action adapter families. The OS-neutral policy contract is shared by
+Windows, Linux, and macOS backends; this checkout records unavailable host proof
+rather than overstating sandbox coverage.

@@ -193,3 +193,14 @@
   governed mutation path.
 - Regression tests cover missing/stale rejection, stable rendering, doctor repair,
   and command compatibility.
+
+## 2026-09-03 WI050 implementation pass
+
+- Added the six approved admission schemas only; existing frozen schemas,
+  invariants, charter, and workflows remain unchanged.
+- Added the vendor-neutral canonical policy core, Ed25519 approval receipts,
+  external registration/trust pin, short leases, revocation and delegation
+  subset checks, plus fail-closed guard and truthful adapter/platform SPI.
+- CLI, validator, doctor, SPEC, guide, tests, and audit inventory now expose the
+  opt-in admission plane. Reference adapters are pre-action gates and do not
+  claim arbitrary process or filesystem confinement.

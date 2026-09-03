@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authorization-receipt.schema.json",
+  "title": "RepoPact operator approval receipt",
+  "description": "Verifiable approval proof; it is not an executable bearer lease.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["receipt_version", "request_digest", "operator_id", "key_id", "signature_algorithm", "signature", "approval_class", "issued_at", "expires_at", "authority_version", "revocation_epoch"],
+  "properties": {
+    "receipt_version": {"type": "string", "minLength": 1},
+    "request_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "operator_id": {"type": "string", "minLength": 1},
+    "key_id": {"type": "string", "minLength": 1},
+    "signature_algorithm": {"const": "ed25519"},
+    "signature": {"type": "string", "pattern": "^[A-Za-z0-9+/]+={0,2}$"},
+    "approval_class": {"type": "string", "minLength": 1},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "authority_version": {"type": "string", "minLength": 1},
+    "revocation_epoch": {"type": "integer", "minimum": 0},
+    "quorum_signers": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "revocation_reference": {"type": "string", "minLength": 1}
+  }
+}

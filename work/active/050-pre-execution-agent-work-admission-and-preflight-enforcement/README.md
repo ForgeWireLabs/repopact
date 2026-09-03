@@ -1,6 +1,6 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (architecture phase; implementation not authorized)
+> **Status**: Active (implementation pass; AC-18 awaits Linux/macOS proof)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
@@ -24,10 +24,10 @@ non-escalating generic delegation. The supporting records are:
   optional, and not-needed INV-6 paths for the later implementation pass;
 * [field capture 018](../../../research/captures/018-wi050-pre-execution-admission-field-evidence.md).
 
-This phase deliberately does not add runtime guard code, schemas, CLI/API
-commands, adapters, platform backends, or executable admission tests.
-Implementation-dependent acceptance criteria remain pending. WI044, WI046,
-and WI047 remain outside this item.
+The implementation pass adds six approved schemas, a pure policy/crypto core,
+protected registration and guard facade, CLI/API operations, truthful adapter
+SPI, OS backend interfaces, and executable admission tests. WI044, WI046, and
+WI047 remain outside this item.
 
 ## Intent
 

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "authorization-request.schema.json",
+  "title": "RepoPact canonical authorization request",
+  "description": "Canonical UI-neutral request whose digest is approved by an operator.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "request_id", "nonce", "repository_identity", "repopact_root", "work_item", "principal", "adapter_session", "base", "authority_state_digest", "admission_policy_digest", "frozen_surface_digest", "approval_class", "profile", "scopes", "paths", "capabilities", "delegation_ceiling", "mode", "issued_at", "expires_at", "revocation_epoch"],
+  "properties": {
+    "protocol_version": {"type": "string", "minLength": 1},
+    "request_id": {"type": "string", "minLength": 16},
+    "nonce": {"type": "string", "minLength": 16},
+    "repository_identity": {"type": "string", "minLength": 1},
+    "repopact_root": {"type": "string", "minLength": 1},
+    "work_item": {"type": "string", "pattern": "^[0-9]{3,}$"},
+    "principal": {"type": "string", "minLength": 1},
+    "adapter_session": {"type": "string", "minLength": 1},
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head", "tree"],
+      "properties": {
+        "head": {"type": "string", "minLength": 1},
+        "tree": {"type": "string", "minLength": 1}
+      }
+    },
+    "authority_state_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "admission_policy_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "frozen_surface_digest": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+    "approval_class": {"type": "string", "minLength": 1},
+    "profile": {"type": "string", "minLength": 1},
+    "scopes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "capabilities": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "delegation_ceiling": {"type": "integer", "minimum": 0, "maximum": 32},
+    "mode": {"enum": ["normal", "repair"]},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "revocation_epoch": {"type": "integer", "minimum": 0}
+  }
+}

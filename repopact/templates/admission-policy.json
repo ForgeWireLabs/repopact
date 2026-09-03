@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "policy_version": "1",
+  "enabled": false,
+  "minimum_enforcement": "pre-action",
+  "failure_mode": "fail-closed",
+  "default_profile": "bounded",
+  "profiles": {
+    "observe": {
+      "readable_scopes": ["*"],
+      "writable_scopes": [],
+      "writable_paths": [],
+      "capabilities": {"process": false, "shell": false, "network": false, "frozen_surface": false},
+      "max_duration_seconds": 3600,
+      "repair_allowed": false,
+      "delegation_allowed": false,
+      "max_delegation_depth": 0,
+      "max_profile": "observe"
+    }
+  },
+  "protected_scopes": []
+}

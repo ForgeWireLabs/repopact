@@ -1023,6 +1023,48 @@ def validate_orphan_work_dirs(root: Path, problems: list[Problem]) -> None:
             ))
 
 
+def validate_admission_records(root: Path, problems: list[Problem]) -> None:
+    """Additive validation for the opt-in WI050 public and audit records."""
+    from pathlib import Path as _Path
+    public = {
+        "admission-policy.json": "admission-policy.schema.json",
+        "operator-authority.json": "operator-authority.schema.json",
+        "repository-registration.json": "repository-registration.schema.json",
+    }
+    gov = root / "governance"
+    loaded: dict[str, dict] = {}
+    for name, schema_name in public.items():
+        path = gov / name
+        if not path.is_file():
+            continue
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            problems.append(Problem(path, f"admission record is not valid JSON: {exc}")); continue
+        loaded[name] = value
+        check_schema(value, load_schema(root, schema_name), path, problems)
+    policy, authority, registration = loaded.get("admission-policy.json"), loaded.get("operator-authority.json"), loaded.get("repository-registration.json")
+    if policy and policy.get("enabled"):
+        default = policy.get("default_profile")
+        if default and default not in policy.get("profiles", {}):
+            problems.append(Problem(gov / "admission-policy.json", "default_profile must name a declared profile"))
+        if authority:
+            missing = set(policy.get("profiles", {})) - set(authority.get("profiles", {}))
+            if missing: problems.append(Problem(gov / "operator-authority.json", f"missing authority profiles: {', '.join(sorted(missing))}"))
+    if authority:
+        classes = set(authority.get("approval_classes", []))
+        for profile, cfg in authority.get("profiles", {}).items():
+            unknown = set(cfg.get("approval_classes", [])) - classes
+            if unknown: problems.append(Problem(gov / "operator-authority.json", f"profile {profile} references unknown approval classes: {', '.join(sorted(unknown))}"))
+    for directory, schema_name in ((root / "evidence" / "admission" / "requests", "authorization-request.schema.json"), (root / "evidence" / "admission" / "receipts", "authorization-receipt.schema.json"), (root / "governance" / "adapters", "adapter-capabilities.schema.json")):
+        if not directory.is_dir(): continue
+        for path in sorted(directory.glob("*.json")):
+            try: value = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                problems.append(Problem(path, f"admission record is not valid JSON: {exc}")); continue
+            check_schema(value, load_schema(root, schema_name), path, problems)
+
+
 def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
     validate_version(root, problems)
@@ -1044,6 +1086,7 @@ def validate(root: Path) -> list[Problem]:
     validate_policies(root, problems)
     validate_dashboard(root, problems)
     validate_research_records(root, problems)
+    validate_admission_records(root, problems)
     return sorted(problems, key=lambda problem: (str(problem.path), problem.message))
 
 

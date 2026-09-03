@@ -24,6 +24,24 @@ rest. `repopact/validate_repo.py` is the **reference implementation**; where thi
 prose and the reference implementation disagree, that is a defect in one of them
 and is resolved by an audit finding, not by silent divergence.
 
+### Pre-execution admission (WI050)
+
+Admission is opt-in through `governance/admission-policy.json`. An operator
+registers the canonical repository identity and external protected trust pin,
+then signs a canonical JSON request with Ed25519. The protected guard verifies
+the request, policy, work-item lifecycle, mandatory preflight, scopes, paths,
+profile, repository/session identity, expiry, and revocation epoch before a
+short-lived lease is issued. Adapters report actual coverage as
+instruction-only, session-start, pre-action, or sandbox/process-enforced; a
+launcher or protocol wrapper does not claim a sandbox unless a real host
+boundary supplies path/process confinement.
+
+Existing repositories remain valid without these opt-in records. Proposed work
+can be created or amended through bounded bootstrap commands, but only an
+operator-controlled receipt can activate implementation authority. Missing or
+tampered external state fails closed, and `--ack` remains advisory rather than
+operator proof.
+
 ## 2. Repository layout
 
 ```

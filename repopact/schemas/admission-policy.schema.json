@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "admission-policy.schema.json",
+  "title": "RepoPact admission policy",
+  "description": "Public, adopter-owned policy bundle for pre-execution admission.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "policy_version", "enabled", "minimum_enforcement", "profiles", "failure_mode"],
+  "properties": {
+    "version": {"type": "integer", "const": 1},
+    "policy_version": {"type": "string", "minLength": 1},
+    "enabled": {"type": "boolean"},
+    "minimum_enforcement": {
+      "enum": ["instruction-only", "session-start", "pre-action", "sandbox/process-enforced"],
+      "description": "The minimum class the adopter requires; the adapter must prove it."
+    },
+    "failure_mode": {"enum": ["fail-closed", "degraded"]},
+    "approval_cadence": {"enum": ["per-session", "per-action", "periodic"], "default": "per-session"},
+    "default_profile": {"type": "string", "minLength": 1},
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "protected_scopes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true}
+  },
+  "$defs": {
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readable_scopes", "writable_scopes", "writable_paths", "capabilities", "max_duration_seconds", "repair_allowed", "delegation_allowed", "max_delegation_depth", "max_profile"],
+      "properties": {
+        "readable_scopes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "writable_scopes": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "writable_paths": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["process", "shell", "network", "frozen_surface"],
+          "properties": {
+            "process": {"type": "boolean"},
+            "shell": {"type": "boolean"},
+            "network": {"type": "boolean"},
+            "frozen_surface": {"type": "boolean"}
+          }
+        },
+        "max_duration_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+        "approval_cadence": {"enum": ["per-session", "per-action", "periodic"]},
+        "repair_allowed": {"type": "boolean"},
+        "delegation_allowed": {"type": "boolean"},
+        "max_delegation_depth": {"type": "integer", "minimum": 0, "maximum": 32},
+        "max_profile": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

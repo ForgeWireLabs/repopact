@@ -1,3 +1,4 @@
 # RepoPact runtime dependencies.
 # Per decision 0003, records are validated against schemas/*.json with jsonschema.
 jsonschema>=4.20
+cryptography>=43

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "adapter-capabilities.schema.json",
+  "title": "RepoPact adapter capabilities",
+  "description": "Factual adapter capability vector used to compute truthful enforcement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["spi_version", "adapter_id", "adapter_version", "host", "os", "capabilities", "guard", "action_families", "health"],
+  "properties": {
+    "spi_version": {"type": "string", "minLength": 1},
+    "adapter_id": {"type": "string", "minLength": 1},
+    "adapter_version": {"type": "string", "minLength": 1},
+    "host": {"type": "string", "minLength": 1},
+    "os": {"enum": ["windows", "linux", "macos", "other"]},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_discovery", "session_identity", "session_start_gate", "pre_action_interception", "path_reporting", "path_confinement", "process_confinement", "network_confinement", "protected_host_config", "operator_handoff", "subprincipal_propagation", "fail_closed_health", "audit_receipt"],
+      "properties": {
+        "repo_discovery": {"type": "boolean"},
+        "session_identity": {"type": "boolean"},
+        "session_start_gate": {"type": "boolean"},
+        "pre_action_interception": {"type": "boolean"},
+        "path_reporting": {"type": "boolean"},
+        "path_confinement": {"type": "boolean"},
+        "process_confinement": {"type": "boolean"},
+        "network_confinement": {"type": "boolean"},
+        "protected_host_config": {"type": "boolean"},
+        "operator_handoff": {"type": "boolean"},
+        "subprincipal_propagation": {"type": "boolean"},
+        "fail_closed_health": {"type": "boolean"},
+        "audit_receipt": {"type": "boolean"}
+      }
+    },
+    "guard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint_id", "protocol_version", "required_health"],
+      "properties": {
+        "endpoint_id": {"type": "string", "minLength": 1},
+        "protocol_version": {"type": "string", "minLength": 1},
+        "required_health": {"enum": ["fail-closed", "best-effort"]}
+      }
+    },
+    "action_families": {"type": "array", "items": {"type": "string", "minLength": 1}, "uniqueItems": true},
+    "health": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checked_at"],
+      "properties": {
+        "status": {"enum": ["healthy", "degraded", "failed"]},
+        "checked_at": {"type": "string", "format": "date-time"},
+        "evidence_ref": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-implementation",
+  "timestamp": "2026-09-03T18:10:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m pip install -e .[dev]", "exit_code": 0, "summary": "Editable RepoPact 3.0.2.dev1 installed with cryptography Ed25519 support."},
+    {"command": "pytest -q tests/test_admission.py", "exit_code": 0, "summary": "Admission tests passed: canonicalization, signatures, lifecycle/scope denials, lease revocation, callback sentinel, adapter truthfulness, protected tamper, and delegation subsets."},
+    {"command": "python -m unittest discover -s tests -q", "exit_code": 0, "summary": "Full regression suite passed: 167 tests, 2 disclosed pre-existing skips."},
+    {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Published conformance suite passed 20/20."},
+    {"command": "python -m build --wheel --outdir <temporary-outdir>", "exit_code": 0, "summary": "Wheel contains repopact/admission.py and all six approved admission schemas."},
+    {"command": "repopact validate", "exit_code": 0, "summary": "Repository governance validation passed; opt-in admission validation is additive."},
+    {"command": "repopact check-frozen --base origin/main", "exit_code": 0, "summary": "Pre-staging baseline showed no frozen changes; implementation adds only the six approved frozen schemas."},
+    {"command": "git diff --check", "exit_code": 0, "summary": "No whitespace errors."}
+  ],
+  "artifacts": [
+    "repopact/admission.py", "repopact/guard.py", "repopact/adapters.py", "repopact/platform_backends.py",
+    "repopact/schemas/admission-policy.schema.json", "repopact/schemas/operator-authority.schema.json",
+    "repopact/schemas/authorization-request.schema.json", "repopact/schemas/authorization-receipt.schema.json",
+    "repopact/schemas/repository-registration.schema.json", "repopact/schemas/adapter-capabilities.schema.json",
+    "repopact/templates/admission-policy.json", "tests/test_admission.py", "docs/guides/pre-execution-admission.md",
+    "SPEC.md", "CONFORMANCE.md"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "branch": "main",
+    "linux_proof": "unavailable on this host; run on Linux machine",
+    "macos_proof": "unavailable on this host; run on macOS machine",
+    "security_claim": "reference pre-action guard only; no sandbox/process confinement claimed"
+  },
+  "acceptance_criteria_satisfied": ["AC-7", "AC-8", "AC-9", "AC-14", "AC-17", "AC-22", "AC-24"],
+  "acceptance_criteria_pending": ["AC-16", "AC-18"],
+  "scope_guard": {
+    "only_approved_frozen_schemas": true,
+    "unapproved_frozen_changes": [],
+    "wi044_implemented": false,
+    "wi046_implemented": false,
+    "wi047_implemented": false,
+    "release_or_pypi_action": false
+  }
+}

@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from importlib.resources import files
 from pathlib import Path
 
@@ -28,6 +28,12 @@ REQUIRED_WORK_FIELDS = {
 
 DECISION_STATUSES = ("proposed", "accepted", "rejected", "deferred", "superseded", "deprecated")
 POLICY_STATUSES = ("active", "retired")
+
+# An evidence-run timestamp records when the work it describes was actually
+# produced; it can never be later than "now" by more than ordinary clock
+# skew. A small tolerance absorbs real clock drift between machines without
+# accepting a record that is hours or days ahead of the present.
+FUTURE_TIMESTAMP_TOLERANCE = timedelta(minutes=5)
 
 # A work-item README may use the "- [ ] **CRIT-1** ..." checklist convention to
 # mirror acceptance-criterion state. Where it does, the checkboxes must not
@@ -771,9 +777,24 @@ def validate_evidence(root: Path, work_ids: set[str], problems: list[Problem]) -
             problems.append(Problem(path, f"duplicate evidence id also used by {seen[evidence_id]}"))
         seen[evidence_id] = path
         try:
-            datetime.fromisoformat(str(data["timestamp"]))
+            parsed_timestamp = datetime.fromisoformat(str(data["timestamp"]))
         except ValueError:
             problems.append(Problem(path, "timestamp must be ISO 8601"))
+        else:
+            if parsed_timestamp.tzinfo is None:
+                parsed_timestamp = parsed_timestamp.replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
+            if parsed_timestamp - now > FUTURE_TIMESTAMP_TOLERANCE:
+                problems.append(
+                    Problem(
+                        path,
+                        f"timestamp {data['timestamp']} is in the future (now is "
+                        f"{now.isoformat()}): an evidence record cannot be produced "
+                        "before it is written; use the actual execution/closeout "
+                        "time, or the recording commit's authored time as a "
+                        "documented recovery basis if the exact time was not captured",
+                    )
+                )
         if data["work_item"] not in work_ids:
             problems.append(Problem(path, f"unknown work_item '{data['work_item']}'"))
 

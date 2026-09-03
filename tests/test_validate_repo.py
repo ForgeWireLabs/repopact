@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 from unittest import mock
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -245,6 +245,36 @@ class RepositoryValidationTests(unittest.TestCase):
         path = next((self.root / "evidence" / "runs").glob("*.json"))
         self.write_json(path, lambda d: d.__setitem__("work_item", "999"))
         self.assertTrue(any("unknown work_item" in v for v in self.problems()))
+
+    def test_evidence_timestamp_far_in_the_future_is_rejected(self) -> None:
+        # An evidence record cannot document work that was produced before
+        # the record itself was written -- a timestamp materially ahead of
+        # "now" is an impossible ordering (found in practice: a hand-typed
+        # timestamp hours later than the Git commit that recorded it).
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        self.write_json(path, lambda d: d.__setitem__("timestamp", "2099-01-01T00:00:00+00:00"))
+        self.assertTrue(any("is in the future" in v for v in self.problems()))
+
+    def test_evidence_timestamp_at_now_is_accepted(self) -> None:
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        now = datetime.now(timezone.utc).isoformat()
+        self.write_json(path, lambda d: d.__setitem__("timestamp", now))
+        self.assertFalse(any("is in the future" in v for v in self.problems()))
+
+    def test_evidence_timestamp_within_clock_skew_tolerance_is_accepted(self) -> None:
+        # A few minutes of real clock drift between machines must not be
+        # rejected as an impossible future timestamp.
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        near_future = (datetime.now(timezone.utc) + timedelta(minutes=2)).isoformat()
+        self.write_json(path, lambda d: d.__setitem__("timestamp", near_future))
+        self.assertFalse(any("is in the future" in v for v in self.problems()))
+
+    def test_evidence_timestamp_without_timezone_is_still_checked(self) -> None:
+        # A naive (timezone-less) ISO timestamp must be treated as UTC for
+        # this comparison rather than silently skipped.
+        path = next((self.root / "evidence" / "runs").glob("*.json"))
+        self.write_json(path, lambda d: d.__setitem__("timestamp", "2099-01-01T00:00:00"))
+        self.assertTrue(any("is in the future" in v for v in self.problems()))
 
     # --- contracts and audit coverage --------------------------------------
 

@@ -10,24 +10,24 @@
   "preflight": {
     "created_before_work_started": true,
     "created_at": "2026-09-03T15:40:00Z",
-    "note": "Recorded before WI050 implementation begins. Triggered by the repeated distinction between RepoPact's existing mandatory-preflight contract and the absence of a pre-execution enforcement boundary for coding agents, with the post-3.0.2 f2c80b7/WI049 incident as direct field evidence."
+    "note": "Recorded before WI050 implementation begins. Triggered by the distinction between RepoPact's mandatory-preflight contract and the absence of a pre-execution enforcement boundary for autonomous agents, with the post-3.0.2 f2c80b7/WI049 incident as direct field evidence."
   },
   "acceptance_criteria": [
     {
       "id": "AC-1",
-      "text": "A durable field-evidence and threat/bypass analysis documents at least the post-v3.0.2 f2c80b7/WI049 case and distinguishes four moments: workflow authority recorded before work, first mutating action, post-change local validation/Git hooks, and remote CI/promotion checks. It demonstrates why current mandatory preflight is detectable but not mechanically pre-execution for an autonomous coding agent.",
+      "text": "A durable field-evidence and threat/bypass analysis documents at least the post-v3.0.2 f2c80b7/WI049 case and distinguishes workflow authority recorded before work, first mutating action, post-change local validation/Git hooks, and remote verification/promotion checks. It demonstrates why mandatory preflight is currently detectable but not mechanically pre-execution for an autonomous agent.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-2",
-      "text": "The work formally distinguishes instruction/advisory guidance, session-start admission, pre-tool/action admission, sandbox/OS enforcement, and Git/CI backstops. RepoPact records a truthful coverage/capability model and does not claim that AGENTS.md, Git hooks, or CI can prevent the first filesystem mutation when they cannot.",
+      "text": "The work formally distinguishes instruction/advisory guidance, session-start admission, pre-action admission, sandbox/process enforcement, and Git/CI backstops. RepoPact records a truthful enforcement-capability model and does not claim that repository instructions, Git hooks, or CI can prevent the first filesystem mutation when they cannot.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-3",
-      "text": "Before implementation, at least four architecture placements are evaluated: repository instructions only, Git hooks, a RepoPact launcher/session gate, and host-native pre-tool/before-run adapters or a tool-execution proxy/sandbox. The accepted decision defines an agent-neutral RepoPact policy core plus replaceable execution adapters and explains why the chosen layers are sufficient for each advertised enforcement class.",
+      "text": "Before implementation, at least four architecture placements are evaluated: repository instructions only, Git hooks, a RepoPact launcher/session gate, and pre-action/tool-execution proxy or sandbox interception. The accepted decision defines a vendor-neutral RepoPact policy core, protected guard, public adapter/SPI contract, and replaceable execution adapters. Claude, Codex, ChatGPT, Anthropic, Cursor, MCP, IDEs, agent CLIs, and future hosts may supply useful substrate, but none defines RepoPact governance semantics or becomes a kernel dependency merely because it has a convenient hook.",
       "state": "pending",
       "evidence": []
     },
@@ -39,43 +39,43 @@
     },
     {
       "id": "AC-5",
-      "text": "The selected runtime authorization/lease design is bound at minimum to repository identity, work-item id, base repository state, allowed scope/path authority, adapter/session identity, and explicit expiry/invalidation semantics. The authorization is derived from durable RepoPact records, is not itself project authority, and cannot be replayed successfully for a different repository/work item or after material authority drift.",
+      "text": "The selected runtime authorization/lease design is bound at minimum to canonical repository identity, RepoPact root, work-item id, base repository/authority state, allowed scopes/paths, adapter/session identity, and explicit expiry/invalidation semantics. The authorization is derived from durable RepoPact records, is not itself project authority, and cannot be replayed successfully for a different repository/work item or after material authority drift.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-6",
-      "text": "Read-only orientation remains possible before authorization so an agent can inspect AGENTS/contracts, status, doctor/validate output, and determine the correct work item. A bounded bootstrap path may let an agent create or amend proposed governance records and request authorization, but it may not self-grant implementation authority by moving work to active, manufacturing operator/frozen approval, or editing equivalent authorization state. Negative coverage proves bootstrap cannot be used as a general source-code mutation or self-authorization escape hatch.",
+      "text": "Read-only orientation remains possible before authorization so an agent can inspect contracts, status, doctor/validate output, and determine the correct work item. A bounded bootstrap path may let an agent create or amend proposed governance records and request authorization, but it may not self-grant implementation authority by moving work to active, manufacturing operator/frozen approval, or editing equivalent authorization state. Negative coverage proves bootstrap cannot be used as a general source-code mutation or self-authorization escape hatch.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-7",
-      "text": "The agent-neutral policy core and command/API surface can answer an action-admission question before mutation with deterministic allow/deny diagnostics. Negative coverage includes at least: no work item, proposed-only work, missing/invalid preflight, wrong lifecycle state, unresolved authority/dependency, out-of-scope path, frozen path without approval, invalid development identity when required, stale authorization, and authorization issued for another repository/work item. Valid authorized actions are accepted.",
+      "text": "The RepoPact policy core and command/API surface can answer an action-admission question before mutation with deterministic allow/deny diagnostics. Negative coverage includes at least: no work item, proposed-only work, missing/invalid preflight, wrong lifecycle state, unresolved authority/dependency, out-of-scope path, frozen path without approval, invalid development identity when required, stale authorization, and authorization issued for another repository/work item. Valid authorized actions are accepted.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-8",
-      "text": "At least two materially different agent/runtime integrations are demonstrated against the same RepoPact admission contract, including one host with a true pre-tool interception point and one independent launcher/before-run/sandbox-style path. For a registered adapter advertised as enforced, missing/broken gate execution fails closed. Unsupported or session-start-only hosts are reported at their actual coverage level rather than counted as pre-tool enforcement.",
+      "text": "RepoPact defines capability negotiation for adapters and demonstrates at least two materially different integration families against the same policy/guard contract, including one true pre-action interception path and one independent launcher/proxy/sandbox-style path. Reference adapters may target Codex/ChatGPT, Claude/Anthropic, Cursor, MCP-capable hosts, or other ecosystems, but the tests prove they are replaceable adapters rather than special authority paths. Missing/broken guard execution fails closed for any adapter advertised as enforced, and session-start-only hosts are reported honestly at that lower level.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-9",
-      "text": "Executable end-to-end negative proof shows a covered agent/runtime attempting an unauthorized mutating action and being refused before the target filesystem state changes. Additional proof shows an authorized session can mutate within declared scope, an out-of-scope/frozen-surface action is denied or requires re-authorization, and loss/corruption of the adapter authorization cannot silently downgrade enforced mode to advisory behavior.",
+      "text": "Executable end-to-end negative proof shows a covered runtime attempting an unauthorized mutating action and being refused before the target filesystem state changes. Additional proof shows an authorized session can mutate within declared scope, an out-of-scope/frozen-surface action is denied or requires re-authorization, and loss/corruption of adapter authorization cannot silently downgrade enforced mode to advisory behavior.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-10",
-      "text": "Adopt/init/doctor behavior is reconciled with agent admission. The work decides how a repository declares required adapter/enforcement coverage, how supported adapters are installed or generated non-destructively, how existing adopters migrate, and how doctor reports missing, stale, bypassable, or degraded enforcement without overwriting adopter-owned customization. Agent-vendor configuration remains an adapter, not canonical RepoPact authority.",
+      "text": "Adopt/init/doctor behavior is reconciled with agent admission through RepoPact-owned configuration and canonical repository registration. The work decides how a repository declares required enforcement coverage, how adapters are discovered/installed/generated non-destructively, how existing adopters migrate, and how doctor reports missing, stale, bypassable, platform-incompatible, or degraded enforcement without overwriting adopter-owned customization. Vendor configuration is always an adapter surface, never canonical RepoPact authority.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-11",
-      "text": "Admission/denial evidence and diagnostics are privacy- and secret-safe and sufficient to establish which repository/work item/policy check admitted or rejected a session/action without storing prompts, credentials, or unnecessary source content. The design states what is durable repository evidence versus ephemeral local runtime state.",
+      "text": "Admission/denial evidence and diagnostics are privacy- and secret-safe and sufficient to establish which repository/work item/policy check admitted or rejected a session/action without storing prompts, credentials, or unnecessary source content. The design states what is durable repository evidence versus protected or ephemeral local runtime state.",
       "state": "pending",
       "evidence": []
     },
@@ -87,31 +87,43 @@
     },
     {
       "id": "AC-13",
-      "text": "Compatibility and failure semantics are defined before rollout. Existing repositories remain valid unless they opt into or migrate to enforced agent admission; new/adopted repositories can declare required coverage honestly; a configured enforced adapter fails closed; and RepoPact never claims protection against arbitrary out-of-band processes unless an actual OS/sandbox boundary provides it.",
+      "text": "Compatibility and failure semantics are defined before rollout. Existing repositories remain valid unless they opt into or migrate to enforced agent admission; new/adopted repositories can declare required coverage honestly; a configured enforced adapter fails closed; and RepoPact never claims protection against arbitrary out-of-band processes unless an actual process/sandbox/OS boundary provides it.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-14",
-      "text": "After architecture decisions and any required frozen-surface operator approval, the chosen design is implemented consistently across the necessary CLI/API, policy/config, validator, init/adopt/doctor, adapter templates/integrations, SPEC/docs, tests/conformance, audit inventory/alignment, and evidence surfaces. Derived artifacts are regenerated, frozen changes follow INV-6, and closeout includes both positive and fail-closed negative enforcement proof on Windows plus an adopter-neutral fixture.",
+      "text": "After architecture decisions and any required frozen-surface operator approval, the chosen design is implemented consistently across the necessary CLI/API, policy/config, validator, init/adopt/doctor, protected guard, adapter SPI/templates/integrations, SPEC/docs, tests/conformance, audit inventory/alignment, and evidence surfaces. Derived artifacts are regenerated and frozen changes follow INV-6.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-15",
-      "text": "An enforced adapter is anchored outside ordinary agent-writable repository state or protected by host-managed/OS policy. Repo-local AGENTS.md, CLAUDE.md, .claude/.codex settings, hooks, scripts, or links may provide discovery and adapter configuration but are never the sole enforcement root. The design demonstrates that an agent cannot disable enforced admission by editing/removing repository-local configuration, changing working directory, launching a subagent, or selecting a less restrictive local settings layer; missing or tampered protected guard configuration fails closed.",
+      "text": "An enforced adapter is anchored outside ordinary agent-writable repository state or protected by host-managed/OS policy. Repo-local AGENTS.md, CLAUDE.md, .claude/.codex/.cursor settings, MCP configuration, hooks, scripts, or links may provide discovery/configuration but are never the sole enforcement root. The design demonstrates that an agent cannot disable enforced admission by editing/removing repository-local configuration, changing working directory, launching a subagent, or selecting a less restrictive local settings layer; missing or tampered protected guard configuration fails closed.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-16",
-      "text": "Adopted repositories participating in enforced admission are registered/discovered by canonical repository identity and bound to the correct RepoPact root rather than by prompt text or a mutable convenience link alone. End-to-end bypass tests include direct Edit/Write, shell/PowerShell/Python filesystem mutation, mutation from a nested working directory or linked worktree, and attempted guard/config modification. Before admission, arbitrary mutation-capable shell execution is denied except for a strictly defined read-only/bootstrap allowlist; after admission, any host advertised as path/scope-enforced must constrain arbitrary shell writes through a sandbox/proxy or equivalent boundary rather than relying on command-string parsing alone.",
+      "text": "Adopted repositories participating in enforced admission are registered/discovered by canonical repository identity and bound to the correct RepoPact root rather than by prompt text or a mutable convenience link alone. End-to-end bypass tests include direct editor/write tools, shell/PowerShell/POSIX-shell/Python filesystem mutation, mutation from a nested working directory or linked worktree, and attempted guard/config modification. Before admission, arbitrary mutation-capable process execution is denied except for a strictly defined read-only/bootstrap allowlist; after admission, any adapter advertised as path/scope-enforced constrains arbitrary process writes through a sandbox/proxy or equivalent boundary rather than command-string parsing alone.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-17",
-      "text": "The authority transition that makes work implementation-authorized is operator-controlled for enforced agent sessions. The design defines a protected activation/approval channel, or an equivalent non-agent-forgeable proof, so the same agent being gated cannot satisfy admission merely by creating a work item and changing its lifecycle to active or fabricating frozen-surface approval. Tests prove proposed-work creation/request remains possible while attempted self-activation, approval forgery, or reuse of another operator authorization is rejected before mutation authority is granted.",
+      "text": "The authority transition that makes work implementation-authorized is operator-controlled for enforced agent sessions. The design defines a protected activation/approval channel, or equivalent non-agent-forgeable proof, so the same agent being gated cannot satisfy admission merely by creating a work item and changing its lifecycle to active or fabricating frozen-surface approval. Tests prove proposed-work creation/request remains possible while attempted self-activation, approval forgery, or reuse of another operator authorization is rejected before mutation authority is granted.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-18",
+      "text": "The RepoPact policy core, authorization format/semantics, protected-guard contract, adapter SPI, canonical repository identity rules, diagnostics, and conformance behavior are supported on Windows, Linux, and macOS. Platform-specific storage, service/process, permission, sandbox, and installation backends may differ, but no operating system is the semantic source of truth. Closeout includes positive and fail-closed negative pre-execution proofs on all three operating systems using a RepoPact-controlled reference integration, plus path/permission/process edge cases appropriate to each platform. Individual vendor adapters declare their real OS/host capability matrix and do not reduce RepoPact's cross-platform baseline.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-19",
+      "text": "RepoPact remains an OSS/public governance product with no dependency on ForgeWire Fabric or any other closed/internal product. The kernel, protected guard, adapter SPI, schemas/contracts, conformance fixtures, and reference implementations contain no Fabric-specific authority or required runtime dependency. If Fabric or another downstream product integrates agent admission, that integration is implemented downstream against RepoPact's public contract; upstream changes are limited to adopter-neutral abstractions justified independently of that product.",
       "state": "pending",
       "evidence": []
     }

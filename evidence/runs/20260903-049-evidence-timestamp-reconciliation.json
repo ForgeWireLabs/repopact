@@ -87,9 +87,10 @@
   "closeout": {
     "work_item_status": "completed",
     "lifecycle_path": "work/completed/049-reconcile-post-3-0-2-evidence-timestamp-hotfix-and-development-identity",
-    "final_head": "115b83c1ee2db3bec5d1ac36a242311724623a26",
-    "origin_main": "115b83c1ee2db3bec5d1ac36a242311724623a26",
+    "final_head_at_evidence_closeout": "115b83c1ee2db3bec5d1ac36a242311724623a26",
+    "origin_main_at_evidence_closeout": "115b83c1ee2db3bec5d1ac36a242311724623a26",
     "push": "git push origin main succeeded after rebasing onto concurrent WI050 documentation commits",
+    "evidence_metadata_commit": "59afa6dbfa1250fae190ab362fac208344809e2b",
     "stable_tag": "v3.0.2 unchanged at dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
     "stable_release_cut": false,
     "excluded_work": ["WI044", "WI046", "WI047"],

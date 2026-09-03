@@ -129,8 +129,8 @@ def _dead_source_of_truth(root: Path) -> list[Finding]:
     positives. Not auto-fixed: the correct target needs judgment.
     """
     out: list[Finding] = []
-    patterns = ("work/**/*.md", "decisions/*.md", "governance/**/*.md",
-                "audits/**/*.md", "*.md")
+    patterns = ("work/**/*.md", "decisions/**/*.md", "governance/**/*.md",
+                "audits/**/*.md", "research/**/*.md", "docs/**/*.md", "*.md")
     seen: set[Path] = set()
     for pattern in patterns:
         for path in sorted(root.glob(pattern)):
@@ -152,7 +152,11 @@ def _dead_source_of_truth(root: Path) -> list[Finding]:
                 value = stripped.split(":", 1)[1].strip()
                 for token in (t.strip() for t in value.split(";")):
                     looks_like_path = "/" in token or token.endswith((".md", ".json"))
-                    if token and " " not in token and looks_like_path and not (root / token).exists():
+                    # Front-matter paths follow the same rule as Markdown links:
+                    # resolve every token from the declaring record's directory.
+                    # In particular, a bare name is not implicitly root-relative.
+                    target = path.parent / token
+                    if token and " " not in token and looks_like_path and not target.resolve().exists():
                         rel = str(path.relative_to(root)).replace("\\", "/")
                         out.append(Finding("warn", "source-of-truth-stale",
                                            f"{rel}: source_of_truth points at missing path '{token}'", False))

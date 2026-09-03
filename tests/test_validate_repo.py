@@ -505,6 +505,12 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def _tag_identity_fixture(self) -> None:
         self.root.joinpath("VERSION").write_text("9.9.9\n", encoding="utf-8")
+        # The source checkout carries the post-release development label for
+        # 3.0.1. A synthetic stable v9.9.9 fixture must model an unlabeled
+        # release tree before testing later source identity changes.
+        label = self.root / "RELEASE_LABEL"
+        if label.exists():
+            label.unlink()
         readme = self.root / "README.md"
         text = readme.read_text(encoding="utf-8")
         start = text.index("`pip install repopact`")
@@ -1073,7 +1079,55 @@ class RepositoryValidationTests(unittest.TestCase):
         findings = doctor._dead_source_of_truth(self.root)
         msgs = [f.message for f in findings]
         self.assertTrue(any("docs/gone.md" in m for m in msgs))
-        self.assertFalse(any("AGENTS.md" in m for m in msgs))
+        # Bare tokens are record-relative too: decisions/AGENTS.md is absent,
+        # even though the bootstrap contract exists at the repository root.
+        self.assertTrue(any("AGENTS.md" in m for m in msgs))
+
+    def test_doctor_accepts_nested_parent_relative_source_of_truth(self) -> None:
+        record = self.root / "work" / "active" / "some" / "nested" / "record.md"
+        target = self.root / "work" / "active" / "some" / "sibling" / "real-record.md"
+        record.parent.mkdir(parents=True)
+        target.parent.mkdir(parents=True)
+        target.write_text("# real record\n", encoding="utf-8")
+        record.write_text(
+            "---\nid: nested\ntitle: Nested\nstatus: active\n"
+            "source_of_truth: ../sibling/real-record.md\n---\n",
+            encoding="utf-8")
+        self.assertEqual([], doctor._dead_source_of_truth(self.root))
+
+    def test_doctor_accepts_bare_record_relative_source_of_truth(self) -> None:
+        record = self.root / "decisions" / "probe.md"
+        target = self.root / "decisions" / "sibling.md"
+        target.write_text("# sibling\n", encoding="utf-8")
+        record.write_text(
+            "---\nid: probe\ntitle: Probe\nstatus: accepted\ndate: 2026-06-17\n"
+            "source_of_truth: sibling.md\n---\n",
+            encoding="utf-8")
+        self.assertEqual([], doctor._dead_source_of_truth(self.root))
+
+    def test_doctor_bare_token_does_not_fall_back_to_root_coincidence(self) -> None:
+        record = self.root / "decisions" / "probe.md"
+        record.write_text(
+            "---\nid: probe\ntitle: Probe\nstatus: accepted\ndate: 2026-06-17\n"
+            "source_of_truth: sibling.md\n---\n",
+            encoding="utf-8")
+        (self.root / "sibling.md").write_text("# root coincidence\n", encoding="utf-8")
+        findings = doctor._dead_source_of_truth(self.root)
+        self.assertEqual(1, len(findings))
+        self.assertIn("decisions/probe.md", findings[0].message)
+        self.assertIn("sibling.md", findings[0].message)
+
+    def test_doctor_source_of_truth_fix_is_non_destructive(self) -> None:
+        record = self.root / "decisions" / "probe.md"
+        original = (
+            "---\nid: probe\ntitle: Probe\nstatus: accepted\ndate: 2026-06-17\n"
+            "source_of_truth: missing.md\n---\n"
+        )
+        record.write_text(original, encoding="utf-8")
+        actions = doctor.fix(self.root)
+        self.assertEqual(original, record.read_text(encoding="utf-8"))
+        self.assertFalse(any("source_of_truth" in action for action in actions))
+        self.assertTrue(any(f.code == "source-of-truth-stale" for f in doctor.diagnose(self.root)))
 
     def test_import_plan_section_roadmap_without_checkboxes(self) -> None:
         repo = Path(self.temp.name) / "roadmapped"

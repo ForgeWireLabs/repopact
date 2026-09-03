@@ -1,5 +1,15 @@
 # Tooling Alignment Report
 
+## 2026-09-02 source_of_truth resolution semantics
+
+- `doctor._dead_source_of_truth` now resolves every path token relative to the
+  declaring record's directory, matching decision 0016 and `takeover.py`'s
+  preserved leading `../` behavior.
+- Bare names are deliberately record-relative; a coincident root-level file
+  cannot make a missing sibling target appear healthy.
+- Regression coverage exercises nested `../` targets, valid and invalid bare
+  targets, root coincidence, and the non-destructive `doctor --fix` contract.
+
 ## 2026-09-02 stable source/artifact identity reconciliation
 
 - `validate_repo` now recognizes the exact matching stable tag as a valid

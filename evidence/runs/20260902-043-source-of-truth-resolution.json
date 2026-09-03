@@ -1,0 +1,70 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-043-source-of-truth-resolution",
+  "timestamp": "2026-09-02T20:29:21-05:00",
+  "work_item": "043",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status --short; git fetch origin --tags; git rev-parse HEAD; git rev-parse origin/main; git rev-parse v3.0.1^{}",
+      "exit_code": 0,
+      "summary": "Started from a clean current main at 62f31090dc5b724bb8ae464434498aa7a03c554b; v3.0.1 remains peeled at 181e35a84605a966487199a6ee22cb5e4dfb9176."
+    },
+    {
+      "command": "Read decisions/0016-takeover-repoints-inbound-references.md, research/findings.md F-017, research/captures/016-forgewire-wi238-3-0-0-field-evidence.md, repopact/doctor.py, repopact/takeover.py, repopact/init_repo.py, and all source_of_truth references",
+      "exit_code": 0,
+      "summary": "Decision 0016 and takeover.py establish record-relative semantics with preserved leading ../ runs; F-017 and capture 016 document doctor.py's old root-relative false positives; init_repo writes only the root AGENTS.md, explaining the old bare-token test coincidence."
+    },
+    {
+      "command": "Before-fix source comparison: root / token versus declaring_record.parent / token",
+      "exit_code": 0,
+      "summary": "The old doctor expression root/token flags the ForgeWire-shaped work/active/.../_audit/../AGENTS.md case, while the declaring record's parent/token target exists; the implementation now uses the latter for every path-like token."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_doctor_flags_dead_source_of_truth_pointer tests.test_validate_repo.RepositoryValidationTests.test_doctor_accepts_nested_parent_relative_source_of_truth tests.test_validate_repo.RepositoryValidationTests.test_doctor_accepts_bare_record_relative_source_of_truth tests.test_validate_repo.RepositoryValidationTests.test_doctor_bare_token_does_not_fall_back_to_root_coincidence tests.test_validate_repo.RepositoryValidationTests.test_doctor_source_of_truth_fix_is_non_destructive -v",
+      "exit_code": 0,
+      "summary": "Focused doctor/source_of_truth regression suite passed: 5 tests. The existing bare AGENTS.md expectation was deliberately changed to stale because decisions/AGENTS.md is the record-relative target; the root AGENTS.md coincidence is no longer accepted."
+    },
+    {
+      "command": "python -c \"from pathlib import Path; from repopact.doctor import _dead_source_of_truth; print(len(_dead_source_of_truth(Path('.')))); print(len(_dead_source_of_truth(Path('conformance/fixtures/valid'))))\"",
+      "exit_code": 0,
+      "summary": "RepoPact's governed corpus and the valid adopter/conformance fixture report zero source-of-truth-stale findings under the corrected rule; no existing governed record was rewritten."
+    },
+    {
+      "command": "python -c \"from pathlib import Path; from repopact.package_version import package_version; print(Path('VERSION').read_text().strip()); print(Path('RELEASE_LABEL').read_text().strip()); print(package_version(Path('.')))\"; repopact validate",
+      "exit_code": 0,
+      "summary": "VERSION remains 3.0.1; the post-release development identity is RELEASE_LABEL 3.0.1-dev.1 and deterministic package metadata 3.0.1dev1 (PEP 440 equivalent 3.0.1.dev1); the real validator accepts it."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"; python -m unittest discover -s tests -v; python -m repopact.run_conformance; repopact dashboard; repopact spec; repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "Full repository validation passed; the post-closeout unit suite passed with 146 tests and 2 legitimate formal-model skips; conformance passed 20/20; dashboard and SPEC regenerated cleanly; and the frozen-surface backstop reported no changes."
+    }
+  ],
+  "artifacts": [
+    "decisions/0034-source-of-truth-record-relative-resolution.md",
+    "repopact/doctor.py",
+    "tests/test_validate_repo.py",
+    "research/findings.md",
+    "research/captures/016-forgewire-wi238-3-0-0-field-evidence.md",
+    "RELEASE_LABEL",
+    "repopact/_audit/inventory.md",
+    "repopact/_audit/alignment-report.md",
+    "SPEC.md",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "python": "3.13",
+    "resolution_rule": "declaring_record.parent / source_of_truth_token",
+    "version": "3.0.1",
+    "release_label": "3.0.1-dev.1",
+    "package_development_version": "3.0.1dev1",
+    "old_behavior": "repository-root-relative",
+    "new_behavior": "uniformly record-relative",
+    "doctor_fix": "source-of-truth-stale remains non-destructive",
+    "github_hosted_execution": "not used; WI032 local-only directive honored"
+  }
+}

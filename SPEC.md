@@ -72,7 +72,10 @@ cross-record consistency.
    (for work items) its lifecycle directory must agree. IDs are unique per type.
 3. **Reference resolution.** Work-item `depends_on` and acceptance-criterion
    `evidence`, evidence `work_item`, finding `scope`, role `scopes`, and decision
-   `supersedes` must reference records or scopes that exist. `active` and
+   `supersedes` must reference records or scopes that exist. `source_of_truth:`
+   frontmatter paths are resolved relative to the declaring record's directory,
+   uniformly for bare names and paths containing `/` or `../`; a bare name is
+   never silently reinterpreted as repository-root-relative. `active` and
    `completed` work items may not depend on `proposed` work, because proposed
    work is not accepted implementation authority.
 4. **Acceptance.** A `satisfied` criterion has linked evidence. A `completed` work

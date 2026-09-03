@@ -26,7 +26,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-014 | H6,H7 | holds | A downstream adopter exposed the missing `proposed` authority state; the resolution is recoverable through decision, implementation, conformance, release, and adopter records | [013](captures/013-proposed-lifecycle-adoption-pressure.md) | shipped (WI 025, dec 0023/0024, release 2.1.0) |
 | F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident); re-reproduced live on the current **public 3.0.0 release** during a second adopter migration (WI 238) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/), [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md) | **fixed on upstream `main`** for the conventional `worktrees/` path (`0096d70`, PR #7) — **not present in the packaged `3.0.0` release** (the fix landed two days after the `3.0.0` tag); general worktree-discovery class (any other checkout convention) remains structurally open |
 | F-016 | H6,H12 | minor | A work item's human-readable README heading can disagree with its own canonical `work-item.json` `id`/`title` while `repopact validate` stays green; reproduced in an isolated fixture, present in 2.2.0 and current `main`, decision 0014/0028's parity checks do not cover it | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/06-representation-drift.md) | open — no fix implemented or prescribed |
-| F-017 | H12 | minor | `repopact doctor`'s `source-of-truth-stale` check resolves a record's relative `source_of_truth:` pointer against the repository root instead of the declaring record's own directory, false-positiving legitimate record-relative pointers (3 of 3 observed on a real adopter tree); inconsistent with `takeover.py`'s own established record-relative treatment of the same field (decision 0016) | [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md) | open — no fix implemented or prescribed |
+| F-017 | H12 | minor | `repopact doctor`'s `source-of-truth-stale` check resolves a record's relative `source_of_truth:` pointer against the repository root instead of the declaring record's own directory, false-positiving legitimate record-relative pointers (3 of 3 observed on a real adopter tree); inconsistent with `takeover.py`'s own established record-relative treatment of the same field (decision 0016) | [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md), [WI043](../work/completed/043-define-and-enforce-source-of-truth-path-resolution-semantics/README.md) | **fixed** — decision 0034 and WI043 make `doctor` uniformly resolve from the declaring record; historical capture retained |
 
 ## F-001 — `repopact spec` is not closed over `init` output
 
@@ -424,9 +424,16 @@ holds, and the defect requires a human or agent acting on bad advice to
 cause any actual harm — consistent with the severity precedent set by F-002
 (a diagnostic-correctness gap in a non-blocking check, not a gate failure).
 
-**Status:** open. No fix is implemented or prescribed by this finding; see
-proposed work item 043 for a candidate direction (deliberately not chosen
-here).
+**Historical status at recording:** open. No fix was implemented or prescribed
+by this finding at capture time; proposed work item 043 was the candidate
+direction deliberately left for a later decision.
+
+**Resolution (WI043, 2026-09-02).** Decision [0034](../decisions/0034-source-of-truth-record-relative-resolution.md)
+adopts the record-relative rule and `doctor._dead_source_of_truth` now resolves
+`path.parent / token` for every path-like token. Regression tests cover valid
+`../` and bare pointers, stale bare pointers, a root-level filename coincidence,
+and non-destructive `doctor --fix` behavior. The original field observation and
+capture 016 remain unchanged; this note records implementation and disposition.
 
 ## Field-study synthesis: enforcement closure
 

@@ -45,7 +45,7 @@
     },
     {
       "id": "AC-6",
-      "text": "Read-only orientation remains possible before authorization so an agent can inspect AGENTS/contracts, status, doctor/validate output, and determine the correct work item. Any bootstrap exception that permits creating/activating the minimum governance records needed for admission is explicitly bounded and has negative coverage proving it cannot be used as a general source-code mutation escape hatch.",
+      "text": "Read-only orientation remains possible before authorization so an agent can inspect AGENTS/contracts, status, doctor/validate output, and determine the correct work item. A bounded bootstrap path may let an agent create or amend proposed governance records and request authorization, but it may not self-grant implementation authority by moving work to active, manufacturing operator/frozen approval, or editing equivalent authorization state. Negative coverage proves bootstrap cannot be used as a general source-code mutation or self-authorization escape hatch.",
       "state": "pending",
       "evidence": []
     },
@@ -106,6 +106,12 @@
     {
       "id": "AC-16",
       "text": "Adopted repositories participating in enforced admission are registered/discovered by canonical repository identity and bound to the correct RepoPact root rather than by prompt text or a mutable convenience link alone. End-to-end bypass tests include direct Edit/Write, shell/PowerShell/Python filesystem mutation, mutation from a nested working directory or linked worktree, and attempted guard/config modification. Before admission, arbitrary mutation-capable shell execution is denied except for a strictly defined read-only/bootstrap allowlist; after admission, any host advertised as path/scope-enforced must constrain arbitrary shell writes through a sandbox/proxy or equivalent boundary rather than relying on command-string parsing alone.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-17",
+      "text": "The authority transition that makes work implementation-authorized is operator-controlled for enforced agent sessions. The design defines a protected activation/approval channel, or an equivalent non-agent-forgeable proof, so the same agent being gated cannot satisfy admission merely by creating a work item and changing its lifecycle to active or fabricating frozen-surface approval. Tests prove proposed-work creation/request remains possible while attempted self-activation, approval forgery, or reuse of another operator authorization is rejected before mutation authority is granted.",
       "state": "pending",
       "evidence": []
     }

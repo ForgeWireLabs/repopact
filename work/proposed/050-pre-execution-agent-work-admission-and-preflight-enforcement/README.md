@@ -1,221 +1,335 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: 📋 Planning (proposed — not started)
+> **Status**: 📋 Planning (proposed — architecture first)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
-> **Depends on**: WI023 mandatory preflight and WI049 baseline reconciliation.
+> **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
 ## Intent
 
 RepoPact already requires a work item to exist before implementation begins, and an `active`
-work item is the repository's authorization for design or implementation. Today, however, those
-rules are primarily **recorded and validated after the fact**. An autonomous coding agent can
-still start editing an adopted repository, run mutating commands, or change runtime source before
-it has created/activated the correct work item, resolved dependencies, checked the frozen surface,
-or established the required development identity. CI, `repopact validate`, Git hooks, and review
-can catch the violation later, but they do not stop the first unauthorized mutation.
+work item is the repository's authorization for design or implementation. Today those rules are
+primarily recorded and validated as repository state. An autonomous coding agent can still make a
+first source mutation before it has gone through the required workflow if the execution environment
+does not mechanically consult RepoPact before allowing that action.
 
-The immediate field case is the post-3.0.2 `f2c80b7` evidence-timestamp hotfix now being
-reconciled by WI049: the implementation itself may be sound, but it landed before RepoPact's own
-required workflow records and without the post-release development identity required by decision
-0032. WI049 must preserve that ordering rather than retroactively laundering it. WI050 asks the
-next question: **how can RepoPact make this class of violation mechanically difficult or
-impossible for a covered coding-agent runtime before the first write occurs?**
+The post-3.0.2 `f2c80b7` / WI049 incident is direct field evidence: the patch itself could be
+reviewed later, but RepoPact had no pre-execution boundary that forced the correct governance flow
+before the first runtime edit.
 
-The target is a RepoPact-owned **work-admission handshake** plus replaceable agent/runtime
-adapters. RepoPact decides whether a proposed work session is authorized; an adapter at the
-agent execution boundary refuses mutating tool calls when that authorization is absent, stale,
-out of scope, or insufficient.
+WI050 therefore designs and builds a **RepoPact-native work-admission and enforcement plane**.
+RepoPact owns the policy engine, authorization semantics, protected guard, canonical adopted-repo
+registration, adapter/SPI contract, capability negotiation, diagnostics, conformance, and failure
+semantics. External agent products, IDEs, chat products, tool protocols, and orchestrators are
+integration surfaces only.
 
-## Core distinction
+## Product boundary
 
-This is not CI and it is not the same as WI046.
+RepoPact must not become a thin wrapper around any frontier-lab ecosystem.
+
+Useful capabilities discovered in Codex, ChatGPT, Claude/Anthropic, Cursor, MCP hosts, IDEs, or
+other runtimes may inspire or supply an enforcement substrate, but the generic capability is
+internalized behind RepoPact-owned abstractions. If a vendor changes or disappears, RepoPact's
+policy model remains valid and another adapter can satisfy the same public contract.
+
+Likewise, RepoPact must remain cleanly separated from ForgeWire Fabric and any other closed/internal
+product. RepoPact contains no Fabric-specific authority, dependency, or privileged integration.
+If Fabric later uses RepoPact admission, Fabric implements that integration downstream against
+RepoPact's public adapter/SPI contract. Any upstream change must be adopter-neutral and independently
+justified for the OSS governance product.
+
+## Lifecycle placement
 
 ```text
-User / agent receives a task
-        |
-        v
-RepoPact pre-execution work admission   <-- WI050
-        |
-        | authorized session only
-        v
-Agent reads / edits / runs commands
-        |
-        v
-Verification + promotion/admission      <-- WI046 / H14
-        |
-        v
+Task arrives
+    |
+    v
+RepoPact work admission / preflight enforcement      <-- WI050
+    |
+    | authorized mutation only
+    v
+Agent/runtime performs work
+    |
+    v
+Typed completion/evidence semantics                  <-- WI044 when canonical
+    |
+    v
+Documentation closure                                <-- WI047 when canonical
+    |
+    v
+Verification / promotion admission                   <-- WI046 / H14
+    |
+    v
 merge / release / deployment
 ```
 
-WI050 answers **"may this agent begin mutating this adopted repository for this work?"**
+WI050 answers:
 
-WI046 answers **"did the required verification run and actually block a bad promotion?"**
+> May this agent/runtime begin or continue mutating this adopted repository for this work?
 
-Both are useful. Neither should be collapsed into the other.
+WI046 answers a later question:
 
-## Current RepoPact authority already available to the gate
+> Did the required verification run and actually prevent an invalid promotion?
 
-The gate should consume existing canonical RepoPact state rather than invent a parallel authority
-system. Candidate inputs include:
+CI and Git hooks remain useful backstops but are not the primary enforcement boundary for WI050.
+
+## RepoPact is the authority
+
+The guard consumes canonical RepoPact state rather than inventing a second authority system.
+Candidate inputs include:
 
 - applicable `AGENTS.md` contracts and repository invariants;
 - work-item lifecycle (`proposed` is not implementation authority; `active` is);
-- mandatory `preflight` marker from decision 0021 / WI023;
+- mandatory preflight from decision 0021 / WI023;
 - owner and affected scopes;
 - dependency state;
-- frozen-surface requirements and explicit operator approval where applicable;
+- frozen-surface requirements and explicit operator approval;
 - provenance rules;
 - repository validity;
-- post-release source/artifact identity (decision 0032);
-- later optional requirements introduced by other work items when those requirements become
-  canonical (for example documentation-impact declarations or typed completion claims).
+- post-release source/artifact development identity under decision 0032;
+- future optional requirements from other RepoPact work only after those requirements become
+  canonical.
 
-The transient authorization must never become the source of truth for those facts. It should be a
-runtime capability derived from canonical repository records.
+A transient session authorization is only an enforcement capability derived from those records.
+It never becomes durable project authority.
 
-## Candidate architecture — not yet a decision
+## Candidate RepoPact-native architecture
 
-A likely shape to evaluate is:
+```text
+                    canonical RepoPact records
+                              |
+                              v
+                    RepoPact admission policy
+                              |
+                              v
+                     RepoPact protected guard
+                              |
+                    public adapter / SPI contract
+             +----------------+----------------+
+             |                |                |
+        host adapter     protocol adapter   generic launcher /
+                                             sandbox adapter
+```
+
+A likely flow to evaluate is:
 
 ```text
 repopact begin / authorize --work-item NNN
         |
         | validate canonical workflow prerequisites
         v
-short-lived local work authorization
-  - repository identity
+short-lived RepoPact authorization
+  - canonical repository identity
+  - RepoPact root identity
   - work-item id
-  - base HEAD/tree
+  - base repository / authority state
   - allowed scopes / paths
-  - frozen-surface authorization state
-  - adapter/session identity
+  - frozen approval state
+  - adapter / session identity
   - expiry / invalidation metadata
         |
         v
-agent-runtime adapter
+protected RepoPact guard
         |
-        +-- read/orientation actions -> allow
+        v
+adapter asks before mutation
         |
-        +-- write / mutating command -> repopact gate check
-                                      |
-                                      +-- allow
-                                      +-- deny before execution
+        +-- allow
+        +-- deny before execution
 ```
 
-The exact record/token shape, storage location, cryptographic needs, lifetime, and invalidation
-rules are research questions for this work item. Any local lease/token is an enforcement artifact,
-not durable project authority and should normally be gitignored.
+The exact token/lease format, protected storage, signing needs, lifetime, and invalidation rules are
+architecture questions for this WI.
 
-## Enforcement levels must be honest
+## Adapter SPI and capability negotiation
 
-A repository file alone cannot universally stop every arbitrary process running as the same OS
-user. RepoPact must not claim universal pre-execution enforcement where the host gives it no
-interception point. The work therefore needs an explicit **coverage/capability model** for agent
-adapters.
+RepoPact should expose a public adapter contract rather than hard-code individual vendors into the
+kernel. An adapter declares what it can actually enforce. Candidate capabilities include:
 
-Candidate enforcement classes include:
+- canonical repository/session discovery;
+- read-only orientation;
+- session-start admission;
+- pre-action interception;
+- mutation-intent/path reporting;
+- path/scope confinement;
+- process/shell confinement;
+- protected host configuration;
+- operator-approval handoff;
+- fail-closed guard-health semantics;
+- subagent/session propagation.
 
-1. **Instruction-only** — AGENTS/prompt guidance. Useful context, not mechanical enforcement.
-2. **Session-start gate** — a launcher or host `before_run` hook refuses to start a mutating agent
-   session until RepoPact authorizes it.
-3. **Pre-tool gate** — the agent host calls RepoPact before each mutating tool action and can deny
-   execution. This is the preferred covered-host behavior.
-4. **Sandbox/OS boundary** — optional stronger enforcement where the host/platform can constrain
-   filesystem writes independently of agent cooperation.
-5. **Git/CI backstop** — catches bypass later; useful but explicitly not sufficient for WI050's
-   pre-execution claim.
+RepoPact computes the truthful enforcement class from those capabilities and the adopted
+repository's policy. An adapter cannot simply call itself `enforced` while omitting required
+substrate.
 
-For a host registered as `enforced`, inability to load or execute its RepoPact adapter must fail
-closed rather than silently degrade to instruction-only behavior.
+Reference adapter families may include Codex/ChatGPT coding surfaces, Claude/Anthropic coding
+surfaces, Cursor, MCP-capable hosts, generic local agents, IDE integrations, and future runtimes.
+These are adapters and compatibility tests, not governance dependencies.
 
-## Agent/runtime adapters
+MCP is specifically treated as a protocol adapter, not as universal enforcement. Routing one tool
+through MCP does not prove that native shell/filesystem paths are intercepted unless the host or a
+sandbox also constrains them.
 
-The core contract must be agent-neutral, with thin adapters for concrete execution hosts.
-Architecture work should evaluate at least:
+## Enforcement levels
 
-- Claude Code `PreToolUse` / session hooks, which can run before tool execution and are suitable
-  for refusing a mutating tool call;
-- Codex-family/local orchestrator boundaries, including fatal `before_run` hooks where supported,
-  managed requirements/sandbox controls, and whether a RepoPact launcher or MCP/tool-execution
-  proxy is required for per-action enforcement;
-- a generic `repopact agent-run --work-item NNN -- <agent command>` launcher/reference adapter;
-- ForgeWire/Fabric-style execution as a future adapter, without coupling RepoPact's kernel to
-  ForgeWire.
+RepoPact must report what is actually enforced:
 
-The work must distinguish what each host can actually enforce. A session-start-only integration
-must not be reported as equivalent to a pre-tool gate.
+1. **Instruction-only** — context/guidance; no mechanical first-write prevention.
+2. **Session-start** — mutating session cannot start without RepoPact admission.
+3. **Pre-action** — each mutating action passes through the RepoPact guard before execution.
+4. **Sandbox/process boundary** — filesystem/process effects are constrained independently of agent
+   cooperation.
+5. **Git/CI backstop** — later detection/admission protection, not first-write enforcement.
 
-## Expected admission checks
+A configured adapter advertised as enforced must fail closed if its protected guard is missing,
+broken, stale, or tampered.
 
-The design should determine the exact policy surface, but a mutation-capable agent session should
-be able to fail before work for conditions such as:
+## Protected enforcement root
 
-- no work item exists;
-- only a `proposed` item exists;
-- required preflight is absent or invalid;
-- work item is blocked/completed/deferred rather than active;
-- dependency state does not authorize execution;
-- requested write is outside owner/affected scopes;
-- requested write touches the frozen surface without explicit operator approval;
-- repository baseline is already invalid and policy does not explicitly permit repair mode;
-- post-release package/runtime source lacks required development identity;
-- authorization was issued for a different repository, work item, base commit, or scope;
-- the session authorization has expired or been invalidated by material state drift.
+Repo-local `AGENTS.md`, `CLAUDE.md`, `.claude/`, `.codex/`, `.cursor/`, MCP configuration, helper
+scripts, hooks, and links can aid discovery, but none may be the sole enforcement root.
 
-A controlled **repair/reconciliation mode** may be needed for cases like WI049 where the baseline
-is already nonconformant. That path must be explicit, narrower than ordinary implementation
-authority, and auditable; the gate must not make recovery from an invalid repository impossible.
+For enforced admission, the guard must be anchored outside ordinary agent-writable repository state
+or protected by a host-managed/OS boundary the gated process cannot modify. The guard binds adopted
+repositories by canonical identity and RepoPact root, not by prompt text or mutable convenience
+paths.
 
-## Read-only orientation
+Changing cwd, entering a linked worktree, starting a subagent, using a shell/Python write, or
+removing repo-local adapter configuration must not create an escape route.
 
-The system should not prevent an agent from reading enough of the repository to discover what work
-item is needed. A likely policy is:
+## Operator-controlled authority transition
 
-- reads, status inspection, `repopact doctor`, `repopact validate`, and planning/orientation are
-  allowed before authorization;
-- creation/activation of the governance records required to obtain authorization is allowed via a
-  narrowly defined bootstrap path;
-- ordinary source/configuration mutations are denied until work admission succeeds.
+The same gated agent must not manufacture its own implementation authority.
 
-This bootstrap exception is itself part of the security model and must be kept narrow enough that
-an agent cannot implement the task while claiming to be "creating preflight records."
+Read-only orientation and a bounded bootstrap path may permit creating or updating a **proposed**
+work record and requesting authorization. They must not permit the agent to make itself authorized
+by:
+
+- changing `proposed` to `active`;
+- fabricating operator approval;
+- fabricating frozen-surface approval;
+- replaying an authorization from another repository/work item/session;
+- rewriting protected guard registration or policy.
+
+The authority transition must use an operator-controlled channel or an equivalent proof the gated
+agent cannot forge.
+
+## Admission checks
+
+The final contract may evolve, but an ordinary mutation-capable session should be denied for cases
+such as:
+
+- no governed work item;
+- proposed-only work;
+- missing/invalid mandatory preflight;
+- blocked/completed/deferred lifecycle state;
+- unresolved dependency authority;
+- attempted path outside authorized scope;
+- frozen path without explicit approval;
+- invalid repository baseline without an explicit repair mode;
+- missing required post-release development identity;
+- stale authorization after material authority drift;
+- authorization for another repository/work item/session.
+
+A controlled repair/reconciliation mode must exist so RepoPact does not deadlock an already-invalid
+repository. It is narrower than ordinary implementation authority and auditable.
+
+## Read-only orientation and bootstrap
+
+Before authorization, an agent must still be able to inspect enough state to determine the correct
+next governance action. Candidate allowed operations include reads, Git status/log/diff, RepoPact
+status/doctor/validate, and creation/amendment of bounded proposed governance records.
+
+Arbitrary mutation-capable shell/process execution is not part of pre-authorization orientation.
+The bootstrap path needs executable negative tests proving it cannot be used to implement the real
+task or self-authorize.
+
+## Cross-platform baseline
+
+RepoPact itself is not a Windows-only product. WI050 requires the same public admission semantics on:
+
+- Windows;
+- Linux;
+- macOS.
+
+The policy core, authorization format/semantics, protected-guard contract, canonical repository
+identity rules, adapter SPI, diagnostics, and conformance behavior must be OS-neutral.
+
+Platform implementations may differ underneath:
+
+```text
+RepoPact policy / guard contract
+             |
+    +--------+--------+
+    |        |        |
+ Windows   Linux    macOS
+ backend   backend   backend
+```
+
+Platform-specific choices may include protected storage, service/daemon mechanisms, filesystem
+permissions, process confinement, sandboxing, IPC, and installation layout. Those are replaceable
+backends; no one OS defines the semantics.
+
+Closeout must include positive and fail-closed pre-execution proof on all three operating systems
+using a RepoPact-controlled reference integration. Individual external adapters declare their
+actual host/OS support matrix and cannot reduce the RepoPact baseline merely because a particular
+vendor product is unavailable on one platform.
+
+## Required bypass coverage
+
+Executable coverage must include at least:
+
+- direct editor/write-tool mutation;
+- PowerShell mutation;
+- POSIX shell mutation;
+- Python/direct filesystem mutation;
+- nested working directory;
+- linked Git worktree;
+- subagent/new session;
+- attempted guard/config modification;
+- proposed-work self-activation;
+- forged/replayed operator or frozen approval;
+- stale authorization after authority drift;
+- missing/tampered guard failure.
+
+For any adapter advertised as path/scope-enforced, arbitrary process writes must be constrained by a
+real sandbox/proxy/equivalent boundary rather than unreliable command-string parsing.
 
 ## Non-goals
 
-- Do not pretend Git hooks or CI are pre-execution enforcement.
-- Do not require RepoPact to become a coding-agent runtime, shell, IDE, or remote execution fleet.
-- Do not hard-code one agent vendor into the governance kernel.
-- Do not claim to block arbitrary out-of-band human/process writes that bypass every registered
-  adapter unless an OS-level mechanism actually provides that guarantee.
-- Do not replace WI046's promotion/admission-verification architecture.
+- Do not make RepoPact a wrapper around any one AI vendor ecosystem.
+- Do not put Fabric-specific or other proprietary product knowledge into RepoPact.
+- Do not pretend repository instructions, Git hooks, or CI prevent the first write.
+- Do not require RepoPact to become an LLM runtime, IDE, shell, or remote execution fleet.
+- Do not claim universal protection against arbitrary out-of-band processes without an actual
+  process/sandbox/OS boundary.
+- Do not replace WI046 promotion admission.
 - Do not collapse WI044 typed completion evidence or WI047 documentation closure into this item.
-- Do not make transient session leases the durable source of project authority.
+- Do not make transient runtime authorization durable project authority.
 
 ## Relationship to other work
 
-- **WI023 / decision 0021** defines mandatory preflight as a repository contract. WI050 makes that
-  contract enforceable before covered-agent mutation rather than only detectable later.
-- **WI049** is direct field evidence for the bypass class and must complete before WI050 becomes
-  active.
-- **WI046** owns verification/promotion admission after work; WI050 owns admission to begin work.
-- **WI044** may later define richer completion claims, but it is not required to decide whether an
-  agent may start mutating code.
-- **WI047** may later add documentation-impact workflow requirements that WI050 can consume once
-  they are canonical.
+- **WI023 / decision 0021** defines mandatory preflight. WI050 makes it enforceable before covered
+  mutation.
+- **WI049** supplies the direct historical bypass case and is now completed.
+- **WI044** may later add richer completion semantics; WI050 can consume them only after canonical.
+- **WI047** may later add documentation-impact requirements; likewise consumed only after canonical.
+- **WI046** owns post-work verification/promotion admission.
+- **Downstream closed/internal products** may consume RepoPact's public adapter/SPI contract but do
+  not become RepoPact dependencies.
 
 ## Implementation ordering
 
-Architecture and threat/bypass analysis come first. Before changing schemas, adoption policy,
-agent configuration, or frozen surfaces, the work must record which enforcement boundary is
-actually achievable for each reference host and what RepoPact can truthfully guarantee.
+Threat/bypass analysis and architecture decisions come first. Schema, guard, adoption, adapter, or
+platform implementation starts only after the public contract and truthful enforcement classes are
+chosen explicitly.
 
-Any frozen-surface change requires its own explicit operator approval under INV-6. Approval granted
-for another work item does not automatically authorize WI050 changes.
+Any frozen-surface change requires WI050-specific operator approval under INV-6. Approval granted
+for another WI does not carry over.
 
 ## Closeout standard
 
-Closeout must include executable negative proof where a covered agent/runtime attempts a mutating
-action without valid work authorization and the action is refused **before the target filesystem
-state changes**. It must also prove a valid authorized session can work normally, scope expansion
-is denied or re-authorized, adapter failure fails closed in enforced mode, and an unsupported host
-is reported honestly rather than counted as covered.
+WI050 cannot close with a demo that merely generates configuration files. It must prove, on
+Windows, Linux, and macOS, that a covered unauthorized mutation is refused **before target
+filesystem state changes**, that authorized work can proceed within scope, that scope/frozen
+authority expansion requires re-authorization, that the agent cannot self-authorize, and that
+protected-guard failure cannot silently downgrade enforced mode.

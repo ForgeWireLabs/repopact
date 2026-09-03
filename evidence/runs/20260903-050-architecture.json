@@ -1,0 +1,128 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-architecture",
+  "timestamp": "2026-09-03T17:25:24Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status --short",
+      "exit_code": 0,
+      "summary": "Clean before WI050 activation; no unexpected concurrent implementation."
+    },
+    {
+      "command": "git fetch origin --tags; git pull --ff-only origin main",
+      "exit_code": 0,
+      "summary": "Synchronized main at 520159b1e745f4b0b3ed38b2504280dced95cee3."
+    },
+    {
+      "command": "git rev-parse HEAD; git rev-parse origin/main; git rev-parse v3.0.2^{}",
+      "exit_code": 0,
+      "summary": "HEAD equals origin/main; v3.0.2 remains dfab8cb8ca010a865ebb3291c526179fb5cb4b2c."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Editable package installed as repopact 3.0.2.dev1."
+    },
+    {
+      "command": "repopact dashboard --root .; repopact spec --root .",
+      "exit_code": 0,
+      "summary": "Derived dashboard and SPEC blocks regenerated."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "160 tests passed; 2 disclosed pre-existing skips."
+    },
+    {
+      "command": "repopact validate --root .",
+      "exit_code": 0,
+      "summary": "Governance records, active WI050, decisions, evidence, research, and derived surfaces validate."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "Reference conformance suite passed 20 of 20 cases."
+    },
+    {
+      "command": "repopact check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen implementation diff; architecture proposal changes no protected path."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors."
+    }
+  ],
+  "artifacts": [
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/README.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/operator-control-plane.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/architecture.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/threat-model.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/integration-platform.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/frozen-surface-proposal.md",
+    "research/captures/018-wi050-pre-execution-admission-field-evidence.md",
+    "decisions/0038-pre-execution-admission-architecture.md",
+    "repopact/_audit/alignment-report.md",
+    "audits/reports/dashboard.md",
+    "SPEC.md"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "branch": "main",
+    "architecture_only": true
+  },
+  "architecture": {
+    "decision": "0038",
+    "state_machine": "UNREGISTERED -> REGISTERED/ADOPTED -> ORIENTATION -> PENDING OPERATOR AUTHORIZATION -> AUTHORIZED -> ACTIVE LEASE -> EXPIRED/REVOKED/INVALIDATED",
+    "guard": "hybrid portable policy core plus protected local guard/service plus thin adapters",
+    "operator_proof": "canonical request digest plus protected user-presence signature; check-frozen --ack and chat text are not proof",
+    "profiles": ["observe", "bounded", "standard", "elevated", "unrestricted-within-boundary"],
+    "delegation": "strict subset of parent authority with binding, expiry, depth, lineage, and inherited revocation",
+    "identity": "adoption binding plus Git common-dir/root/contract digest; remote is corroborating only",
+    "platforms": {
+      "windows": "protected service/named pipe plus CNG/DPAPI and Job Objects or equivalent confinement",
+      "linux": "systemd or daemon plus Unix socket peer credentials and namespace/Landlock/sandbox backends",
+      "macos": "launchd/XPC plus Keychain/Secure Enclave and sandbox/EndpointSecurity or managed wrapper"
+    },
+    "repair": "narrow operator-approved diagnosed-scope lease; no general implementation or trust authority",
+    "product_boundary": "vendor-neutral OSS RepoPact; external products and ForgeWire Fabric are downstream adapters only"
+  },
+  "frozen_surface_proposal": {
+    "required_later": [
+      "repopact/schemas/admission-policy.schema.json",
+      "repopact/schemas/operator-authority.schema.json",
+      "repopact/schemas/authorization-request.schema.json",
+      "repopact/schemas/authorization-receipt.schema.json",
+      "repopact/schemas/repository-registration.schema.json",
+      "repopact/schemas/adapter-capabilities.schema.json"
+    ],
+    "optional_later": [".github/workflows/**", "governance/invariants.json", "governance/charter.md"],
+    "not_needed": ["WI044/WI047 completion schemas", "WI046 promotion semantics", "VERSION/RELEASE_LABEL/tag changes"]
+  },
+  "acceptance_criteria_satisfied": ["AC-1", "AC-2", "AC-3", "AC-4", "AC-5", "AC-6", "AC-10", "AC-11", "AC-12", "AC-13", "AC-15", "AC-19", "AC-20", "AC-21", "AC-23"],
+  "acceptance_criteria_pending": ["AC-7", "AC-8", "AC-9", "AC-14", "AC-16", "AC-17", "AC-18", "AC-22", "AC-24"],
+  "scope_guard": {
+    "runtime_implementation": false,
+    "schema_implementation": false,
+    "adapter_implementation": false,
+    "platform_backend_implementation": false,
+    "frozen_surface_changed": false,
+    "wi044_implemented": false,
+    "wi046_implemented": false,
+    "wi047_implemented": false
+  },
+  "version": {
+    "VERSION": "3.0.2",
+    "RELEASE_LABEL": "3.0.2-dev.1",
+    "stable_tag_unchanged": true,
+    "stable_release_created": false
+  }
+}

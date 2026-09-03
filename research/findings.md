@@ -10,6 +10,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 
 | ID | Hypothesis | Severity | One-line | Capture | Resolution |
 | --- | --- | --- | --- | --- | --- |
+| F-019 | H14 | major | Mandatory preflight and post-change validation are durable records but do not mechanically prevent an autonomous agent's first runtime write; f2c80b7 could edit, validate, commit, and push before WI049 reconciliation exposed the ordering gap | [018](captures/018-wi050-pre-execution-admission-field-evidence.md) | **architecture accepted** (WI050, decision 0038) - a protected, vendor-neutral admission contract is specified; executable guard and cross-platform proof remain pending |
 | F-001 | H2 | major | `repopact spec` crashes on an `init`-fresh repo (no `SPEC.md` seeded) | [001](captures/001-package-verification.md) | **fixed** (WI 007, dec 0006) — re-verified [003](captures/003-rebuild-reverify.md) |
 | F-002 | H4 | minor | `check-frozen` diffs `base...HEAD` only; a working-tree change to a protected file reports a false "all clear" pre-commit | [002](captures/002-proving-ground-workflow.md) | **fixed** (WI 007) — re-verified [003](captures/003-rebuild-reverify.md) |
 | F-003 | H3 | holds | Validator rejects a criterion marked `satisfied` with no evidence | [002](captures/002-proving-ground-workflow.md) | n/a |

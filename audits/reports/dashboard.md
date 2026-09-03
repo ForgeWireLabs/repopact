@@ -13,16 +13,16 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 2 |
-| Decision records | 37 |
+| Decision records | 38 |
 | Policy records | 2 |
-| Evidence runs | 53 |
+| Evidence runs | 54 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| proposed | 5 |
-| active | 4 |
+| proposed | 4 |
+| active | 5 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 41 |
@@ -37,4 +37,5 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

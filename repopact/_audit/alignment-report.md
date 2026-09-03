@@ -1,5 +1,17 @@
 # Tooling Alignment Report
 
+## 2026-09-03 WI050 admission architecture review
+
+- Reviewed validate_repo.py, check_frozen_surface.py, init_repo.py,
+  adopt_repo.py, doctor.py, and the CLI against the f2c80b7/WI049
+  first-write bypass.
+- Current validation and frozen checks remain deterministic repository
+  backstops; check-frozen --ack is a caller assertion and is not operator
+  proof in the accepted WI050 design.
+- Decision 0038 selects a protected guard plus vendor-neutral adapter SPI for
+  a later implementation pass. No tooling/runtime behavior or frozen path was
+  changed in this architecture phase.
+
 ## 2026-09-03 deterministic evidence timestamp chronology
 
 - `validate_repo.validate_evidence` retains ISO-8601 validation for all runs and

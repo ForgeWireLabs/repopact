@@ -1,8 +1,33 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: 📋 Planning (proposed — architecture first)
+> **Status**: Active (architecture phase; implementation not authorized)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
+
+## Architecture-phase disposition
+
+Decision [0038](../../../decisions/0038-pre-execution-admission-architecture.md)
+accepts a vendor-neutral policy core, protected local guard/service, signed
+operator approval and short-lived leases, truthful adapter capability
+negotiation, canonical repository registration, tiered profiles, and
+non-escalating generic delegation. The supporting records are:
+
+* [architecture](architecture.md) - state machine, admission contract,
+  bootstrap, approval, trust, profiles, delegation, repair, compatibility,
+  boundaries, and falsification gates;
+* [threat model](threat-model.md) - f2c80b7/WI049 field capture, bypass matrix,
+  enforcement taxonomy, ecosystem observations, and implementation tests;
+* [integration and platform architecture](integration-platform.md) - guard
+  alternatives, adapter SPI, identity, and Windows/Linux/macOS backend
+  directions;
+* [frozen-surface proposal](frozen-surface-proposal.md) - exact required,
+  optional, and not-needed INV-6 paths for the later implementation pass;
+* [field capture 018](../../../research/captures/018-wi050-pre-execution-admission-field-evidence.md).
+
+This phase deliberately does not add runtime guard code, schemas, CLI/API
+commands, adapters, platform backends, or executable admission tests.
+Implementation-dependent acceptance criteria remain pending. WI044, WI046,
+and WI047 remain outside this item.
 
 ## Intent
 

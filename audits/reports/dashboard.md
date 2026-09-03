@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 4 |
-| active | 4 |
+| active | 5 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 40 |
@@ -37,4 +37,5 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 049: Reconcile Post-3.0.2 Evidence-Timestamp Hotfix and Development Identity (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

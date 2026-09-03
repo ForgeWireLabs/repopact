@@ -6,11 +6,13 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
+import sys
 
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
 from repopact.guard import GuardService, ProtectedGuard
 from repopact.guard_ipc import NativeGuardClient, local_peer_binding
 from repopact.platform_backends import TestingBackend, WindowsBackend
+import repopact.platform_backends as platform_backends
 
 
 class GuardAuthorityTests(unittest.TestCase):
@@ -77,6 +79,59 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(report["checks"]["source_tree_clean"])
         self.assertEqual(report["mutations"], [])
         self.assertEqual(backend.install_root.exists(), before)
+
+    def test_preflight_records_explicit_interpreter_and_isolated_service_command(self):
+        backend = WindowsBackend()
+        self_test = {
+            "ok": True, "isolated": True, "user_site_enabled": False, "sys_path": [],
+            "required_modules": ["cryptography", "cryptography_ed25519", "_cffi_backend"],
+            "module_origins": {
+                "cryptography": str(self.tmp / "system" / "cryptography.py"),
+                "cryptography.hazmat.primitives.asymmetric.ed25519": str(self.tmp / "system" / "ed25519.py"),
+                "_cffi_backend": str(self.tmp / "system" / "_cffi_backend.pyd"),
+            }, "errors": [],
+        }
+        for origin in self_test["module_origins"].values():
+            path = Path(origin); path.parent.mkdir(parents=True, exist_ok=True); path.touch()
+        with patch.object(platform_backends, "_run_isolated_dependency_self_test", return_value=self_test):
+            report = backend.preflight(self.root, interpreter=Path(sys.executable))
+        self.assertEqual(report["interpreter"]["path"], str(Path(sys.executable).absolute()))
+        self.assertTrue(report["interpreter"]["canonical_path"])
+        self.assertIn(" -I ", f" {report['service_command']} ")
+        self.assertIn(report["interpreter"]["canonical_path"], report["service_command"])
+        self.assertIn("--state-root", report["service_command"])
+
+    def test_user_site_dependency_is_rejected_even_outside_checkout_and_venv(self):
+        backend = WindowsBackend()
+        user_site = self.tmp / "user-site" / "site-packages"
+        origin = user_site / "cryptography" / "__init__.py"
+        origin.parent.mkdir(parents=True, exist_ok=True); origin.write_text("# fixture\n", encoding="utf-8")
+        self_test = {
+            "ok": True, "isolated": True, "user_site_enabled": False, "sys_path": [],
+            "required_modules": ["cryptography"], "module_origins": {"cryptography": str(origin)}, "errors": [],
+        }
+        with patch.object(platform_backends, "_run_isolated_dependency_self_test", return_value=self_test):
+            report = backend.preflight(self.root, interpreter=Path(sys.executable))
+        record = report["dependencies"]["cryptography"]
+        self.assertFalse(record["protected"])
+        self.assertIn("user-writable", record["reason"])
+        self.assertFalse(report["checks"]["required_dependency_closure"])
+
+    def test_isolated_self_test_ignores_environment_and_checkout_injection(self):
+        result = platform_backends._run_isolated_dependency_self_test(Path(sys.executable))
+        self.assertTrue(result["ok"], result.get("errors"))
+        self.assertFalse(result["user_site_enabled"])
+        self.assertNotIn("", result["sys_path"])
+        self.assertTrue(result["sys_path"])
+        self.assertTrue(all(str(self.root).lower() not in str(path).lower() for path in result["sys_path"]))
+
+    def test_acl_parser_allows_read_only_users_but_rejects_replacement_rights(self):
+        read_only = r"C:\Program Files\RepoPact BUILTIN\Users:(OI)(CI)(RX)"
+        writable = r"C:\Program Files\RepoPact BUILTIN\Users:(OI)(CI)(M)"
+        authenticated = r"C:\Program Files\RepoPact NT AUTHORITY\Authenticated Users:(RX,W)"
+        self.assertFalse(platform_backends._windows_acl_has_broad_write(read_only))
+        self.assertTrue(platform_backends._windows_acl_has_broad_write(writable))
+        self.assertTrue(platform_backends._windows_acl_has_broad_write(authenticated))
 
     def test_binding_has_host_pid_not_claimed_session(self):
         binding = local_peer_binding()

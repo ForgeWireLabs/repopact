@@ -12,9 +12,12 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
+import stat
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -115,22 +118,277 @@ def _windows_acl(path: Path) -> tuple[bool, str]:
 
 
 def _windows_runtime_is_protected(path: Path) -> bool:
-    """Conservatively reject a service interpreter writable by Users."""
-    if os.name != "nt" or not path.is_file():
-        return False
-    # A per-user/AppData interpreter is writable by its owner even when an
-    # ``icacls`` summary happens not to print a generic Users:(F) ACE.
+    """Conservatively reject an interpreter replaceable through its path."""
+    protected, _ = _windows_path_chain_is_protected(path)
+    return protected
+
+
+def _windows_reparse_point(path: Path) -> bool:
+    """Return whether *path* is a symlink or Windows reparse point."""
     try:
-        user_root = Path(os.environ.get("USERPROFILE", str(Path.home()))).resolve()
-        if path.resolve().is_relative_to(user_root):
-            return False
+        if path.is_symlink():
+            return True
+        attributes = getattr(path.stat(follow_symlinks=False), "st_file_attributes", 0)
+        return bool(attributes & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400))
     except (OSError, ValueError):
-        return False
-    code, output = _command_output(["icacls", str(path)])
-    if code != 0:
-        return False
-    upper = output.upper().replace(" ", "")
-    return not any(marker in upper for marker in ("USERS:(F)", "USERS:(M)", "USERS:(W)", "AUTHENTICATEDUSERS:(F)", "AUTHENTICATEDUSERS:(M)"))
+        return True
+
+
+def _windows_user_writable_roots() -> tuple[Path, ...]:
+    """Known per-user roots that must never feed a LocalSystem trust chain."""
+    values = [
+        os.environ.get("USERPROFILE"),
+        os.environ.get("LOCALAPPDATA"),
+        os.environ.get("APPDATA"),
+        os.environ.get("TEMP"),
+        os.environ.get("TMP"),
+        str(Path.home()),
+    ]
+    user_profile = values[0] or str(Path.home())
+    values.append(str(Path(user_profile) / "Downloads"))
+    roots: list[Path] = []
+    for value in values:
+        if value:
+            try:
+                roots.append(Path(value).expanduser().resolve(strict=False))
+            except (OSError, ValueError):
+                continue
+    # Preserve order while removing duplicate paths.
+    unique: dict[str, Path] = {}
+    for root in roots:
+        unique.setdefault(_normalise(root), root)
+    return tuple(unique.values())
+
+
+def _is_under(path: Path, roots: tuple[Path, ...]) -> bool:
+    try:
+        candidate = path.resolve(strict=False)
+    except (OSError, ValueError):
+        return True
+    return any(candidate == root or candidate.is_relative_to(root) for root in roots)
+
+
+def _windows_acl_has_broad_write(output: str) -> bool:
+    """Detect write/delete rights granted to ordinary broad principals."""
+    user_principals = ["(?:BUILTIN\\\\)?USERS:", "AUTHENTICATEDUSERS:", "EVERYONE:", "INTERACTIVE:"]
+    for username in (os.environ.get("USERNAME"), os.environ.get("USER")):
+        if username:
+            user_principals.append(re.escape(username.upper()) + ":")
+    principals = re.compile("|".join(user_principals))
+    dangerous = {"F", "M", "W", "D", "DC", "WDAC", "WO", "DELETE", "AD", "WEA", "WA"}
+    for line in output.upper().splitlines():
+        compact = line.replace(" ", "")
+        match = principals.search(compact)
+        if not match:
+            continue
+        permissions = compact[match.end():]
+        for token in re.findall(r"\(([^)]*)\)", permissions):
+            token = token.strip()
+            # OI/CI/I/NP/IO are inheritance flags, not access rights.
+            if token in {"OI", "CI", "I", "NP", "IO"}:
+                continue
+            if token in dangerous or any(right in token for right in dangerous):
+                return True
+    return False
+
+
+def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
+    """Check a file and every replaceable parent against user write rights."""
+    if os.name != "nt":
+        return False, "Windows ACL inspection is unavailable on this host"
+    try:
+        candidate = Path(path).expanduser()
+        # Inspect the supplied hierarchy before resolving it. A junction or
+        # symlink in a parent directory can redirect an otherwise protected
+        # canonical target to a user-replaceable location.
+        supplied = candidate.absolute()
+        supplied_parts: list[Path] = []
+        current_supplied = supplied
+        while True:
+            supplied_parts.append(current_supplied)
+            if current_supplied.parent == current_supplied:
+                break
+            current_supplied = current_supplied.parent
+        if any(_windows_reparse_point(item) for item in supplied_parts):
+            return False, "interpreter/dependency path hierarchy contains a symlink or reparse point"
+        if not candidate.is_file():
+            return False, "path is absent or not a regular file"
+        canonical = candidate.resolve(strict=True)
+        if _windows_reparse_point(candidate) or canonical != supplied.resolve(strict=False):
+            return False, "interpreter/dependency path contains a symlink or reparse point"
+        if _is_under(canonical, _windows_user_writable_roots()):
+            return False, "path is under a known user-writable root"
+    except (OSError, ValueError):
+        return False, "path could not be resolved canonically"
+
+    checked: list[str] = []
+    current = canonical
+    while True:
+        if _windows_reparse_point(current):
+            return False, f"path hierarchy contains a symlink or reparse point: {current}"
+        code, output = _command_output(["icacls", str(current)])
+        if code != 0:
+            return False, f"icacls could not inspect {current}"
+        if _windows_acl_has_broad_write(output):
+            return False, f"ordinary users can modify or replace {current}"
+        checked.append(str(current))
+        if current.parent == current:
+            break
+        current = current.parent
+    return True, "ACL/path chain protected: " + ", ".join(checked)
+
+
+_ISOLATED_DEPENDENCY_SELF_TEST = r'''
+import importlib
+import json
+import site
+import sys
+
+result = {
+    "ok": False,
+    "isolated": False,
+    "user_site_enabled": bool(getattr(site, "ENABLE_USER_SITE", False)),
+    "sys_path": list(sys.path),
+    "required_modules": [],
+    "module_origins": {},
+    "errors": [],
+}
+
+def add_module(logical, name):
+    module = importlib.import_module(name)
+    origin = getattr(module, "__file__", None)
+    if not origin:
+        raise RuntimeError(f"{name} has no file origin")
+    result["required_modules"].append(logical)
+    result["module_origins"][name] = origin
+    return module
+
+try:
+    add_module("cryptography", "cryptography")
+    add_module("cryptography_hashes", "cryptography.hazmat.primitives.hashes")
+    add_module("cryptography_serialization", "cryptography.hazmat.primitives.serialization")
+    ed25519 = add_module("cryptography_ed25519", "cryptography.hazmat.primitives.asymmetric.ed25519")
+    add_module("cryptography_aesgcm", "cryptography.hazmat.primitives.ciphers.aead")
+    add_module("cryptography_pbkdf2", "cryptography.hazmat.primitives.kdf.pbkdf2")
+    private = ed25519.Ed25519PrivateKey.generate()
+    signature = private.sign(b"RepoPact isolated dependency self-test")
+    private.public_key().verify(signature, b"RepoPact isolated dependency self-test")
+    # The modern cryptography build uses cryptography.hazmat.bindings._rust;
+    # older supported builds may load _openssl through cffi instead. Record
+    # whichever native binding actually entered this process.
+    for name, module in sorted(sys.modules.items()):
+        if not module or not (name.startswith("cryptography") or name.startswith("cffi") or name == "_cffi_backend"):
+            continue
+        origin = getattr(module, "__file__", None)
+        if origin:
+            result["module_origins"][name] = origin
+    for name in ("cffi", "_cffi_backend"):
+        if name in result["module_origins"]:
+            result["required_modules"].append(name)
+    result["isolated"] = (not result["user_site_enabled"] and "" not in result["sys_path"] and
+                           all(".venv" not in str(item).lower() for item in result["sys_path"]))
+    result["ok"] = bool(result["isolated"] and signature and not result["errors"])
+except Exception as exc:
+    result["errors"].append(f"{type(exc).__name__}: {exc}")
+
+print("REPOPACT_SELF_TEST=" + json.dumps(result, sort_keys=True))
+'''
+
+
+def _run_isolated_dependency_self_test(interpreter: Path) -> dict[str, Any]:
+    """Run the selected interpreter with the exact ``-I`` isolation mode."""
+    base: dict[str, Any] = {
+        "ok": False, "isolated": False, "user_site_enabled": None,
+        "sys_path": [], "required_modules": [], "module_origins": {}, "errors": [],
+    }
+    if not interpreter.is_file():
+        base["errors"] = ["selected interpreter is absent or not a regular file"]
+        return base
+    env = os.environ.copy()
+    # Deliberately hostile values make the executable test prove that -I wins.
+    env["PYTHONPATH"] = str(Path.cwd())
+    env["PYTHONHOME"] = str(Path.cwd())
+    env["PYTHONUSERBASE"] = str(Path.cwd())
+    try:
+        completed = subprocess.run(
+            [str(interpreter), "-I", "-c", _ISOLATED_DEPENDENCY_SELF_TEST],
+            cwd=tempfile.gettempdir(), env=env, text=True, capture_output=True,
+            check=False, timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        base["errors"] = [f"isolated self-test failed to execute: {exc}"]
+        return base
+    marker = "REPOPACT_SELF_TEST="
+    payload = next((line[len(marker):] for line in reversed((completed.stdout or "").splitlines())
+                    if line.startswith(marker)), "")
+    if not payload:
+        base["errors"] = [f"isolated self-test produced no result (exit {completed.returncode})"]
+        if completed.stderr:
+            base["errors"].append(completed.stderr.strip()[-500:])
+        return base
+    try:
+        result = json.loads(payload)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        base["errors"] = [f"isolated self-test returned invalid JSON: {exc}"]
+        return base
+    if completed.returncode != 0:
+        result.setdefault("errors", []).append(f"isolated self-test exit code {completed.returncode}")
+        result["ok"] = False
+    return result
+
+
+def _dependency_origin_record(origin: str, root: Path | None) -> dict[str, Any]:
+    """Return a conservative, explainable trust result for one module origin."""
+    try:
+        path = Path(origin).expanduser()
+        canonical = path.resolve(strict=True)
+    except (OSError, ValueError):
+        return {"origin": str(origin), "canonical_path": "", "protected": False,
+                "reason": "dependency origin is absent or cannot be resolved"}
+    if not canonical.is_file():
+        return {"origin": str(origin), "canonical_path": str(canonical), "protected": False,
+                "reason": "dependency origin is not a regular file"}
+    if root is not None:
+        try:
+            if canonical.is_relative_to(root.resolve()):
+                return {"origin": str(origin), "canonical_path": str(canonical), "protected": False,
+                        "reason": "dependency resolves inside the checkout"}
+        except (OSError, ValueError):
+            return {"origin": str(origin), "canonical_path": str(canonical), "protected": False,
+                    "reason": "checkout boundary could not be resolved"}
+    if any(".venv" in part.lower() for part in canonical.parts):
+        return {"origin": str(origin), "canonical_path": str(canonical), "protected": False,
+                "reason": "dependency resolves inside a repository virtual environment"}
+    if _is_under(canonical, _windows_user_writable_roots()):
+        return {"origin": str(origin), "canonical_path": str(canonical), "protected": False,
+                "reason": "dependency resolves under a known user-writable root"}
+    protected, reason = _windows_path_chain_is_protected(canonical)
+    return {"origin": str(origin), "canonical_path": str(canonical), "protected": protected,
+            "reason": reason}
+
+
+def _isolated_sys_path_is_safe(values: Any, root: Path | None) -> tuple[bool, str]:
+    """Ensure isolated startup did not regain checkout/user path injection."""
+    if not isinstance(values, list):
+        return False, "isolated self-test did not report sys.path"
+    checkout = root.resolve() if root is not None else None
+    source_package = Path(__file__).resolve().parent
+    for value in values:
+        if not isinstance(value, str) or not value:
+            return False, "isolated sys.path contains an empty or invalid entry"
+        try:
+            path = Path(value).resolve(strict=False)
+        except (OSError, ValueError):
+            return False, f"isolated sys.path entry could not be resolved: {value}"
+        if checkout is not None and (path == checkout or checkout in path.parents):
+            return False, f"isolated sys.path points into the checkout: {path}"
+        if path == source_package or source_package in path.parents:
+            return False, f"isolated sys.path points into the source checkout: {path}"
+        if any(".venv" in part.lower() for part in path.parts):
+            return False, f"isolated sys.path points into a virtual environment: {path}"
+        if _is_under(path, _windows_user_writable_roots()):
+            return False, f"isolated sys.path points into a user-writable root: {path}"
+    return True, "isolated sys.path contains no checkout, virtualenv, or user-writable path"
 
 
 @dataclass(frozen=True)
@@ -289,7 +547,7 @@ class WindowsBackend(PlatformBackend):
                 "`python -m repopact.cli guard install --root <repo>` in the elevated shell"
             )
 
-    def preflight(self, root: Path | None = None) -> dict[str, Any]:
+    def preflight(self, root: Path | None = None, *, interpreter: Path | None = None) -> dict[str, Any]:
         """Run all non-mutating install checks and return a deterministic report."""
         checks: dict[str, Any] = {}
         checks["platform"] = os.name == "nt"
@@ -310,35 +568,84 @@ class WindowsBackend(PlatformBackend):
         checks["acl_api"] = shutil.which("icacls.exe") is not None if os.name == "nt" else False
         checks["runtime_target_absent"] = not self.install_root.exists()
         checks["service_name_available"] = not bool(self._service_configuration()[0] or self._service_running())
-        # The service uses the selected protected interpreter and its installed
-        # system site-packages. Reject repo-local/per-user interpreters and
-        # ensure the receipt verifier is importable before mutation.
-        interpreter = Path(sys.executable).resolve()
-        checks["interpreter_path"] = str(interpreter)
-        checks["interpreter_protected"] = _windows_runtime_is_protected(interpreter) if os.name == "nt" else False
-        dependency_origins: list[str] = []
-        try:
-            import importlib.util
-            for name in ("cryptography", "cffi"):
-                spec = importlib.util.find_spec(name)
-                if spec is None or not spec.origin:
-                    checks[f"dependency_{name}"] = False
-                else:
-                    origin = str(Path(spec.origin).resolve()); dependency_origins.append(origin)
-                    checks[f"dependency_{name}"] = not (root and Path(origin).is_relative_to(root.resolve())) and ".venv" not in origin.lower()
-        except (ImportError, OSError, ValueError):
-            checks["dependency_cryptography"] = False; checks["dependency_cffi"] = False
-        checks["required_dependency_closure"] = all(checks.get(f"dependency_{name}", False) for name in ("cryptography", "cffi"))
-        checks["windows_api"] = os.name == "nt"
-        checks["ready"] = all(value for key, value in checks.items() if key not in {"interpreter_path"})
-        return {"backend": self.name, "service_name": self.service_name, "install_root": str(self.install_root),
-                "runtime_path": str(self.runtime_path), "state_path": str(self.protected_state_location),
-                "interpreter": str(interpreter), "source_revision": revision,
-                "dependency_origins": dependency_origins, "checks": checks,
-                "mutations": [], "rollback": "not-needed" if checks["ready"] else "no machine mutation performed"}
 
-    def install(self, root: Path | None = None, *, preflight: bool = False, **_: Any) -> dict[str, Any]:
-        report = self.preflight(root)
+        # An omitted path is only a convenience default. It is still made
+        # explicit, canonicalized, and subjected to exactly the same checks as
+        # an operator-selected interpreter.
+        requested_interpreter = Path(interpreter if interpreter is not None else sys.executable).expanduser()
+        try:
+            requested_absolute = requested_interpreter.absolute()
+            canonical_interpreter = requested_interpreter.resolve(strict=True)
+        except (OSError, ValueError):
+            requested_absolute = requested_interpreter.absolute()
+            canonical_interpreter = Path()
+        interpreter_path = str(requested_absolute)
+        canonical_path = str(canonical_interpreter) if canonical_interpreter != Path() else ""
+        interpreter_exists = bool(canonical_path and canonical_interpreter.is_file())
+        interpreter_stable = bool(interpreter_exists and not _windows_reparse_point(canonical_interpreter))
+        interpreter_protected = bool(interpreter_stable and _windows_runtime_is_protected(canonical_interpreter)) if os.name == "nt" else False
+        self_test = _run_isolated_dependency_self_test(canonical_interpreter if interpreter_exists else requested_absolute)
+        checks["interpreter_path"] = interpreter_path
+        checks["interpreter_stable"] = interpreter_stable
+        checks["interpreter_protected"] = interpreter_protected
+        checks["isolated_self_test"] = bool(self_test.get("ok"))
+        isolated_paths_safe, isolated_paths_reason = _isolated_sys_path_is_safe(self_test.get("sys_path", []), root)
+        self_test["sys_path_safe"] = isolated_paths_safe
+        self_test["sys_path_reason"] = isolated_paths_reason
+        checks["isolated_paths_safe"] = isolated_paths_safe
+
+        module_origins = self_test.get("module_origins", {})
+        if not isinstance(module_origins, Mapping):
+            module_origins = {}
+        dependency_records: dict[str, dict[str, Any]] = {}
+        for module_name, origin in sorted(module_origins.items()):
+            if isinstance(module_name, str) and isinstance(origin, str):
+                dependency_records[module_name] = _dependency_origin_record(origin, root)
+        required_modules = [name for name in self_test.get("required_modules", []) if isinstance(name, str)]
+        required_origins = [dependency_records[name] for name in required_modules if name in dependency_records]
+        cryptography_records = [record for name, record in dependency_records.items() if name.startswith("cryptography")]
+        native_records = [record for name, record in dependency_records.items()
+                          if name.startswith("cryptography") and Path(record["canonical_path"] or record["origin"]).suffix.lower() in {".pyd", ".dll", ".so", ".dylib"}]
+        cffi_required = any(name in {"cffi", "_cffi_backend"} for name in required_modules)
+        cffi_records = [record for name, record in dependency_records.items() if name == "cffi" or name == "_cffi_backend"]
+        checks["dependency_cryptography"] = bool(cryptography_records) and all(record["protected"] for record in cryptography_records)
+        checks["dependency_cryptography_native"] = bool(native_records) and all(record["protected"] for record in native_records)
+        checks["dependency_cffi"] = (not cffi_required) or (bool(cffi_records) and all(record["protected"] for record in cffi_records))
+        checks["required_dependency_closure"] = bool(self_test.get("ok") and isolated_paths_safe and required_origins and
+                                                     all(record["protected"] for record in required_origins))
+        checks["windows_api"] = os.name == "nt"
+
+        service_command_argv = [str(canonical_interpreter or requested_absolute), "-I",
+                                str(self.runtime_path / "repopact" / "windows_guard_service.py"),
+                                "--service", "--state-root", str(self.protected_state_location)]
+        service_command = subprocess.list2cmdline(service_command_argv)
+        checks["service_command_isolated"] = " -I " in f" {service_command} "
+        # Only boolean checks participate in readiness; descriptive paths and
+        # lists must never accidentally make a report truthy.
+        checks["ready"] = all(value for key, value in checks.items() if key != "ready" and isinstance(value, bool))
+        dependency_origins = sorted({record["canonical_path"] for record in dependency_records.values()
+                                     if record.get("canonical_path")})
+        interpreter_info = {
+            "path": interpreter_path,
+            "canonical_path": canonical_path,
+            "protected": interpreter_protected,
+            "stable": interpreter_stable,
+            "isolated_self_test": bool(self_test.get("ok")),
+        }
+        return {
+            "backend": self.name, "service_name": self.service_name, "install_root": str(self.install_root),
+            "runtime_path": str(self.runtime_path), "state_path": str(self.protected_state_location),
+            "interpreter": interpreter_info, "interpreter_path": interpreter_path, "source_revision": revision,
+            "service_command": service_command, "service_command_argv": service_command_argv,
+            "isolated_self_test": self_test, "required_dependency_modules": required_modules,
+            "dependency_origins": dependency_origins, "dependencies": dependency_records,
+            "checks": checks, "mutations": [],
+            "rollback": "not-needed" if checks["ready"] else "no machine mutation performed",
+        }
+
+    def install(self, root: Path | None = None, *, preflight: bool = False,
+                interpreter: Path | None = None, **_: Any) -> dict[str, Any]:
+        report = self.preflight(root, interpreter=interpreter)
         if preflight:
             return report
         self._require_admin()
@@ -364,11 +671,15 @@ class WindowsBackend(PlatformBackend):
             for path in sorted(stage_runtime.rglob("*.py")):
                 stage_digest.update(_normalise(path).encode()); stage_digest.update(path.read_bytes())
             code, revision = _command_output(["git", "-C", str(root or Path.cwd()), "rev-parse", "HEAD"])
+            selected_interpreter = str(report["interpreter"]["canonical_path"] or report["interpreter"]["path"])
             manifest = {"protocol_version": "1", "service_name": self.service_name, "service_identity": "NT AUTHORITY\\SYSTEM",
                         "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
                         "registrations_path": str(self.registrations_path), "ipc_endpoint": self.ipc_endpoint,
                         "runtime_digest": stage_digest.hexdigest(), "source_revision": revision.strip() if code == 0 else "",
-                        "interpreter": str(Path(sys.executable).resolve()), "dependency_closure": report["dependency_origins"]}
+                        "interpreter": selected_interpreter, "interpreter_requested": report["interpreter"]["path"],
+                        "dependency_closure": report["dependency_origins"],
+                        "dependency_modules": report["dependencies"], "service_command": report["service_command"],
+                        "isolation": ["-I"]}
             (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
             if self.install_root.exists(): raise RuntimeError("install root appeared after preflight; refusing overwrite")
             staging.replace(self.install_root)
@@ -379,10 +690,8 @@ class WindowsBackend(PlatformBackend):
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
-            service_entry = self.runtime_path / "repopact" / "windows_guard_service.py"
-            python_path = Path(sys.executable).resolve()
             code, output = _command_output(["sc.exe", "create", self.service_name, "binPath=",
-                f'"{python_path}" "{service_entry}" --service --state-root "{self.protected_state_location}"',
+                report["service_command"],
                 "start=", "auto", "obj=", "LocalSystem"])
             if code != 0: raise RuntimeError(f"Windows service registration failed: {output.strip()}")
             created_service = True

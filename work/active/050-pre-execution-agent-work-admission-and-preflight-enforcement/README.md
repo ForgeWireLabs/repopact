@@ -75,6 +75,26 @@ Native destructive proof is intentionally not run in this correction pass.
 AC-14, AC-15, AC-16, and AC-18 remain pending until an operator performs the
 elevated installation and the real multi-process Windows/Linux/macOS proofs.
 
+## Interpreter trust-chain correction pass
+
+The next pre-install review found that checking only whether an import was
+outside the checkout and `.venv` did not exclude user-controlled
+`%LOCALAPPDATA%`, `%APPDATA%`, user site-packages, temporary, download, or
+other broad-writable locations. The Windows backend now accepts an explicit
+`--interpreter` (with `sys.executable` retained only as an explicit,
+equivalently validated default), records its canonical path, and places that
+exact path in both the install manifest and SCM command.
+
+Preflight runs the selected interpreter with Python `-I`, hostile
+`PYTHONPATH`/`PYTHONHOME`/user-base values, and a temporary working directory.
+It performs an Ed25519 sign/verify self-test, records the modules and native
+origins actually loaded, and validates every required origin and every parent
+directory for canonical stability, reparse points, user-writable roots, and
+ordinary-user write/delete ACLs. The planned service command is likewise
+reported with `-I` and the protected installed runtime path. Any failure
+returns `ready=false` and `mutations=[]`; no UAC or service installation is
+performed in this pass.
+
 ## Intent
 
 RepoPact already requires a work item to exist before implementation begins, and an `active`

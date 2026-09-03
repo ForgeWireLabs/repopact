@@ -145,6 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     guard_sub = p_guard.add_subparsers(dest="guard_command", required=True)
     p_guard_install = guard_sub.add_parser("install", help="Install the protected guard (operator elevation required)")
     p_guard_install.add_argument("--root", type=Path, default=Path.cwd())
+    p_guard_install.add_argument("--interpreter", type=Path,
+                                 help="Explicit protected Python interpreter for the Windows service")
     p_guard_install.add_argument("--preflight", action="store_true", help="Run non-mutating installation diagnostics only")
     p_guard_status = guard_sub.add_parser("status", help="Report backend-owned guard attestation")
     p_guard_status.add_argument("--root", type=Path, default=Path.cwd())
@@ -234,7 +236,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(json.dumps(payload, sort_keys=True) if args.json else json.dumps(payload, indent=2, sort_keys=True))
                 return 0 if payload.get("healthy") else 1
             if args.guard_command == "install":
-                result = backend.install(root, preflight=args.preflight)
+                result = backend.install(root, preflight=args.preflight, interpreter=args.interpreter)
                 print(json.dumps(result, sort_keys=True)); return 0
             if args.guard_command == "uninstall":
                 result = backend.uninstall(root=root)

@@ -243,3 +243,20 @@
 - Native destructive proof remains intentionally unrun. AC-14, AC-15, AC-16,
   and AC-18 remain pending until elevated installation and real cross-process,
   multi-repository, and three-OS evidence exist.
+
+## 2026-09-03 WI050 interpreter trust-chain correction review
+
+- Windows guard installation accepts an explicit `--interpreter`; omitted
+  selection is still recorded as the canonical `sys.executable` candidate and
+  receives identical validation. The selected canonical path is persisted in
+  the install manifest and exact SCM command.
+- Preflight executes that candidate with Python `-I` and hostile Python
+  environment variables, performs Ed25519 verification, and records actual
+  cryptography/native module origins. The service command uses the same
+  isolated mode and the protected installed runtime path.
+- Every required origin and its parent chain is rejected when it is in a
+  checkout, `.venv`, known user-writable root (including user site, AppData,
+  TEMP, and Downloads), reparse hierarchy, or broad-user-writable ACL. A
+  dependency failure is non-mutating and leaves `mutations=[]`.
+- Native installation remains unperformed; AC-14, AC-15, AC-16, and AC-18
+  remain pending, and Linux/macOS proof remains reserved for their machines.

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from repopact.admission import (
 )
 from repopact.adapters import LauncherAdapter
 from repopact.guard import ProtectedGuard
+from repopact.platform_backends import TestingBackend
 
 
 class SecurityCorrectionTests(unittest.TestCase):
@@ -31,6 +33,7 @@ class SecurityCorrectionTests(unittest.TestCase):
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key-1", "operator-1")
         setup_admission(self.root, self.protected, self.signer)
+        self.test_health = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)).health()
 
     def tearDown(self): shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -48,7 +51,7 @@ class SecurityCorrectionTests(unittest.TestCase):
         req = self.request(paths=("src/a.py",)); receipt = issue_receipt(req, self.signer)
         decision, lease = issue_lease(req, receipt, self.root, self.protected)
         self.assertTrue(decision.allowed)
-        denied = evaluate_action(self.root, {"kind": "mutation", "work_item": "050", "paths": ["src/b.py"], "scopes": ["src"], "session_id": "session-1", "principal": "agent"}, lease, protected_dir=self.protected)
+        denied = evaluate_action(self.root, {"kind": "mutation", "work_item": "050", "paths": ["src/b.py"], "scopes": ["src"], "session_id": "session-1", "principal": "agent"}, lease, guard_health=self.test_health, protected_dir=self.protected)
         self.assertFalse(denied.allowed)
         self.assertEqual(denied.code, "PATH_VIOLATION")
 
@@ -104,9 +107,9 @@ class SecurityCorrectionTests(unittest.TestCase):
         self.assertTrue(proof.allowed)
         action = {"kind": "repair", "repair": True, "profile": "repair", "mode": "repair", "work_item": "050",
                   "paths": ["governance/owners.json"], "diagnosed_paths": ["governance/owners.json"], "scopes": ["governance"]}
-        self.assertTrue(evaluate_action(self.root, action, lease, protected_dir=self.protected).allowed)
+        self.assertTrue(evaluate_action(self.root, action, lease, guard_health=self.test_health, protected_dir=self.protected).allowed)
         widened = {**action, "paths": ["governance/charter.md"], "diagnosed_paths": ["governance/charter.md"]}
-        self.assertEqual(evaluate_action(self.root, widened, lease, protected_dir=self.protected).code, "PATH_VIOLATION")
+        self.assertEqual(evaluate_action(self.root, widened, lease, guard_health=self.test_health, protected_dir=self.protected).code, "PATH_VIOLATION")
 
     def test_frozen_approval_binds_declared_surface(self):
         req = self.request(paths=("governance/owners.json",), approval_class="frozen")
@@ -114,13 +117,13 @@ class SecurityCorrectionTests(unittest.TestCase):
         proof, lease = issue_lease(req, rec, self.root, self.protected)
         self.assertTrue(proof.allowed)
         action = {"kind": "mutation", "work_item": "050", "paths": ["governance/owners.json"], "scopes": ["src"], "frozen": True}
-        self.assertTrue(evaluate_action(self.root, action, lease, protected_dir=self.protected).allowed)
+        self.assertTrue(evaluate_action(self.root, action, lease, guard_health=self.test_health, protected_dir=self.protected).allowed)
         lease["frozen_surface_digest"] = "0" * 64
-        self.assertEqual(evaluate_action(self.root, action, lease, protected_dir=self.protected).code, "FROZEN_APPROVAL_REQUIRED")
+        self.assertEqual(evaluate_action(self.root, action, lease, guard_health=self.test_health, protected_dir=self.protected).code, "FROZEN_APPROVAL_REQUIRED")
 
     def test_launcher_denies_before_child_creation(self):
         marker = self.tmp / "child-created.txt"
-        adapter = LauncherAdapter(ProtectedGuard(self.root, self.protected, protected_storage=True))
+        adapter = LauncherAdapter(ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)))
         denied, child = adapter.launch({"kind": "process", "work_item": "050", "paths": ["src/a.py"], "scopes": ["src"]},
                                        ["cmd", "/c", "echo", "bad", ">", str(marker)])
         self.assertFalse(denied.allowed); self.assertIsNone(child); self.assertFalse(marker.exists())
@@ -140,19 +143,23 @@ class SecurityCorrectionTests(unittest.TestCase):
     def test_new_session_cannot_reuse_lease(self):
         req = self.request(); rec = issue_receipt(req, self.signer); proof, lease = issue_lease(req, rec, self.root, self.protected)
         self.assertTrue(proof.allowed)
-        denied = evaluate_action(self.root, {"kind": "mutation", "work_item": "050", "paths": ["src/a.py"], "scopes": ["src"], "session_id": "new-session"}, lease, protected_dir=self.protected)
+        denied = evaluate_action(self.root, {"kind": "mutation", "work_item": "050", "paths": ["src/a.py"], "scopes": ["src"], "session_id": "new-session"}, lease, guard_health=self.test_health, protected_dir=self.protected)
         self.assertEqual(denied.code, "WRONG_SESSION")
 
     def test_nested_cwd_and_shell_attempts_still_gate_before_execution(self):
         nested = self.root / "src" / "nested"
         nested.mkdir(parents=True, exist_ok=True)
         marker = self.tmp / "shell-marker.txt"
-        adapter = ProtectedGuard(self.root, self.protected, protected_storage=True)
+        adapter = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected))
         from repopact.adapters import LauncherAdapter
         gate = LauncherAdapter(adapter)
+        shell_candidates = ["sh", r"C:\Program Files\Git\bin\sh.exe", r"C:\Program Files\Git\usr\bin\bash.exe"]
         for command in (["powershell", "-NoProfile", "-Command", f"Set-Content -LiteralPath '{marker}' bad"],
-                        ["sh", "-c", f"printf bad > '{marker}'"]):
-            if shutil.which(command[0]) is None:
+                        [sys.executable, "-c", f"open(r'{marker}', 'w').write('bad')"],
+                        ["cmd.exe", "/c", f"echo bad > \"{marker}\""],
+                        [sys.executable, "-c", f"import pathlib; pathlib.Path(r'{marker}').write_text('bad')"],
+                        *[[shell, "-c", f"printf bad > '{marker}'"] for shell in shell_candidates if Path(shell).is_file() or shutil.which(shell)]):
+            if Path(command[0]).name.lower() in {"powershell", "cmd.exe"} and shutil.which(command[0]) is None:
                 continue
             denied, child = gate.launch({"kind": "process", "work_item": "050", "paths": ["src/a.py"], "scopes": ["src"]}, command, cwd=nested)
             self.assertFalse(denied.allowed); self.assertIsNone(child)

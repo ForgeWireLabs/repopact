@@ -1,7 +1,8 @@
 # WI050 integration, guard, identity, and platform architecture
 
-> Architecture phase only. The matrices select contracts and backend
-> directions; no executable integration is implemented here.
+> Architecture baseline plus protected-substrate implementation notes. The
+> semantic contract remains OS-neutral; executable host proof is recorded in
+> the WI050 evidence runs and is not inferred from these matrices.
 
 ## 1. Guard-placement alternatives
 

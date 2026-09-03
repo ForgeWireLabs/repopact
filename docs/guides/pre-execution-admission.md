@@ -38,3 +38,25 @@ to the exact declared frozen-surface digest; `check-frozen --ack` remains
 advisory. The reference filesystem guard reports `protected=false` because a
 same-principal process can rewrite the adjacent HMAC key and state; a host must
 provide the missing process/path boundary before claiming sandbox enforcement.
+
+## Host-protected guard substrate
+
+`repopact guard status` reports backend-owned attestation fields including the
+installed runtime path, protected state path, service identity, IPC endpoint,
+integrity check, and whether the gated principal is actually excluded from
+maintenance. A caller cannot promote `not-covered` to `enforced` by setting a
+boolean. On Windows, `repopact guard install --root <repo>` requires an elevated
+operator token and installs the runtime outside the checkout as the
+`RepoPactGuard` LocalSystem service using an authenticated named pipe. The
+follow-up `repopact guard register --root <repo> --key-file <external-key>`
+binds the repository to the service-owned state; private keys remain external.
+`guard uninstall` is likewise elevation-gated. Missing, stopped, tampered, or
+unattested native services fail closed; the session-start launcher does not
+claim arbitrary child path/process confinement.
+
+Linux uses a system service, restrictive state directory, and authenticated
+Unix socket when installed; macOS uses a protected launch daemon and local IPC.
+Neither same-user service class is reported as protected without verified host
+ownership. Run `python -m repopact.run_admission_platform_conformance` for the
+portable semantic corpus; `--require-installed` additionally requires the
+native platform guard to be installed and healthy.

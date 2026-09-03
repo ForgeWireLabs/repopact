@@ -231,11 +231,18 @@ class GuardHealth:
     healthy: bool
     security_level: str = "pre-action"
     reason: str = ""
-    protected: bool = True
+    protected: bool = False
     integrity_checked: bool = False
     protected_from_gated_principal: bool = False
     process_confined: bool = False
     path_confined: bool = False
+    service_identity_verified: bool = False
+    host_configuration_protected: bool = False
+    installed_code_path: str = ""
+    protected_state_path: str = ""
+    ipc_endpoint: str = ""
+    backend_id: str = ""
+    testing_only: bool = False
 
 
 def default_policy() -> dict[str, Any]:
@@ -404,15 +411,39 @@ def _profile_rank(name: Any) -> int:
 def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, Any] | None = None,
                     guard_health: GuardHealth | None = None, protected_dir: Path | None = None,
                     now: datetime | None = None) -> AdmissionDecision:
-    health = guard_health or GuardHealth(True)
+    health = guard_health or GuardHealth(True, protected=False, backend_id="policy-core-unbound")
+    # A bare GuardHealth object is not an attestation.  Only a backend-owned
+    # identity (or an explicitly marked testing backend) may assert protection.
+    if not health.backend_id:
+        health = GuardHealth(health.healthy, health.security_level, health.reason, False,
+                             health.integrity_checked, False, health.process_confined,
+                             health.path_confined, health.service_identity_verified,
+                             health.host_configuration_protected, health.installed_code_path,
+                             health.protected_state_path, health.ipc_endpoint, "unbound", False)
+    elif not health.testing_only and health.backend_id != "policy-core-unbound":
+        # A caller-supplied health structure is not trusted merely because it
+        # contains a familiar backend id.  Re-attest the selected host backend
+        # and fail closed if the claims do not match its current facts.
+        from .platform_backends import current_backend
+        actual = current_backend(root, protected_dir).attest(root, protected_dir)
+        if (health.backend_id != actual.backend_id
+                or health.protected != actual.protected_from_gated_principal
+                or health.host_configuration_protected != actual.host_configuration_protected):
+            health = GuardHealth(health.healthy, "not-covered", "backend attestation mismatch", False,
+                                 health.integrity_checked, False, False, False, False, False,
+                                 actual.installed_code_path, actual.protected_state_path,
+                                 actual.ipc_endpoint, actual.backend_id, False)
     action_kind = _action_kind(action)
+    if lease is None and action_kind not in _NO_LEASE_KINDS:
+        # Make the missing operator proof explicit even when the host guard is
+        # also unavailable.  Both paths fail closed; this stable code helps an
+        # adapter request the correct operator workflow.
+        return AdmissionDecision.deny("NO_OPERATOR_PROOF", "mutating actions require an operator-derived lease")
     if not health.healthy or (not health.protected and action_kind not in _NO_LEASE_KINDS):
         return AdmissionDecision.deny("GUARD_UNHEALTHY", health.reason or "protected guard is unhealthy")
     identity = verify_registration(root, protected_dir)
     if not identity.allowed:
         return identity
-    if lease is None and action_kind not in _NO_LEASE_KINDS:
-        return AdmissionDecision.deny("NO_OPERATOR_PROOF", "mutating actions require an operator-derived lease")
     policy = identity.details["policy"]
     if not policy.get("enabled"):
         return AdmissionDecision.allow("instruction-only")

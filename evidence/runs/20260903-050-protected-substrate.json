@@ -1,0 +1,78 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-protected-substrate",
+  "timestamp": "2026-09-03T19:17:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "baseline": "f224383fee5456ad337701236b521e9da84faaf2",
+  "artifacts": [
+    "repopact/platform_backends.py",
+    "repopact/guard.py",
+    "repopact/guard_ipc.py",
+    "repopact/windows_guard_service.py",
+    "repopact/run_admission_platform_conformance.py",
+    "tests/test_protected_substrate.py"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "ordinary_token": "TUF\\jerem; Administrators membership filtered (IsUserAnAdmin=false)",
+    "linux": "not run; no operator-owned Linux venue",
+    "macos": "not run; no operator-owned macOS venue"
+  },
+  "commands": [
+    {"command": "python -m unittest tests.test_admission tests.test_admission_security tests.test_protected_substrate -q", "exit_code": 0, "summary": "29 WI050 admission, security, and protected-substrate tests passed."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "Portable semantic corpus passed; native backend attestation remained explicit and not testing-only."},
+    {"command": "python -m repopact.cli guard status --root . --json", "exit_code": 1, "summary": "Windows service absent; backend reported installed=false, protected_from_gated_principal=false, security_level=not-covered."},
+    {"command": "python -m repopact.cli guard install --root .", "exit_code": 1, "summary": "Installation stopped before mutation because the current filtered token is not elevated; exact operator elevation command was returned."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root . --require-installed", "exit_code": 2, "summary": "Native protected backend proof is correctly pending until operator installation."},
+    {"command": "where sh.exe; where bash.exe; Test-Path 'C:\\Program Files\\Git\\bin\\sh.exe'", "exit_code": 0, "summary": "Git for Windows sh.exe exists at C:\\Program Files\\Git\\bin\\sh.exe; it is included in the denied-before-launch matrix."},
+    {"command": "python -m pip install -e .[dev]", "exit_code": 0, "summary": "Editable development installation passed."},
+    {"command": "python -m build --wheel --outdir %TEMP%/repopact-wheel-protected --no-isolation", "exit_code": 0, "summary": "Wheel proof passed for repopact-3.0.2.dev1."},
+    {"command": "python -m repopact.cli validate --root .; python -m repopact.cli dashboard --root .; python -m repopact.cli spec --root .; git diff --check", "exit_code": 0, "summary": "Repository validation, derived artifacts, specification generation, and diff check passed."},
+    {"command": "python -m repopact.cli check-frozen --root . --base f224383fee5456ad337701236b521e9da84faaf2", "exit_code": 0, "summary": "No frozen-surface changes detected in the protected-substrate phase."}
+  ],
+  "implementation": {
+    "guard_health": "BackendAttestation; ProtectedGuard no longer accepts protected_storage/security_level assertions.",
+    "windows_install": "Elevated sc.exe LocalSystem service RepoPactGuard with installed runtime under %ProgramData%\\RepoPact\\Guard\\runtime and state under %ProgramData%\\RepoPact\\Guard\\state.",
+    "windows_acl": "Installer removes inheritance, grants SYSTEM/Administrators full control, grants Users read/execute, denies Users write/delete/DAC changes, and sets owner SYSTEM; installation fails if these steps fail.",
+    "windows_ipc": "multiprocessing AF_PIPE named pipe \\\\.\\pipe\\RepoPactGuard with authenticated protocol key; service host records native peer PID when available.",
+    "linux_backend": "system-service contract with root-owned /var/lib/repopact state, /run/repopact/guard.sock, restrictive mode and systemctl health; no Linux proof on this host.",
+    "macos_backend": "launch-daemon contract with /Library/PrivilegedHelperTools runtime, /Library/Application Support/RepoPact state and protected local IPC; no macOS proof on this host."
+  },
+  "windows_bypass_matrix": {
+    "direct_write": "portable reference launcher denies before callback; native protected E2E pending elevation",
+    "powershell_set_content": "portable launcher denies before child creation; native protected E2E pending elevation",
+    "powershell_dotnet_write": "portable launcher denies before child creation; native protected E2E pending elevation",
+    "python_open_write": "portable launcher denies before child creation; native protected E2E pending elevation",
+    "python_rename_replace": "covered by portable launcher denial path; native protected E2E pending elevation",
+    "cmd_redirection": "portable launcher denies before child creation; native protected E2E pending elevation",
+    "git_bash_sh_redirection": "concrete C:\\Program Files\\Git\\bin\\sh.exe discovered and included in portable denial path; native protected E2E pending elevation",
+    "child_marker": "portable marker absent when launcher denies; native protected E2E pending elevation",
+    "nested_cwd": "portable coverage passed; native protected E2E pending elevation",
+    "linked_worktree": "canonical Git common-dir semantics covered by admission tests; native protected E2E pending elevation",
+    "path_case_and_symlink": "canonical path/record checks remain fail-closed; native ACL escape E2E pending elevation",
+    "protected_state_and_service_config": "blocked: native install/status unavailable without elevation; no fake service claimed",
+    "guard_stop_uninstall": "blocked: operator elevation required; absent/stopped native guard reports not-covered",
+    "trust_pin_replacement": "blocked: backend-owned ACL state is defined but not installed on this token"
+  },
+  "ordinary_agent_assumptions": [
+    "Current token is TUF\\jerem with Admin membership filtered out (IsUserAnAdmin=false).",
+    "Native Windows proof requires a separate elevated operator action; this pass did not invoke UAC or create a fake service.",
+    "The service interpreter and installed runtime must themselves be protected; installer records runtime identity and fails closed on digest/ACL drift."
+  ],
+  "operator_maintenance": "Not performed: current filtered token cannot invoke the required UAC/elevated install action. Exact next action: open an elevated PowerShell with Start-Process pwsh -Verb RunAs, then run python -m repopact.cli guard install --root C:\\Projects\\repopact and, after installation, guard register with the external encrypted key.",
+  "truthful_enforcement_classes": {
+    "native_windows_before_install": "not-covered",
+    "native_windows_after_verified_install": "session-start enforced (path/process confinement false)",
+    "reference_pre_action": "pre-action only when a backend-owned protected attestation is supplied",
+    "reference_launcher": "session-start gate before child creation; no post-launch arbitrary child confinement",
+    "linux_and_macos_uninstalled": "not-covered"
+  },
+  "acceptance_criteria_reopened": ["AC-14", "AC-15"],
+  "acceptance_criteria_pending": ["AC-14", "AC-15", "AC-16", "AC-18"],
+  "scope_guard": {"new_frozen_change_authorized": false, "unapproved_frozen_changes": []}
+}

@@ -15,7 +15,7 @@ from repopact.admission import (
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter, LauncherAdapter
 from repopact.guard import ProtectedGuard
-from repopact.platform_backends import LinuxBackend, MacOSBackend, WindowsBackend
+from repopact.platform_backends import LinuxBackend, MacOSBackend, WindowsBackend, TestingBackend
 
 
 class AdmissionTests(unittest.TestCase):
@@ -60,11 +60,12 @@ class AdmissionTests(unittest.TestCase):
         replay, _ = issue_lease(req, rec, self.root, self.protected)
         self.assertEqual(replay.code, "RECEIPT_REPLAY")
         operator_revoke(self.root, self.signer, self.protected)
-        self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, lease, protected_dir=self.protected).code, "REVOKED_AUTHORIZATION")
+        health = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)).health()
+        self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, lease, guard_health=health, protected_dir=self.protected).code, "REVOKED_AUTHORIZATION")
 
     def test_pre_action_callback_never_runs_on_denial(self):
         called = []
-        adapter = PreActionAdapter(ProtectedGuard(self.root, self.protected, protected_storage=True))
+        adapter = PreActionAdapter(ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)))
         decision, result = adapter.before({"work_item": "050", "paths": ["outside.txt"]}, lambda: called.append(1))
         self.assertFalse(decision.allowed); self.assertIsNone(result); self.assertEqual(called, [])
         target = self.root / "src" / "admission-sentinel.txt"
@@ -79,7 +80,7 @@ class AdmissionTests(unittest.TestCase):
         caps = AdapterCapabilities("x", path_confinement=False, process_confinement=False)
         self.assertEqual(caps.enforcement_class("sandbox/process-enforced"), "pre-action")
         self.assertFalse(LauncherAdapter(ProtectedGuard(self.root, self.protected), caps).capabilities.path_confinement)
-        self.assertEqual(WindowsBackend().security_level, "pre-action")
+        self.assertEqual(WindowsBackend().security_level, "not-covered")
         self.assertEqual(LinuxBackend().os_name, "linux"); self.assertEqual(MacOSBackend().os_name, "macos")
 
     def test_protected_tamper_fails_closed(self):

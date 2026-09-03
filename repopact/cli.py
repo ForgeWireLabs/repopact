@@ -141,6 +141,20 @@ def main(argv: list[str] | None = None) -> int:
     p_revoke = adm_sub.add_parser("revoke", help="Operator-controlled revocation transition")
     p_revoke.add_argument("--root", type=Path, default=Path.cwd()); p_revoke.add_argument("--protected-dir", type=Path); p_revoke.add_argument("--key-file", type=Path)
 
+    p_guard = sub.add_parser("guard", help="Install and inspect the host-protected RepoPact guard")
+    guard_sub = p_guard.add_subparsers(dest="guard_command", required=True)
+    p_guard_install = guard_sub.add_parser("install", help="Install the protected guard (operator elevation required)")
+    p_guard_install.add_argument("--root", type=Path, default=Path.cwd())
+    p_guard_status = guard_sub.add_parser("status", help="Report backend-owned guard attestation")
+    p_guard_status.add_argument("--root", type=Path, default=Path.cwd())
+    p_guard_status.add_argument("--json", action="store_true")
+    p_guard_register = guard_sub.add_parser("register", help="Bind an adopted repository to the installed guard")
+    p_guard_register.add_argument("--root", type=Path, default=Path.cwd())
+    p_guard_register.add_argument("--key-file", type=Path, required=True)
+    p_guard_register.add_argument("--protected-dir", type=Path)
+    p_guard_uninstall = guard_sub.add_parser("uninstall", help="Remove the installed guard service (operator elevation required)")
+    p_guard_uninstall.add_argument("--root", type=Path, default=Path.cwd())
+
     p_work = sub.add_parser("work", help="Bounded bootstrap work operations")
     work_sub = p_work.add_subparsers(dest="work_command", required=True)
     p_prop = work_sub.add_parser("propose", help="Create proposed work without implementation authority")
@@ -208,6 +222,35 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print("\nAdopted repository validates as a conformant RepoPact.")
         return 0
+
+    if args.command == "guard":
+        from .platform_backends import current_backend
+        root = args.root.resolve()
+        backend = current_backend(root)
+        try:
+            if args.guard_command == "status":
+                payload = backend.health()
+                print(json.dumps(payload, sort_keys=True) if args.json else json.dumps(payload, indent=2, sort_keys=True))
+                return 0 if payload.get("healthy") else 1
+            if args.guard_command == "install":
+                result = backend.install(root)
+                print(json.dumps(result, sort_keys=True)); return 0
+            if args.guard_command == "uninstall":
+                result = backend.uninstall(root=root)
+                print(json.dumps(result, sort_keys=True)); return 0
+            if args.guard_command == "register":
+                from . import admission
+                signer = _operator_signer(admission, args.key_file, root)
+                if args.protected_dir is not None:
+                    # A production backend owns its protected state location;
+                    # accepting an arbitrary caller path would reintroduce the
+                    # trust-boundary bug this command exists to prevent.
+                    print("guard register ignores caller-selected protected state; use the installed backend location", file=sys.stderr)
+                    return 1
+                result = backend.register(root, signer=signer)
+                print(json.dumps(result, sort_keys=True)); return 0
+        except Exception as exc:
+            print(f"Guard operation failed: {exc}", file=sys.stderr); return 1
 
     if args.command in {"admission", "work", "approval"}:
         from . import admission

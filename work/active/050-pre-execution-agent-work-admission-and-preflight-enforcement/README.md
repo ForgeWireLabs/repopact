@@ -1,6 +1,6 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (correction pass; AC-16 and AC-18 remain pending)
+> **Status**: Active (protected enforcement substrate phase; AC-14, AC-15, AC-16, and AC-18 remain pending)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
@@ -37,6 +37,13 @@ repository, work item, principal, session, profile, mode, scopes, paths,
 capabilities, lineage, base, expiry, and revocation state are rechecked before
 execution. The reference filesystem backend deliberately reports lower
 assurance until a host-managed process/path boundary exists.
+
+The protected-substrate phase removes caller-asserted guard protection and adds
+backend-owned attestation, operator-gated host installation flows, protected
+Windows service/runtime and state paths, authenticated local IPC, and a
+cross-platform platform-conformance harness. Until an elevated operator
+installs and proves the native Windows service, the native backend remains
+`not-covered`; testing-only attestations are never production evidence.
 
 ## Intent
 

@@ -38,7 +38,11 @@ class AdapterCapabilities:
         return "instruction-only"
 
     @property
-    def security_level(self) -> str: return self.enforcement_class()
+    def security_level(self) -> str:
+        # A capability vector alone is not an enforcement witness.  The bound
+        # adapter's ``enforcement_class`` method combines it with backend-owned
+        # guard health before exposing an effective class.
+        return "not-covered"
 
     def record(self) -> dict[str, Any]:
         raw = asdict(self)
@@ -64,7 +68,17 @@ class PreActionAdapter:
     def start(self, action: Mapping[str, Any]) -> AdmissionDecision:
         return self.guard.check(action)
 
-    def capability_record(self) -> dict[str, Any]: return self.capabilities.record()
+    def enforcement_class(self, required: str = "pre-action") -> str:
+        """Compute a class only after backend-owned guard health is verified."""
+        health = self.guard.health()
+        if not health.healthy or not health.protected or not health.service_identity_verified and required != "pre-action":
+            return "not-covered"
+        return self.capabilities.enforcement_class(required)
+
+    def capability_record(self) -> dict[str, Any]:
+        record = self.capabilities.record()
+        record["health"] = {"status": "healthy" if self.guard.health().healthy and self.guard.health().protected else "failed", "checked_at": iso()}
+        return record
 
 
 class LauncherAdapter(PreActionAdapter):

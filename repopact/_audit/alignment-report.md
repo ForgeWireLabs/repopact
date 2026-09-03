@@ -204,3 +204,18 @@
 - CLI, validator, doctor, SPEC, guide, tests, and audit inventory now expose the
   opt-in admission plane. Reference adapters are pre-action gates and do not
   claim arbitrary process or filesystem confinement.
+
+## 2026-09-03 WI050 protected enforcement substrate phase
+
+- Replaced the caller-controlled `protected_storage` assertion with a
+  backend-owned `BackendAttestation` carrying integrity, service identity,
+  protected-state, host-configuration, path, and process facts.
+- Added the Windows `RepoPactGuard` installation/status/register/uninstall
+  contract, protected runtime/state locations, LocalSystem SCM service host,
+  authenticated AF_PIPE protocol, and conservative ACL/interpreter checks.
+- Added Linux system-service and macOS launch-daemon backend contracts plus the
+  cross-platform `run_admission_platform_conformance` harness. Testing-only
+  attestations are explicitly marked and excluded from production proof.
+- Current Windows token is non-elevated, so native installation and tamper E2E
+  are pending operator elevation; the backend reports `not-covered` and the
+  enforced path fails closed rather than using a fake service.

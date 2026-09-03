@@ -1,0 +1,106 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-048-release-3-0-2-final",
+  "timestamp": "2026-09-02T22:20:47-05:00",
+  "work_item": "048",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pip install -e \".[dev]\"; repopact validate; python -m unittest discover -s tests -v; python -m repopact.run_conformance; repopact dashboard; repopact spec; repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "Stable 3.0.2 release tree passed governance validation, 151 unit tests with 2 existing formal-model skips, 20/20 conformance, dashboard/SPEC regeneration, and frozen-surface verification."
+    },
+    {
+      "command": "repopact release-build --root . --outdir dist-302",
+      "exit_code": 0,
+      "summary": "Release commit dfab8cb8ca010a865ebb3291c526179fb5cb4b2c exported twice independently with fixed SOURCE_DATE_EPOCH; wheel and sdist were byte-identical."
+    },
+    {
+      "command": "python -m twine check dist-302\\repopact-3.0.2-py3-none-any.whl dist-302\\repopact-3.0.2.tar.gz",
+      "exit_code": 0,
+      "summary": "Twine metadata checks passed; wheel inspection found one repopact import root, zero flat modules/data-files, eight schemas, and six templates; sdist contained no flat root modules."
+    },
+    {
+      "command": "fresh external Windows venv installed the exact local wheel; init, adopt, validate, resources, doctor, and structural worktree proofs",
+      "exit_code": 0,
+      "summary": "Local wheel reported distribution/package version 3.0.2 from C:/Projects/repopact-wi048-local-302/Lib/site-packages/repopact; schemas/templates resolved; init/adopt/validate passed; WI043 valid ../ and bare record-relative pointers passed, root coincidence was rejected, and doctor --fix did not rewrite the stale record; WI042 real scratch agent/feature x, ForgeWire fallback, stale embedded .git file, independent nested repository, and Git-free determinism all passed with worktrees cleaned."
+    },
+    {
+      "command": "git push origin main; git tag -a v3.0.2 -m \"RepoPact 3.0.2\"; git push origin v3.0.2; git fetch origin --tags",
+      "exit_code": 0,
+      "summary": "Annotated v3.0.2 was pushed on dfab8cb8ca010a865ebb3291c526179fb5cb4b2c; v3.0.1 remains peeled at 181e35a84605a966487199a6ee22cb5e4dfb9176."
+    },
+    {
+      "command": "python -m twine upload --non-interactive <exact wheel> <exact sdist>",
+      "exit_code": 0,
+      "summary": "Exact validated artifacts were published manually/local from operator-owned Windows hardware using a process-only PyPI token read from the operator credential file; no credential, .pypirc, or secret-bearing output was stored."
+    },
+    {
+      "command": "independent no-cache PyPI JSON query and downloads of repopact 3.0.2 wheel and sdist",
+      "exit_code": 0,
+      "summary": "Public metadata reports repopact 3.0.2 and both public downloads match the local SHA-256 values exactly."
+    },
+    {
+      "command": "fresh external Windows venv installed the public no-cache wheel and repeated package/resource/CLI/WI043/WI042 proofs",
+      "exit_code": 0,
+      "summary": "Public wheel loaded from C:/Projects/repopact-wi048-public-302/Lib/site-packages/repopact, reported 3.0.2, resolved schemas/templates, passed init/adopt/validate, and reproduced valid record-relative doctor behavior, root-coincidence negative control, non-conventional linked-worktree exclusion, stale embedded metadata exclusion, independent nested-repository discovery, ForgeWire fallback, and Git-free determinism with worktree cleanup."
+    },
+    {
+      "command": "repopact dashboard; repopact spec; repopact validate; python -m unittest discover -s tests -v; python -m repopact.run_conformance; repopact dashboard; repopact spec; repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "After moving WI048 to completed, the closeout tree passed final governance validation, 151 unit tests with 2 existing formal-model skips, 20/20 conformance, dashboard/SPEC regeneration, and frozen-surface verification."
+    }
+  ],
+  "artifacts": [
+    "decisions/0036-release-repopact-3-0-2.md",
+    "evidence/runs/20260902-048-release-delta.json",
+    "evidence/runs/20260902-048-release-3-0-2-final.json",
+    "VERSION",
+    "README.md",
+    "CONFORMANCE.md",
+    "conformance/manifest.json",
+    "SPEC.md",
+    "research/release-runbook.md",
+    "repopact/doctor.py",
+    "repopact/repo_model.py",
+    "tests/test_validate_repo.py",
+    "work/completed/048-release-repopact-3-0-2-corrective-path-and-worktree-fixes/README.md",
+    "work/completed/048-release-repopact-3-0-2-corrective-path-and-worktree-fixes/work-item.json",
+    "https://github.com/ForgeWireLabs/repopact/commit/dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+    "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.0.2",
+    "https://pypi.org/project/repopact/3.0.2/"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "python": "3.13",
+    "release": "3.0.2",
+    "release_decision": "0036",
+    "release_commit": "dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+    "tag": "v3.0.2",
+    "tag_peeled": "dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+    "previous_tag": "v3.0.1",
+    "previous_tag_peeled": "181e35a84605a966487199a6ee22cb5e4dfb9176",
+    "version": "3.0.2",
+    "release_label": "absent",
+    "package_version": "3.0.2",
+    "wheel": "repopact-3.0.2-py3-none-any.whl",
+    "wheel_sha256": "d7781495977a686ab791d4ce97467a3714474c7682253d9d81f4edcfe4a2fa77",
+    "sdist": "repopact-3.0.2.tar.gz",
+    "sdist_sha256": "8815f8b335d20c6f27006bd29a6da48ef57885f13cb98df8bb7cddcd4776dd83",
+    "wheel_structure": {"import_roots": ["repopact"], "flat_root_modules": 0, "data_files": 0, "schemas": 8, "templates": 6},
+    "public_pypi_version": "3.0.2",
+    "public_wheel_sha256": "d7781495977a686ab791d4ce97467a3714474c7682253d9d81f4edcfe4a2fa77",
+    "public_sdist_sha256": "8815f8b335d20c6f27006bd29a6da48ef57885f13cb98df8bb7cddcd4776dd83",
+    "public_hashes_equal_local": true,
+    "local_external_install": "C:/Projects/repopact-wi048-local-302/Lib/site-packages/repopact/__init__.py",
+    "public_external_install": "C:/Projects/repopact-wi048-public-302/Lib/site-packages/repopact/__init__.py",
+    "focused_regressions": {"doctor_source_of_truth": 5, "worktree_contract_discovery": 6, "total": 11},
+    "unit_tests": 151,
+    "formal_model_skips": 2,
+    "conformance_cases": 20,
+    "github_hosted_execution": "not used; WI032 local-only directive honored",
+    "obligation_boundaries": ["WI032 blocked/local-only", "WI037 separate adopter-fleet work", "WI044 unimplemented", "WI046 unimplemented", "WI047 unimplemented"]
+  }
+}

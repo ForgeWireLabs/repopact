@@ -1,6 +1,6 @@
 # 048 — Release RepoPact 3.0.2 Corrective Path and Worktree Fixes
 
-> **Status**: 🚧 Active.
+> **Status**: ✅ Completed.
 > **Owners**: governance-owner (lead); tooling-owner, docs-owner, evidence-owner, and work-coordinator affected.
 > **Depends on**: WI042, WI043, WI045.
 
@@ -71,3 +71,34 @@ PyPI authentication is an operator-held secret. The implementation session may p
 ## Closeout
 
 All ten acceptance criteria require concrete evidence. Release success is source → exact commit → deterministic local artifacts → annotated tag → public artifacts with matching hashes → external installed behavior. Version strings or Twine upload success alone are insufficient.
+
+## 2026-09-02 stable public publication and closeout
+
+Decision [0036](../../../decisions/0036-release-repopact-3-0-2.md) defines
+RepoPact 3.0.2 as the backwards-compatible corrective patch for WI043's
+record-relative `source_of_truth:` diagnosis and WI042's structural linked-
+worktree contract discovery. The exact stable release commit is
+`dfab8cb8ca010a865ebb3291c526179fb5cb4b2c`; `VERSION` is `3.0.2`,
+`RELEASE_LABEL` is absent, and annotated `v3.0.2` points there. `v3.0.1`
+remains unchanged at `181e35a84605a966487199a6ee22cb5e4dfb9176`.
+
+The deterministic artifacts built from that commit are
+`repopact-3.0.2-py3-none-any.whl` (SHA-256
+`d7781495977a686ab791d4ce97467a3714474c7682253d9d81f4edcfe4a2fa77`) and
+`repopact-3.0.2.tar.gz` (SHA-256
+`8815f8b335d20c6f27006bd29a6da48ef57885f13cb98df8bb7cddcd4776dd83`).
+They passed Twine and package-boundary checks, were published manually/local
+from operator-owned Windows hardware, and public no-cache downloads match both
+hashes exactly. Fresh external local-wheel and public-wheel environments loaded
+from `site-packages`, resolved schemas/templates, and passed `init`, `adopt`,
+`validate`, WI043 doctor behavior (including the root-coincidence negative
+control), and WI042 worktree/nested-repository behavior. Focused regressions
+passed 11/11; the full suite passed 151 tests with two existing formal-model
+skips; conformance passed 20/20; dashboard/SPEC, governance, and frozen-surface
+checks passed. Evidence is recorded in
+[20260902-048-release-delta](../../../evidence/runs/20260902-048-release-delta.json)
+and [20260902-048-release-3-0-2-final](../../../evidence/runs/20260902-048-release-3-0-2-final.json).
+
+WI032 remains blocked/local-only; WI037 remains separate adopter-fleet work;
+WI044, WI046, and WI047 remain unimplemented. The complete work-item directory
+is now under `work/completed/` and all ten acceptance criteria are satisfied.

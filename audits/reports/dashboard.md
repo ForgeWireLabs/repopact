@@ -15,17 +15,17 @@
 | Audit findings | 2 |
 | Decision records | 36 |
 | Policy records | 2 |
-| Evidence runs | 51 |
+| Evidence runs | 52 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 4 |
-| active | 5 |
+| active | 4 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 39 |
+| completed | 40 |
 
 ## Audit freshness
 
@@ -37,5 +37,4 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
-- 048: Release RepoPact 3.0.2 Corrective Path and Worktree Fixes (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "048",
   "title": "Release RepoPact 3.0.2 Corrective Path and Worktree Fixes",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": ["governance", "tooling", "docs", "evidence", "work"],
   "depends_on": ["042", "043", "045"],
@@ -16,62 +16,62 @@
     {
       "id": "AC-1",
       "text": "A durable release-delta record enumerates the complete executable/package-affecting v3.0.1..release delta and establishes that 3.0.2 is a backwards-compatible corrective patch whose intended runtime changes are the completed WI043 source_of_truth resolution fix and WI042 structural linked-worktree contract-discovery fix, plus only release machinery/documentation/evidence required to ship them.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-2",
       "text": "An accepted release decision defines RepoPact 3.0.2 and explicitly excludes proposed WI044, WI046, and WI047 implementation work, WI037 adopter-fleet migration, and WI032 remote-enforcement restoration from the release scope.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-3",
       "text": "The exact 3.0.2 stable release tree consistently identifies version 3.0.2 across VERSION, package metadata, conformance suite identity, README/current-release guidance, release narrative, and all validated release surfaces. RELEASE_LABEL is absent on the exact stable release tree, consistent with decision 0032; v3.0.1 remains unchanged.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-4",
       "text": "Focused release regression proves both corrective behaviors from the exact release tree: doctor resolves source_of_truth strictly relative to the declaring record for bare and ../ tokens with root-coincidence negative control, and contract discovery excludes a real non-conventional same-repository linked worktree while preserving an independent nested repository and the stale conventional worktrees fallback.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-5",
       "text": "From the exact clean committed 3.0.2 release tree, repopact release-build produces wheel and sdist twice from independent Git exports with fixed SOURCE_DATE_EPOCH and byte-identical hashes; package-boundary inspection and twine metadata validation pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-6",
       "text": "The exact locally validated 3.0.2 wheel installs into a fresh Windows environment outside the source checkout and proves distribution/package identity, packaged schema/template access, installed init/adopt/validate behavior, record-relative source_of_truth doctor behavior, and structural worktree contract discovery from site-packages.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-7",
       "text": "Before publication, the exact 3.0.2 release tree passes RepoPact governance validation, the full unit suite, all conformance cases, dashboard/SPEC regeneration checks, frozen-surface verification, and all focused WI042/WI043 release regressions. Skips and unavailable remote checks are disclosed rather than counted as passing.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-8",
       "text": "An annotated v3.0.2 tag is created and pushed on the exact validated release commit without moving v3.0.1. The exact validated wheel and sdist are published manually/local to PyPI from operator-owned hardware; public PyPI metadata reports 3.0.2 and no GitHub-hosted execution is used.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-9",
       "text": "No-cache public downloads of the 3.0.2 wheel and sdist have SHA-256 values exactly equal to the locally validated artifacts, and a fresh external installation of the public wheel repeats package/resource/CLI smoke proof plus the WI043 record-relative and WI042 structural-worktree behaviors from site-packages.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     },
     {
       "id": "AC-10",
       "text": "Closeout preserves obligation boundaries: WI032 remains blocked/local-only, WI037 remains separate adopter-fleet work, and proposed WI044/WI046/WI047 remain unimplemented. WI048 completes only after all public-artifact evidence is linked, the work item is moved to completed, derived surfaces are regenerated, final local validation passes, and the closeout commit is pushed with v3.0.2 still pointing at the exact release commit.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-048-release-delta", "20260902-048-release-3-0-2-final"]
     }
   ],
   "created": "2026-09-02",

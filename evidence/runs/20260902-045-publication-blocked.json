@@ -1,0 +1,14 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-045-publication-blocked",
+  "timestamp": "2026-09-02T16:35:00-05:00",
+  "work_item": "045",
+  "result": "blocked",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m twine upload --non-interactive --repository-url https://upload.pypi.org/legacy/ dist-final2\\repopact-3.0.1-py3-none-any.whl dist-final2\\repopact-3.0.1.tar.gz", "exit_code": 1, "summary": "Publication did not occur: Twine reported Credential not found for API token. No credentials were printed, recorded, or committed."},
+    {"command": "python -m pip index versions repopact", "exit_code": 0, "summary": "Public index still reports 3.0.0 as the latest available release; no public 3.0.1 artifact exists to verify."}
+  ],
+  "artifacts": ["dist-final2/repopact-3.0.1-py3-none-any.whl", "dist-final2/repopact-3.0.1.tar.gz"],
+  "environment": {"date": "2026-09-02", "os": "Windows", "publication_state": "pending operator PyPI API token", "remote_enforcement": "not invoked; WI032 local-only directive honored"}
+}

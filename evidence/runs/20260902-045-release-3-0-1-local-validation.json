@@ -1,0 +1,47 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-045-release-3-0-1-local-validation",
+  "timestamp": "2026-09-02T16:30:00-05:00",
+  "work_item": "045",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "git status --short; git fetch origin --tags; git rev-parse HEAD; git rev-parse origin/main", "exit_code": 0, "summary": "Started from clean main at 27437a7e3eecc43625ad04b8faeb27174f89d1b2, equal to origin/main; pre-release v3.0.0..HEAD inventory recorded before edits."},
+    {"command": "pip install --no-cache-dir repopact==3.0.0 in an external Windows venv", "exit_code": 0, "summary": "Public wheel reports 3.0.0 from site-packages and worktrees=False; current source at the pre-release main state reports worktrees=True. The complete executable/package delta since v3.0.0 is the repopact/repo_model.py worktrees exclusion plus its regression test; all other intervening changes are governance, research, evidence, planning, generated, or hosted-workflow history."},
+    {"command": "repopact validate; python -m unittest discover -s tests -q; python -m repopact.run_conformance; repopact dashboard; repopact spec; repopact check-frozen --base origin/main", "exit_code": 0, "summary": "Governance validation, 142 unit tests (2 disclosed legitimate skips), 20/20 conformance, dashboard/spec regeneration, and frozen-surface backstop all passed."},
+    {"command": "repopact release-build --root . --outdir dist-final2", "exit_code": 0, "summary": "Commit 181e35a84605a966487199a6ee22cb5e4dfb9176 exported twice independently with fixed SOURCE_DATE_EPOCH; artifacts were byte-identical. Wheel: repopact-3.0.1-py3-none-any.whl, SHA-256 b137f53e0c1034eb3a528ce92f5f97ce0c3c344841f9524d28c656333d862a6d. Sdist: repopact-3.0.1.tar.gz, SHA-256 1a79420fa933b9c7cf74e8295460b15f39205c669e5eb52fbcfc9140e407be62. Structural inspection: one repopact import root, zero flat modules/data-files, eight schemas, six templates."},
+    {"command": "python -m twine check dist-final2\\repopact-3.0.1*", "exit_code": 0, "summary": "Twine metadata checks passed for the exact validated wheel and sdist."},
+    {"command": "python -m venv C:\\Projects\\repopact-wi045-local-301c; pip install dist-final2\\repopact-3.0.1-py3-none-any.whl; repopact init; repopact validate", "exit_code": 0, "summary": "Fresh Windows environment outside the checkout installed the exact wheel; version=3.0.1, repo_model.py resolved from site-packages, worktrees=True, packaged schema/template resources resolved, and init/validate succeeded. A separate installed adopt smoke test also succeeded."},
+    {"command": "git push origin main; git tag -a v3.0.1; git push origin v3.0.1; git ls-remote origin refs/heads/main refs/tags/v3.0.1^{}", "exit_code": 0, "summary": "main and peeled annotated v3.0.1 both resolve to 181e35a84605a966487199a6ee22cb5e4dfb9176."}
+  ],
+  "artifacts": [
+    "decisions/0032-stable-source-artifact-identity.md",
+    "decisions/0033-release-repopact-3-0-1.md",
+    "VERSION",
+    "README.md",
+    "CONFORMANCE.md",
+    "conformance/manifest.json",
+    "repopact/package_version.py",
+    "repopact/validate_repo.py",
+    "repopact/release_build.py",
+    "MANIFEST.in",
+    "tests/test_validate_repo.py",
+    "tests/test_release_build.py",
+    "https://github.com/ForgeWireLabs/repopact/commit/181e35a84605a966487199a6ee22cb5e4dfb9176",
+    "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.0.1"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "python": "3.13",
+    "release": "3.0.1",
+    "release_commit": "181e35a84605a966487199a6ee22cb5e4dfb9176",
+    "tag": "v3.0.1",
+    "wheel_sha256": "b137f53e0c1034eb3a528ce92f5f97ce0c3c344841f9524d28c656333d862a6d",
+    "sdist_sha256": "1a79420fa933b9c7cf74e8295460b15f39205c669e5eb52fbcfc9140e407be62",
+    "unit_tests": 142,
+    "formal_model_skips": 2,
+    "conformance_cases": 20,
+    "publication": "not attempted in this passed local run; see blocked publication evidence"
+  }
+}

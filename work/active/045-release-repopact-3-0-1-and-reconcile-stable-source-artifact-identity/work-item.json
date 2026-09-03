@@ -16,70 +16,70 @@
     {
       "id": "AC-1",
       "text": "A durable release-gap evidence record compares the v3.0.0 tag, the public PyPI repopact==3.0.0 wheel, and the exact pre-3.0.1 main commit. It records commit/tag/package identity, the complete executable/package delta (not only documentation), and reproduces in an isolated environment that the public 3.0.0 wheel lacks the stable worktree exclusion while main contains it.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-2",
       "text": "An accepted release decision defines 3.0.1 as a backwards-compatible corrective release for stable post-v3.0.0 changes already accepted on main. The decision explicitly enumerates what runtime/package changes ship and confirms that proposed WI042, WI043, and WI044 implementation work is not pulled into 3.0.1 merely because those planning records exist on main.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-3",
       "text": "The 3.0.1 release tree consistently identifies the release across VERSION, conformance suite identity, README/current-release guidance, release decision/narrative, and any other governed release surfaces required by existing RepoPact validation; generated artifacts are regenerated rather than hand-maintained.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-4",
       "text": "The work formally reconciles stable source identity with published artifact identity. It evaluates the existing decision 0026 RELEASE_LABEL mechanism, immediate next-development-version transitions, package-metadata derivation, and release/tag-aware validation (or justified equivalents), then records one durable rule: after a stable version is published/tagged, subsequent package/runtime-affecting source state on main must not remain indistinguishable from that published artifact solely because VERSION is unchanged.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-5",
       "text": "The chosen source/artifact identity rule is implemented at the narrowest effective layer and has regression/conformance coverage. Positive coverage preserves an exact clean release tree; negative coverage demonstrates that a post-release package/runtime change cannot silently present the same governed release identity as the already-published stable artifact. Existing adopter VERSION equality semantics are not weakened accidentally.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-6",
       "text": "From the exact clean 3.0.1 release commit, `repopact release-build` produces sdist and wheel twice from independent exports with fixed SOURCE_DATE_EPOCH and byte-identical hashes, while all existing package-boundary checks remain satisfied (single repopact import root, required packaged schemas/templates, no deprecated flat modules or data-files).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-7",
       "text": "The exact locally validated 3.0.1 wheel installs into a clean Windows virtual environment outside the source checkout and proves the stable post-3.0.0 behavior is actually packaged, including `\"worktrees\" in repopact.repo_model.IGNORED_PARTS` evaluating True. Installed CLI init/adopt/validate smoke behavior and package-resource access also remain green.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-8",
       "text": "Before publication, the exact release tree passes RepoPact governance validation, the full unit suite, all conformance cases, dashboard/spec regeneration checks, twine metadata validation, and the frozen-surface backstop. Any skipped test or unavailable remote check is disclosed rather than counted as passing.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-9",
       "text": "The release commit and annotated v3.0.1 tag are pushed and resolve to the same exact commit. The exact validated wheel and sdist are published to PyPI; public metadata reports 3.0.1; a no-cache download's SHA-256 matches the locally validated artifact; and a clean public-wheel install outside the checkout proves the worktree exclusion and supported CLI behavior from site-packages.",
       "state": "pending",
-      "evidence": []
+      "evidence": ["20260902-045-publication-blocked"]
     },
     {
       "id": "AC-10",
       "text": "The selected identity mechanism defines and tests the post-publication transition for future main development so RepoPact cannot repeat the observed state where an already-published stable artifact and materially newer package/runtime source both claim an indistinguishable stable identity. The rule must distinguish an unchanged release commit from later runtime-affecting development rather than declaring the release tag itself invalid.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     },
     {
       "id": "AC-11",
       "text": "Package publication remains distinct from adopter-fleet migration and remote-CI restoration. WI037 continues to own downstream adoption/package-boundary reconciliation and WI032 continues to own remote enforcement; WI045 closeout must not claim either obligation complete merely because 3.0.1 is public.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260902-045-release-3-0-1-local-validation"]
     }
   ],
   "created": "2026-08-22",
-  "updated": "2026-08-22"
+  "updated": "2026-09-02"
 }

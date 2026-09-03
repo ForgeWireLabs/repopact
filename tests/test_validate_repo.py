@@ -100,6 +100,14 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def commit_fixture(self, timestamp: str = "2026-09-01T00:00:00+00:00") -> datetime:
         """Give a copied fixture deterministic Git recording metadata."""
+        # The repository copy includes WI049's real recording-backed evidence.
+        # Keep that source record legacy-shaped in this synthetic fixture so it
+        # does not become an unrelated failure when the fixture commit is pinned
+        # to an old deterministic timestamp.
+        for evidence_path in (self.root / "evidence" / "runs").glob("*.json"):
+            data = json.loads(evidence_path.read_text(encoding="utf-8"))
+            if data.pop("timestamp_basis", None) is not None:
+                evidence_path.write_text(json.dumps(data), encoding="utf-8")
         run = lambda args, **kwargs: subprocess.run(
             args, cwd=self.root, check=True, capture_output=True, text=True, **kwargs
         )

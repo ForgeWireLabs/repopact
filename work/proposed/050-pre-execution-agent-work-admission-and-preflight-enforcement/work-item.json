@@ -96,6 +96,18 @@
       "text": "After architecture decisions and any required frozen-surface operator approval, the chosen design is implemented consistently across the necessary CLI/API, policy/config, validator, init/adopt/doctor, adapter templates/integrations, SPEC/docs, tests/conformance, audit inventory/alignment, and evidence surfaces. Derived artifacts are regenerated, frozen changes follow INV-6, and closeout includes both positive and fail-closed negative enforcement proof on Windows plus an adopter-neutral fixture.",
       "state": "pending",
       "evidence": []
+    },
+    {
+      "id": "AC-15",
+      "text": "An enforced adapter is anchored outside ordinary agent-writable repository state or protected by host-managed/OS policy. Repo-local AGENTS.md, CLAUDE.md, .claude/.codex settings, hooks, scripts, or links may provide discovery and adapter configuration but are never the sole enforcement root. The design demonstrates that an agent cannot disable enforced admission by editing/removing repository-local configuration, changing working directory, launching a subagent, or selecting a less restrictive local settings layer; missing or tampered protected guard configuration fails closed.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-16",
+      "text": "Adopted repositories participating in enforced admission are registered/discovered by canonical repository identity and bound to the correct RepoPact root rather than by prompt text or a mutable convenience link alone. End-to-end bypass tests include direct Edit/Write, shell/PowerShell/Python filesystem mutation, mutation from a nested working directory or linked worktree, and attempted guard/config modification. Before admission, arbitrary mutation-capable shell execution is denied except for a strictly defined read-only/bootstrap allowlist; after admission, any host advertised as path/scope-enforced must constrain arbitrary shell writes through a sandbox/proxy or equivalent boundary rather than relying on command-string parsing alone.",
+      "state": "pending",
+      "evidence": []
     }
   ],
   "created": "2026-09-03",

@@ -24,6 +24,8 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from .package_version import package_version
+
 
 EXPECTED_SCHEMAS = 8
 EXPECTED_TEMPLATES = 6
@@ -160,6 +162,7 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     _export(root, revision, source)
     output.mkdir()
     version = (source / "VERSION").read_text(encoding="utf-8").strip()
+    artifact_version = package_version(source)
     epoch = _run(["git", "show", "-s", "--format=%ct", revision], cwd=root)
     env = os.environ.copy()
     env["SOURCE_DATE_EPOCH"] = epoch
@@ -178,8 +181,9 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     _normalize_sdist(sdists[0], int(epoch))
     return {
         "version": version,
-        "wheel": inspect_wheel(wheels[0], version),
-        "sdist": inspect_sdist(sdists[0], version),
+        "artifact_version": artifact_version,
+        "wheel": inspect_wheel(wheels[0], artifact_version),
+        "sdist": inspect_sdist(sdists[0], artifact_version),
         "wheel_path": wheels[0],
         "sdist_path": sdists[0],
     }
@@ -212,6 +216,7 @@ def build_release(root: Path, outdir: Path, revision: str = "HEAD") -> dict[str,
     return {
         "commit": commit,
         "version": first["version"],
+        "artifact_version": first["artifact_version"],
         "reproducible": True,
         "wheel": first["wheel"],
         "sdist": first["sdist"],

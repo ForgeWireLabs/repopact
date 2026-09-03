@@ -21,9 +21,11 @@ def _version() -> str:
     distribution metadata.
     """
     from pathlib import Path
-    candidate = Path(__file__).resolve().parent.parent / "VERSION"
+    root = Path(__file__).resolve().parent.parent
+    candidate = root / "VERSION"
     if candidate.is_file():
-        return candidate.read_text(encoding="utf-8").strip()
+        from .package_version import package_version
+        return package_version(root)
     from importlib.metadata import PackageNotFoundError, version
     try:
         return version("repopact")

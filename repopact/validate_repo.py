@@ -17,6 +17,7 @@ import jsonschema
 from .frontmatter import FrontMatterError, parse_file
 from . import generate_dashboard
 from . import validate_research
+from .package_version import RELEASE_LABEL_RE, PackageVersionError, package_version
 from .repo_model import STATUSES, discover_evidence_ids, discover_work_items, iter_contracts, load_json
 
 
@@ -121,14 +122,6 @@ def validate_version(root: Path, problems: list[Problem]) -> None:
 # is captured so it can be pinned to VERSION, then the SemVer pre-release grammar
 # (dot-separated identifiers, numeric identifiers with no leading zeros) and the
 # optional build metadata (decision 0026).
-_SEMVER_IDENT = r"(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
-_RELEASE_LABEL_RE = re.compile(
-    rf"(?P<base>[0-9]+\.[0-9]+\.[0-9]+)"
-    rf"-{_SEMVER_IDENT}(?:\.{_SEMVER_IDENT})*"
-    rf"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
-)
-
-
 def validate_release_label(root: Path, problems: list[Problem]) -> None:
     """Validate the optional ``RELEASE_LABEL`` product/maturity identity (decision 0026).
 
@@ -142,7 +135,7 @@ def validate_release_label(root: Path, problems: list[Problem]) -> None:
     if not path.is_file():
         return
     label = path.read_text(encoding="utf-8").strip()
-    match = _RELEASE_LABEL_RE.fullmatch(label)
+    match = RELEASE_LABEL_RE.fullmatch(label)
     if not match:
         problems.append(Problem(
             path,
@@ -157,6 +150,76 @@ def validate_release_label(root: Path, problems: list[Problem]) -> None:
             path,
             f"RELEASE_LABEL base '{match.group('base')}' must equal VERSION '{version}'",
         ))
+
+
+_PACKAGE_IDENTITY_PATHS = (
+    "pyproject.toml",
+    "README.md",
+    "VERSION",
+    "RELEASE_LABEL",
+    "repopact/*.py",
+    "repopact/schemas",
+    "repopact/templates",
+)
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def validate_source_artifact_identity(root: Path, problems: list[Problem]) -> None:
+    """Distinguish post-tag package source from an already released artifact.
+
+    Repositories without Git metadata, including portable conformance fixtures and
+    exported source archives, remain valid. When the stable ``vVERSION`` tag exists,
+    its exact package/runtime tree may remain unlabeled. Materially later source at
+    the same compatibility core requires RELEASE_LABEL, whose package identity is
+    independently derived and checked above (decision 0032).
+    """
+    version_path = root / "VERSION"
+    label_path = root / "RELEASE_LABEL"
+    if not version_path.is_file() or label_path.is_file():
+        return
+    version = version_path.read_text(encoding="utf-8").strip()
+    tag = f"v{version}"
+    resolved = _git(root, "rev-parse", "--verify", f"refs/tags/{tag}^{{commit}}")
+    if resolved.returncode != 0:
+        return
+    changed = _git(root, "diff", "--name-only", tag, "--", *_PACKAGE_IDENTITY_PATHS)
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard", "--", *_PACKAGE_IDENTITY_PATHS)
+    if changed.returncode != 0 or untracked.returncode != 0:
+        return
+    paths = sorted({line for line in (changed.stdout + untracked.stdout).splitlines() if line})
+    if paths:
+        problems.append(Problem(
+            label_path,
+            f"package/runtime source differs from released {tag} but has no RELEASE_LABEL; "
+            f"add a VERSION-pinned development identity (changed: {', '.join(paths)})",
+        ))
+
+
+def validate_package_version(root: Path, problems: list[Problem]) -> None:
+    """Prove the governed identity can be rendered as deterministic PEP 440 metadata."""
+    if not (root / "VERSION").is_file():
+        return
+    label_path = root / "RELEASE_LABEL"
+    if label_path.is_file():
+        label = label_path.read_text(encoding="utf-8").strip()
+        version = (root / "VERSION").read_text(encoding="utf-8").strip()
+        match = RELEASE_LABEL_RE.fullmatch(label)
+        # The structural/core diagnostics belong to validate_release_label; do
+        # not emit a second, less actionable error for the same malformed record.
+        if not match or match.group("base") != version:
+            return
+    try:
+        package_version(root)
+    except (OSError, PackageVersionError) as exc:
+        problems.append(Problem(root / "RELEASE_LABEL", f"invalid package identity: {exc}"))
 
 
 # The README convention this rule is gated on: a release line naming the current
@@ -883,6 +946,8 @@ def validate(root: Path) -> list[Problem]:
     problems: list[Problem] = []
     validate_version(root, problems)
     validate_release_label(root, problems)
+    validate_package_version(root, problems)
+    validate_source_artifact_identity(root, problems)
     validate_release_surface(root, problems)
     validate_contracts(root, problems)
     validate_invariants(root, problems)

@@ -1,5 +1,17 @@
 # Tooling Alignment Report
 
+## 2026-09-02 stable source/artifact identity reconciliation
+
+- `validate_repo` now recognizes the exact matching stable tag as a valid
+  unlabeled release tree and rejects later package/runtime source at the same
+  `VERSION` unless a valid VERSION-pinned `RELEASE_LABEL` is present.
+- `package_version` gives labeled development builds deterministic PEP 440
+  metadata while preserving the strict `VERSION` adopter compatibility core.
+- `release-build` uses the derived artifact identity for wheel/sdist names and
+  still performs its independent-export and structural package checks.
+- Regression tests cover exact-tag acceptance, unlabeled post-tag rejection,
+  labeled development acceptance, and deterministic metadata mapping.
+
 ## 2026-07-26 RepoPact 3.0 release boundary
 
 - Decision 0029's package/CLI boundary is released as the approved major version,

@@ -1,5 +1,21 @@
 # Release runbook
 
+## Current 3.0.1 corrective release
+
+The 3.0.1 release contains the post-3.0.0 `worktrees/` contract-discovery
+exclusion and its regression coverage. Keep `VERSION=3.0.1` and omit
+`RELEASE_LABEL` on the exact stable release commit. After the `v3.0.1` tag is
+published, any later package/runtime source at that same `VERSION` must add a
+VERSION-pinned label; package metadata maps that label deterministically to PEP
+440 so development artifacts cannot be mistaken for the stable wheel.
+
+From the exact clean release commit, run `repopact release-build --root .
+--outdir dist`, inspect the wheel/sdist, and run `python -m twine check
+dist\\repopact-3.0.1*`. Publish only those exact files. Verify the public hashes
+and an installation from `site-packages` separately. This local procedure does
+not restore GitHub-hosted enforcement; WI032 remains blocked under its
+temporary local-only directive.
+
 ## Current billing-locked Actions fallback
 
 When GitHub Actions cannot execute, the OIDC trusted-publishing path is unavailable.

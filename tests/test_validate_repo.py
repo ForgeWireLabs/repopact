@@ -503,6 +503,44 @@ class RepositoryValidationTests(unittest.TestCase):
         (self.root / "VERSION").write_text("v1\n", encoding="utf-8")
         self.assertTrue(any("must be semantic" in v for v in self.problems()))
 
+    def _tag_identity_fixture(self) -> None:
+        self.root.joinpath("VERSION").write_text("9.9.9\n", encoding="utf-8")
+        readme = self.root / "README.md"
+        text = readme.read_text(encoding="utf-8")
+        start = text.index("`pip install repopact`")
+        end = text.index("\n\n", start)
+        readme.write_text(text[:start] + "current release **9.9.9**." + text[end:], encoding="utf-8")
+        generate_dashboard.write_dashboard(self.root)
+        subprocess.run(["git", "init", "--initial-branch=main"], cwd=self.root, check=True,
+                       capture_output=True, text=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=self.root, check=True)
+        subprocess.run(["git", "config", "user.name", "RepoPact Test"], cwd=self.root, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=self.root, check=True)
+        subprocess.run(["git", "commit", "-m", "stable"], cwd=self.root, check=True,
+                       capture_output=True, text=True)
+        subprocess.run(["git", "tag", "-a", "v9.9.9", "-m", "9.9.9"], cwd=self.root, check=True)
+
+    def test_exact_tagged_release_tree_is_accepted(self) -> None:
+        self._tag_identity_fixture()
+        self.assertEqual([], self.problems())
+
+    def test_later_package_source_requires_development_identity(self) -> None:
+        self._tag_identity_fixture()
+        (self.root / "repopact" / "repo_model.py").write_text(
+            (self.root / "repopact" / "repo_model.py").read_text(encoding="utf-8") + "\n# later runtime change\n",
+            encoding="utf-8",
+        )
+        self.assertTrue(any("differs from released v9.9.9" in v for v in self.problems()))
+
+    def test_later_package_source_with_label_is_accepted(self) -> None:
+        self._tag_identity_fixture()
+        (self.root / "repopact" / "repo_model.py").write_text(
+            (self.root / "repopact" / "repo_model.py").read_text(encoding="utf-8") + "\n# later runtime change\n",
+            encoding="utf-8",
+        )
+        (self.root / "RELEASE_LABEL").write_text("9.9.9-dev.1\n", encoding="utf-8")
+        self.assertFalse(any("differs from released" in v for v in self.problems()))
+
     # --- release surface (decision 0028) ------------------------------------
 
     def set_readme_release(self, line: str) -> None:
@@ -521,19 +559,19 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_readme_release_changelog_link_must_name_current_release(self) -> None:
         self.set_readme_release(
-            "current release **3.0.0** "
+            "current release **3.0.1** "
             "([changelog](decisions/0025-release-2.2.0-dashboard-integrity.md))."
         )
         self.assertTrue(any("does not name the current release" in v for v in self.problems()))
 
     def test_readme_release_changelog_link_must_resolve(self) -> None:
         self.set_readme_release(
-            "current release **3.0.0** ([changelog](decisions/9999-nonexistent.md))."
+            "current release **3.0.1** ([changelog](decisions/9999-nonexistent.md))."
         )
         self.assertTrue(any("does not resolve" in v for v in self.problems()))
 
     def test_readme_release_line_without_link_is_accepted(self) -> None:
-        self.set_readme_release("current release **3.0.0**.")
+        self.set_readme_release("current release **3.0.1**.")
         self.assertEqual([], self.problems())
 
     def test_readme_without_release_line_is_unaffected(self) -> None:
@@ -544,13 +582,13 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_readme_release_link_may_be_an_external_url(self) -> None:
         self.set_readme_release(
-            "current release **3.0.0** ([changelog](https://example.invalid/changelog))."
+            "current release **3.0.1** ([changelog](https://example.invalid/changelog))."
         )
         self.assertEqual([], self.problems())
 
     def test_readme_release_link_outside_decisions_is_existence_checked_only(self) -> None:
         (self.root / "CHANGELOG.md").write_text("# Changelog\n", encoding="utf-8")
-        self.set_readme_release("current release **3.0.0** ([changelog](CHANGELOG.md)).")
+        self.set_readme_release("current release **3.0.1** ([changelog](CHANGELOG.md)).")
         self.assertEqual([], self.problems())
 
     # --- dependency cycles --------------------------------------------------

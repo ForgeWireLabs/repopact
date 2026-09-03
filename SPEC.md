@@ -1,7 +1,7 @@
 # RepoPact Specification
 
 <!-- generated:version -->
-This document specifies **RepoPact 3.0.0**.
+This document specifies **RepoPact 3.0.1**.
 <!-- /generated:version -->
 
 > Status: **stable (1.0)**. The record formats and rules below were exercised by an
@@ -84,6 +84,10 @@ cross-record consistency.
    `RELEASE_LABEL` is a SemVer pre-release whose `MAJOR.MINOR.PATCH` core equals
    `VERSION` and which carries a pre-release label (e.g. `2.3.0-rc.1`); maturity
    lives on the label and the git tag, never in `VERSION`.
+   After a matching stable `vVERSION` tag exists, an exact unchanged package
+   tree may remain unlabeled; later package/runtime source at that same
+   `VERSION` must carry a VERSION-pinned `RELEASE_LABEL`, and package metadata
+   must identify that development build distinctly.
 8. **Provenance.** Provisional and inferred work are admitted states, but completed
    work and concrete claims must rest on concrete evidence.
 9. **Ledger visibility.** Planning content under `work/` has a machine-readable
@@ -157,7 +161,10 @@ carries a pre-release suffix. When a repository wants one shared pre-release str
 across its surfaces (package metadata, installers, diagnostics), it records it in
 the optional `RELEASE_LABEL` file — a full SemVer pre-release whose core is pinned
 to `VERSION` (§4.7). The label adds maturity information without letting the
-release line diverge; it is optional and its absence constrains nothing.
+release line diverge. After publication, its presence is required for later
+package/runtime source at the same compatibility core; the exact tagged release
+tree remains valid without it. Distribution metadata maps the label
+deterministically to PEP 440.
 
 ## 9. Conformance and reference implementation
 

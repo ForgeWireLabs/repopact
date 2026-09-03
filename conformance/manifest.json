@@ -1,6 +1,6 @@
 {
   "$schema": "../repopact/schemas/conformance-manifest.schema.json",
-  "suite_version": "3.0.0",
+  "suite_version": "3.0.1",
   "spec_version_file": "../VERSION",
   "fixtures_root": "fixtures",
   "rules": [
@@ -57,6 +57,12 @@
       "source": "SPEC.md#4-validation-rules-semantics",
       "enforced_by": "repopact/validate_repo.py:validate_release_label",
       "description": "The optional RELEASE_LABEL is a SemVer pre-release whose MAJOR.MINOR.PATCH core equals VERSION."
+    },
+    {
+      "id": "SPEC-4-source-artifact-identity",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_source_artifact_identity",
+      "description": "After a matching stable tag, later package/runtime source requires a distinct VERSION-pinned development identity."
     },
     {
       "id": "SPEC-4-release-surface",
@@ -217,7 +223,7 @@
       "path": "valid-release-label",
       "overlay_on": "valid",
       "expect": "accept",
-      "rules": ["SPEC-4-release-label"],
+      "rules": ["SPEC-4-release-label", "SPEC-4-source-artifact-identity"],
       "description": "An optional RELEASE_LABEL pinned to VERSION is a valid product/maturity identity."
     },
     {

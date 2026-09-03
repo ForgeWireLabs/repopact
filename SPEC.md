@@ -68,6 +68,9 @@ cross-record consistency.
 1. **Contract coverage.** The root `AGENTS.md` exists. Every nested `AGENTS.md` is
    registered in `audits/registry.json`. An `_audit/` companion is optional, but if
    present must contain `README.md`, `inventory.md`, and `alignment-report.md`.
+   Contract discovery excludes known non-governed directories and structurally
+   identified linked worktrees of the same repository; an independent nested
+   repository remains discoverable as a governed subtree.
 2. **Identity agreement.** A record's `id`, its directory or filename prefix, and
    (for work items) its lifecycle directory must agree. IDs are unique per type.
 3. **Reference resolution.** Work-item `depends_on` and acceptance-criterion

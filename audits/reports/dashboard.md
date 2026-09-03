@@ -13,19 +13,19 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 2 |
-| Decision records | 34 |
+| Decision records | 35 |
 | Policy records | 2 |
-| Evidence runs | 49 |
+| Evidence runs | 50 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| proposed | 5 |
+| proposed | 4 |
 | active | 4 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 38 |
+| completed | 39 |
 
 ## Audit freshness
 

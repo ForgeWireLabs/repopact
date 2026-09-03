@@ -1,5 +1,19 @@
 # Tooling Alignment Report
 
+## 2026-09-02 structural worktree-aware contract discovery
+
+- `repo_model.iter_contracts` now prunes same-repository linked worktrees using
+  both Git's porcelain worktree registry and embedded `.git` files pointing into
+  the primary `.git/worktrees` directory.
+- The literal `worktrees` entry in `IGNORED_PARTS` remains as a compatibility
+  fallback for stale/orphaned conventional scratch trees with no usable metadata.
+- Independent nested repositories with `.git/` directories remain discoverable;
+  exported trees and Git-unavailable environments retain deterministic fallback
+  behavior.
+- Regression coverage includes Windows paths with spaces, real conventional and
+  non-conventional linked worktrees, stale linked metadata, nested repositories,
+  negative controls, and worktree cleanup.
+
 ## 2026-09-02 source_of_truth resolution semantics
 
 - `doctor._dead_source_of_truth` now resolves every path token relative to the

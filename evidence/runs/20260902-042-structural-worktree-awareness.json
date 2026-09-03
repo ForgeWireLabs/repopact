@@ -1,0 +1,66 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-042-structural-worktree-awareness",
+  "timestamp": "2026-09-02T21:00:00-05:00",
+  "work_item": "042",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status --short; git fetch origin --tags; git rev-parse HEAD; git rev-parse origin/main; git rev-parse v3.0.1^{}",
+      "exit_code": 0,
+      "summary": "Started from clean current main at 0c47ae2bea27c52208b17fe2c4bc7a9b89d14ea1; v3.0.1 remains peeled at 181e35a84605a966487199a6ee22cb5e4dfb9176; VERSION=3.0.1 and RELEASE_LABEL=3.0.1-dev.1 derive 3.0.1dev1."
+    },
+    {
+      "command": "Read F-015, capture 016, WI041, decisions 0032/0033, repo_model.py, all iter_contracts callers, and all worktree/contract tests",
+      "exit_code": 0,
+      "summary": "Confirmed the 3.0.1 literal worktrees exclusion fixes only the conventional name; validation, dashboard, adoption, and doctor all consume iter_contracts, so the structural primitive belongs in repo_model."
+    },
+    {
+      "command": "Evaluate embedded .git files, git worktree list --porcelain, combined detection, and name-only allowlist",
+      "exit_code": 0,
+      "summary": "Embedded .git files catch stale-identifiable linked roots; Git porcelain catches registered roots; the combination is chosen. Name-only expansion is rejected as insufficient. Independent .git directories remain distinct."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_worktree_scratch_checkouts_are_not_scanned_as_nested_contracts tests.test_validate_repo.RepositoryValidationTests.test_nonconventional_linked_worktree_is_structurally_excluded tests.test_validate_repo.RepositoryValidationTests.test_conventional_forgewire_worktree_is_excluded tests.test_validate_repo.RepositoryValidationTests.test_stale_linked_worktree_git_file_is_excluded_without_git_registry tests.test_validate_repo.RepositoryValidationTests.test_independent_nested_repository_contract_remains_discoverable tests.test_validate_repo.RepositoryValidationTests.test_exported_tree_discovery_has_no_git_dependency -v",
+      "exit_code": 0,
+      "summary": "Focused contract-discovery suite passed: 6 tests, including the exact .claude/worktrees/wi238-regression-test shape, a real linked worktree at scratch agent/feature x (spaces and Windows path handling), a stale .git-file orphan, an independent nested Git repository, the literal worktrees fallback, and a Git-free exported tree."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"; repopact validate; python -m unittest discover -s tests -q; python -m repopact.run_conformance; repopact dashboard; repopact spec; repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "Full local validation passes: editable install, repopact validate, 151 unit tests (2 existing formal-model skips), 20/20 conformance, dashboard/SPEC regeneration, and frozen-surface verification. No GitHub-hosted execution was used."
+    },
+    {
+      "command": "git worktree list --porcelain; python -c \"from pathlib import Path; from repopact.repo_model import iter_contracts; print(iter_contracts(Path('.'))[0])\"",
+      "exit_code": 0,
+      "summary": "All temporary real worktrees were removed and pruned; only the primary checkout remains. Ordinary contract discovery remains healthy."
+    }
+  ],
+  "artifacts": [
+    "decisions/0035-structural-git-worktree-awareness.md",
+    "repopact/repo_model.py",
+    "tests/test_validate_repo.py",
+    "research/findings.md",
+    "research/captures/016-forgewire-wi238-3-0-0-field-evidence.md",
+    "repopact/_audit/inventory.md",
+    "repopact/_audit/alignment-report.md",
+    "SPEC.md",
+    "audits/reports/dashboard.md",
+    "RELEASE_LABEL"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "python": "3.13",
+    "version": "3.0.1",
+    "release_label": "3.0.1-dev.1",
+    "package_development_version": "3.0.1dev1",
+    "detection": "git worktree list --porcelain plus embedded .git file targets under primary .git/worktrees",
+    "fallback": "IGNORED_PARTS includes worktrees for stale/orphaned conventional scratch trees",
+    "independent_nested_repository": "nested .git directory remains discoverable",
+    "git_unavailable_or_exported": "deterministic filesystem discovery without requiring Git",
+    "falsifier": "moving an otherwise identical linked worktree from worktrees to an arbitrary directory and rediscovering its AGENTS.md would falsify the structural-awareness claim",
+    "github_hosted_execution": "not used; WI032 local-only directive honored"
+  }
+}

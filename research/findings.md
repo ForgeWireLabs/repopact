@@ -24,7 +24,7 @@ capture behind it. Severity reflects impact on an adopter, not effort to fix.
 | F-012 | H7 | holds | Full lifecycle (adopt+import-plan+doctor) on an independent, different-domain real app (SkillForge, a Tauri cert-learning app) reached conformant RepoPact, non-destructively | [011](captures/011-skillforge-adoption.md) | shipped (WI 014); motivated TODO-prefix import fix |
 | F-013 | H7 | holds | RepoPact adapts to governance-folder planning (tracking/ → decisions/findings/milestones) and `takeover` retires the migrated old method, leaving one ledger without losing un-captured data | [012](captures/012-tracking-and-takeover.md) | shipped (WI 015, dec 0012) |
 | F-014 | H6,H7 | holds | A downstream adopter exposed the missing `proposed` authority state; the resolution is recoverable through decision, implementation, conformance, release, and adopter records | [013](captures/013-proposed-lifecycle-adoption-pressure.md) | shipped (WI 025, dec 0023/0024, release 2.1.0) |
-| F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident); re-reproduced live on the current **public 3.0.0 release** during a second adopter migration (WI 238) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/), [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md) | **fixed on upstream `main`** for the conventional `worktrees/` path (`0096d70`, PR #7) — **not present in the packaged `3.0.0` release** (the fix landed two days after the `3.0.0` tag); general worktree-discovery class (any other checkout convention) remains structurally open |
+| F-015 | H7 | major | 2.2.0's raw filesystem contract walk (`IGNORED_PARTS`) had no awareness of local `git worktree` checkouts, so scratch worktrees under an adopter's tree were scanned as governed nested content, producing false validation errors (171 of 269 reported errors in one longitudinal adopter incident); re-reproduced live on the current **public 3.0.0 release** during a second adopter migration (WI 238) | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/), [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md), [WI042](../work/completed/042-structural-git-worktree-awareness-in-contract-discovery/README.md) | **fixed** — 3.0.1 retained the conventional fallback; WI042 adds structural same-repository linked-worktree detection and preserves independent nested repositories |
 | F-016 | H6,H12 | minor | A work item's human-readable README heading can disagree with its own canonical `work-item.json` `id`/`title` while `repopact validate` stays green; reproduced in an isolated fixture, present in 2.2.0 and current `main`, decision 0014/0028's parity checks do not cover it | [case study](case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/06-representation-drift.md) | open — no fix implemented or prescribed |
 | F-017 | H12 | minor | `repopact doctor`'s `source-of-truth-stale` check resolves a record's relative `source_of_truth:` pointer against the repository root instead of the declaring record's own directory, false-positiving legitimate record-relative pointers (3 of 3 observed on a real adopter tree); inconsistent with `takeover.py`'s own established record-relative treatment of the same field (decision 0016) | [016](captures/016-forgewire-wi238-3-0-0-field-evidence.md), [WI043](../work/completed/043-define-and-enforce-source-of-truth-path-resolution-semantics/README.md) | **fixed** — decision 0034 and WI043 make `doctor` uniformly resolve from the declaring record; historical capture retained |
 
@@ -254,6 +254,15 @@ other directory name reproduces the identical false-positive class on both
 version *pin* against RepoPact's current release; it does not check whether
 a specific historical defect's fix has been received, so it would not by
 itself have surfaced this particular lag.
+
+**Resolution (WI042, 2026-09-02).** The conventional fallback remains in place for
+stale/orphaned `worktrees/` directories, and `repo_model.iter_contracts` now also
+prunes registered linked worktrees plus nested `.git`-file checkouts whose gitdir
+points into the primary repository's `.git/worktrees`. A real linked worktree
+renamed to `scratch agent/feature x` is excluded, while an independent nested
+repository with a `.git/` directory remains discoverable. The original field
+observations and capture 016 are retained; this note closes the previously open
+general worktree-discovery gap without rewriting that history.
 
 **Second reproduction — release lag, not just adopter lag (WI 238).** A
 later, independent ForgeWire migration ([capture 016](captures/016-forgewire-wi238-3-0-0-field-evidence.md))

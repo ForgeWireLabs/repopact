@@ -22,6 +22,7 @@ from repopact import (  # noqa: E402
     generate_spec,
     init_repo,
     plan_import,
+    repo_model,
     takeover,
     validate_repo,
 )
@@ -265,6 +266,108 @@ class RepositoryValidationTests(unittest.TestCase):
         worktree.mkdir(parents=True)
         (worktree / "AGENTS.md").write_text("# from a scratch worktree checkout\n", encoding="utf-8")
         self.assertFalse(any("not registered in audits/registry.json" in v for v in self.problems()))
+
+    def _seed_git_repo(self, name: str = "git-root") -> Path:
+        repo = Path(self.temp.name) / name
+        init_repo.bootstrap(repo)
+        run = lambda *args: subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        )
+        run("init", "--initial-branch=main")
+        run("config", "user.email", "test@example.invalid")
+        run("config", "user.name", "RepoPact Test")
+        run("add", "-A")
+        run("commit", "-m", "seed")
+        return repo
+
+    def test_nonconventional_linked_worktree_is_structurally_excluded(self) -> None:
+        repo = self._seed_git_repo("linked-worktree")
+        worktree = repo / "scratch agent" / "feature x"
+        try:
+            subprocess.run(
+                ["git", "worktree", "add", "--detach", str(worktree), "HEAD"],
+                cwd=repo, check=True, capture_output=True, text=True,
+            )
+            contract = worktree / "AGENTS.md"
+            self.assertTrue((worktree / ".git").is_file())
+            self.assertIn(worktree.resolve(), repo_model.discover_embedded_worktree_roots(repo))
+            self.assertNotIn(contract, repo_model.iter_contracts(repo))
+            self.assertEqual([], [p.message for p in validate(repo)])
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                cwd=repo, check=True, capture_output=True, text=True,
+            )
+            subprocess.run(["git", "worktree", "prune"], cwd=repo, check=True,
+                           capture_output=True, text=True)
+
+    def test_conventional_forgewire_worktree_is_excluded(self) -> None:
+        repo = self._seed_git_repo("conventional-worktree")
+        worktree = repo / ".claude" / "worktrees" / "wi238-regression-test"
+        try:
+            subprocess.run(
+                ["git", "worktree", "add", "--detach", str(worktree), "HEAD"],
+                cwd=repo, check=True, capture_output=True, text=True,
+            )
+            self.assertNotIn(worktree / "AGENTS.md", repo_model.iter_contracts(repo))
+            self.assertEqual([], [p.message for p in validate(repo)])
+        finally:
+            subprocess.run(
+                ["git", "worktree", "remove", "--force", str(worktree)],
+                cwd=repo, check=True, capture_output=True, text=True,
+            )
+            subprocess.run(["git", "worktree", "prune"], cwd=repo, check=True,
+                           capture_output=True, text=True)
+
+    def test_stale_linked_worktree_git_file_is_excluded_without_git_registry(self) -> None:
+        repo = self._seed_git_repo("stale-linked-worktree")
+        orphan = repo / "scratch-agent" / "orphan"
+        orphan.mkdir(parents=True)
+        (orphan / ".git").write_text(
+            f"gitdir: {repo / '.git' / 'worktrees' / 'orphan'}\n", encoding="utf-8"
+        )
+        (orphan / "AGENTS.md").write_text("# stale linked checkout\n", encoding="utf-8")
+        self.assertNotIn(orphan / "AGENTS.md", repo_model.iter_contracts(repo))
+
+    def test_independent_nested_repository_contract_remains_discoverable(self) -> None:
+        repo = self._seed_git_repo("nested-repository")
+        nested = repo / "vendor" / "component"
+        nested.mkdir(parents=True)
+        (nested / "AGENTS.md").write_text("# independent component\n", encoding="utf-8")
+        subprocess.run(["git", "init", "-q", str(nested)], check=True,
+                       capture_output=True, text=True)
+        registry = json.loads((repo / "audits" / "registry.json").read_text(encoding="utf-8"))
+        registry["scopes"].append({
+            "path": "vendor/component", "owner": "governance-owner",
+            "contract": "vendor/component/AGENTS.md", "last_reviewed": "2026-09-02",
+            "next_review": "2026-12-01", "alignment": "current",
+            "notes": "Independent nested repository contract.",
+        })
+        (repo / "audits" / "registry.json").write_text(
+            json.dumps(registry, indent=2) + "\n", encoding="utf-8"
+        )
+        (nested / "_audit").mkdir()
+        for name in ("README.md", "inventory.md", "alignment-report.md"):
+            (nested / "_audit" / name).write_text(f"# {name}\n", encoding="utf-8")
+        generate_dashboard.write_dashboard(repo)
+        self.assertNotIn(nested.resolve(), repo_model.discover_embedded_worktree_roots(repo))
+        self.assertIn(nested / "AGENTS.md", repo_model.iter_contracts(repo))
+        self.assertEqual([], [p.message for p in validate(repo)])
+
+    def test_exported_tree_discovery_has_no_git_dependency(self) -> None:
+        repo = Path(self.temp.name) / "exported-tree"
+        init_repo.bootstrap(repo)
+        nested = repo / "governed" / "component"
+        nested.mkdir(parents=True)
+        (nested / "AGENTS.md").write_text("# governed component\n", encoding="utf-8")
+        fake = repo / "worktree" / "name"
+        fake.mkdir(parents=True)
+        (fake / "AGENTS.md").write_text("# ordinary governed path\n", encoding="utf-8")
+        first = repo_model.iter_contracts(repo)
+        second = repo_model.iter_contracts(repo)
+        self.assertEqual(first, second)
+        self.assertIn(nested / "AGENTS.md", first)
+        self.assertIn(fake / "AGENTS.md", first)
 
     def test_existing_audit_companion_must_be_complete(self) -> None:
         (self.root / "repopact" / "_audit" / "inventory.md").unlink()

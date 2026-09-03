@@ -1,6 +1,6 @@
 # 042 — Structural Git-Worktree Awareness in Contract Discovery
 
-> **Status**: 📋 Planning (proposed — not started)
+> **Status**: ✅ Completed
 > **Owners**: governance-owner (lead).
 > **Depends on**: none.
 
@@ -25,20 +25,26 @@ determined during implementation, not assumed here).
 
 ## Decisions
 
-Not yet made — this item is proposed, not started. The central open decision is named
-in AC-3/AC-6: whether contract discovery should key off `git`-level worktree identity
-(structural), a directory-name allowlist (as today, just wider), or a combination, and
-how nested repositories (a deliberately vendored or embedded sub-repository, as
-distinct from a worktree of the same repository) should be treated. This work item
-must not assume the answer in advance.
+Decision [0035](../../../decisions/0035-structural-git-worktree-awareness.md) adopts
+layered structural detection: registered worktree paths from `git worktree list
+--porcelain`, embedded `.git` files pointing into the primary `.git/worktrees`
+directory, and the retained `worktrees` name fallback for stale/orphaned scratch
+trees. Independent nested repositories with `.git/` directories remain discoverable.
 
 ## Scope
 
-Not yet started. Expected to touch `repopact/repo_model.py` (`iter_contracts`,
-`IGNORED_PARTS`), `tests/test_validate_repo.py`, and likely a new `decisions/` record
-for the structural choice made.
+Implemented in `repopact/repo_model.py` (`discover_embedded_worktree_roots` and
+`iter_contracts`), with real Git worktree and nested-repository regression coverage
+in `tests/test_validate_repo.py`. The walker normalizes Windows paths, handles Git
+unavailability/exported trees deterministically, and prunes identified linked roots
+before descending.
 
-## Closeout
+## Evidence and closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are satisfied,
-move this directory to `work/completed/` and regenerate the dashboard.
+Evidence run [20260902-042-structural-worktree-awareness](../../../evidence/runs/20260902-042-structural-worktree-awareness.json)
+records the structural alternatives, chosen layered detector, real conventional and
+non-conventional linked-worktree cases, stale metadata fallback, independent nested
+repository preservation, Windows path handling, Git-free exported-tree behavior,
+negative controls, cleanup, and complete local validation. All six acceptance
+criteria are satisfied. The complete directory is now under `work/completed/`, and
+dashboard/SPEC outputs were regenerated and validated after the lifecycle transition.

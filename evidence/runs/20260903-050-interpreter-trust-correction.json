@@ -1,7 +1,7 @@
 {
   "$schema": "../../repopact/schemas/evidence-run.schema.json",
   "id": "20260903-050-interpreter-trust-correction",
-  "timestamp": "2026-09-03T22:10:14Z",
+  "timestamp": "2026-09-03T22:12:10Z",
   "timestamp_basis": "git-recording",
   "work_item": "050",
   "result": "partial",
@@ -38,7 +38,7 @@
       "_cffi_backend"
     ],
     "native_binding": "The isolated service-closure self-test loaded cryptography.hazmat.bindings._rust.pyd; _cffi_backend was also loaded by the actual build and is therefore retained as required.",
-    "current_machine_result": "The selected interpreter and all observed dependency origins are under the current user's AppData/site-packages hierarchy, so interpreter_protected=false, dependency closure is untrusted, ready=false, and mutations=[] ."
+    "current_machine_result": "The selected interpreter and all observed dependency origins are under the current user's AppData/site-packages hierarchy, so interpreter_protected=false, dependency closure is untrusted, ready=false, and mutations=[]; after commit, source_tree_clean=true."
   },
   "remediations": {
     "explicit_interpreter": "guard install accepts --interpreter; omitted sys.executable is recorded canonically and receives identical validation. The canonical path is written to install.json and the SCM command.",
@@ -71,7 +71,7 @@
     {"command": "python -m repopact.cli spec --root .", "exit_code": 0, "summary": "SPEC derived blocks regenerated without drift."},
     {"command": "python -m repopact.cli check-frozen --root . --base 31f4d5a59db6cc2329e811af7d46fb864f774c0d", "exit_code": 0, "summary": "No frozen-surface changes detected."},
     {"command": "python -m build --wheel --outdir temp/wheel-interpreter-correction --no-isolation", "exit_code": 0, "summary": "repopact-3.0.2.dev1 wheel built; generated output removed after verification."},
-    {"command": "python -m repopact.cli guard install --preflight --root C:\\Projects\\repopact --interpreter C:\\Users\\jerem\\AppData\\Local\\Programs\\Python\\Python313\\python.exe", "exit_code": 0, "summary": "Explicit report: isolated self-test passed, but interpreter/dependency trust and source cleanliness failed; ready=false and mutations=[]."},
+    {"command": "python -m repopact.cli guard install --preflight --root C:\\Projects\\repopact --interpreter C:\\Users\\jerem\\AppData\\Local\\Programs\\Python\\Python313\\python.exe", "exit_code": 0, "summary": "Post-commit explicit report: source_tree_clean=true and isolated self-test=true, but interpreter/dependency trust failed; ready=false and mutations=[]."},
     {"command": "git diff --check", "exit_code": 0, "summary": "No whitespace errors."}
   ],
   "preflight": {
@@ -79,7 +79,7 @@
     "isolated_self_test": true,
     "isolated_paths_safe": false,
     "required_dependency_closure": false,
-    "source_tree_clean": false,
+    "source_tree_clean": true,
     "runtime_target_absent": true,
     "mutations": [],
     "ready": false

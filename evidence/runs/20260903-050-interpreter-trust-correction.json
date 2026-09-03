@@ -49,7 +49,11 @@
   },
   "actual_dependency_origins": {
     "cryptography": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/__init__.py",
+    "cryptography_hashes": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/primitives/hashes.py",
+    "cryptography_serialization": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/primitives/serialization.py",
     "cryptography_ed25519": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/primitives/asymmetric/ed25519.py",
+    "cryptography_aesgcm": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/primitives/ciphers/aead.py",
+    "cryptography_pbkdf2": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/primitives/kdf/pbkdf2.py",
     "cryptography_native": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/cryptography/hazmat/bindings/_rust.pyd",
     "cffi_native": "C:/Users/jerem/AppData/Local/Programs/Python/Python313/Lib/site-packages/_cffi_backend.cp313-win_amd64.pyd"
   },

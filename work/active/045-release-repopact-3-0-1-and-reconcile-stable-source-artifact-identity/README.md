@@ -106,3 +106,15 @@ All acceptance criteria in `work-item.json` require concrete linked evidence. Th
 show both sides of the repair: public 3.0.1 actually contains the stable code that 3.0.0 missed,
 and the repository now has a tested rule preventing a future materially newer package/runtime
 `main` from silently retaining the exact identity of an already-published stable artifact.
+
+## 2026-09-02 local release state
+
+Decision 0032 keeps strict `VERSION` adopter equality, accepts the exact matching stable tag
+tree without a label, and requires later same-core package/runtime source to carry a
+VERSION-pinned `RELEASE_LABEL`; package metadata maps that label deterministically to PEP 440.
+Decision 0033 enumerates the 3.0.1 delta: the `worktrees/` exclusion, identity-aware validation and
+packaging/release machinery, and their regression coverage. The exact tagged commit is
+`181e35a84605a966487199a6ee22cb5e4dfb9176`; local evidence is recorded in
+`20260902-045-release-3-0-1-local-validation`. AC-1 through AC-8, AC-10, and AC-11 are
+satisfied. AC-9 remains pending because the non-interactive PyPI upload found no API token;
+see `20260902-045-publication-blocked`. No hosted GitHub execution was invoked.

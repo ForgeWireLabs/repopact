@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "045",
   "title": "Release RepoPact 3.0.1 and Reconcile Stable Source/Artifact Identity",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": ["governance", "tooling", "docs", "evidence", "work"],
   "depends_on": ["038", "041"],
@@ -64,8 +64,8 @@
     {
       "id": "AC-9",
       "text": "The release commit and annotated v3.0.1 tag are pushed and resolve to the same exact commit. The exact validated wheel and sdist are published to PyPI; public metadata reports 3.0.1; a no-cache download's SHA-256 matches the locally validated artifact; and a clean public-wheel install outside the checkout proves the worktree exclusion and supported CLI behavior from site-packages.",
-      "state": "pending",
-      "evidence": ["20260902-045-publication-blocked"]
+      "state": "satisfied",
+      "evidence": ["20260902-045-publication-blocked", "20260902-045-public-publication-verification"]
     },
     {
       "id": "AC-10",

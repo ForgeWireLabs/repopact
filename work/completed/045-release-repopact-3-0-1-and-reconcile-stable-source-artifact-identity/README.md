@@ -118,3 +118,15 @@ packaging/release machinery, and their regression coverage. The exact tagged com
 `20260902-045-release-3-0-1-local-validation`. AC-1 through AC-8, AC-10, and AC-11 are
 satisfied. AC-9 remains pending because the non-interactive PyPI upload found no API token;
 see `20260902-045-publication-blocked`. No hosted GitHub execution was invoked.
+
+## 2026-09-02 public publication closeout
+
+The exact validated wheel and sdist were published manually from operator-owned
+Windows hardware. Public PyPI metadata and no-cache downloads match both local
+SHA-256 values exactly. A fresh external environment installed the public wheel
+from site-packages, reported distribution version `3.0.1`, resolved packaged
+schemas/templates, and passed installed `init`, `adopt`, and `validate` smoke
+tests with `worktrees=True`. AC-9 is now satisfied by
+`20260902-045-public-publication-verification`; the earlier blocked attempt is
+retained as historical evidence. WI032 remains blocked/local-only and WI037
+remains a separate adopter-fleet obligation.

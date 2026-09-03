@@ -1,0 +1,42 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260902-045-public-publication-verification",
+  "timestamp": "2026-09-02T20:13:50-05:00",
+  "work_item": "045",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m twine upload --non-interactive <exact wheel> <exact sdist>", "exit_code": 0, "summary": "Manual/local Twine upload from operator-owned Windows hardware accepted both exact 3.0.1 artifacts. The token was supplied from the operator's file through a temporary environment variable and was not printed, persisted, or recorded."},
+    {"command": "GET https://pypi.org/pypi/repopact/3.0.1/json", "exit_code": 0, "summary": "Public PyPI metadata reports version 3.0.1, wheel digest b137f53e0c1034eb3a528ce92f5f97ce0c3c344841f9524d28c656333d862a6d, and sdist digest 1a79420fa933b9c7cf74e8295460b15f39205c669e5eb52fbcfc9140e407be62."},
+    {"command": "pip download --no-cache-dir --no-deps --only-binary=:all: <public wheel URL>; pip download --no-cache-dir --no-deps --no-binary=:all: repopact==3.0.1", "exit_code": 0, "summary": "Fresh external verification area downloaded the public wheel and sdist. Wheel SHA-256 equals b137f53e0c1034eb3a528ce92f5f97ce0c3c344841f9524d28c656333d862a6d; sdist SHA-256 equals 1a79420fa933b9c7cf74e8295460b15f39205c669e5eb52fbcfc9140e407be62. Both equal the locally validated artifacts."},
+    {"command": "python -m venv <external-public-verify>; pip install --no-cache-dir <downloaded public wheel>", "exit_code": 0, "summary": "The exact downloaded public wheel installed successfully outside C:\\Projects\\repopact."},
+    {"command": "python -c 'from importlib.metadata import version; import repopact; import repopact.repo_model as model'", "exit_code": 0, "summary": "distribution version=3.0.1; package and repo_model loaded from the fresh venv site-packages; worktrees ignored=True."},
+    {"command": "repopact init --target <external init-proof>; repopact validate --root <external init-proof>; repopact adopt --target <external adopt-proof>; repopact validate --root <external adopt-proof>", "exit_code": 0, "summary": "Installed CLI init, validate, adopt, and validate smoke behavior passed outside the source checkout."},
+    {"command": "importlib.resources.files('repopact').joinpath('schemas/work-item.schema.json'); importlib.resources.files('repopact').joinpath('templates/work-item.json')", "exit_code": 0, "summary": "Packaged schema and template resources both resolved from site-packages."}
+  ],
+  "artifacts": [
+    "evidence/runs/20260902-045-release-3-0-1-local-validation.json",
+    "evidence/runs/20260902-045-publication-blocked.json",
+    "dist/repopact-3.0.1-py3-none-any.whl",
+    "dist/repopact-3.0.1.tar.gz",
+    "https://pypi.org/project/repopact/3.0.1/",
+    "https://pypi.org/pypi/repopact/3.0.1/json",
+    "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.0.1"
+  ],
+  "environment": {
+    "date": "2026-09-02",
+    "os": "Windows",
+    "python": "3.13",
+    "publication_mechanism": "manual/local Twine from operator-owned hardware",
+    "release": "3.0.1",
+    "release_commit": "181e35a84605a966487199a6ee22cb5e4dfb9176",
+    "tag": "v3.0.1",
+    "wheel_sha256_local_and_public": "b137f53e0c1034eb3a528ce92f5f97ce0c3c344841f9524d28c656333d862a6d",
+    "sdist_sha256_local_and_public": "1a79420fa933b9c7cf74e8295460b15f39205c669e5eb52fbcfc9140e407be62",
+    "public_distribution_version": "3.0.1",
+    "public_repo_model": "site-packages; worktrees=True",
+    "packaged_schema": true,
+    "packaged_template": true,
+    "github_hosted_execution": "not used; WI032 local-only directive honored"
+  }
+}

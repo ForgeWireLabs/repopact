@@ -9,6 +9,7 @@
   "commands": [
     {"command": "python -m unittest tests.test_opt_in_provider -q", "exit_code": 0, "summary": "Standalone no-policy, disabled-policy, required-without-provider, external-provider narrowing/loss, and NativeGuardClient SPI tests passed."},
     {"command": "python -m unittest tests.test_admission tests.test_admission_security -q", "exit_code": 0, "summary": "Existing WI050 admission and security regressions remained green."},
+    {"command": "python -m unittest discover -s tests -q", "exit_code": 0, "summary": "Full Windows suite passed: 205 tests, 2 skipped."},
     {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Legacy conformance 20/20 and WI050 admission corpus 8/8 passed."},
     {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "Portable semantic conformance passed; native protected service cases were correctly not-run on this host."},
     {"command": "python -m repopact.cli validate --root .; python -m repopact.cli dashboard --root .; python -m repopact.cli spec --root .", "exit_code": 0, "summary": "Repository validation and derived dashboard/SPEC regeneration passed."},

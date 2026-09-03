@@ -71,7 +71,7 @@ class RepositoryValidationTests(unittest.TestCase):
             ROOT,
             self.root,
             ignore=shutil.ignore_patterns(
-                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "*.egg-info"
+                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "dist-*", "*.egg-info"
             ),
         )
 

@@ -47,6 +47,12 @@ def semver_label_to_pep440(label: str) -> str:
 def package_version(root: Path) -> str:
     """Return stable VERSION or the explicit development distribution identity."""
     version_path = root / "VERSION"
+    if not version_path.is_file():
+        from importlib.metadata import PackageNotFoundError, version as distribution_version
+        try:
+            return distribution_version("repopact")
+        except PackageNotFoundError:
+            return "unknown"
     version = version_path.read_text(encoding="utf-8").strip()
     label_path = root / "RELEASE_LABEL"
     if not label_path.is_file():

@@ -57,6 +57,8 @@ class AdmissionTests(unittest.TestCase):
         req = self.request(); rec = issue_receipt(req, self.signer)
         d, lease = issue_lease(req, rec, self.root, self.protected)
         self.assertTrue(d.allowed); self.assertTrue(lease)
+        replay, _ = issue_lease(req, rec, self.root, self.protected)
+        self.assertEqual(replay.code, "RECEIPT_REPLAY")
         from repopact.admission import revoke
         revoke(self.root, self.protected)
         self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, lease, protected_dir=self.protected).code, "REVOKED_AUTHORIZATION")

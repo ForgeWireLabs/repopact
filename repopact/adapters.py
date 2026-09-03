@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from .admission import AdmissionDecision
+from .admission import AdmissionDecision, iso
 from .guard import ProtectedGuard
 
 
@@ -46,7 +46,7 @@ class AdapterCapabilities:
         raw["capabilities"] = caps
         raw["guard"] = {"endpoint_id": "protected-local", "protocol_version": "1", "required_health": "fail-closed"}
         raw["action_families"] = ["mutation", "process", "read-only"]
-        raw["health"] = {"status": "healthy", "checked_at": "1970-01-01T00:00:00Z"}
+        raw["health"] = {"status": "healthy", "checked_at": iso()}
         raw["os"] = raw["os"] if raw["os"] in {"windows", "linux", "macos"} else "other"
         return raw
 

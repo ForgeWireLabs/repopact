@@ -8,7 +8,7 @@
   "provenance": "concrete",
   "commands": [
     {"command": "python -m pip install -e .[dev]", "exit_code": 0, "summary": "Editable RepoPact 3.0.2.dev1 installed with cryptography Ed25519 support."},
-    {"command": "pytest -q tests/test_admission.py", "exit_code": 0, "summary": "Admission tests passed: canonicalization, signatures, lifecycle/scope denials, lease revocation, callback sentinel, adapter truthfulness, protected tamper, and delegation subsets."},
+    {"command": "pytest -q tests/test_admission.py", "exit_code": 0, "summary": "Admission tests passed: canonicalization, signatures, lifecycle/scope denials, replay-resistant lease consumption and revocation, callback sentinel, adapter truthfulness, protected tamper, and delegation subsets."},
     {"command": "python -m unittest discover -s tests -q", "exit_code": 0, "summary": "Full regression suite passed: 167 tests, 2 disclosed pre-existing skips."},
     {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Published conformance suite passed 20/20."},
     {"command": "python -m build --wheel --outdir <temporary-outdir>", "exit_code": 0, "summary": "Wheel contains repopact/admission.py and all six approved admission schemas."},

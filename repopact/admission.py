@@ -245,7 +245,7 @@ def default_policy() -> dict[str, Any]:
 
 def default_authority(public_key: str = "", operator_id: str = "operator", key_id: str = "operator-key") -> dict[str, Any]:
     return {"authority_version": "1", "operators": [{"operator_id": operator_id, "key_id": key_id, "algorithm": "ed25519", "public_key": public_key, "roles": ["operator"]}],
-            "approval_classes": ["activate", "repair", "frozen", "scope", "revoke"], "profiles": {"observe": {"approval_classes": ["activate"], "max_delegation_depth": 0}, "bounded": {"approval_classes": ["activate", "repair", "frozen", "scope"], "max_delegation_depth": 0}, "repair": {"approval_classes": ["repair"], "max_delegation_depth": 0}},
+            "approval_classes": ["activate", "repair", "frozen", "scope", "revoke", "recovery"], "profiles": {"observe": {"approval_classes": ["activate"], "max_delegation_depth": 0}, "bounded": {"approval_classes": ["activate", "repair", "frozen", "scope"], "max_delegation_depth": 0}, "repair": {"approval_classes": ["repair"], "max_delegation_depth": 0}},
             "delegation": {"allowed": False, "max_depth": 0, "operator_approval_required": True}, "rotation": {"requires_existing_trust": True, "overlap_seconds": 86400}, "recovery": {"requires_existing_trust": True, "separate_approval_class": "recovery"}}
 
 
@@ -292,6 +292,13 @@ def _protected_state(root: Path, protected_dir: Path | None) -> tuple[dict[str, 
         state["state_mac"] = supplied
         return state, p
     except (OSError, ValueError, json.JSONDecodeError): return None, p
+
+
+def _save_protected_state(path: Path, state: dict[str, Any]) -> None:
+    key = path.with_name("registration.key").read_bytes()
+    state.pop("state_mac", None)
+    state["state_mac"] = hmac.new(key, canonical_json(state), hashlib.sha256).hexdigest()
+    path.write_bytes(canonical_json(state) + b"\n")
 
 
 def verify_registration(root: Path, protected_dir: Path | None = None) -> AdmissionDecision:
@@ -420,18 +427,22 @@ def issue_lease(request: Mapping[str, Any], receipt: Mapping[str, Any], root: Pa
     if not check.allowed: return check, None
     vr = verify_receipt(request, receipt, check.details["authority"], now)
     if not vr.allowed: return vr, None
-    lease = {"lease_version": 1, "lease_id": str(uuid.uuid4()), "request_digest": digest(request), "repository_identity": request["repository_identity"], "work_item": request["work_item"], "principal": request["principal"], "session_id": request["adapter_session"], "profile": request["profile"], "scopes": request["scopes"], "paths": request["paths"], "base": request["base"], "authority_state_digest": request["authority_state_digest"], "admission_policy_digest": request["admission_policy_digest"], "issued_at": iso(now), "expires_at": request["expires_at"], "revocation_epoch": check.details.get("revocation_epoch", 0)}
+    state, state_path = _protected_state(root, protected_dir)
+    request_digest = digest(request)
+    if state is None: return AdmissionDecision.deny("GUARD_UNHEALTHY", "protected state unavailable"), None
+    if request_digest in set(state.get("used_request_digests", [])):
+        return AdmissionDecision.deny("RECEIPT_REPLAY", "authorization request has already been consumed"), None
+    state.setdefault("used_request_digests", []).append(request_digest)
+    _save_protected_state(state_path, state)
+    lease = {"lease_version": 1, "lease_id": str(uuid.uuid4()), "request_digest": request_digest, "repository_identity": request["repository_identity"], "work_item": request["work_item"], "principal": request["principal"], "session_id": request["adapter_session"], "profile": request["profile"], "scopes": request["scopes"], "paths": request["paths"], "base": request["base"], "authority_state_digest": request["authority_state_digest"], "admission_policy_digest": request["admission_policy_digest"], "issued_at": iso(now), "expires_at": request["expires_at"], "revocation_epoch": check.details.get("revocation_epoch", 0)}
     return AdmissionDecision.allow("pre-action"), lease
 
 
 def revoke(root: Path, protected_dir: Path | None = None) -> int:
     state, p = _protected_state(root, protected_dir)
     if state is None: raise RuntimeError("protected registration missing")
-    state.pop("state_mac", None)
     state["revocation_epoch"] = int(state.get("revocation_epoch", 0)) + 1
-    key = p.with_name("registration.key").read_bytes()
-    state["state_mac"] = hmac.new(key, canonical_json(state), hashlib.sha256).hexdigest()
-    p.write_bytes(canonical_json(state) + b"\n"); return state["revocation_epoch"]
+    _save_protected_state(p, state); return state["revocation_epoch"]
 
 
 def delegation_subset(parent: Mapping[str, Any], child: Mapping[str, Any]) -> AdmissionDecision:

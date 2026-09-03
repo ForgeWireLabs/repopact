@@ -10,7 +10,7 @@ from pathlib import Path
 
 from repopact.admission import (
     Ed25519Signer, canonical_json, delegation_subset, digest, evaluate_action,
-    issue_lease, issue_receipt, make_request, setup_admission, verify_receipt,
+    issue_lease, issue_receipt, make_request, operator_revoke, setup_admission, verify_receipt,
     verify_registration,
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter, LauncherAdapter
@@ -48,10 +48,10 @@ class AdmissionTests(unittest.TestCase):
 
     def test_invalid_lifecycle_and_scope_denied(self):
         denied = evaluate_action(self.root, {"work_item": "050", "paths": ["governance/owners.json"], "scopes": ["governance"]}, protected_dir=self.protected)
-        self.assertEqual(denied.code, "FROZEN_APPROVAL_REQUIRED")
+        self.assertEqual(denied.code, "NO_OPERATOR_PROOF")
         item = self.root / "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"
         data = json.loads(item.read_text()); data["status"] = "proposed"; item.write_text(json.dumps(data))
-        self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, protected_dir=self.protected).code, "PROPOSED_WORK")
+        self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, protected_dir=self.protected).code, "NO_OPERATOR_PROOF")
 
     def test_receipt_lease_and_revocation(self):
         req = self.request(); rec = issue_receipt(req, self.signer)
@@ -59,18 +59,20 @@ class AdmissionTests(unittest.TestCase):
         self.assertTrue(d.allowed); self.assertTrue(lease)
         replay, _ = issue_lease(req, rec, self.root, self.protected)
         self.assertEqual(replay.code, "RECEIPT_REPLAY")
-        from repopact.admission import revoke
-        revoke(self.root, self.protected)
+        operator_revoke(self.root, self.signer, self.protected)
         self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, lease, protected_dir=self.protected).code, "REVOKED_AUTHORIZATION")
 
     def test_pre_action_callback_never_runs_on_denial(self):
         called = []
-        adapter = PreActionAdapter(ProtectedGuard(self.root, self.protected))
+        adapter = PreActionAdapter(ProtectedGuard(self.root, self.protected, protected_storage=True))
         decision, result = adapter.before({"work_item": "050", "paths": ["outside.txt"]}, lambda: called.append(1))
         self.assertFalse(decision.allowed); self.assertIsNone(result); self.assertEqual(called, [])
         target = self.root / "src" / "admission-sentinel.txt"
         target.parent.mkdir(exist_ok=True)
-        allowed, _ = adapter.before({"work_item": "050", "paths": ["src/admission-sentinel.txt"], "scopes": ["src"]}, lambda: target.write_text("authorized"))
+        req = make_request(self.root, "050", "session-1", scopes=["src"], paths=["src/admission-sentinel.txt"], protected_dir=self.protected)
+        rec = issue_receipt(req, self.signer); proof, lease = issue_lease(req, rec, self.root, self.protected)
+        self.assertTrue(proof.allowed)
+        allowed, _ = adapter.before({"work_item": "050", "paths": ["src/admission-sentinel.txt"], "scopes": ["src"]}, lambda: target.write_text("authorized"), lease)
         self.assertTrue(allowed.allowed); self.assertEqual(target.read_text(), "authorized")
 
     def test_reference_adapters_truthful(self):
@@ -86,8 +88,8 @@ class AdmissionTests(unittest.TestCase):
         self.assertEqual(verify_registration(self.root, self.protected).code, "AUTHORITY_DRIFT")
 
     def test_delegation_only_subsets(self):
-        parent = {"repository_identity": "r", "work_item": "050", "delegation_ceiling": 2, "scopes": ["src"], "paths": ["src/a.py"], "expires_at": "2030-01-01T00:00:00Z"}
-        child = {**parent, "delegation_ceiling": 1, "scopes": ["src"], "paths": ["src/a.py"], "expires_at": "2029-01-01T00:00:00Z"}
+        parent = {"lease_id": "parent", "repository_identity": "r", "work_item": "050", "principal": "operator", "approval_class": "activate", "profile": "bounded", "mode": "normal", "delegation_ceiling": 2, "scopes": ["src"], "paths": ["src/a.py"], "capabilities": [], "delegation_lineage": [], "expires_at": "2030-01-01T00:00:00Z"}
+        child = {**parent, "lease_id": "child", "principal": "subagent", "parent_lease_id": "parent", "delegation_lineage": ["parent"], "delegation_ceiling": 1, "scopes": ["src"], "paths": ["src/a.py"], "expires_at": "2029-01-01T00:00:00Z"}
         self.assertTrue(delegation_subset(parent, child).allowed)
         self.assertFalse(delegation_subset(parent, {**child, "paths": ["src/a.py", "src/b.py"]}).allowed)
 

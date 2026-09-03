@@ -1,0 +1,27 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-security-review",
+  "timestamp": "2026-09-03T18:40:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m unittest tests.test_admission_security -v", "exit_code": 1, "summary": "Eight focused pre-remediation security regressions reproduced against 9ac9df1."}
+  ],
+  "artifacts": ["tests/test_admission_security.py", "repopact/admission.py", "repopact/guard.py", "repopact/cli.py"],
+  "environment": {"os": "Windows", "python": "3.13", "repository": "C:/Projects/repopact", "baseline": "9ac9df1a7f8ad148752fbfdac57d2ca4833c271f"},
+  "findings": [
+    "active work plus profile/path allowed mutation without an operator lease",
+    "lease scopes and paths were not enforced at action time",
+    "repair path could bypass lease and approval",
+    "caller receipt_verified flag could stand in for frozen proof",
+    "receipt approval_class was editable after signing",
+    "approval request output accepted arbitrary filesystem paths",
+    "revocation incremented protected epoch without operator proof",
+    "same-principal HMAC key replacement was reported as protected"
+  ],
+  "acceptance_criteria_reopened": ["AC-6", "AC-7", "AC-8", "AC-9", "AC-14", "AC-17", "AC-22", "AC-24"],
+  "remaining_pending": ["AC-16", "AC-18"],
+  "scope_guard": {"new_frozen_change_authorized": false, "unapproved_frozen_changes": []}
+}

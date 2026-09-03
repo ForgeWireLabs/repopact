@@ -12,18 +12,29 @@ in the repository. Existing protected registration is not silently replaced.
 `repopact admission begin --work-item NNN --session ID` creates a canonical
 request. An operator signs that request with the approval CLI in an interactive
 terminal. The guard verifies the receipt and issues a short-lived lease. Every
-pre-action adapter calls the guard before its callback; a denial means the
-callback is not invoked. `repopact admission status` and `repopact doctor`
+mutation, process, repair, or frozen-surface action must present that
+operator-derived lease; only read/orientation and bounded proposed-work or
+approval-request operations are lease-free. Lease paths, scopes, profile, mode,
+capabilities, session, repository, work item, base, expiry, and revocation epoch
+are checked again at action time. Every pre-action adapter calls the guard before
+its callback; a denial means the callback is not invoked. `repopact admission status` and `repopact doctor`
 expose safe health diagnostics only.
 
-The adapter SPI reports facts, not a marketing flag. The reference coding and
-launcher adapters provide pre-action checks but do not claim arbitrary child
-process or filesystem confinement. Host backends can report
+The adapter SPI reports facts, not a marketing flag. The reference coding
+adapter provides pre-action checks; the independent launcher adapter gates
+child creation but reports its lower session-start class and does not claim
+arbitrary child process or filesystem confinement. Host backends can report
 `sandbox/process-enforced` only after a real OS boundary is installed. MCP,
 hooks, repository settings, and shell wrappers are integration surfaces and
 backstops, never the sole trust root.
 
 Bootstrap commands `repopact work propose` and `repopact work amend-proposal`
 cannot transition proposed work to active or fabricate an operator receipt.
-Frozen-surface changes require a receipt bound to the exact request digest;
-`check-frozen --ack` remains advisory.
+Admission setup, init/adopt admission, and revocation require an external
+encrypted key plus interactive operator presence; unattended setup never creates
+an ephemeral trust root. Requests and receipts are written only to their
+canonical evidence directories. Frozen-surface changes require a receipt bound
+to the exact declared frozen-surface digest; `check-frozen --ack` remains
+advisory. The reference filesystem guard reports `protected=false` because a
+same-principal process can rewrite the adjacent HMAC key and state; a host must
+provide the missing process/path boundary before claiming sandbox enforcement.

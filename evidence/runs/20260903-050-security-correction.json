@@ -1,0 +1,79 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260903-050-security-correction",
+  "timestamp": "2026-09-03T19:17:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m unittest discover -s tests -q", "exit_code": 0, "summary": "Full Windows test discovery passed after correction."},
+    {"command": "python -m unittest tests.test_admission_security -q", "exit_code": 0, "summary": "Focused WI050 regressions and Windows bypass coverage passed."},
+    {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Legacy conformance 20/20; WI050 admission corpus 8/8."},
+    {"command": "python -m repopact.cli validate --root .", "exit_code": 0, "summary": "Repository governance validation passed."},
+    {"command": "python -m repopact.cli check-frozen --root . --base 9ac9df1a7f8ad148752fbfdac57d2ca4833c271f", "exit_code": 0, "summary": "No frozen-surface changes in the correction pass."},
+    {"command": "python -m build --wheel --outdir %TEMP%/repopact-wheel-proof --no-isolation", "exit_code": 0, "summary": "Wheel built successfully after editable installation of declared dev dependencies."},
+    {"command": "wsl --status; docker info", "exit_code": 1, "summary": "WSL is not installed and Docker is unavailable on this Windows host; no Linux/macOS closeout was attempted."}
+  ],
+  "artifacts": [
+    "repopact/admission.py",
+    "repopact/guard.py",
+    "repopact/adapters.py",
+    "repopact/cli.py",
+    "repopact/platform_backends.py",
+    "repopact/admission_conformance.py",
+    "tests/test_admission_security.py"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repository": "C:/Projects/repopact",
+    "baseline": "9ac9df1a7f8ad148752fbfdac57d2ca4833c271f",
+    "stable_tag": "dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+    "linux_matrix": "unavailable: WSL not installed",
+    "macos_matrix": "not run on this machine"
+  },
+  "reproducer_before_fix": [
+    "tests.test_admission_security.test_mutation_without_lease_is_denied (baseline allowed and changed a sentinel)",
+    "tests.test_admission_security.test_lease_path_widening_is_denied (baseline ignored the lease path subset)",
+    "tests.test_admission_security.test_repair_without_lease_is_denied (baseline returned repair allow)",
+    "tests.test_admission_security.test_caller_frozen_flag_cannot_authorize (baseline trusted receipt_verified)",
+    "tests.test_admission_security.test_receipt_class_tamper_is_rejected (baseline accepted edited approval_class)",
+    "tests.test_admission_security.test_approval_request_rejects_arbitrary_output (baseline wrote caller-selected output)",
+    "tests.test_admission_security.test_noninteractive_revoke_is_denied (baseline incremented revocation epoch)",
+    "tests.test_admission_security.test_same_principal_state_rewrite_is_not_protected (baseline claimed protected=true)"
+  ],
+  "negative_regressions": [
+    "No-lease mutation, repair, process, and frozen actions deny before callback or child creation.",
+    "Lease repository/WI/principal/session/profile/mode/scope/path/capability/lineage/base/expiry/revocation checks deny tampering and widening.",
+    "Repair requires a signed repair receipt, repair mode, and diagnosed paths; frozen requires signed frozen proof and current frozen digest.",
+    "Canonical approval writes reject arbitrary paths, symlinks, and overwrite attempts; noninteractive revoke leaves epoch unchanged.",
+    "Linked worktrees resolve only through the authenticated Git common directory; independent repositories remain unregistered.",
+    "Launcher denial is observed before subprocess creation; self-activation and --ack do not create authority."
+  ],
+  "final_security_claim": "Within the Windows reference policy/guard and adapter boundaries, ordinary mutation authority is fail-closed on an operator-derived lease and cannot be widened by caller assertions, stale receipts, bootstrap paths, revocation calls, or linked-worktree path spelling. The reference filesystem backend does not claim protection from a same-principal attacker without a host-managed process/path boundary.",
+  "adapter_enforcement_classes": {
+    "pre_action_reference": "pre-action interception; callback is not invoked on denial",
+    "launcher_reference": "session-start gate before subprocess creation; no arbitrary child path/process confinement claimed",
+    "platform_backends": "not-covered unless host reports a real process and path boundary; integrity_checked is reported separately"
+  },
+  "os_proof": {
+    "windows": "concrete: focused bypass matrix and full test discovery passed on Windows/Python 3.13",
+    "linux": "unavailable: WSL not installed and Docker unavailable",
+    "macos": "not run on this machine; reserved for another machine"
+  },
+  "remediations": [
+    "mutation, process, repair, and frozen actions require an operator-derived lease",
+    "lease repository, work item, principal, session, profile, mode, scopes, paths, capabilities, lineage, base, expiry, and revocation are checked at action time",
+    "repair requires a direct repair approval, repair mode, and explicit diagnosed paths",
+    "frozen approval binds the declared frozen-surface digest and ignores caller receipt_verified flags",
+    "receipt class, expiry, epoch, algorithm, and authority version are bound and verified",
+    "bootstrap requests and receipts use canonical evidence paths with symlink and overwrite protection",
+    "revocation requires an operator-signed revoke receipt",
+    "linked worktrees resolve the authenticated registration through git-common-dir",
+    "reference filesystem health reports integrity separately from protection against the same principal"
+  ],
+  "acceptance_criteria_satisfied": ["AC-6", "AC-7", "AC-8", "AC-9", "AC-14", "AC-17", "AC-22", "AC-24"],
+  "acceptance_criteria_pending": ["AC-16", "AC-18"],
+  "scope_guard": {"new_frozen_change_authorized": false, "unapproved_frozen_changes": []}
+}

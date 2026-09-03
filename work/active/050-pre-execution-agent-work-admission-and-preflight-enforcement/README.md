@@ -1,6 +1,6 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (implementation pass; AC-18 awaits Linux/macOS proof)
+> **Status**: Active (correction pass; AC-16 and AC-18 remain pending)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
@@ -28,6 +28,15 @@ The implementation pass adds six approved schemas, a pure policy/crypto core,
 protected registration and guard facade, CLI/API operations, truthful adapter
 SPI, OS backend interfaces, and executable admission tests. WI044, WI046, and
 WI047 remain outside this item.
+
+The correction pass adds focused pre-remediation regressions and closes the
+identified lease, receipt, bootstrap-output, revocation, linked-worktree, and
+guard-health gaps without changing the approved frozen surface. Mutation,
+process, repair, and frozen actions now require an operator-derived lease whose
+repository, work item, principal, session, profile, mode, scopes, paths,
+capabilities, lineage, base, expiry, and revocation state are rechecked before
+execution. The reference filesystem backend deliberately reports lower
+assurance until a host-managed process/path boundary exists.
 
 ## Intent
 

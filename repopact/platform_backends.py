@@ -21,7 +21,11 @@ class PlatformBackend:
         return "pre-action"
 
     def capabilities(self) -> dict[str, object]:
-        return {"os": self.os_name, "backend": self.name, "protected_state": str(self.protected_state_location), "path_confinement": self.path_boundary, "process_confinement": self.process_boundary, "security_level": self.security_level}
+        return {"os": self.os_name, "backend": self.name, "protected_state": str(self.protected_state_location),
+                "path_confinement": self.path_boundary, "process_confinement": self.process_boundary,
+                "protected_from_gated_principal": False,
+                "integrity_checked": self.protected_state_location.exists(),
+                "security_level": self.security_level if self.process_boundary and self.path_boundary else "not-covered"}
 
     def health(self) -> dict[str, object]:
         return {**self.capabilities(), "healthy": self.protected_state_location.parent.exists() or self.protected_state_location.parent == Path.home()}

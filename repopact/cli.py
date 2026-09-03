@@ -13,10 +13,45 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import jsonschema
 
 from .repo_model import STATUSES
+
+
+def _operator_signer(admission: Any, key_file: Path | None, root: Path):
+    """Load or create an external encrypted signer only with user presence."""
+    if key_file is None:
+        raise admission.SignerError("--key-file is required to establish operator trust")
+    key_file = key_file.resolve()
+    if key_file.is_relative_to(root):
+        raise admission.SignerError("private operator keys must be stored outside the repository")
+    if not sys.stdin.isatty():
+        raise admission.SignerError("operator key setup requires an interactive terminal")
+    from getpass import getpass
+    phrase = getpass("Operator key passphrase: ")
+    if key_file.exists():
+        return admission.Ed25519Signer.load(key_file, phrase)
+    signer = admission.Ed25519Signer.generate()
+    signer.save(key_file, phrase)
+    return signer
+
+
+def _write_canonical_record(root: Path, directory: str, name: str, payload: bytes) -> Path:
+    """Write an admission record without following a repository symlink."""
+    target = root / directory / name
+    current = root
+    for component in Path(directory).parts:
+        current = current / component
+        if current.is_symlink():
+            raise RuntimeError("canonical admission directory contains a symlink")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.is_symlink() or target.exists():
+        raise RuntimeError("canonical admission record already exists")
+    with target.open("xb") as handle:
+        handle.write(payload)
+    return target
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -26,11 +61,13 @@ def main(argv: list[str] | None = None) -> int:
     p_init = sub.add_parser("init", help="Bootstrap a new RepoPact repository")
     p_init.add_argument("--target", type=Path, required=True)
     p_init.add_argument("--admission", action="store_true", help="Opt in to protected pre-execution admission")
+    p_init.add_argument("--key-file", type=Path, help="External encrypted operator key (required with --admission)")
 
     p_adopt = sub.add_parser("adopt", help="Adopt RepoPact into an existing repository")
     p_adopt.add_argument("--target", type=Path, required=True)
     p_adopt.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
     p_adopt.add_argument("--admission", action="store_true", help="Opt in to protected pre-execution admission")
+    p_adopt.add_argument("--key-file", type=Path, help="External encrypted operator key (required with --admission)")
 
     p_imp = sub.add_parser("import-plan", help="Import existing plan items (todos, checklists, issues) into work/")
     p_imp.add_argument("--root", type=Path, default=Path.cwd())
@@ -96,14 +133,13 @@ def main(argv: list[str] | None = None) -> int:
     p_setup.add_argument("--root", type=Path, default=Path.cwd())
     p_setup.add_argument("--protected-dir", type=Path)
     p_setup.add_argument("--key-file", type=Path, help="External encrypted operator key file")
-    p_setup.add_argument("--passphrase", help=argparse.SUPPRESS)
     p_status = adm_sub.add_parser("status", help="Show safe admission health")
     p_status.add_argument("--root", type=Path, default=Path.cwd())
     p_status.add_argument("--protected-dir", type=Path)
     p_begin = adm_sub.add_parser("begin", help="Create a canonical authorization request")
     p_begin.add_argument("--root", type=Path, default=Path.cwd()); p_begin.add_argument("--work-item", required=True); p_begin.add_argument("--session", required=True); p_begin.add_argument("--profile", default="bounded"); p_begin.add_argument("--protected-dir", type=Path)
-    p_revoke = adm_sub.add_parser("revoke", help="Increment protected revocation epoch")
-    p_revoke.add_argument("--root", type=Path, default=Path.cwd()); p_revoke.add_argument("--protected-dir", type=Path)
+    p_revoke = adm_sub.add_parser("revoke", help="Operator-controlled revocation transition")
+    p_revoke.add_argument("--root", type=Path, default=Path.cwd()); p_revoke.add_argument("--protected-dir", type=Path); p_revoke.add_argument("--key-file", type=Path)
 
     p_work = sub.add_parser("work", help="Bounded bootstrap work operations")
     work_sub = p_work.add_subparsers(dest="work_command", required=True)
@@ -115,9 +151,9 @@ def main(argv: list[str] | None = None) -> int:
     p_appr = sub.add_parser("approval", help="Operator approval receipt operations")
     appr_sub = p_appr.add_subparsers(dest="approval_command", required=True)
     p_req = appr_sub.add_parser("request", help="Create and save an authorization request")
-    p_req.add_argument("--root", type=Path, default=Path.cwd()); p_req.add_argument("--work-item", required=True); p_req.add_argument("--session", required=True); p_req.add_argument("--output", type=Path, required=True); p_req.add_argument("--protected-dir", type=Path)
+    p_req.add_argument("--root", type=Path, default=Path.cwd()); p_req.add_argument("--work-item", required=True); p_req.add_argument("--session", required=True); p_req.add_argument("--output", type=Path); p_req.add_argument("--protected-dir", type=Path)
     p_approve = appr_sub.add_parser("approve", help="Interactively sign a request")
-    p_approve.add_argument("--request", type=Path, required=True); p_approve.add_argument("--key-file", type=Path, required=True); p_approve.add_argument("--output", type=Path, required=True)
+    p_approve.add_argument("--request", type=Path, required=True); p_approve.add_argument("--key-file", type=Path, required=True); p_approve.add_argument("--output", type=Path); p_approve.add_argument("--protected-dir", type=Path)
     p_pending = appr_sub.add_parser("pending", help="List safe pending request metadata")
     p_pending.add_argument("--root", type=Path, default=Path.cwd())
     p_show = appr_sub.add_parser("show", help="Show a request or receipt record")
@@ -130,10 +166,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "init":
         from . import init_repo
         target = args.target.resolve()
+        if args.admission and args.key_file is None:
+            print("init --admission requires an external --key-file and interactive operator presence", file=sys.stderr)
+            return 1
         init_repo.bootstrap(target)
         if args.admission:
             from . import admission
-            admission.setup_admission(target)
+            try: admission.setup_admission(target, signer=_operator_signer(admission, args.key_file, target))
+            except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
         from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
@@ -147,6 +187,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "adopt":
         from . import adopt_repo
         target = args.target.resolve()
+        if args.admission and args.key_file is None:
+            print("adopt --admission requires an external --key-file and interactive operator presence", file=sys.stderr)
+            return 1
         rep = adopt_repo.adopt(target, dry_run=args.dry_run)
         adopt_repo._print_report(rep)
         if args.dry_run:
@@ -154,7 +197,8 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.admission:
             from . import admission
-            admission.setup_admission(target)
+            try: admission.setup_admission(target, signer=_operator_signer(admission, args.key_file, target))
+            except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
         from . import validate_repo
         problems = validate_repo.validate(target)
         if problems:
@@ -170,17 +214,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "admission":
             root = args.root.resolve(); protected = args.protected_dir.resolve() if args.protected_dir else None
             if args.admission_command == "setup":
-                signer = None
-                if args.key_file:
-                    if args.key_file.resolve().is_relative_to(root):
-                        print("Private operator keys must be stored outside the repository", file=sys.stderr)
-                        return 1
-                    from getpass import getpass
-                    phrase = args.passphrase if args.passphrase is not None else getpass("Operator key passphrase: ")
-                    if args.key_file.exists(): signer = admission.Ed25519Signer.load(args.key_file, phrase)
-                    else:
-                        signer = admission.Ed25519Signer.generate(); signer.save(args.key_file, phrase)
-                result = admission.setup_admission(root, protected, signer)
+                try: signer = _operator_signer(admission, args.key_file, root); result = admission.setup_admission(root, protected, signer)
+                except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
                 print(json.dumps({k: str(v) for k, v in result.items() if k != "signer"}, sort_keys=True)); return 0
             if args.admission_command == "status":
                 print(json.dumps(admission.diagnose(root, protected), sort_keys=True)); return 0 if admission.verify_registration(root, protected).allowed else 1
@@ -188,7 +223,7 @@ def main(argv: list[str] | None = None) -> int:
                 try: print(json.dumps(admission.make_request(root, args.work_item, args.session, profile=args.profile, protected_dir=protected), sort_keys=True)); return 0
                 except Exception as exc: print(f"Admission request denied: {exc}", file=sys.stderr); return 1
             if args.admission_command == "revoke":
-                try: print(json.dumps({"revocation_epoch": admission.revoke(root, protected)})); return 0
+                try: print(json.dumps({"revocation_epoch": admission.operator_revoke(root, _operator_signer(admission, args.key_file, root), protected)})); return 0
                 except Exception as exc: print(f"Revocation failed: {exc}", file=sys.stderr); return 1
         if args.command == "work":
             root = args.root.resolve()
@@ -197,6 +232,8 @@ def main(argv: list[str] | None = None) -> int:
                 path = new.new_work_item(args.title, date.today(), root, status="proposed"); print(f"Created proposed {path.relative_to(root)}"); return 0
             path = next(root.glob(f"work/*/{args.work_item}*/work-item.json"), None)
             if path is None: print("Unknown work item", file=sys.stderr); return 1
+            if path.is_symlink() or not path.resolve().is_relative_to(root):
+                print("Proposal path is outside the repository", file=sys.stderr); return 1
             data = json.loads(path.read_text(encoding="utf-8"));
             if data.get("status") != "proposed": print("Only proposed work may be amended", file=sys.stderr); return 1
             data["title"] = args.title; data["updated"] = date.today().isoformat(); path.write_bytes(admission.canonical_json(data) + b"\n"); print(f"Updated {path.relative_to(root)}"); return 0
@@ -216,11 +253,29 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.record.is_file(): print("Unknown request", file=sys.stderr); return 1
                 print(json.dumps({"allowed": False, "code": "NO_OPERATOR_PROOF", "request": str(args.record)})); return 0
             if args.approval_command == "request":
-                root = args.root.resolve(); req = admission.make_request(root, args.work_item, args.session, protected_dir=args.protected_dir.resolve() if args.protected_dir else None); args.output.parent.mkdir(parents=True, exist_ok=True); args.output.write_bytes(admission.canonical_json(req) + b"\n"); print(f"Wrote {args.output}"); return 0
+                root = args.root.resolve(); req = admission.make_request(root, args.work_item, args.session, protected_dir=args.protected_dir.resolve() if args.protected_dir else None)
+                canonical = root / "evidence" / "admission" / "requests" / f"{req['request_id']}.json"
+                if args.output is not None and args.output.resolve() != canonical.resolve():
+                    print("approval requests may only be written to the canonical evidence/admission/requests directory", file=sys.stderr); return 1
+                try: canonical = _write_canonical_record(root, "evidence/admission/requests", f"{req['request_id']}.json", admission.canonical_json(req) + b"\n")
+                except Exception as exc: print(f"Cannot write canonical request: {exc}", file=sys.stderr); return 1
+                print(f"Wrote {canonical}"); return 0
             if not sys.stdin.isatty(): print("Operator approval requires an interactive terminal", file=sys.stderr); return 1
             from getpass import getpass
             try:
-                req = json.loads(args.request.read_text(encoding="utf-8")); signer = admission.Ed25519Signer.load(args.key_file, getpass("Operator key passphrase: ")); receipt = admission.issue_receipt(req, signer); args.output.parent.mkdir(parents=True, exist_ok=True); args.output.write_bytes(admission.canonical_json(receipt) + b"\n"); print(f"Wrote {args.output}"); return 0
+                req = json.loads(args.request.read_text(encoding="utf-8")); root = Path(req["repopact_root"]).resolve()
+                expected_request = root / "evidence" / "admission" / "requests" / f"{req['request_id']}.json"
+                if args.request.resolve() != expected_request or not admission.verify_registration(root, args.protected_dir.resolve() if args.protected_dir else None).allowed:
+                    raise RuntimeError("operator may only approve a registered repository's canonical request")
+                if args.key_file.resolve().is_relative_to(root):
+                    raise RuntimeError("private operator keys must be stored outside the repository")
+                signer = admission.Ed25519Signer.load(args.key_file, getpass("Operator key passphrase: ")); receipt = admission.issue_receipt(req, signer)
+                canonical = root / "evidence" / "admission" / "receipts" / f"{receipt['request_digest']}.json"
+                if args.output is not None and args.output.resolve() != canonical.resolve():
+                    print("approval receipts may only be written to the canonical evidence/admission/receipts directory", file=sys.stderr); return 1
+                try: canonical = _write_canonical_record(root, "evidence/admission/receipts", f"{receipt['request_digest']}.json", admission.canonical_json(receipt) + b"\n")
+                except Exception as exc: print(f"Cannot write canonical receipt: {exc}", file=sys.stderr); return 1
+                print(f"Wrote {canonical}"); return 0
             except Exception as exc: print(f"Approval failed: {exc}", file=sys.stderr); return 1
 
     root = args.root.resolve()

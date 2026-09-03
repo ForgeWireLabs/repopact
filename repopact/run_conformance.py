@@ -165,8 +165,14 @@ def main() -> int:
     for result in results:
         status = "PASS" if result.passed else "FAIL"
         print(f"{status} {result.case_id}: {result.detail}")
-    print(f"\n{len(results) - len(failed)}/{len(results)} conformance cases passed.")
-    return 1 if failed else 0
+    print(f"\nLegacy conformance: {len(results) - len(failed)}/{len(results)} cases passed.")
+    from .admission_conformance import run_admission_corpus
+    admission_results = run_admission_corpus()
+    admission_failed = [row for row in admission_results if not row[1]]
+    for case_id, passed, detail in admission_results:
+        print(f"{'PASS' if passed else 'FAIL'} {case_id}: {detail}")
+    print(f"\nWI050 admission corpus: {len(admission_results) - len(admission_failed)}/{len(admission_results)} vectors passed.")
+    return 1 if failed or admission_failed else 0
 
 
 if __name__ == "__main__":

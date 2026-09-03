@@ -232,6 +232,10 @@ class GuardHealth:
     security_level: str = "pre-action"
     reason: str = ""
     protected: bool = True
+    integrity_checked: bool = False
+    protected_from_gated_principal: bool = False
+    process_confined: bool = False
+    path_confined: bool = False
 
 
 def default_policy() -> dict[str, Any]:
@@ -257,19 +261,28 @@ def _public_paths(root: Path) -> tuple[Path, Path, Path]:
     return root / "governance" / "admission-policy.json", root / "governance" / "operator-authority.json", root / "governance" / "repository-registration.json"
 
 
+def frozen_surface_digest(root: Path) -> str:
+    """Digest the repository's declared frozen surface, not caller assertions."""
+    path = root / "governance" / "frozen-surface.json"
+    if path.is_file():
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    return digest({"frozen_surface": []})
+
+
 def setup_admission(root: Path, protected_dir: Path | None = None, signer: Ed25519Signer | None = None) -> dict[str, Any]:
     """Explicit opt-in setup. Existing protected registration is never replaced."""
     root = root.resolve(); policy_path, authority_path, registration_path = _public_paths(root)
     protected = (protected_dir or (Path.home() / ".repopact" / "registrations")) / digest(normalize_path(root))
     if (protected / "registration.json").exists(): raise RuntimeError("protected registration already exists; explicit rotation required")
-    signer = signer or Ed25519Signer.generate()
+    if signer is None:
+        raise SignerError("explicit operator signer required; unattended setup cannot establish trust")
     policy, authority = default_policy(), default_authority(signer.public_key, signer.operator_id, signer.key_id)
     ident = canonical_identity(root)
     registration = {"registration_version": 1, "adoption_id": str(uuid.uuid4()), "repository_identity": {"root_digest": digest(ident["repository_root"]), "common_dir_digest": digest(ident["git_common_dir"]), "assurance": "git-common-dir"}, "repopact_root_digest": digest(ident["repopact_root"]), "git": {"common_dir_hint": ident["git_common_dir"], "worktree_hint": ident["repository_root"]}, "policy_version": policy["policy_version"], "authority_version": authority["authority_version"]}
     for p, data in ((policy_path, policy), (authority_path, authority), (registration_path, registration)):
         p.parent.mkdir(parents=True, exist_ok=True); p.write_bytes(canonical_json(data) + b"\n")
     protected.mkdir(parents=True, exist_ok=True)
-    state = {"registration": registration, "registration_digest": digest(registration), "authority_digest": digest(authority), "policy_digest": digest(policy), "revocation_epoch": 0, "guard_version": "1", "guard_id": secrets.token_hex(8)}
+    state = {"registration": registration, "registration_digest": digest(registration), "authority_digest": digest(authority), "policy_digest": digest(policy), "revocation_epoch": 0, "guard_version": "1", "guard_id": secrets.token_hex(8), "common_dir_digest": digest(ident["git_common_dir"]), "registered_root_digest": digest(ident["repopact_root"])}
     state_key = os.urandom(32)
     (protected / "registration.key").write_bytes(state_key)
     try: os.chmod(protected / "registration.key", 0o600)
@@ -279,19 +292,48 @@ def setup_admission(root: Path, protected_dir: Path | None = None, signer: Ed255
     return {"policy": policy_path, "authority": authority_path, "registration": registration_path, "protected": protected, "signer": signer}
 
 
-def _protected_state(root: Path, protected_dir: Path | None) -> tuple[dict[str, Any] | None, Path]:
-    p = (protected_dir or (Path.home() / ".repopact" / "registrations")) / digest(normalize_path(root)) / "registration.json"
-    if not p.is_file(): return None, p
+def _read_protected_state(p: Path) -> dict[str, Any] | None:
     try:
         state = _record(p)
         key_path = p.with_name("registration.key")
         key = key_path.read_bytes() if key_path.is_file() else b""
         supplied = state.pop("state_mac", None)
         expected = hmac.new(key, canonical_json(state), hashlib.sha256).hexdigest() if key else None
-        if not supplied or not expected or not hmac.compare_digest(str(supplied), expected): return None, p
+        if not supplied or not expected or not hmac.compare_digest(str(supplied), expected): return None
         state["state_mac"] = supplied
-        return state, p
-    except (OSError, ValueError, json.JSONDecodeError): return None, p
+        return state
+    except (OSError, ValueError, json.JSONDecodeError): return None
+
+
+def _protected_state(root: Path, protected_dir: Path | None) -> tuple[dict[str, Any] | None, Path]:
+    base = protected_dir or (Path.home() / ".repopact" / "registrations")
+    preferred = base / digest(normalize_path(root)) / "registration.json"
+    if preferred.is_file():
+        state = _read_protected_state(preferred)
+        if state is not None:
+            return state, preferred
+    # Linked worktrees have a different checkout root but share git-common-dir.
+    # Locate an authenticated registration by its common-dir binding.
+    ident = canonical_identity(root)
+    common_digest = digest(ident["git_common_dir"])
+    if base.is_dir():
+        for candidate in base.glob("*/registration.json"):
+            state = _read_protected_state(candidate)
+            if state is not None and state.get("common_dir_digest") == common_digest:
+                return state, candidate
+    return None, preferred
+
+
+def _known_worktree(root: Path, common_dir: str) -> bool:
+    listing = _git(root, "worktree", "list", "--porcelain")
+    if not listing:
+        return False
+    wanted = normalize_path(root)
+    paths: list[str] = []
+    for line in listing.splitlines():
+        if line.startswith("worktree "):
+            paths.append(normalize_path(line[9:]))
+    return wanted in paths
 
 
 def _save_protected_state(path: Path, state: dict[str, Any]) -> None:
@@ -312,9 +354,17 @@ def verify_registration(root: Path, protected_dir: Path | None = None) -> Admiss
     except Exception: return AdmissionDecision.deny("UNREGISTERED_REPO", "public admission records are invalid")
     if state.get("registration_digest") != digest(reg) or state.get("policy_digest") != digest(policy) or state.get("authority_digest") != digest(authority): return AdmissionDecision.deny("AUTHORITY_DRIFT", "protected trust pin does not match public records")
     ident = canonical_identity(root)
-    if reg.get("repopact_root_digest") != digest(ident["repopact_root"]): return AdmissionDecision.deny("WRONG_REPOSITORY", "repository root identity changed")
-    if reg.get("repository_identity", {}).get("root_digest") != digest(ident["repository_root"]): return AdmissionDecision.deny("WRONG_REPOSITORY", "canonical repository identity changed")
-    return AdmissionDecision.allow("pre-action", revocation_epoch=state.get("revocation_epoch", 0), policy=policy, authority=authority, registration=reg, protected_path=str(p))
+    same_checkout = reg.get("repopact_root_digest") == digest(ident["repopact_root"])
+    linked_checkout = (state.get("common_dir_digest") == digest(ident["git_common_dir"])
+                      and reg.get("repository_identity", {}).get("common_dir_digest") == digest(ident["git_common_dir"])
+                      and _known_worktree(root, ident["git_common_dir"]))
+    if not same_checkout and not linked_checkout:
+        return AdmissionDecision.deny("WRONG_REPOSITORY", "repository root identity changed")
+    if not linked_checkout and reg.get("repository_identity", {}).get("root_digest") != digest(ident["repository_root"]):
+        return AdmissionDecision.deny("WRONG_REPOSITORY", "canonical repository identity changed")
+    return AdmissionDecision.allow("pre-action", revocation_epoch=state.get("revocation_epoch", 0), policy=policy,
+                                   authority=authority, registration=reg, protected_path=str(p),
+                                   integrity_checked=True, protected_from_gated_principal=False)
 
 
 def _find_work(root: Path, work_id: str) -> tuple[dict[str, Any] | None, Path | None]:
@@ -324,70 +374,158 @@ def _find_work(root: Path, work_id: str) -> tuple[dict[str, Any] | None, Path | 
     return None, None
 
 
+_NO_LEASE_KINDS = {"read/orient", "bootstrap-propose", "bootstrap-amend", "approval-request"}
+_FROZEN_PREFIXES = ("governance/", "repopact/schemas/", ".github/workflows/")
+
+
+def _action_kind(action: Mapping[str, Any]) -> str:
+    value = str(action.get("kind", "mutation")).strip().lower().replace("_", "-")
+    return "read/orient" if value in {"read", "read-only", "orient", "orientation"} else value
+
+
+def _capability_names(value: Any) -> set[str]:
+    if isinstance(value, Mapping):
+        return {str(k) for k, enabled in value.items() if enabled}
+    return {str(x) for x in (value or [])}
+
+
+def _lease_path_allowed(path: str, lease_paths: Iterable[Any]) -> bool:
+    return any(_match_path(path, str(pattern).replace("\\", "/")) for pattern in lease_paths)
+
+
+def _frozen_path(path: str) -> bool:
+    return path.startswith(_FROZEN_PREFIXES)
+
+
+def _profile_rank(name: Any) -> int:
+    return {"observe": 0, "bounded": 1, "repair": 2}.get(str(name), -1)
+
+
 def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, Any] | None = None,
                     guard_health: GuardHealth | None = None, protected_dir: Path | None = None,
                     now: datetime | None = None) -> AdmissionDecision:
     health = guard_health or GuardHealth(True)
-    if not health.healthy or not health.protected: return AdmissionDecision.deny("GUARD_UNHEALTHY", health.reason or "protected guard is unhealthy")
+    action_kind = _action_kind(action)
+    if not health.healthy or (not health.protected and action_kind not in _NO_LEASE_KINDS):
+        return AdmissionDecision.deny("GUARD_UNHEALTHY", health.reason or "protected guard is unhealthy")
     identity = verify_registration(root, protected_dir)
-    if not identity.allowed: return identity
+    if not identity.allowed:
+        return identity
+    if lease is None and action_kind not in _NO_LEASE_KINDS:
+        return AdmissionDecision.deny("NO_OPERATOR_PROOF", "mutating actions require an operator-derived lease")
     policy = identity.details["policy"]
-    if not policy.get("enabled"): return AdmissionDecision.allow("instruction-only")
+    if not policy.get("enabled"):
+        return AdmissionDecision.allow("instruction-only")
+    # Orientation and bounded bootstrap are intentionally non-mutating and do not
+    # need a work item.  They can never be used as a source-code write escape.
+    if lease is None:
+        paths = [str(x).replace("\\", "/") for x in action.get("paths", [])]
+        if action_kind == "approval-request" and paths:
+            return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "approval requests do not authorize mutation paths")
+        if action_kind in {"bootstrap-propose", "bootstrap-amend"}:
+            if any(_frozen_path(p) or not _match_path(p, "work/**") for p in paths):
+                return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "bootstrap is limited to proposed work records")
+        return AdmissionDecision.allow(health.security_level, kind=action_kind)
+
     work_id = str(action.get("work_item", "")); item, path = _find_work(root, work_id)
-    if not item: return AdmissionDecision.deny("NO_WORK_ITEM", "no governed work item")
-    requested_profile = str(action.get("profile") or policy.get("default_profile") or "bounded")
-    if action.get("repair"):
-        repair_profile = policy.get("profiles", {}).get(requested_profile)
-        if not repair_profile or not repair_profile.get("repair_allowed") or requested_profile != "repair":
-            return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "repair requires the explicit repair profile")
-        for rel in (str(x).replace("\\", "/") for x in action.get("paths", [])):
-            if rel.startswith("../") or rel.startswith("/") or not any(_match_path(rel, pat) for pat in repair_profile.get("writable_paths", [])):
-                return AdmissionDecision.deny("PATH_VIOLATION", "repair path is outside the diagnosed allowlist")
-        return AdmissionDecision.allow(health.security_level, work_item=work_id, profile="repair", repair=True)
-    if item.get("status") == "proposed": return AdmissionDecision.deny("PROPOSED_WORK", "proposed work has no implementation authority")
-    if item.get("status") != "active": return AdmissionDecision.deny("WRONG_LIFECYCLE", f"work item is {item.get('status')}")
-    if not isinstance(item.get("preflight"), dict) or item["preflight"].get("created_before_work_started") is not True: return AdmissionDecision.deny("INVALID_PREFLIGHT", "mandatory preflight is missing or invalid")
-    version_path = root / "VERSION"
-    if version_path.is_file() and not (root / "RELEASE_LABEL").is_file() and _git(root, "rev-parse", "--verify", f"refs/tags/v{version_path.read_text(encoding='utf-8').strip()}^{{commit}}"):
-        return AdmissionDecision.deny("DEVELOPMENT_IDENTITY", "post-release source needs a VERSION-pinned development identity")
-    deps = item.get("depends_on", [])
-    for dep in deps:
-        dep_item, _ = _find_work(root, dep)
-        if not dep_item or dep_item.get("status") != "completed": return AdmissionDecision.deny("DEPENDENCY_AUTHORITY", f"dependency {dep} is not completed")
-    if action.get("repository_identity"):
-        actual_identity = canonical_identity(root)
-        supplied = action["repository_identity"]
-        if supplied != digest(actual_identity) and supplied != actual_identity:
-            return AdmissionDecision.deny("WRONG_REPOSITORY", "request repository identity mismatch")
-    if action.get("session_id") and lease and lease.get("session_id") != action.get("session_id"): return AdmissionDecision.deny("WRONG_SESSION", "lease session mismatch")
+    if not item:
+        return AdmissionDecision.deny("NO_WORK_ITEM", "no governed work item")
+    if item.get("status") == "proposed":
+        return AdmissionDecision.deny("PROPOSED_WORK", "proposed work has no implementation authority")
+    if item.get("status") != "active":
+        return AdmissionDecision.deny("WRONG_LIFECYCLE", f"work item is {item.get('status')}")
+    if not isinstance(item.get("preflight"), dict) or item["preflight"].get("created_before_work_started") is not True:
+        return AdmissionDecision.deny("INVALID_PREFLIGHT", "mandatory preflight is missing or invalid")
+
+    current_ident = canonical_identity(root)
+    supplied_identity = action.get("repository_identity")
+    actual_digest = digest(current_ident)
+    if supplied_identity and supplied_identity != actual_digest and supplied_identity != current_ident:
+        return AdmissionDecision.deny("WRONG_REPOSITORY", "request repository identity mismatch")
+    if lease.get("repository_identity") != actual_digest:
+        return AdmissionDecision.deny("WRONG_REPOSITORY", "lease repository identity mismatch")
+    if lease.get("work_item") != work_id:
+        return AdmissionDecision.deny("WRONG_WORK_ITEM", "lease work item mismatch")
+    if action.get("principal") and lease.get("principal") != action.get("principal"):
+        return AdmissionDecision.deny("NO_OPERATOR_PROOF", "lease principal mismatch")
+    action_session = action.get("session_id", action.get("adapter_session"))
+    if action_session and lease.get("session_id") != action_session:
+        return AdmissionDecision.deny("WRONG_SESSION", "lease session mismatch")
+
     profile_name = str(action.get("profile") or policy.get("default_profile") or "bounded")
     profile = policy.get("profiles", {}).get(profile_name)
-    if not profile: return AdmissionDecision.deny("PROFILE_ESCALATION", "unknown authorization profile")
+    if not profile:
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "unknown authorization profile")
+    if _profile_rank(profile_name) < 0 or _profile_rank(profile_name) > _profile_rank(lease.get("profile")):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "action profile exceeds lease profile")
+    if lease.get("approval_class") == "repair" and profile_name != "repair":
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "repair approval cannot authorize normal actions")
+    if profile_name == "observe" and action_kind not in {"read/orient", "approval-request"}:
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "observe profile is read-only")
+    action_mode = str(action.get("mode", "normal"))
+    if lease.get("mode", "normal") != action_mode:
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "action mode exceeds lease mode")
+    action_scopes = set(str(x) for x in action.get("scopes", []))
+    if action_scopes - set(str(x) for x in lease.get("scopes", [])):
+        return AdmissionDecision.deny("SCOPE_VIOLATION", "requested scope exceeds lease")
+    action_caps = _capability_names(action.get("capabilities", []))
+    if action_caps - _capability_names(lease.get("capabilities", [])):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "requested capability exceeds lease")
+    required_capability = {"process": "process", "shell": "shell", "network": "network"}.get(action_kind)
+    if required_capability and required_capability not in _capability_names(lease.get("capabilities", [])):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", f"{action_kind} capability is not in lease")
+    if required_capability and not profile.get("capabilities", {}).get(required_capability):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", f"{action_kind} capability is disabled by policy")
+    action_lineage = action.get("delegation_lineage")
+    if action_lineage is not None and action_lineage != lease.get("delegation_lineage", []):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation lineage was changed")
     paths = [str(x).replace("\\", "/") for x in action.get("paths", [])]
-    if any(rel.startswith("governance/") or rel.startswith("repopact/schemas/") or rel.startswith(".github/workflows/") for rel in paths) and not profile.get("capabilities", {}).get("frozen_surface"):
-        return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "frozen/protected path requires approval")
-    scopes = set(action.get("scopes", [])); allowed_scopes = set(profile.get("writable_scopes", []))
-    if scopes and not (scopes <= allowed_scopes or "*" in allowed_scopes): return AdmissionDecision.deny("SCOPE_VIOLATION", "requested scope exceeds profile")
-    for rel in paths:
-        if rel.startswith("../") or "/../" in rel or rel.startswith("/"): return AdmissionDecision.deny("PATH_VIOLATION", "path escapes repository")
-        if any(rel.startswith("governance/") or rel.startswith(x) for x in ("repopact/schemas/", ".github/workflows/")) and not profile.get("capabilities", {}).get("frozen_surface"): return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "frozen/protected path requires approval")
-        patterns = profile.get("writable_paths", [])
-        if patterns and not any(_match_path(rel, pat) for pat in patterns): return AdmissionDecision.deny("PATH_VIOLATION", f"path is outside profile: {rel}")
-    if action.get("frozen") and not action.get("receipt_verified"): return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "operator receipt required")
-    if lease:
+    if any(not _lease_path_allowed(rel, lease.get("paths", [])) for rel in paths):
+        return AdmissionDecision.deny("PATH_VIOLATION", "path exceeds lease allowlist")
+    try:
         current = now or datetime.now(timezone.utc)
-        try:
-            if _utc(lease["expires_at"]) <= current.astimezone(timezone.utc): return AdmissionDecision.deny("EXPIRED_AUTHORIZATION", "lease expired")
-        except Exception: return AdmissionDecision.deny("RECEIPT_INVALID", "lease expiry is invalid")
-        if lease.get("revocation_epoch") != identity.details.get("revocation_epoch"): return AdmissionDecision.deny("REVOKED_AUTHORIZATION", "lease was revoked")
-        if lease.get("work_item") != work_id: return AdmissionDecision.deny("WRONG_WORK_ITEM", "lease work item mismatch")
-        current_ident = canonical_identity(root)
-        base = lease.get("base", {})
-        if base and (base.get("head") != current_ident.get("head") or base.get("tree") != current_ident.get("tree")):
-            return AdmissionDecision.deny("STATE_DRIFT", "repository base changed since authorization")
-        if lease.get("authority_state_digest") != digest(identity.details["authority"]) or lease.get("admission_policy_digest") != digest(identity.details["policy"]):
-            return AdmissionDecision.deny("AUTHORITY_DRIFT", "authority or policy changed since authorization")
-    if action.get("repair") and not profile.get("repair_allowed"): return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "repair requires explicit repair profile")
+        if _utc(lease["expires_at"]) <= current.astimezone(timezone.utc):
+            return AdmissionDecision.deny("EXPIRED_AUTHORIZATION", "lease expired")
+    except Exception:
+        return AdmissionDecision.deny("RECEIPT_INVALID", "lease expiry is invalid")
+    if lease.get("revocation_epoch") != identity.details.get("revocation_epoch"):
+        return AdmissionDecision.deny("REVOKED_AUTHORIZATION", "lease was revoked")
+    base = lease.get("base", {})
+    if base and (base.get("head") != current_ident.get("head") or base.get("tree") != current_ident.get("tree")):
+        return AdmissionDecision.deny("STATE_DRIFT", "repository base changed since authorization")
+    if lease.get("authority_state_digest") != digest(identity.details["authority"]) or lease.get("admission_policy_digest") != digest(identity.details["policy"]):
+        return AdmissionDecision.deny("AUTHORITY_DRIFT", "authority or policy changed since authorization")
+
+    repair = action_kind == "repair" or bool(action.get("repair"))
+    frozen_approval = lease.get("approval_class") == "frozen" and lease.get("frozen_surface_digest") == frozen_surface_digest(root)
+    allowed_scopes = set(profile.get("writable_scopes", []))
+    if action_scopes and not (action_scopes <= allowed_scopes or "*" in allowed_scopes or frozen_approval):
+        return AdmissionDecision.deny("SCOPE_VIOLATION", "requested scope exceeds profile")
+    if repair:
+        if profile_name != "repair" or lease.get("approval_class") != "repair" or lease.get("mode") != "repair" or lease.get("delegation_lineage"):
+            return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "repair requires a direct repair approval and lease")
+        if not profile.get("repair_allowed"):
+            return AdmissionDecision.deny("BOOTSTRAP_SCOPE", "repair requires explicit repair profile")
+        diagnosed_raw = action.get("diagnosed_paths")
+        if not isinstance(diagnosed_raw, (list, tuple, set)):
+            return AdmissionDecision.deny("PATH_VIOLATION", "repair requires explicitly diagnosed paths")
+        diagnosed = set(str(x).replace("\\", "/") for x in diagnosed_raw)
+        if not diagnosed or not diagnosed.issubset(set(paths)):
+            return AdmissionDecision.deny("PATH_VIOLATION", "repair paths must be diagnosed")
+        return AdmissionDecision.allow(health.security_level, work_item=work_id, profile="repair", repair=True)
+
+    if any(_frozen_path(rel) for rel in paths) and not frozen_approval and not profile.get("capabilities", {}).get("frozen_surface"):
+        return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "frozen/protected path requires approval")
+    if (action.get("frozen") or action_kind == "frozen") and not frozen_approval:
+        return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "operator frozen receipt and matching lease required")
+    for rel in paths:
+        if rel.startswith("../") or "/../" in rel or rel.startswith("/"):
+            return AdmissionDecision.deny("PATH_VIOLATION", "path escapes repository")
+        if _frozen_path(rel) and not frozen_approval and not profile.get("capabilities", {}).get("frozen_surface"):
+            return AdmissionDecision.deny("FROZEN_APPROVAL_REQUIRED", "frozen/protected path requires approval")
+        patterns = profile.get("writable_paths", [])
+        if patterns and not any(_match_path(rel, pat) for pat in patterns) and not frozen_approval:
+            return AdmissionDecision.deny("PATH_VIOLATION", f"path is outside profile: {rel}")
     return AdmissionDecision.allow(health.security_level, work_item=work_id, profile=profile_name, work_path=str(path) if path else "")
 
 
@@ -400,7 +538,7 @@ def make_request(root: Path, work_item: str, session_id: str, principal: str = "
     check = verify_registration(root, protected_dir)
     if not check.allowed: raise RuntimeError(check.reason)
     ident = canonical_identity(root); policy, authority = check.details["policy"], check.details["authority"]
-    frozen = digest({"schemas": sorted(str(p.relative_to(root)) for p in (root / "repopact" / "schemas").glob("*.json"))})
+    frozen = frozen_surface_digest(root)
     return {"protocol_version": "1", "request_id": str(uuid.uuid4()), "nonce": secrets.token_urlsafe(24), "repository_identity": digest(ident), "repopact_root": ident["repopact_root"], "work_item": work_item, "principal": principal, "adapter_session": session_id, "base": {"head": ident["head"], "tree": ident["tree"]}, "authority_state_digest": digest(authority), "admission_policy_digest": digest(policy), "frozen_surface_digest": frozen, "approval_class": approval_class, "profile": profile, "scopes": sorted(scopes), "paths": sorted(paths), "capabilities": sorted(k for k, v in (capabilities or {}).items() if v), "delegation_ceiling": 0, "mode": mode, "issued_at": iso(), "expires_at": iso(expires_at or (datetime.now(timezone.utc) + timedelta(minutes=30))), "revocation_epoch": check.details.get("revocation_epoch", 0)}
 
 
@@ -410,7 +548,14 @@ def issue_receipt(request: Mapping[str, Any], signer: Ed25519Signer, approval_cl
 
 
 def verify_receipt(request: Mapping[str, Any], receipt: Mapping[str, Any], authority: Mapping[str, Any], now: datetime | None = None) -> AdmissionDecision:
+    if receipt.get("signature_algorithm") != "ed25519": return AdmissionDecision.deny("RECEIPT_INVALID", "unsupported receipt signature algorithm")
     if receipt.get("request_digest") != digest(request): return AdmissionDecision.deny("RECEIPT_INVALID", "receipt is not bound to this request")
+    if receipt.get("approval_class") != request.get("approval_class"):
+        return AdmissionDecision.deny("RECEIPT_INVALID", "receipt approval class does not match request")
+    if receipt.get("expires_at") != request.get("expires_at"):
+        return AdmissionDecision.deny("RECEIPT_INVALID", "receipt expiry does not match request")
+    if receipt.get("revocation_epoch") != request.get("revocation_epoch"):
+        return AdmissionDecision.deny("RECEIPT_INVALID", "receipt revocation epoch does not match request")
     op = next((x for x in authority.get("operators", []) if x.get("operator_id") == receipt.get("operator_id") and x.get("key_id") == receipt.get("key_id")), None)
     if not op or not verify_signature(op.get("public_key", ""), receipt.get("signature", ""), request): return AdmissionDecision.deny("RECEIPT_INVALID", "operator signature is invalid")
     n = now or datetime.now(timezone.utc)
@@ -419,6 +564,8 @@ def verify_receipt(request: Mapping[str, Any], receipt: Mapping[str, Any], autho
     except Exception: return AdmissionDecision.deny("RECEIPT_INVALID", "invalid receipt expiry")
     allowed = set(authority.get("approval_classes", []))
     if receipt.get("approval_class") not in allowed: return AdmissionDecision.deny("NO_OPERATOR_PROOF", "approval class is not trusted")
+    if receipt.get("authority_version") != authority.get("authority_version"):
+        return AdmissionDecision.deny("RECEIPT_INVALID", "receipt authority version is stale")
     return AdmissionDecision.allow("pre-action", operator_id=receipt.get("operator_id"))
 
 
@@ -434,24 +581,87 @@ def issue_lease(request: Mapping[str, Any], receipt: Mapping[str, Any], root: Pa
         return AdmissionDecision.deny("RECEIPT_REPLAY", "authorization request has already been consumed"), None
     state.setdefault("used_request_digests", []).append(request_digest)
     _save_protected_state(state_path, state)
-    lease = {"lease_version": 1, "lease_id": str(uuid.uuid4()), "request_digest": request_digest, "repository_identity": request["repository_identity"], "work_item": request["work_item"], "principal": request["principal"], "session_id": request["adapter_session"], "profile": request["profile"], "scopes": request["scopes"], "paths": request["paths"], "base": request["base"], "authority_state_digest": request["authority_state_digest"], "admission_policy_digest": request["admission_policy_digest"], "issued_at": iso(now), "expires_at": request["expires_at"], "revocation_epoch": check.details.get("revocation_epoch", 0)}
+    lease = {"lease_version": 1, "lease_id": str(uuid.uuid4()), "request_digest": request_digest,
+             "repository_identity": request["repository_identity"], "repopact_root": request.get("repopact_root"),
+             "work_item": request["work_item"], "principal": request["principal"], "session_id": request["adapter_session"],
+             "approval_class": request.get("approval_class"), "profile": request["profile"], "mode": request.get("mode", "normal"),
+             "scopes": request["scopes"], "paths": request["paths"], "capabilities": request.get("capabilities", []),
+             "frozen_surface_digest": request.get("frozen_surface_digest"), "delegation_lineage": request.get("delegation_lineage", []),
+             "delegation_ceiling": request.get("delegation_ceiling", 0), "base": request["base"],
+             "authority_state_digest": request["authority_state_digest"], "admission_policy_digest": request["admission_policy_digest"],
+             "issued_at": iso(now), "expires_at": request["expires_at"], "revocation_epoch": check.details.get("revocation_epoch", 0)}
     return AdmissionDecision.allow("pre-action"), lease
 
 
-def revoke(root: Path, protected_dir: Path | None = None) -> int:
+def revoke(root: Path, protected_dir: Path | None = None, *, request: Mapping[str, Any] | None = None,
+           receipt: Mapping[str, Any] | None = None) -> int:
+    """Apply a revocation transition only after a signed revoke receipt."""
+    if request is None or receipt is None:
+        raise SignerError("operator receipt required for revocation")
+    identity = verify_registration(root, protected_dir)
+    if not identity.allowed:
+        raise RuntimeError(identity.reason)
+    if request.get("approval_class") != "revoke" or receipt.get("approval_class") != "revoke":
+        raise SignerError("revocation requires the revoke approval class")
+    proof = verify_receipt(request, receipt, identity.details["authority"])
+    if not proof.allowed:
+        raise SignerError(proof.reason)
     state, p = _protected_state(root, protected_dir)
     if state is None: raise RuntimeError("protected registration missing")
     state["revocation_epoch"] = int(state.get("revocation_epoch", 0)) + 1
     _save_protected_state(p, state); return state["revocation_epoch"]
 
 
+def operator_revoke(root: Path, signer: Ed25519Signer, protected_dir: Path | None = None) -> int:
+    """Create and consume a direct operator-controlled revocation approval."""
+    request = make_request(root, "000", "operator-revocation", principal=signer.operator_id,
+                           profile="observe", scopes=(), paths=(), capabilities={},
+                           approval_class="revoke", mode="normal", protected_dir=protected_dir)
+    receipt = issue_receipt(request, signer, "revoke")
+    return revoke(root, protected_dir, request=request, receipt=receipt)
+
+
 def delegation_subset(parent: Mapping[str, Any], child: Mapping[str, Any]) -> AdmissionDecision:
-    if child.get("repository_identity") != parent.get("repository_identity") or child.get("work_item") != parent.get("work_item"): return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation changed repository or work item")
-    if int(child.get("delegation_ceiling", 0)) >= int(parent.get("delegation_ceiling", 1)): return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation depth is not reduced")
-    if set(child.get("scopes", [])) - set(parent.get("scopes", [])): return AdmissionDecision.deny("DELEGATION_ESCALATION", "scope exceeds parent")
-    if set(child.get("paths", [])) - set(parent.get("paths", [])): return AdmissionDecision.deny("DELEGATION_ESCALATION", "paths exceed parent")
-    if _utc(child.get("expires_at")) > _utc(parent.get("expires_at")): return AdmissionDecision.deny("DELEGATION_ESCALATION", "expiry exceeds parent")
+    if child.get("repository_identity") != parent.get("repository_identity") or child.get("work_item") != parent.get("work_item"):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation changed repository or work item")
+    if child.get("principal") in {None, ""} or child.get("principal") == parent.get("principal"):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "child principal must be distinct")
+    if parent.get("approval_class") in {"frozen", "revoke", "recovery"} or child.get("approval_class") in {"frozen", "revoke", "recovery"}:
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "sensitive approval classes cannot be delegated")
+    if child.get("approval_class") != parent.get("approval_class") or child.get("mode", "normal") != parent.get("mode", "normal"):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation changed approval semantics")
+    if int(child.get("delegation_ceiling", 0)) >= int(parent.get("delegation_ceiling", 1)):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation depth is not reduced")
+    if set(child.get("scopes", [])) - set(parent.get("scopes", [])):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "scope exceeds parent")
+    if set(child.get("paths", [])) - set(parent.get("paths", [])):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "paths exceed parent")
+    if _capability_names(child.get("capabilities", [])) - _capability_names(parent.get("capabilities", [])):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "capability exceeds parent")
+    if _profile_rank(child.get("profile")) < 0 or _profile_rank(child.get("profile")) > _profile_rank(parent.get("profile")):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "delegation changed profile")
+    if _utc(child.get("expires_at")) > _utc(parent.get("expires_at")):
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "expiry exceeds parent")
+    parent_lineage = list(parent.get("delegation_lineage", []))
+    expected_lineage = parent_lineage + [parent.get("lease_id")]
+    if child.get("parent_lease_id") != parent.get("lease_id") or child.get("delegation_lineage") != expected_lineage:
+        return AdmissionDecision.deny("DELEGATION_ESCALATION", "delegation lineage is missing or altered")
     return AdmissionDecision.allow("pre-action")
+
+
+def issue_child_lease(parent: Mapping[str, Any], child: Mapping[str, Any]) -> tuple[AdmissionDecision, dict[str, Any] | None]:
+    """Derive a child lease as a strict, lineage-preserving subset of a parent."""
+    check = delegation_subset(parent, child)
+    if not check.allowed:
+        return check, None
+    lease = dict(child)
+    lease.setdefault("lease_version", 1)
+    lease.setdefault("lease_id", str(uuid.uuid4()))
+    lease.setdefault("request_digest", digest(child))
+    lease["parent_lease_id"] = parent.get("lease_id")
+    lease["delegation_lineage"] = list(parent.get("delegation_lineage", [])) + [parent.get("lease_id")]
+    lease["revocation_epoch"] = parent.get("revocation_epoch")
+    return AdmissionDecision.allow("pre-action"), lease
 
 
 def safe_audit(decision: AdmissionDecision, request: Mapping[str, Any] | None = None) -> dict[str, Any]:

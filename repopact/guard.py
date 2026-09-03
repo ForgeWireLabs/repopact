@@ -14,7 +14,7 @@ from typing import Any, Mapping
 
 from .admission import (
     AdmissionDecision, GuardHealth, evaluate_action, issue_lease, make_request,
-    revoke, safe_audit, setup_admission, verify_receipt, verify_registration,
+    operator_revoke, revoke, safe_audit, setup_admission, verify_receipt, verify_registration,
 )
 
 
@@ -23,10 +23,15 @@ class ProtectedGuard:
     root: Path
     protected_dir: Path | None = None
     security_level: str = "pre-action"
+    # The reference filesystem backend cannot prove that the gated principal
+    # is unable to rewrite both the state and its adjacent HMAC key.
+    protected_storage: bool = False
 
     def health(self) -> GuardHealth:
         check = verify_registration(self.root, self.protected_dir)
-        return GuardHealth(check.allowed, self.security_level if check.allowed else "not-covered", check.reason, True)
+        return GuardHealth(check.allowed, self.security_level if check.allowed and self.protected_storage else "not-covered",
+                           check.reason if check.allowed else check.reason, self.protected_storage,
+                           integrity_checked=check.allowed, protected_from_gated_principal=self.protected_storage)
 
     def register(self, **kwargs: Any) -> dict[str, Any]:
         return setup_admission(self.root, self.protected_dir, kwargs.get("signer"))
@@ -43,8 +48,8 @@ class ProtectedGuard:
     def check(self, action: Mapping[str, Any], lease: Mapping[str, Any] | None = None) -> AdmissionDecision:
         return evaluate_action(self.root, action, lease, self.health(), self.protected_dir)
 
-    def revoke(self) -> int:
-        return revoke(self.root, self.protected_dir)
+    def revoke(self, request: Mapping[str, Any], receipt: Mapping[str, Any]) -> int:
+        return revoke(self.root, self.protected_dir, request=request, receipt=receipt)
 
     def audit(self, decision: AdmissionDecision, request: Mapping[str, Any] | None = None) -> dict[str, Any]:
         return safe_audit(decision, request)
@@ -59,7 +64,7 @@ class GuardService:
         if op == "health": return self.guard.health().__dict__
         if op == "discover": return self.guard.discover().__dict__
         if op == "check": return self.guard.check(message.get("action", {}), message.get("lease")).__dict__
-        if op == "revoke": return {"revocation_epoch": self.guard.revoke()}
+        if op == "revoke": return {"revocation_epoch": self.guard.revoke(message.get("request", {}), message.get("receipt", {}))}
         raise ValueError(f"unknown guard operation: {op}")
 
     def serve_line(self, line: str) -> str:

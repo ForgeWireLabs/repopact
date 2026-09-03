@@ -4,6 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any, Callable, Mapping
+import subprocess
 
 from .admission import AdmissionDecision, iso
 from .guard import ProtectedGuard
@@ -55,8 +56,8 @@ class PreActionAdapter:
     def __init__(self, guard: ProtectedGuard, capabilities: AdapterCapabilities | None = None):
         self.guard = guard; self.capabilities = capabilities or AdapterCapabilities("repopact-reference")
 
-    def before(self, action: Mapping[str, Any], callback: Callable[[], Any]) -> tuple[AdmissionDecision, Any | None]:
-        decision = self.guard.check(action)
+    def before(self, action: Mapping[str, Any], callback: Callable[[], Any], lease: Mapping[str, Any] | None = None) -> tuple[AdmissionDecision, Any | None]:
+        decision = self.guard.check(action, lease)
         if not decision.allowed: return decision, None
         return decision, callback()
 
@@ -67,9 +68,23 @@ class PreActionAdapter:
 
 
 class LauncherAdapter(PreActionAdapter):
-    """Reference launcher gate. It does not claim arbitrary child confinement."""
-    def launch(self, action: Mapping[str, Any], launch: Callable[[], Any]) -> tuple[AdmissionDecision, Any | None]:
-        return self.before(action, launch)
+    """Independent launcher gate; child creation happens only after admission."""
+    def __init__(self, guard: ProtectedGuard, capabilities: AdapterCapabilities | None = None):
+        super().__init__(guard, capabilities or AdapterCapabilities(
+            "repopact-launcher-reference", pre_action_interception=False,
+            path_reporting=False, session_start_gate=True))
+
+    def launch(self, action: Mapping[str, Any], launch: Callable[[], Any] | list[str] | tuple[str, ...], lease: Mapping[str, Any] | None = None, *, cwd: str | Path | None = None, env: Mapping[str, str] | None = None) -> tuple[AdmissionDecision, Any | None]:
+        decision = self.guard.check(action, lease)
+        if not decision.allowed:
+            return decision, None
+        if callable(launch):
+            return decision, launch()
+        if not launch:
+            return AdmissionDecision.deny("NOT_COVERED", "launcher command is empty"), None
+        # No shell interpolation: this is a launcher/proxy integration, not a
+        # claim that arbitrary children are confined after creation.
+        return decision, subprocess.Popen(list(launch), cwd=str(cwd) if cwd else None, env=dict(env) if env else None)
 
 
 class CodexReferenceAdapter(PreActionAdapter):

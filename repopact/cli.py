@@ -172,6 +172,9 @@ def main(argv: list[str] | None = None) -> int:
             if args.admission_command == "setup":
                 signer = None
                 if args.key_file:
+                    if args.key_file.resolve().is_relative_to(root):
+                        print("Private operator keys must be stored outside the repository", file=sys.stderr)
+                        return 1
                     from getpass import getpass
                     phrase = args.passphrase if args.passphrase is not None else getpass("Operator key passphrase: ")
                     if args.key_file.exists(): signer = admission.Ed25519Signer.load(args.key_file, phrase)

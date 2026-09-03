@@ -25,6 +25,8 @@ RepoPact should evaluate a versioned declaration describing the operator authori
 - public verification material or fingerprints;
 - operator roles;
 - approval classes each role may grant;
+- authorization-profile definitions or references;
+- delegation ceilings/policy;
 - quorum/threshold rules where configured;
 - authority-policy version;
 - recovery/rotation rules.
@@ -53,7 +55,9 @@ The canonical request digest should bind at least:
 - work-item id;
 - current base HEAD/tree and other authority-state digest as required;
 - requested transition or authorization class;
-- requested scopes/paths;
+- requested authorization profile;
+- requested scopes/paths/capabilities;
+- requested delegation ceiling if any;
 - frozen-surface hits/implications;
 - normal vs repair/reconciliation mode;
 - adapter/session identity where relevant;
@@ -84,7 +88,7 @@ Chat remains a first-class convenience surface.
 A conversation may work like:
 
 ```text
-Agent: WI051 is proposed. I need implementation authorization for tooling/** and tests/**.
+Agent: WI051 is proposed. I need standard implementation authorization for tooling/** and tests/**.
 
 Operator: approved
 ```
@@ -120,10 +124,80 @@ The architecture should consider distinct approval classes rather than one all-p
 - approve frozen-surface mutation;
 - approve scope expansion;
 - approve operator-authority rotation/recovery;
+- authorize a delegation ceiling;
 - revoke a work authorization;
 - approve another explicitly governed exceptional transition.
 
 The accepted decision must determine the minimal generic set.
+
+## Tiered authorization profiles
+
+RepoPact should support adopter-configurable authorization profiles so operators do not have to approve every session with the same risk envelope.
+
+The profiles are policy bundles, not agent types. A neutral reference progression could be conceptually similar to:
+
+1. **observe** — read/orientation only;
+2. **bounded** — exact WI plus explicit paths/scopes and tightly constrained commands;
+3. **standard** — ordinary work-item implementation within declared scopes, tests/build tooling, no frozen/trust changes;
+4. **elevated** — broader process/network/scope capabilities where the adapter can actually enforce them, with additional approval requirements;
+5. **unrestricted-within-boundary** — the broadest adopter-approved repository/session capability.
+
+Names and exact contents are policy decisions. A UI may call the broadest profile `YOLO`, but `YOLO` should not become a universal RepoPact semantic.
+
+Every profile still has hard ceilings. No profile, including the broadest one, may:
+
+- forge operator approval;
+- modify the protected guard/trust root as an ordinary agent action;
+- expand its own authorization profile;
+- cross to another repository/work item unless separately authorized;
+- bypass frozen-surface rules that require a stronger approval class;
+- claim sandbox/process/network guarantees not provided by the active adapter;
+- erase required audit/delegation lineage.
+
+Thus `unrestricted` means broad authority *inside the approved RepoPact boundary*, not root/admin authority over the machine or authority to rewrite RepoPact's trust system.
+
+Profiles should be assignable to operator roles, adapter/session principals, and approval requests. They should also define whether delegation is permitted and, if so, the maximum delegation ceiling.
+
+## Generic principals and delegation
+
+RepoPact should understand **principals and delegated authority**, but not agent orchestration.
+
+A principal might be a protected session, adapter identity, process identity, tool client, or another stable identity supported by the guard. RepoPact does not need to know whether that principal is called a control agent, subagent, supervisor, worker, IDE, or chat session.
+
+An operator may authorize a parent principal with delegation rights. That principal can derive child authorizations only under a strict non-escalation rule:
+
+```text
+child authority ⊆ parent delegable authority
+```
+
+A child authorization should be bounded by at least:
+
+- same canonical repository unless explicitly allowed otherwise by operator policy;
+- same work item or a specifically operator-authorized related work item;
+- subset of scopes/paths/capabilities;
+- expiry no later than the parent ceiling;
+- delegation depth no greater than policy allows;
+- explicit lineage to the parent authorization;
+- revocation/invalidation inherited from the parent where appropriate;
+- no operator/frozen/trust approval capability unless that exact delegation class was operator-authorized and is itself safe to delegate.
+
+A downstream orchestration product can map:
+
+```text
+control agent -> parent RepoPact principal
+subagent      -> delegated child principal
+```
+
+but RepoPact does not:
+
+- choose models;
+- spawn agents;
+- route tasks;
+- decide control-agent topology;
+- manage prompts/context;
+- implement vendor-specific agent hierarchies.
+
+This keeps RepoPact useful to Codex/Claude/Cursor/ChatGPT/MCP/IDEs and future systems without becoming their agent framework.
 
 ## Receipts, leases, replay and revocation
 
@@ -135,12 +209,14 @@ The protected guard derives a short-lived runtime authorization from the approve
 - revocation;
 - state-drift invalidation;
 - repository/work-item binding;
-- scope/path binding;
+- scope/path/capability binding;
+- authorization-profile binding;
+- delegation ceiling and lineage where applicable;
 - adapter/session binding where needed;
 - replay resistance;
 - operator/key rotation semantics.
 
-A copied receipt from another repository, work item, base state, request, or expired authorization must fail.
+A copied receipt from another repository, work item, base state, request, profile, or expired authorization must fail.
 
 ## Existing `--ack` behavior
 
@@ -186,6 +262,10 @@ WI050 closeout should prove at minimum that a gated agent cannot obtain authorit
 - invoking `check-frozen --ack` itself;
 - editing the public operator-authority declaration;
 - replacing a trusted key/fingerprint with an agent-controlled one;
+- expanding its own authorization profile;
+- delegating authority it does not possess;
+- extending child expiry beyond the parent ceiling;
+- stripping delegation lineage;
 - replaying an approval from another repo/work item/base state;
 - modifying a stored approval receipt;
 - waiting for or exploiting an expired/stale authorization;

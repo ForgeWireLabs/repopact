@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "051",
+  "title": "Assurance Control Mapping and Sensitive Evidence Boundary",
+  "status": "proposed",
+  "owner_scope": "work",
+  "affected_scopes": [
+    "work",
+    "governance",
+    "evidence",
+    "tooling",
+    "docs"
+  ],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-05T19:30:00Z",
+    "note": "Created before assurance-mapping schema/template, sensitive-evidence validation, framework-drift, or claim-safety implementation begins."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "ACM-001",
+      "text": "Define a provider-neutral assurance/control mapping record or extension model that can express framework/version/source authority, requirement identifier, applicability status and rationale, adopter control/invariant/policy owner, implementation references, evidence references, responsibilities, third-party dependencies, gaps/exceptions, review freshness, and any independent attestation reference.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-002",
+      "text": "The model makes implemented control, evidence that a control operated, framework mapping, applicability conclusion, and independent audit/certification distinct states; RepoPact never infers legal compliance or certification from control/evidence presence.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-003",
+      "text": "Define and validate a sensitive-evidence boundary that prefers hashes, counts, redacted/synthetic fixtures, bounded metadata, run identifiers, controlled external references, and non-secret configuration snapshots over raw regulated/customer payloads in Git evidence.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-004",
+      "text": "Add guardrails or validator guidance sufficient to flag obvious evidence-policy violations involving secrets, credentials, PHI/health records, cardholder data, passports/financial identity, or equivalent restricted payloads without pretending pattern matching can fully classify all sensitive data.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-005",
+      "text": "Use RepoPact provenance/review semantics to surface stale framework mappings, stale control review, evidence/source drift, implementation changes that invalidate mappings, and documentation claims stronger than the stored evidence supports.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-006",
+      "text": "Framework content and legal interpretations remain adopter-owned inputs/extensions rather than hard-coded SOC 2, HIPAA, PCI DSS, GDPR, KYC/AML, FERPA, COPPA, FDA, or other jurisdiction-specific conclusions in the RepoPact kernel.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ACM-007",
+      "text": "Provide a conformance/example path using the ForgeWire assurance program as one adopter while proving the feature remains generic and optional for repositories with no regulated/compliance mapping needs.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-05",
+  "updated": "2026-09-05"
+}

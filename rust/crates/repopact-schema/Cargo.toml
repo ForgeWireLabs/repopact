@@ -1,0 +1,10 @@
+[package]
+name = "repopact-schema"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+jsonschema.workspace = true
+repopact-types.workspace = true
+serde_json.workspace = true

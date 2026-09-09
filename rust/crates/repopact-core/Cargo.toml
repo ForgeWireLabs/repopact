@@ -1,0 +1,10 @@
+[package]
+name = "repopact-core"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+repopact-repository.workspace = true
+repopact-types.workspace = true
+repopact-validation.workspace = true

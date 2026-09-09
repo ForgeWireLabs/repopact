@@ -1,0 +1,117 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "053",
+  "title": "Rust Workspace, Repository Model, Schema and Validator Conformance",
+  "status": "active",
+  "owner_scope": "work",
+  "affected_scopes": [
+    "work",
+    "tooling",
+    "governance",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "052"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-09T19:44:00Z",
+    "note": "Created and activated after WI052 architecture discovery and before the Rust workspace, repository model, validator implementation, or conformance integration begins."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "RVC-001",
+      "text": "Create a top-level Rust workspace owned by the tooling scope with separate reusable crates for domain types, canonical schema handling, repository discovery/modeling, validation, and a core facade plus a minimal non-Tauri CLI entrypoint; no Tauri dependency is permitted in the reusable domain crates.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-002",
+      "text": "Implement typed Rust representations sufficient for validator/repository parity, including lifecycle/status, provenance, work items, acceptance criteria, dependencies, scopes/record identity, evidence references needed by validation, repository identity, and structured diagnostics without replacing the canonical language-neutral on-disk contracts.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-003",
+      "text": "Rust schema validation consumes the canonical RepoPact JSON schemas or a mechanically derived packaged representation; there is no second hand-maintained Rust-only schema authority, and schema-library errors are normalized behind RepoPact-owned diagnostic identity/context.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-004",
+      "text": "Implement deterministic repository discovery semantics matching the Python reference for governed work items, evidence, applicable contracts, ignored directories, normalized paths, and lifecycle-directory interpretation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-005",
+      "text": "Implement structural Git linked-worktree recognition and repository/common-dir behavior required by current RepoPact semantics; linked worktrees must not be rediscovered as nested governed repository content merely because of filesystem layout.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-006",
+      "text": "Preserve the established record-relative source/reference resolution semantics in Rust and add focused parity coverage so Rust does not reinterpret those references as repository-root relative.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-007",
+      "text": "Define structured Rust diagnostics with stable code/severity/message and record/path context plus optional field, related-record, and suggested-action data; existing conformance message substrings remain available for legacy compatibility without becoming the only native diagnostic identity.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-008",
+      "text": "Implement the semantic validator rules necessary for the published legacy conformance corpus, preserving reference accept/reject behavior for lifecycle/dependency, provenance/completion, schema, status-directory, contract, version/release, active-scope, evidence-linkage, and related governed repository checks represented by the corpus.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-009",
+      "text": "Implement the canonical dashboard projection/comparison required to reproduce missing/stale-dashboard validation semantics without granting general mutation authority or silently hand-maintaining the derived dashboard.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-010",
+      "text": "Provide a minimal Rust validation executable accepting a repository root and returning zero for accepted repositories and non-zero for rejected or explicitly unsupported repositories, with deterministic diagnostics and no repository mutation during validation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-011",
+      "text": "Run the published Python `repopact.run_conformance --command` alternate-implementation path against the Rust validation executable and pass every legacy validator case; Rust-only unit tests are not a substitute for this gate.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-012",
+      "text": "Unsupported Rust semantics fail explicitly and do not mutate state; WI053 does not describe Rust as canonical and does not create a fallback that guesses at unimplemented governance rules.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-013",
+      "text": "Keep existing Python validation and WI050 admission/enforcement behavior green and unchanged except for independently proven defects; do not port the WI050 admission, guard, IPC, platform backend, protected service, or enforcement substrate in this work item.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-014",
+      "text": "Add executable Windows/Linux/macOS-portable path and repository-topology tests without modifying frozen CI workflows unless separate operator approval is recorded under the frozen-surface contract.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "RVC-015",
+      "text": "Closeout evidence records the exact Rust surface implemented, Python baseline results, Rust test results, legacy conformance results, linked-worktree/reference parity results, known unsupported/non-parity surfaces, and confirmation that mutation/Tauri/Python-cutover/WI050 migration remain outside WI053.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-09",
+  "updated": "2026-09-09"
+}

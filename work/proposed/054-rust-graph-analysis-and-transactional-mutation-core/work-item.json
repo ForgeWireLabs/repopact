@@ -1,0 +1,111 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "054",
+  "title": "Rust Graph, Analysis and Transactional Mutation Core",
+  "status": "proposed",
+  "owner_scope": "work",
+  "affected_scopes": [
+    "work",
+    "tooling",
+    "governance",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "053"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-09T19:44:00Z",
+    "note": "Created before Rust graph, deterministic analysis, mutation planning/application, or mutation-parity implementation begins; implementation is gated on WI053 conformance evidence."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "GAM-001",
+      "text": "Define a typed Rust relationship graph for work items, dependencies, acceptance criteria, evidence, scopes, decisions, applicable contracts/invariants/frozen surfaces where derivable, provenance/review relations, and reverse references without inventing authority absent from canonical records.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-002",
+      "text": "Graph queries are deterministic and return source record/path context sufficient for clients to explain why a relationship exists.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-003",
+      "text": "Implement deterministic repository analyzers for next work-item ID, overlapping work, scope ownership/overlap, dependency candidates/reverse dependencies, frozen-surface impact, related decisions, unresolved findings, applicable contracts, evidence gaps, and provenance/review concerns where those facts are derivable.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-004",
+      "text": "Analysis findings identify the concrete repository facts that caused them; opaque scores or provider output alone are not accepted as governance explanations.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-005",
+      "text": "Define a typed `MutationRequest -> MutationPlan -> MutationResult` boundary that validates requested changes, computes all durable/generated impacts, produces diagnostics and a canonical preview/diff, and requires explicit apply against the repository state used to create the plan.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-006",
+      "text": "Mutation plans carry repository/state preconditions and are rejected as stale when materially relevant repository state has changed before apply.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-007",
+      "text": "Supported mutation application is atomic or recoverable, uses canonical serialization, regenerates owned derived projections, and performs post-write validation before success is reported; tests cover failures before/during multi-file apply and cleanup/recovery behavior.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-008",
+      "text": "Implement supported work-item creation/edit/lifecycle/dependency/acceptance-criterion operations needed by the future desktop workflow while preserving current governance, preflight, lifecycle, dependency, and evidence rules.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-009",
+      "text": "Decision/evidence mutation support, if implemented, preserves existing durable-history and evidence immutability semantics; completed evidence is never exposed as a generic overwrite operation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-010",
+      "text": "Add executable cross-implementation before/after parity fixtures for every mutation/generation surface whose authority moves to Rust; success-message parity alone is insufficient.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-011",
+      "text": "No native/desktop/future client is required to directly write governed RepoPact records; supported writes are available through the core mutation boundary.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-012",
+      "text": "Any assisted-analysis extension boundary remains provider-neutral and proposal-only; no LLM/provider dependency enters RepoPact authority and provider output cannot activate work, waive criteria, approve frozen changes, fabricate authorization, or bypass validation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-013",
+      "text": "WI050 admission/guard/enforcement remains outside this work item and existing fail-closed security behavior is neither ported nor weakened as a side effect of the new mutation API.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GAM-014",
+      "text": "Closeout evidence lists supported graph queries, analyzers, mutations, parity fixtures, recovery tests, generated projections, known unsupported mutations, and confirmation that Tauri/Python cutover/WI050 migration remain separate work.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-09",
+  "updated": "2026-09-09"
+}

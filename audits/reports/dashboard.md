@@ -21,8 +21,8 @@
 
 | Status | Count |
 | --- | ---: |
-| proposed | 5 |
-| active | 5 |
+| proposed | 7 |
+| active | 7 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 41 |
@@ -38,4 +38,6 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
+- 052: Rust Core and Tauri 2 User Workbench Foundation (active)
+- 053: Rust Workspace, Repository Model, Schema and Validator Conformance (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

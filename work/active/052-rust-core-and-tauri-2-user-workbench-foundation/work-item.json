@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "052",
   "title": "Rust Core and Tauri 2 User Workbench Foundation",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -153,5 +153,5 @@
     }
   ],
   "created": "2026-09-08",
-  "updated": "2026-09-08"
+  "updated": "2026-09-09"
 }

@@ -46,7 +46,7 @@ particular role set.
 - **Governance owner**: `AGENTS.md`, `governance/`, `repopact/schemas/`, `decisions/`, `research/`.
 - **Work coordinator**: `work/`, status transitions, dependency records.
 - **Evidence owner**: `evidence/`, validation manifests, reproducibility records.
-- **Tooling owner**: `repopact/` except `repopact/schemas/`, `scripts/`, `tests/`,
+- **Tooling owner**: `repopact/` except `repopact/schemas/`, `rust/`, `scripts/`, `tests/`,
   `conformance/`, packaged templates, packaging, and CI automation.
 
 ## Durable records

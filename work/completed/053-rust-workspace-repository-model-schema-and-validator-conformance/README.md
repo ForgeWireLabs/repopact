@@ -1,6 +1,6 @@
 # Work Item 053 — Rust Workspace, Repository Model, Schema and Validator Conformance
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** work-coordinator
 
@@ -185,3 +185,17 @@ Note that the current runner also reports the separate WI050 admission corpus. W
 WI053 may close when RepoPact has a reusable non-Tauri Rust foundation that can load supported repositories and pass the published legacy validator conformance interface, with explicit unsupported surfaces, structured diagnostics, portable repository semantics, and no claim that governed mutation or canonical-core cutover has occurred.
 
 WI054 must not assume mutation authority until WI053's conformance evidence is durable.
+
+## Closeout
+
+WI053 is complete on the published read/validation milestone. The durable
+evidence record is
+[`20260909-053-rust-validator-conformance`](../../../evidence/runs/20260909-053-rust-validator-conformance.json).
+It records the Python baseline and post-change checks, Rust workspace tests,
+the existing alternate-implementation conformance result (20/20 legacy cases
+and 8/8 WI050 admission vectors), linked-worktree/reference parity, frozen
+surface result, and exact remaining non-parity surfaces.
+
+Rust remains an alternate implementation. Tauri, governed mutation,
+transactional generation, Python cutover, and WI050 admission/enforcement
+migration remain outside this work item.

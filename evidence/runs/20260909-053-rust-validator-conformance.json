@@ -1,0 +1,99 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260909-053-rust-validator-conformance",
+  "timestamp": "2026-09-09T20:46:25Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "053",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "Started from d0fc6a72f46653196ecd0215a9933feb45b9a521 on main; the requested start commit is the fetched origin/main activation commit."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Editable Python installation passed."
+    },
+    {
+      "command": "python -m repopact.validate_repo",
+      "exit_code": 0,
+      "summary": "Python repository governance validation passed after regenerating the pre-existing stale dashboard."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "205 tests passed; 2 formal-model tests remained skipped by their existing open-condition markers."
+    },
+    {
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check",
+      "exit_code": 0,
+      "summary": "Rust workspace formatting check passed."
+    },
+    {
+      "command": "cargo check --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "All WI053 workspace crates compiled; Cargo target output was kept outside the repository."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "8 executable Rust unit tests passed across repository, schema, and validation crates; all workspace doc-test targets were green."
+    },
+    {
+      "command": "python -m repopact.run_conformance --command \"<rust-validator> validate --root {repo}\"",
+      "exit_code": 0,
+      "summary": "Existing Python alternate-implementation runner passed all 20/20 legacy validator cases and its separate WI050 admission corpus remained 8/8; no Rust-only substitute was used."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --package repopact-repository --lib",
+      "exit_code": 0,
+      "summary": "Focused topology/reference parity passed: deterministic ignored discovery, record-relative bare and ../ resolution, stale linked-worktree metadata, and a real registered non-conventional linked worktree with spaces/shared Git common-dir identity."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --base d0fc6a72f46653196ecd0215a9933feb45b9a521",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected; .github/workflows/** was untouched."
+    }
+  ],
+  "artifacts": [
+    "rust/Cargo.toml",
+    "rust/Cargo.lock",
+    "rust/README.md",
+    "rust/crates/repopact-types",
+    "rust/crates/repopact-schema",
+    "rust/crates/repopact-repository",
+    "rust/crates/repopact-validation",
+    "rust/crates/repopact-core",
+    "rust/apps/repopact-cli",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-09-09",
+    "os": "Windows",
+    "python": "3.13",
+    "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+    "base_commit": "d0fc6a72f46653196ecd0215a9933feb45b9a521",
+    "cargo_target": "outside checkout: %TEMP%/repopact-rust-target-053"
+  },
+  "python_baseline": {
+    "editable_install": "passed",
+    "validate_before_dashboard_reconciliation": "failed only because audits/reports/dashboard.md was stale at the requested start commit",
+    "tests_before_dashboard_reconciliation": "205 run, 6 stale-dashboard-related failures, 2 skipped",
+    "post_change_tests": "205 passed, 2 skipped"
+  },
+  "linked_worktree_reference_parity": {
+    "registered_nonconventional_worktree": "passed at scratch agent/feature x with spaces",
+    "stale_git_file_worktree": "passed",
+    "independent_nested_repository": "preserved as discoverable by the repository model contract",
+    "record_relative_reference": "passed for bare sibling.md and ../docs/target.md; no root-coincidence fallback"
+  },
+  "unsupported_nonparity_surfaces": [
+    "WI050 admission/enforcement, guard, IPC, platform backend, and protected-service records are not ported; the Rust CLI emits an explicit unsupported-semantics diagnostic when those records are encountered.",
+    "Tauri/UI, governed mutation planning/apply, transactional generation, graph/analysis authority, PyO3/native wheels, Python CLI cutover, research metadata semantics, adopter-fleet semantics, and release/package identity parity remain outside WI053.",
+    "Rust remains an alternate implementation, not the canonical executable core."
+  ],
+  "architecture_finding": "No contradiction with WI052 sequencing was found. WI054 must consume this read/validation façade but must not infer mutation authority from it; WI055 must remain a typed client; WI056 must retain the explicit non-parity list and Python compatibility strategy."
+}

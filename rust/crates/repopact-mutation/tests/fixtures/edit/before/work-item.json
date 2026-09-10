@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "001",
+  "title": "Original title",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "The state validates", "state": "pending", "evidence": []}
+  ],
+  "created": "2026-01-01",
+  "updated": "2026-01-01"
+}

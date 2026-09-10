@@ -1,0 +1,21 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "001",
+  "title": "Reopenable work",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The state validates",
+      "state": "satisfied",
+      "evidence": [
+        "20260101-seed"
+      ]
+    }
+  ],
+  "created": "2026-01-01",
+  "updated": "2026-01-01"
+}

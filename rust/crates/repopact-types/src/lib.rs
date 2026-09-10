@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -21,6 +22,16 @@ impl LifecycleStatus {
             "deferred" => Some(Self::Deferred),
             "completed" => Some(Self::Completed),
             _ => None,
+        }
+    }
+
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Proposed => "proposed",
+            Self::Active => "active",
+            Self::Blocked => "blocked",
+            Self::Deferred => "deferred",
+            Self::Completed => "completed",
         }
     }
 }
@@ -119,6 +130,123 @@ pub struct RepositoryIdentity {
     #[serde(default)]
     pub git_worktree_root: Option<String>,
     pub linked_worktree: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecordKind {
+    Repository,
+    WorkItem,
+    AcceptanceCriterion,
+    EvidenceRun,
+    Scope,
+    Role,
+    Decision,
+    Policy,
+    Contract,
+    Invariant,
+    FrozenSurface,
+    AuditFinding,
+    AuditRegistry,
+    Dashboard,
+    Template,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct RecordRef {
+    pub kind: RecordKind,
+    pub id: String,
+    pub path: String,
+}
+
+pub type SourceRef = RecordRef;
+
+impl RecordRef {
+    pub fn new(kind: RecordKind, id: impl Into<String>, path: impl Into<String>) -> Self {
+        Self {
+            kind,
+            id: id.into(),
+            path: path.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "state", rename_all = "snake_case")]
+pub enum PathState {
+    Absent,
+    Present { digest: String, kind: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadFact {
+    pub path: String,
+    pub expected: PathState,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ReadSet {
+    pub facts: Vec<ReadFact>,
+}
+
+impl ReadSet {
+    pub fn new(mut facts: Vec<ReadFact>) -> Self {
+        facts.sort_by(|left, right| left.path.cmp(&right.path));
+        facts.dedup_by(|left, right| left.path == right.path);
+        Self { facts }
+    }
+
+    pub fn with_absent(mut self, path: impl Into<String>) -> Self {
+        self.facts.push(ReadFact {
+            path: path.into(),
+            expected: PathState::Absent,
+        });
+        Self::new(self.facts)
+    }
+
+    pub fn token(&self, identity: &RepositoryIdentity) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(b"repopact-plan-token-v1\0");
+        update_len_prefixed(&mut hasher, identity.root.as_bytes());
+        update_len_prefixed(
+            &mut hasher,
+            identity.git_common_dir.as_deref().unwrap_or("").as_bytes(),
+        );
+        update_len_prefixed(
+            &mut hasher,
+            identity
+                .git_worktree_root
+                .as_deref()
+                .unwrap_or("")
+                .as_bytes(),
+        );
+        hasher.update([u8::from(identity.linked_worktree)]);
+        for fact in &self.facts {
+            update_len_prefixed(&mut hasher, fact.path.as_bytes());
+            match &fact.expected {
+                PathState::Absent => hasher.update(b"absent"),
+                PathState::Present { digest, kind } => {
+                    hasher.update(b"present");
+                    update_len_prefixed(&mut hasher, digest.as_bytes());
+                    update_len_prefixed(&mut hasher, kind.as_bytes());
+                }
+            }
+        }
+        hex_digest(hasher.finalize())
+    }
+}
+
+fn update_len_prefixed(hasher: &mut Sha256, value: &[u8]) {
+    hasher.update((value.len() as u64).to_be_bytes());
+    hasher.update(value);
+}
+
+pub fn hex_digest(bytes: impl AsRef<[u8]>) -> String {
+    bytes
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

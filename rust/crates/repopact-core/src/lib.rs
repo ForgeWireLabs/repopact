@@ -1,28 +1,61 @@
 use std::path::Path;
 
-use repopact_repository::Repository;
+use repopact_analysis::{analyze, AnalysisQuery, AnalysisReport};
+use repopact_graph::{build, RepositoryGraph};
+use repopact_mutation::{apply, plan, ApplyOptions, MutationPlan, MutationRequest, MutationResult};
+use repopact_repository::{Repository, RepositorySession, RepositorySnapshot};
 use repopact_types::{RepositoryIdentity, ValidationReport};
-use repopact_validation::Validator;
 
-/// Reusable, non-Tauri RepoPact façade. WI053 exposes read-only validation;
-/// mutation planning and application are intentionally reserved for WI054.
+/// Reusable, non-Tauri RepoPact façade. Graph, analysis, and mutation all start
+/// from an immutable snapshot produced by the same repository session.
 pub struct RepoPactCore {
-    repository: Repository,
+    session: RepositorySession,
 }
 
 impl RepoPactCore {
     pub fn open(root: impl AsRef<Path>) -> Self {
         Self {
-            repository: Repository::open(root),
+            session: Repository::open(root).session(),
         }
     }
 
     pub fn identity(&self) -> RepositoryIdentity {
-        self.repository.identity()
+        self.session.repository().identity()
     }
 
-    pub fn validate(self) -> ValidationReport {
-        Validator::new(self.repository).validate()
+    pub fn snapshot(&self) -> RepositorySnapshot {
+        self.session.snapshot()
+    }
+
+    pub fn validate(&self) -> ValidationReport {
+        let snapshot = self.snapshot();
+        repopact_validation::validate_snapshot(&snapshot)
+    }
+
+    pub fn graph(&self) -> RepositoryGraph {
+        build(&self.snapshot())
+    }
+
+    pub fn analyze(&self, query: &AnalysisQuery) -> AnalysisReport {
+        let snapshot = self.snapshot();
+        analyze(&snapshot, query)
+    }
+
+    pub fn plan_mutation(&self, request: MutationRequest) -> MutationPlan {
+        let snapshot = self.snapshot();
+        plan(&snapshot, request)
+    }
+
+    pub fn apply_mutation(&self, mutation: &MutationPlan) -> MutationResult {
+        apply(mutation, &ApplyOptions::default())
+    }
+
+    pub fn apply_mutation_with_options(
+        &self,
+        mutation: &MutationPlan,
+        options: &ApplyOptions,
+    ) -> MutationResult {
+        apply(mutation, options)
     }
 }
 

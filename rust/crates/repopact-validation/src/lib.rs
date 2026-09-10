@@ -31,6 +31,39 @@ pub fn validate(root: impl AsRef<Path>) -> ValidationReport {
     Validator::new(repository).validate()
 }
 
+/// Validate a snapshot opened by the shared repository session. The current
+/// semantic validator still owns the WI053 rule implementation, but callers do
+/// not need to reopen or independently crawl a repository to select the
+/// validation boundary.
+pub fn validate_snapshot(snapshot: &repopact_repository::RepositorySnapshot) -> ValidationReport {
+    Validator::new(snapshot.repository().clone()).validate()
+}
+
+/// Render the owned dashboard projection without writing it. Mutation planning
+/// and validation use this same projection so there is one Rust implementation
+/// of the generated artifact.
+pub fn render_dashboard(root: impl AsRef<Path>) -> Result<String, String> {
+    let repository = Repository::open(root);
+    let mut validator = Validator::new(repository.clone());
+    validator.work = repository
+        .discover_work_items()
+        .into_iter()
+        .map(|record| LoadedWork {
+            path: record.path,
+            item: record
+                .value
+                .ok()
+                .and_then(|value| serde_json::from_value::<WorkItem>(value).ok()),
+        })
+        .collect();
+    if validator.work.iter().any(|record| record.item.is_none()) {
+        return Err("unable to render dashboard from malformed work-item records".to_owned());
+    }
+    validator
+        .generate_dashboard()
+        .ok_or_else(|| "unable to render dashboard from repository source records".to_owned())
+}
+
 pub struct Validator {
     repository: Repository,
     schemas: SchemaStore,

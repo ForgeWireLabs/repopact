@@ -1,10 +1,11 @@
 [package]
-name = "repopact-types"
+name = "repopact-graph"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
+repopact-repository.workspace = true
+repopact-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-sha2.workspace = true

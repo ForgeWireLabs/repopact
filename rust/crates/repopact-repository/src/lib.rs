@@ -1,10 +1,13 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use repopact_types::RepositoryIdentity;
+use repopact_types::{
+    hex_digest, PathState, ReadFact, ReadSet, RecordKind, RecordRef, RepositoryIdentity, WorkItem,
+};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 pub const STATUSES: [&str; 5] = ["proposed", "active", "blocked", "deferred", "completed"];
 pub const IGNORED_PARTS: [&str; 9] = [
@@ -35,6 +38,310 @@ pub struct WorkItemFile {
 pub struct EvidenceFile {
     pub path: PathBuf,
     pub value: Result<Value, String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexedRecord {
+    pub reference: RecordRef,
+    pub path: PathBuf,
+    pub value: Result<Value, String>,
+    pub text: Option<String>,
+    pub front_matter: Result<BTreeMap<String, Value>, String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct RecordIndex {
+    pub work_items: Vec<IndexedRecord>,
+    pub evidence: Vec<IndexedRecord>,
+    pub decisions: Vec<IndexedRecord>,
+    pub policies: Vec<IndexedRecord>,
+    pub contracts: Vec<IndexedRecord>,
+    pub invariants: Option<IndexedRecord>,
+    pub frozen_surface: Option<IndexedRecord>,
+    pub owners: Option<IndexedRecord>,
+    pub audit_registry: Option<IndexedRecord>,
+    pub audit_findings: Vec<IndexedRecord>,
+    pub dashboard: Option<IndexedRecord>,
+    pub source_paths: Vec<PathBuf>,
+}
+
+impl RecordIndex {
+    pub fn build(repository: &Repository) -> Self {
+        let mut index = Self::default();
+        for record in repository.discover_work_items() {
+            let id = record
+                .value
+                .as_ref()
+                .ok()
+                .and_then(|value| value.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| {
+                    record
+                        .path
+                        .file_stem()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("unknown")
+                });
+            index.work_items.push(IndexedRecord::json(
+                RecordRef::new(
+                    RecordKind::WorkItem,
+                    id,
+                    repository.relative_path(&record.path),
+                ),
+                record.path.clone(),
+                record.value,
+            ));
+            index.add_directory_files(&record.directory);
+        }
+        for record in repository.discover_evidence() {
+            let id = record
+                .value
+                .as_ref()
+                .ok()
+                .and_then(|value| value.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| {
+                    record
+                        .path
+                        .file_stem()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("unknown")
+                });
+            index.evidence.push(IndexedRecord::json(
+                RecordRef::new(
+                    RecordKind::EvidenceRun,
+                    id,
+                    repository.relative_path(&record.path),
+                ),
+                record.path.clone(),
+                record.value,
+            ));
+        }
+        index.decisions = discover_markdown_records(repository, "decisions", RecordKind::Decision);
+        index.policies =
+            discover_markdown_records(repository, "governance/policies", RecordKind::Policy);
+        index.contracts = repository
+            .iter_contracts()
+            .into_iter()
+            .map(|path| {
+                let id = repository.relative_path(&path);
+                IndexedRecord::markdown(RecordRef::new(RecordKind::Contract, id.clone(), id), path)
+            })
+            .collect();
+        index.invariants = index.json_record(
+            repository,
+            "governance/invariants.json",
+            RecordKind::Invariant,
+        );
+        index.frozen_surface = index.json_record(
+            repository,
+            "governance/frozen-surface.json",
+            RecordKind::FrozenSurface,
+        );
+        index.owners = index.json_record(repository, "governance/owners.json", RecordKind::Scope);
+        index.audit_registry = index.json_record(
+            repository,
+            "audits/registry.json",
+            RecordKind::AuditRegistry,
+        );
+        index.audit_findings =
+            discover_json_records(repository, "audits/findings", RecordKind::AuditFinding);
+        index.dashboard = index.json_or_text_record(
+            repository,
+            "audits/reports/dashboard.md",
+            RecordKind::Dashboard,
+        );
+
+        for path in [
+            "AGENTS.md",
+            "repopact/AGENTS.md",
+            "VERSION",
+            "RELEASE_LABEL",
+            "scripts/REPOPACT_VERSION",
+            "templates/work-item.README.md",
+            "templates/work-item.json",
+            "repopact/templates/work-item.README.md",
+            "repopact/templates/work-item.json",
+        ] {
+            let candidate = repository.root.join(path);
+            if candidate.is_file() {
+                index.source_paths.push(candidate);
+            }
+        }
+        index
+            .source_paths
+            .extend(index.work_items.iter().flat_map(|record| {
+                record
+                    .path
+                    .parent()
+                    .map(|directory| repository.files_under(directory))
+                    .unwrap_or_default()
+            }));
+        index
+            .source_paths
+            .extend(index.evidence.iter().map(|record| record.path.clone()));
+        index
+            .source_paths
+            .extend(index.decisions.iter().map(|record| record.path.clone()));
+        index
+            .source_paths
+            .extend(index.policies.iter().map(|record| record.path.clone()));
+        index
+            .source_paths
+            .extend(index.contracts.iter().map(|record| record.path.clone()));
+        index.source_paths.extend(
+            index
+                .audit_findings
+                .iter()
+                .map(|record| record.path.clone()),
+        );
+        for record in [
+            index.invariants.as_ref(),
+            index.frozen_surface.as_ref(),
+            index.owners.as_ref(),
+            index.audit_registry.as_ref(),
+            index.dashboard.as_ref(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            index.source_paths.push(record.path.clone());
+        }
+        index
+            .source_paths
+            .sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+        index.source_paths.dedup();
+        index
+    }
+
+    pub fn work_item(&self, id: &str) -> Option<&IndexedRecord> {
+        self.work_items
+            .iter()
+            .find(|record| record.reference.id == id)
+    }
+
+    pub fn typed_work_item(&self, id: &str) -> Option<WorkItem> {
+        self.work_item(id)
+            .and_then(|record| record.value.clone().ok())
+            .and_then(|value| serde_json::from_value(value).ok())
+    }
+
+    pub fn read_set(&self, repository: &Repository) -> ReadSet {
+        repository.read_set_for_paths(&self.source_paths)
+    }
+
+    fn json_record(
+        &self,
+        repository: &Repository,
+        relative: &str,
+        kind: RecordKind,
+    ) -> Option<IndexedRecord> {
+        let path = repository.root.join(relative);
+        path.is_file().then(|| {
+            IndexedRecord::json(
+                RecordRef::new(kind, relative, relative),
+                path.clone(),
+                read_json(&path),
+            )
+        })
+    }
+
+    fn json_or_text_record(
+        &self,
+        repository: &Repository,
+        relative: &str,
+        kind: RecordKind,
+    ) -> Option<IndexedRecord> {
+        let path = repository.root.join(relative);
+        path.is_file()
+            .then(|| IndexedRecord::text(RecordRef::new(kind, relative, relative), path))
+    }
+
+    fn add_directory_files(&mut self, directory: &Path) {
+        self.source_paths.extend(walk_files(directory));
+    }
+}
+
+impl IndexedRecord {
+    fn json(reference: RecordRef, path: PathBuf, value: Result<Value, String>) -> Self {
+        Self {
+            reference,
+            path,
+            value,
+            text: None,
+            front_matter: Err("not a Markdown record".to_owned()),
+        }
+    }
+
+    fn text(reference: RecordRef, path: PathBuf) -> Self {
+        let text = fs::read_to_string(&path).ok();
+        Self {
+            reference,
+            path,
+            value: Err("not a JSON record".to_owned()),
+            front_matter: text
+                .as_deref()
+                .map(parse_front_matter)
+                .unwrap_or_else(|| Err("unable to read record".to_owned())),
+            text,
+        }
+    }
+
+    fn markdown(reference: RecordRef, path: PathBuf) -> Self {
+        Self::text(reference, path)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RepositorySession {
+    repository: Repository,
+}
+
+#[derive(Debug, Clone)]
+pub struct RepositorySnapshot {
+    repository: Repository,
+    index: RecordIndex,
+    read_set: ReadSet,
+}
+
+impl RepositorySession {
+    pub fn open(root: impl AsRef<Path>) -> Self {
+        Self {
+            repository: Repository::open(root),
+        }
+    }
+
+    pub fn repository(&self) -> &Repository {
+        &self.repository
+    }
+
+    pub fn snapshot(&self) -> RepositorySnapshot {
+        let index = RecordIndex::build(&self.repository);
+        let read_set = index.read_set(&self.repository);
+        RepositorySnapshot {
+            repository: self.repository.clone(),
+            index,
+            read_set,
+        }
+    }
+}
+
+impl RepositorySnapshot {
+    pub fn repository(&self) -> &Repository {
+        &self.repository
+    }
+    pub fn index(&self) -> &RecordIndex {
+        &self.index
+    }
+    pub fn read_set(&self) -> &ReadSet {
+        &self.read_set
+    }
+    pub fn identity(&self) -> RepositoryIdentity {
+        self.repository.identity()
+    }
+    pub fn token(&self) -> String {
+        self.read_set.token(&self.identity())
+    }
 }
 
 impl Repository {
@@ -138,6 +445,54 @@ impl Repository {
     pub fn discover_embedded_worktree_roots(&self) -> BTreeSet<PathBuf> {
         discover_embedded_worktree_roots(&self.root)
     }
+
+    pub fn session(&self) -> RepositorySession {
+        RepositorySession {
+            repository: self.clone(),
+        }
+    }
+
+    pub fn files_under(&self, path: &Path) -> Vec<PathBuf> {
+        let path = normalize_path(path);
+        let linked = discover_embedded_worktree_roots(&self.root);
+        let mut files = Vec::new();
+        walk_files_inner(&self.root, &path, &linked, &mut files);
+        files.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+        files
+    }
+
+    pub fn all_files(&self) -> Vec<PathBuf> {
+        self.files_under(&self.root)
+    }
+
+    pub fn path_state(&self, path: &Path) -> PathState {
+        path_state(path)
+    }
+
+    pub fn read_set_for_paths(&self, paths: &[PathBuf]) -> ReadSet {
+        let mut facts = paths
+            .iter()
+            .map(|path| ReadFact {
+                path: self.relative_path(path),
+                expected: self.path_state(path),
+            })
+            .collect::<Vec<_>>();
+        facts.sort_by(|left, right| left.path.cmp(&right.path));
+        facts.dedup_by(|left, right| left.path == right.path);
+        ReadSet::new(facts)
+    }
+
+    pub fn read_set_for_relative_paths<I, S>(&self, paths: I) -> ReadSet
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let absolute = paths
+            .into_iter()
+            .map(|path| self.root.join(path.as_ref()))
+            .collect::<Vec<_>>();
+        self.read_set_for_paths(&absolute)
+    }
 }
 
 pub fn normalize_path(path: &Path) -> PathBuf {
@@ -171,6 +526,218 @@ pub fn path_string(path: &Path) -> String {
 fn read_json(path: &Path) -> Result<Value, String> {
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+}
+
+fn discover_markdown_records(
+    repository: &Repository,
+    relative: &str,
+    kind: RecordKind,
+) -> Vec<IndexedRecord> {
+    let directory = repository.root.join(relative);
+    let Ok(entries) = fs::read_dir(&directory) else {
+        return Vec::new();
+    };
+    let mut paths = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            (entry.file_type().ok()?.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+                && path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().to_ascii_uppercase() != "README.MD"))
+            .then_some(path)
+        })
+        .collect::<Vec<_>>();
+    paths.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+    paths
+        .into_iter()
+        .map(|path| {
+            let fallback = path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown");
+            let id = fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| parse_front_matter(&text).ok())
+                .and_then(|matter| matter.get("id").and_then(Value::as_str).map(str::to_owned))
+                .unwrap_or_else(|| fallback.to_owned());
+            IndexedRecord::markdown(
+                RecordRef::new(kind, id, repository.relative_path(&path)),
+                path,
+            )
+        })
+        .collect()
+}
+
+fn discover_json_records(
+    repository: &Repository,
+    relative: &str,
+    kind: RecordKind,
+) -> Vec<IndexedRecord> {
+    let directory = repository.root.join(relative);
+    let Ok(entries) = fs::read_dir(&directory) else {
+        return Vec::new();
+    };
+    let mut paths = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            (entry.file_type().ok()?.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("json")))
+            .then_some(path)
+        })
+        .collect::<Vec<_>>();
+    paths.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+    paths
+        .into_iter()
+        .map(|path| {
+            let fallback = path
+                .file_stem()
+                .and_then(|name| name.to_str())
+                .unwrap_or("unknown");
+            let id = read_json(&path)
+                .ok()
+                .and_then(|value| value.get("id").and_then(Value::as_str).map(str::to_owned))
+                .unwrap_or_else(|| fallback.to_owned());
+            IndexedRecord::json(
+                RecordRef::new(kind, id, repository.relative_path(&path)),
+                path.clone(),
+                read_json(&path),
+            )
+        })
+        .collect()
+}
+
+fn walk_files(path: &Path) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    let mut stack = vec![path.to_path_buf()];
+    while let Some(current) = stack.pop() {
+        let Ok(entries) = fs::read_dir(&current) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() && !kind.is_symlink() {
+                stack.push(path);
+            } else if kind.is_file() {
+                result.push(path);
+            }
+        }
+    }
+    result.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+    result
+}
+
+fn walk_files_inner(
+    root: &Path,
+    current: &Path,
+    linked: &BTreeSet<PathBuf>,
+    result: &mut Vec<PathBuf>,
+) {
+    if current != root && is_within_known(current, linked) {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(current) else {
+        return;
+    };
+    let mut entries = entries.filter_map(Result::ok).collect::<Vec<_>>();
+    entries.sort_by(|left, right| path_string(&left.path()).cmp(&path_string(&right.path())));
+    for entry in entries {
+        let Ok(kind) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if kind.is_dir() && !kind.is_symlink() {
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !ignored_part(&name) {
+                walk_files_inner(root, &normalize_path(&path), linked, result);
+            }
+        } else if kind.is_file() {
+            result.push(normalize_path(&path));
+        }
+    }
+}
+
+fn path_state(path: &Path) -> PathState {
+    let Ok(metadata) = fs::metadata(path) else {
+        return PathState::Absent;
+    };
+    if metadata.is_file() {
+        let Ok(bytes) = fs::read(path) else {
+            return PathState::Present {
+                digest: "unreadable".to_owned(),
+                kind: "file".to_owned(),
+            };
+        };
+        return PathState::Present {
+            digest: hex_digest(Sha256::digest(bytes)),
+            kind: "file".to_owned(),
+        };
+    }
+    if metadata.is_dir() {
+        let mut entries = walk_files(path);
+        entries.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+        let mut hasher = Sha256::new();
+        for entry in entries {
+            hasher.update(path_string(&entry).as_bytes());
+            if let Ok(bytes) = fs::read(&entry) {
+                hasher.update(Sha256::digest(bytes));
+            }
+        }
+        return PathState::Present {
+            digest: hex_digest(hasher.finalize()),
+            kind: "directory".to_owned(),
+        };
+    }
+    PathState::Present {
+        digest: "special".to_owned(),
+        kind: "other".to_owned(),
+    }
+}
+
+pub fn parse_front_matter(text: &str) -> Result<BTreeMap<String, Value>, String> {
+    let lines = text.lines().collect::<Vec<_>>();
+    if lines.first().map(|line| line.trim()) != Some("---") {
+        return Err("missing leading '---' front-matter fence".to_owned());
+    }
+    let mut fields = BTreeMap::new();
+    for line in lines.into_iter().skip(1) {
+        if line.trim() == "---" {
+            return Ok(fields);
+        }
+        if line.trim().is_empty() {
+            continue;
+        }
+        let Some((key, raw)) = line.split_once(':') else {
+            return Err(format!("front-matter line is not 'key: value': {line:?}"));
+        };
+        fields.insert(key.trim().to_owned(), front_matter_value(raw.trim()));
+    }
+    Err("missing closing '---' front-matter fence".to_owned())
+}
+
+fn front_matter_value(raw: &str) -> Value {
+    if raw.starts_with('[') && raw.ends_with(']') {
+        let inner = raw[1..raw.len() - 1].trim();
+        if inner.is_empty() {
+            return Value::Array(Vec::new());
+        }
+        return Value::Array(
+            inner
+                .split(',')
+                .map(|item| Value::String(item.trim().trim_matches(['\'', '"']).to_owned()))
+                .collect(),
+        );
+    }
+    Value::String(raw.trim_matches(['\'', '"']).to_owned())
 }
 
 fn sorted_directories(path: &Path) -> Result<Vec<PathBuf>, String> {

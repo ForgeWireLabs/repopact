@@ -5,6 +5,9 @@ members = [
     "crates/repopact-schema",
     "crates/repopact-repository",
     "crates/repopact-validation",
+    "crates/repopact-graph",
+    "crates/repopact-analysis",
+    "crates/repopact-mutation",
     "crates/repopact-core",
     "apps/repopact-cli",
 ]
@@ -12,9 +15,13 @@ members = [
 [workspace.dependencies]
 jsonschema = { version = "0.55.1", default-features = false }
 repopact-core = { path = "crates/repopact-core" }
+repopact-analysis = { path = "crates/repopact-analysis" }
+repopact-graph = { path = "crates/repopact-graph" }
+repopact-mutation = { path = "crates/repopact-mutation" }
 repopact-repository = { path = "crates/repopact-repository" }
 repopact-schema = { path = "crates/repopact-schema" }
 repopact-types = { path = "crates/repopact-types" }
 repopact-validation = { path = "crates/repopact-validation" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+sha2 = "0.10"

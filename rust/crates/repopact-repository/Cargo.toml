@@ -7,3 +7,4 @@ publish = false
 [dependencies]
 repopact-types.workspace = true
 serde_json.workspace = true
+sha2.workspace = true

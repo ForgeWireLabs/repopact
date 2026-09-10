@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "056",
   "title": "Python Compatibility and Canonical Rust-Core Cutover",
-  "status": "blocked",
+  "status": "active",
   "owner_scope": "work",
   "affected_scopes": ["work", "tooling", "governance", "docs", "evidence"],
   "depends_on": ["053", "054", "055", "057"],
@@ -10,7 +10,7 @@
   "preflight": {
     "created_before_work_started": true,
     "created_at": "2026-09-09T19:44:00Z",
-    "note": "Created before Python/Rust authority cutover; activated after WI053-WI055 completed and Decision 0042 selected the versioned Rust stdio engine boundary. Blocked on 2026-09-10 by WI057 after an operator reproduced a host-impacting Git process/refresh amplification defect in the native repository-selection path; the compatibility architecture remains accepted but must not become canonical until that substrate is corrected."
+    "note": "Created before Python/Rust authority cutover; activated after WI053-WI055 completed and Decision 0042 selected the versioned Rust stdio engine boundary. Temporarily blocked on 2026-09-10 by WI057 after an operator reproduced a host-impacting Git process/refresh amplification defect. Reactivated after WI057 corrected the snapshot/session/process substrate and native operator validation completed successfully."
   },
   "acceptance_criteria": [
     {"id":"PCC-001","text":"Record and implement Decision 0042's surface-scoped authority map: Rust becomes canonical for the WI053/WI054-proven repository/validation/dashboard/graph/analysis/typed-work-mutation semantics, while explicitly unmigrated Python and WI050 surfaces remain separately identified.","state":"pending","evidence":[]},

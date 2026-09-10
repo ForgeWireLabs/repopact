@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "057",
   "title": "Desktop Repository-Selection Git Process Storm and Runtime Amplification Audit",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": ["work", "tooling", "docs", "evidence"],
   "depends_on": ["055"],
@@ -30,9 +30,9 @@
     {"id":"RPS-015","text":"Add static/regression enforcement preventing raw production Rust Git process launches from reappearing outside the approved process helper and preventing desktop/Tauri/frontend code from acquiring generic shell/process authority.","state":"satisfied","evidence":["20260910-057-process-amplification-remediation"]},
     {"id":"RPS-016","text":"Review non-WI050 Python user-facing Git/tool subprocess helpers for the same containment class; safe bounded query helpers receive explicit timeout/non-interactive behavior where appropriate, intentionally long-running build/launcher operations are documented rather than given unsafe blanket timeouts, and repeated-loop process spawning is either removed or explicitly bounded.","state":"satisfied","evidence":["20260910-057-process-amplification-remediation"]},
     {"id":"RPS-017","text":"WI050 admission/guard/platform/service process-launch sites are audited for amplification/timeout risk but not silently changed under WI057; any material security-substrate defect is recorded against WI050 with exact evidence and ownership before WI057 closes.","state":"satisfied","evidence":["20260910-057-process-amplification-remediation"]},
-    {"id":"RPS-018","text":"Run a native Windows reproduction only after safeguards exist: select the RepoPact repository and a second scratch/adopted repository, demonstrate responsive navigation/refresh/switch behavior, record Git process invocation/concurrency evidence, and confirm no visible terminal storm or host starvation occurs.","state":"pending","evidence":[]},
+    {"id":"RPS-018","text":"Run a native Windows reproduction only after safeguards exist: select the RepoPact repository and a second scratch/adopted repository, demonstrate responsive navigation/refresh/switch behavior, record Git process invocation/concurrency evidence, and confirm no visible terminal storm or host starvation occurs.","state":"satisfied","evidence":["20260910-057-native-picker-closeout"]},
     {"id":"RPS-019","text":"Preserve WI053-WI055 semantics and the WI056 design baseline: Python suite, Rust workspace tests, 20/20 conformance, WI050 8/8 corpus, linked-worktree/reference parity, desktop frontend/type/security/build checks, frozen-surface integrity, and no WI050 authority migration remain green.","state":"satisfied","evidence":["20260910-057-process-amplification-remediation"]},
-    {"id":"RPS-020","text":"Closeout evidence records the operator-observed failure, confirmed root causes, complete process-launch classification, pre/post Git invocation and concurrency behavior, Windows child-process configuration, snapshot/topology/cache lifecycle, watcher convergence, Python process-safety disposition, native reproduction result, regressions, residual risks, and an explicit determination that WI056 may resume.","state":"pending","evidence":[]}
+    {"id":"RPS-020","text":"Closeout evidence records the operator-observed failure, confirmed root causes, complete process-launch classification, pre/post Git invocation and concurrency behavior, Windows child-process configuration, snapshot/topology/cache lifecycle, watcher convergence, Python process-safety disposition, native reproduction result, regressions, residual risks, and an explicit determination that WI056 may resume.","state":"satisfied","evidence":["20260910-057-native-picker-closeout"]}
   ],
   "created": "2026-09-10",
   "updated": "2026-09-10"

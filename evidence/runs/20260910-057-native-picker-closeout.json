@@ -1,0 +1,67 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-057-native-picker-closeout",
+  "timestamp": "2026-09-10T21:40:30Z",
+  "work_item": "057",
+  "result": "pass",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File work/active/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1 -ExecutablePath <built repopact-desktop.exe> -LogPath %TEMP%/repopact-wi057-desktop-processes.csv",
+      "exit_code": 0,
+      "summary": "Operator-assisted native Windows Workbench run completed and cleaned up normally. The harness observed a maximum of 2 Git descendants, with transient samples returning immediately to zero rather than multiplying or persisting."
+    }
+  ],
+  "artifacts": [
+    "evidence/runs/20260910-057-process-amplification-remediation.json",
+    "work/completed/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1",
+    "work/completed/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/operator-assisted-native-picker-validation.md",
+    "audits/findings/003-wi050-host-tool-timeout-containment.json"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows",
+    "workbench_pid": 21012,
+    "operator_log": "C:/Users/jerem/AppData/Local/Temp/repopact-wi057-desktop-processes.csv"
+  },
+  "operator_validation": {
+    "navigation": "Operator navigated several if not all sidebar subcategories and reported that everything populated as expected.",
+    "responsiveness": "The original sustained repository-selection hang and host-starvation behavior did not recur during the observed run.",
+    "process_sampling": {
+      "maximum_git_descendants": 2,
+      "representative_transient_samples": [
+        "2026-09-10T21:35:01.8393563Z Git descendants=2 total descendants=10; next sample returned to zero",
+        "2026-09-10T21:35:09.0712011Z Git descendants=1 total descendants=9; next sample returned to zero"
+      ],
+      "tail_state": "Git descendants remained zero through the end of the run; harness reported Maximum observed Git descendants: 2 and Cleanup complete for Workbench PID 21012."
+    }
+  },
+  "remediation_summary": {
+    "root_cause": "Per-work-item Git worktree discovery, fresh snapshots for repeated desktop reads, validator recrawling, and watcher refresh publication under shared state amplified native Git child creation.",
+    "snapshot_git_calls_before": "2/11/51/101 for 1/10/50/100 work items",
+    "snapshot_git_calls_after": "3/3/3/3 for 1/10/50/100 work items",
+    "cached_read_additional_git_calls": 0,
+    "deterministic_max_git_query_concurrency": 1,
+    "watcher_burst_refreshes": 1,
+    "windows_process_policy": "Centralized non-interactive bounded Git runner using CREATE_NO_WINDOW and Windows Job Object kill-on-close containment."
+  },
+  "regressions": {
+    "python": "205 passed, 2 skipped",
+    "legacy_conformance": "20/20",
+    "wi050_admission": "8/8",
+    "linked_worktree_reference": "9/9 focused parity",
+    "frontend": "generated types, TypeScript, 3 files/5 tests, production build passed",
+    "rust": "repository 8/8, desktop API 10/10, workspace check/tests passed",
+    "frozen_surface": "passed; frozen CI/release files untouched"
+  },
+  "residuals": [
+    "WI050 sc.exe/icacls timeout containment remains separately owned by audits/findings/003-wi050-host-tool-timeout-containment.json.",
+    "WI056 must consume the corrected snapshot/session APIs during canonical engine cutover."
+  ],
+  "closeout": {
+    "rps_018": "satisfied",
+    "rps_020": "satisfied",
+    "wi057_ready": true,
+    "wi056_may_resume": true
+  }
+}

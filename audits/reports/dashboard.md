@@ -15,7 +15,7 @@
 | Audit findings | 3 |
 | Decision records | 42 |
 | Policy records | 2 |
-| Evidence runs | 65 |
+| Evidence runs | 66 |
 
 ## Work
 
@@ -23,9 +23,9 @@
 | --- | ---: |
 | proposed | 5 |
 | active | 7 |
-| blocked | 2 |
+| blocked | 1 |
 | deferred | 0 |
-| completed | 44 |
+| completed | 45 |
 
 ## Audit freshness
 
@@ -39,6 +39,5 @@ All audit scopes are within their review cadence.
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 052: Rust Core and Tauri 2 User Workbench Foundation (active)
-- 057: Desktop Repository-Selection Git Process Storm and Runtime Amplification Audit (active)
+- 056: Python Compatibility and Canonical Rust-Core Cutover (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)
-- 056: Python Compatibility and Canonical Rust-Core Cutover (blocked)

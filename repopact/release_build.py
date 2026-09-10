@@ -266,12 +266,25 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     env["PYTHONHASHSEED"] = "0"
     _run(
         [
+            "cargo",
+            "metadata",
+            "--format-version",
+            "1",
+            "--locked",
+            "--manifest-path",
+            str(source / "rust" / "Cargo.toml"),
+        ],
+        cwd=source,
+        env=env,
+        timeout=30,
+    )
+    _run(
+        [
             sys.executable,
             "-m",
             "maturin",
             "build",
             "--sdist",
-            "--locked",
             "--out",
             str(output),
         ],

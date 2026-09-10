@@ -1,0 +1,109 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-056-rust-engine-cutover",
+  "timestamp": "2026-09-10T23:45:44Z",
+  "work_item": "056",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"python -m pip install -e \".[dev]\"","exit_code":0,"summary":"Editable development install passed with the Maturin bin build configuration."},
+    {"command":"python -m unittest discover -s tests -v","exit_code":0,"summary":"Full Python regression suite passed: 212 tests passed and 2 intentional formal-model tests skipped."},
+    {"command":"cargo fmt --manifest-path rust/Cargo.toml --all -- --check","exit_code":0,"summary":"Rust workspace formatting passed."},
+    {"command":"cargo check --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"All Rust workspace crates and applications compiled."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace --quiet","exit_code":0,"summary":"Rust workspace passed 41 tests with zero failures."},
+    {"command":"$env:REPOPACT_ENGINE='C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-rust-target-056-final\\debug\\repopact-engine.exe'; python -m repopact.run_conformance --legacy-python","exit_code":0,"summary":"Canonical Rust validation passed 20/20; explicit legacy Python comparator passed 20/20; WI050 admission corpus passed 8/8."},
+    {"command":"python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_nonconventional_linked_worktree_is_structurally_excluded tests.test_validate_repo.RepositoryValidationTests.test_stale_linked_worktree_git_file_is_excluded_without_git_registry tests.test_takeover_refs -v","exit_code":0,"summary":"Focused linked-worktree/reference parity suite passed 9/9."},
+    {"command":"npm ci --ignore-scripts; npm run types:check; npm run typecheck; npm test -- --run; npm run build","exit_code":0,"summary":"Frontend generated bindings, TypeScript checks, 3 test files/5 tests, and production Vite build passed."},
+    {"command":"python -m repopact.check_frozen_surface --base fb9728d7e59dd711f46a6f5bd45545e2ba82be63","exit_code":0,"summary":"No frozen-surface changes detected; .github/workflows/** remained untouched."},
+    {"command":"python -m repopact.cli release-build --root . --outdir C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-wi056-release-final --revision HEAD","exit_code":0,"summary":"Two clean Git-archive Maturin builds were byte-identical and structurally verified at commit 58ee18ae5f1749ae0c08e082b435dac4815dba47."},
+    {"command":"python -m venv C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-wi056-wheel-final-venv-2; pip install --no-deps repopact-3.0.2.dev1-py3-none-win_amd64.whl; repopact validate --root <scratch>; repopact dashboard --root <scratch>; repopact work propose \"Fresh wheel proposal\" --root <scratch>","exit_code":0,"summary":"Fresh isolated Windows wheel install resolved its same-environment engine and passed validation, dashboard, and typed proposal smoke operations outside the checkout."},
+    {"command":"rename packaged repopact-engine.exe; repopact validate --root <scratch>; restore packaged repopact-engine.exe","exit_code":0,"summary":"Missing packaged engine failed explicitly with exit 1 and no legacy-Python fallback; restoration and subsequent validation passed."},
+    {"command":"repopact-engine.exe < one handshake JSON request","exit_code":0,"summary":"Installed engine returned exactly one JSON response, matching product version 3.0.2.dev1, with zero stderr bytes."},
+    {"command":"python -m pip wheel --no-deps --no-build-isolation repopact-3.0.2.dev1.tar.gz --wheel-dir <fresh-output>","exit_code":0,"summary":"Fresh isolated source build passed with Maturin 1.15.0 and Cargo/Rust 1.98.0; resulting wheel installed and validated on Windows."},
+    {"command":"$env:REPOPACT_ENGINE='C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-rust-target-056-final\\debug\\repopact-engine.exe'; python -m repopact.cli validate --root .","exit_code":1,"summary":"Expected explicit fail-closed source-checkout result: unsupported governance/adopters.json and research/metadata.json plus the pre-existing Rust/Python README-checkbox parity gap."}
+  ],
+  "artifacts": [
+    "rust/crates/repopact-protocol/Cargo.toml",
+    "rust/crates/repopact-protocol/src/lib.rs",
+    "rust/apps/repopact-engine/Cargo.toml",
+    "rust/apps/repopact-engine/build.rs",
+    "rust/apps/repopact-engine/src/main.rs",
+    "rust/apps/repopact-engine/src/bin/repopact.rs",
+    "repopact/engine_client.py",
+    "repopact/cli.py",
+    "repopact/run_conformance.py",
+    "repopact/release_build.py",
+    "tests/test_engine_client.py",
+    "tests/test_release_build.py",
+    "docs/guides/packaging-and-engine.md",
+    "work/completed/056-python-compatibility-and-canonical-rust-core-cutover/command-authority-inventory.md",
+    "C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-wi056-release-final\\repopact-3.0.2.dev1-py3-none-win_amd64.whl",
+    "C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-wi056-release-final\\repopact-3.0.2.dev1.tar.gz"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows 10.0.26200 x64",
+    "python": "3.13",
+    "rust": "Cargo/Rust 1.98.0",
+    "maturin": "1.15.0",
+    "activation_base": "fb9728d7e59dd711f46a6f5bd45545e2ba82be63",
+    "implementation_head_at_regression": "86ab36d3262f1157bcd375e3cc38794d93db1f20",
+    "cargo_targets": "outside checkout under %TEMP%"
+  },
+  "authority": {
+    "canonical_rust": ["validate", "dashboard.write", "graph", "analyze", "work.create", "work.propose", "work.amend_proposal", "repository/session/snapshot semantics", "typed mutation planning/apply/recovery"],
+    "retained_python": ["init", "adopt", "import-plan", "doctor", "doctor --fix", "takeover", "spec", "new decision", "new policy", "check-frozen orchestration", "fleet verification", "release orchestration", "reference validator comparator"],
+    "wi050_python_protected": ["admission", "approval", "guard", "enforcement", "IPC", "platform backend", "protected service", "operator authority"],
+    "protocol": "repopact-engine stdio JSON, one request per process, protocol major 1, no daemon/socket/network/repository-local runtime state"
+  },
+  "packaging": {
+    "backend": "Maturin bin mixed Python/native executable packaging",
+    "wheel": "repopact-3.0.2.dev1-py3-none-win_amd64.whl",
+    "wheel_sha256": "e310701f589febf897423667671dae32bad0def1c20c912334bf811021636838",
+    "sdist": "repopact-3.0.2.dev1.tar.gz",
+    "sdist_sha256": "6214e66b4eb19bf8d8ad5e6d3a72e33e927e48987bd5d8cd905eea065cccc81e",
+    "wheel_contents": {"schemas": 14, "templates": 7, "import_roots": ["repopact"], "engine_scripts": 1, "python_launchers": 1, "desktop_payloads": 0, "data_files": 0},
+    "reproducibility": "two independent source exports produced byte-identical wheel and sdist; Windows PE determinism uses /DEBUG:NONE and /Brepro, while generated Maturin SBOM paths are canonicalized and RECORD is regenerated"
+  },
+  "fresh_install": {
+    "wheel_install_requires_rust": false,
+    "engine_discovery": "same Python environment Scripts directory; explicit REPOPACT_ENGINE only for development and still handshake/version checked",
+    "handshake_product_version": "3.0.2.dev1",
+    "migrated_smoke": ["validate", "dashboard", "work propose"],
+    "missing_engine": "explicit compatibility failure, no fallback",
+    "source_build": "separately executed from fresh sdist environment with Maturin 1.15.0 and Cargo/Rust 1.98.0"
+  },
+  "no_fallback": {
+    "unit_tests": "tests/test_engine_client.py: 6 passed",
+    "covered": ["missing engine", "malformed/multiple JSON", "protocol-major mismatch", "product-version mismatch", "human stderr is not semantic output", "public validate does not invoke legacy validator"],
+    "engine_restrictions": "unsupported operations and WI050/admission/raw-plan authority are rejected by the protocol"
+  },
+  "regressions": {
+    "python": "212 passed, 2 skipped",
+    "rust": "41 passed",
+    "canonical_conformance": "20/20",
+    "legacy_python_comparator": "20/20",
+    "wi050_admission": "8/8",
+    "linked_worktree_reference": "9/9",
+    "frontend": "types:check passed; typecheck passed; 3 files/5 tests passed; Vite build passed",
+    "frozen_surface": "passed against fb9728d7e59dd711f46a6f5bd45545e2ba82be63",
+    "repository_validation": "Python governance validator passed; canonical source checkout reports only the explicitly listed non-parity surfaces"
+  },
+  "deferred_surfaces": [
+    "governance/adopters.json fleet/adopter validation remains Python-owned and is explicitly unsupported by current Rust validation",
+    "research/metadata.json research metadata validation remains Python-owned and is explicitly unsupported by current Rust validation",
+    "work/completed/036-fix-packaging-namespace-pollution-and-release-surface-drift/work-item.json has a pre-existing README checkbox omission that Rust reports while the legacy comparator does not",
+    "generic decision/evidence mutation, SPEC mutation, takeover semantics, and WI050 authority remain outside the canonical Rust cutover",
+    "Linux/macOS wheel/runtime execution was not claimed; deterministic source/build configuration is documented but not executed on those hosts",
+    "signing, notarization, and publication remain separate governance"
+  ],
+  "rollback": {
+    "status": "documented and format-safe",
+    "procedure": "Reinstall a previously compatible RepoPact wheel or switch the development checkout to the previous committed revision; canonical repository records, completed work, and history are not rewritten.",
+    "durable_format_change": false,
+    "reference": "docs/guides/packaging-and-engine.md"
+  },
+  "wi050": {"admission_corpus":"8/8", "authority_changed":false, "engine_claims_wi050":false},
+  "umbrella": {"wi052_original_criteria_reconciled":true, "wi052_ready_for_closeout":true},
+  "final_main_sha": "recorded in the delivery report for the commit containing this evidence and acceptance reconciliation"
+}

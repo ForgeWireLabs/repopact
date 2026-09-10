@@ -1,6 +1,6 @@
 # Work Item 056 — Python Compatibility and Canonical Rust-Core Cutover
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** work-coordinator
 
@@ -309,3 +309,14 @@ WI056 closes only when:
 - public documentation matches the actual cutover.
 
 WI052 may be considered for umbrella closeout only after WI056 closes and its original acceptance criteria are reconciled against the completed WI053-WI056 evidence.
+
+## Closeout
+
+The canonical Rust engine, Python compatibility client, Maturin packaging,
+fresh-wheel/source-build proofs, authority inversion, no-fallback tests, and
+full regression evidence are recorded in
+[`20260910-056-rust-engine-cutover`](../../../evidence/runs/20260910-056-rust-engine-cutover.json).
+The source checkout's explicitly unsupported fleet/research surfaces and the
+pre-existing README-checkbox parity gap remain listed there; they do not use a
+silent Python fallback. WI052's original criteria were reconciled against the
+completed WI053-WI056 records and are ready for umbrella closeout.

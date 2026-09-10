@@ -15,17 +15,17 @@
 | Audit findings | 3 |
 | Decision records | 42 |
 | Policy records | 2 |
-| Evidence runs | 66 |
+| Evidence runs | 67 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 5 |
-| active | 7 |
+| active | 5 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 45 |
+| completed | 47 |
 
 ## Audit freshness
 
@@ -38,6 +38,4 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
-- 052: Rust Core and Tauri 2 User Workbench Foundation (active)
-- 056: Python Compatibility and Canonical Rust-Core Cutover (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

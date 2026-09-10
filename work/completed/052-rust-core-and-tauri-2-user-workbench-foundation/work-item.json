@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "052",
   "title": "Rust Core and Tauri 2 User Workbench Foundation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -22,136 +22,136 @@
     {
       "id": "RUI-001",
       "text": "Record the target architecture in which RepoPact's specification, schemas, and invariants remain language-neutral while a reusable Rust core becomes the intended canonical executable semantics and Tauri, Python, CLI, IDE, and agent integrations are consumers rather than independent authorities.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-002",
       "text": "Define a staged migration plan that treats the existing Python implementation as the reference/oracle during migration and uses RepoPact's versioned conformance corpus as the arbiter for Rust compatibility; no Rust component may claim canonical authority before the required parity gates are executable and green.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-003",
       "text": "Establish a Rust workspace/module boundary for typed records, schema handling, repository discovery/indexing, validation/diagnostics, dependency/relationship graphing, analysis, mutation planning/application, and the desktop application, with no Tauri-specific dependencies in the reusable domain crates.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-004",
       "text": "Implement or prototype strongly typed Rust domain representations for work items, decisions, evidence runs, lifecycle state, acceptance criteria, dependencies, scopes, provenance, repository identity, validation diagnostics, and mutation plans while preserving the canonical JSON/Markdown on-disk contracts.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-005",
       "text": "Define a repository read model and incremental index that understands RepoPact roots, canonical record discovery, ignored paths, nested contracts, linked Git worktrees, path resolution, and record relationships without requiring the UI to walk or interpret the repository directly.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-006",
       "text": "Define structured, stable diagnostics with machine-readable code, severity, record/path/field context, related records, and optional suggested actions so CLI, desktop, and future integrations can render the same semantic result without parsing human prose.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-007",
       "text": "Add Rust conformance execution sufficient to prove accept/reject behavior and primary diagnostic parity against the published RepoPact conformance corpus for the subset implemented by this work item, with explicit unsupported-surface reporting rather than silent divergence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-008",
       "text": "Define a transactional mutation API in which clients submit typed mutation requests and receive a mutation plan containing affected files/records, lifecycle implications, diagnostics, generated-artifact impacts, and a preview/diff before apply; the desktop frontend must not directly edit governed files.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-009",
       "text": "Mutation application is atomic or recoverable, validates authority and state transitions before write, uses canonical serialization, regenerates affected derived artifacts through RepoPact-owned generation logic, and performs post-write validation before reporting success.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-010",
       "text": "Define the repository relationship graph for work items, decisions, evidence, scopes, acceptance criteria, dependencies, provenance, and applicable contracts, with query APIs suitable for dependency visualization, impact analysis, and creation/editing assistance.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-011",
       "text": "Create the Tauri 2 desktop foundation as a thin user-facing consumer of Rust domain APIs, including repository open/switch, repository health/dashboard, work-item browsing, decision browsing, evidence browsing, validation diagnostics, and graph/navigation shells without embedding duplicate governance semantics in TypeScript/frontend code.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-012",
       "text": "Provide schema-driven work-item creation/editing UX with intent, repository analysis, scope, dependencies, acceptance criteria, evidence plan, governance review, preview, and apply stages; raw file content may be inspectable in an advanced/read-only view but is not the normal mutation authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-013",
       "text": "Provide decision and evidence UX that reflects their semantics: decision reference/impact analysis before mutation, explicit relationship views, and durable/immutable evidence presentation that does not expose completed evidence as an ordinary editable text record.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-014",
       "text": "Implement or specify filesystem watching below the UI boundary with debouncing, path classification, incremental index refresh, affected-record revalidation, and typed repository-change events; frontend components must not own recursive filesystem watching or record interpretation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-015",
       "text": "Constrain the Tauri security surface to explicit RepoPact operations and repository-scoped capabilities; do not grant the web frontend generic arbitrary filesystem write or unrestricted shell execution solely to implement RepoPact features.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-016",
       "text": "Define deterministic repository-analysis services for overlap detection, dependency candidates, affected scopes, frozen-surface impact, related decisions, unresolved findings, and similar governed work, with explainable source references rather than opaque scoring as the only basis.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-017",
       "text": "Reserve an optional provider-neutral assisted-analysis adapter boundary for future LLM/agent suggestions, but keep AI providers out of RepoPact core authority; assisted output is proposal-only and cannot activate work, waive criteria, approve frozen changes, or bypass validation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-018",
       "text": "Keep the current Python package independently usable during this foundation phase and do not require PyO3/native-wheel packaging yet; document explicit later cutover alternatives and require a separately governed decision before Python becomes a binding/native wrapper or protocol client.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-019",
       "text": "Do not port WI050's full protected admission/enforcement substrate as part of this foundation while that security-critical surface remains under active proof; define clean Rust extension boundaries for later admission/enforcement migration without weakening or bypassing the existing Python/reference behavior.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-020",
       "text": "Document explicit follow-on work boundaries for full semantic parity/cutover, production desktop feature completion and packaging, advanced analysis/assistance, and any later admission/enforcement migration so this work item can close without becoming an unbounded whole-product rewrite.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-021",
       "text": "Add executable tests proving the Rust/Tauri foundation cannot create a second conflicting authority: the same supported repository state yields equivalent accepted/rejected semantics across the Python reference and Rust path, and unsupported Rust operations fail explicitly rather than mutating state.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     },
     {
       "id": "RUI-022",
       "text": "Update RepoPact documentation/roadmap and record any durable architectural decisions required by implementation; closeout evidence must identify the implemented Rust surface, conformance coverage, known non-parity surfaces, desktop capabilities, packaging status, and deferred follow-on work without overstating migration completion.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-056-rust-engine-cutover"]
     }
   ],
   "created": "2026-09-08",
-  "updated": "2026-09-09"
+  "updated": "2026-09-10"
 }

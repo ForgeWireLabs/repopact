@@ -124,3 +124,38 @@ WI050 admission, guard, IPC, platform backends, protected services, cryptographi
 The machine-readable acceptance criteria in `work-item.json` are binding. Closeout evidence must include the exact graph queries/analyzers/mutations supported, read-set/stale-plan tests, Python-equivalent parity results, canonical before/after mutation fixtures, recovery/failure-injection results, dashboard projection parity, Rust/Python validator results, legacy conformance and WI050 corpus results, linked-worktree/reference checks, frozen-surface result, and the remaining unsupported mutation/cutover surfaces.
 
 Rust remains an alternate implementation outside the surfaces explicitly proven by WI054.
+
+## Closeout evidence (2026-09-10)
+
+WI054 is complete only after the executable conformance and parity gates, not
+merely because the workspace compiles. The durable evidence record is
+`20260910-054-rust-graph-mutation-core`.
+
+- Delivered `repopact-types`, `repopact-schema`, `repopact-repository`,
+  `repopact-validation`, `repopact-graph`, `repopact-analysis`,
+  `repopact-mutation`, `repopact-core`, and a minimal non-Tauri CLI.
+- Graph nodes cover repository/work/criterion/evidence/scope/role/
+  decision/policy/contract/invariant/frozen/finding records. Queries are
+  deterministic for dependencies, reverse dependencies, criteria, evidence,
+  and source-backed outgoing edges. Analysis emits source-backed facts,
+  constraints, and suggestions for IDs, scopes, dependencies/cycles, evidence,
+  findings, contracts, frozen paths, provenance, and explicit related work.
+- The typed mutation boundary is `CreateWorkItem`, `EditWorkItem`, and
+  `TransitionWorkItem`. Plans carry repository identity, sorted
+  content-addressed read facts (including expected absence), a stable token,
+  complete durable/generated operations, graph impacts, diagnostics, and a
+  canonical preview. Apply rechecks facts, preserves ephemeral preimages,
+  regenerates the dashboard, post-validates, and rolls back on failure.
+- Python/Rust create and dashboard trees matched after line-ending
+  normalization. Canonical Rust edit and transition fixtures matched exactly;
+  both Python and Rust validators accepted the resulting states. Completed to
+  active reopening moved the whole directory and preserved extra history.
+- The full Python suite passed 205 tests with 2 existing skips. The full Rust
+  workspace passed. The existing Python-driven Rust alternate implementation
+  runner passed legacy conformance 20/20 and the WI050 admission corpus 8/8.
+  Focused linked-worktree, ignored-directory, and record-relative-reference
+  tests passed. No `.github/workflows/**` or other frozen surface changed.
+- No Python implementation changes were needed. Tauri, PyO3/cutover, generic
+  decision/evidence mutation, general SPEC mutation, persistent transaction
+  state, provider authority, and WI050 migration remain explicitly unsupported.
+  Decision 0040 and WI052 sequencing require no amendment.

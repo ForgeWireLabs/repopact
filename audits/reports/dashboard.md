@@ -15,17 +15,17 @@
 | Audit findings | 2 |
 | Decision records | 40 |
 | Policy records | 2 |
-| Evidence runs | 62 |
+| Evidence runs | 63 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 7 |
-| active | 7 |
+| active | 6 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 42 |
+| completed | 43 |
 
 ## Audit freshness
 
@@ -39,5 +39,4 @@ All audit scopes are within their review cadence.
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 052: Rust Core and Tauri 2 User Workbench Foundation (active)
-- 054: Rust Graph, Analysis and Transactional Mutation Core (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

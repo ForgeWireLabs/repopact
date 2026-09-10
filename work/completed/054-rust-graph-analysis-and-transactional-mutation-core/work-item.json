@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "054",
   "title": "Rust Graph, Analysis and Transactional Mutation Core",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -24,112 +24,112 @@
     {
       "id": "GAM-001",
       "text": "Define a typed Rust relationship graph for work items, dependencies, acceptance criteria, evidence, scopes, decisions, applicable contracts/invariants/frozen surfaces where derivable, provenance/review relations, and reverse references without inventing authority absent from canonical records.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-002",
       "text": "Graph queries are deterministic and return source record/path context sufficient for clients to explain why a relationship exists; arbitrary Markdown mentions are not promoted to authoritative graph edges.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-003",
       "text": "Implement deterministic repository analyzers for next work-item ID, overlapping work, scope ownership/overlap, dependency candidates/reverse dependencies/cycle effects, frozen-surface impact, related decisions where canonically derivable, unresolved findings, applicable contracts, evidence gaps, and provenance/review concerns where those facts are derivable.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-004",
       "text": "Analysis findings identify the concrete repository facts that caused them and distinguish facts/constraints from suggestions or heuristics; opaque scores or provider output alone are not accepted as governance explanations.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-005",
       "text": "Define a typed `MutationRequest -> MutationPlan -> MutationResult` boundary over a consistent repository snapshot that validates requested changes, computes all durable/generated impacts, produces diagnostics and a canonical preview/diff, and requires explicit apply against the repository facts used to create the plan.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-006",
       "text": "Mutation plans carry repository identity plus an exact deterministic content-addressed read set, including expected-absent paths, and derive a stable plan token from those facts; Git HEAD, branch, mtimes, and file sizes are not the primary correctness precondition.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-007",
       "text": "Supported mutation application is atomic where possible or recoverable as a complete operation, uses canonical serialization, preserves preimages for rollback, regenerates owned derived projections, performs post-write validation before success, and has failure-injection tests covering failures before/during multi-file apply, concurrent target drift, cleanup, and rollback behavior.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-008",
       "text": "Implement supported typed work-item creation/edit/lifecycle/dependency/acceptance-criterion operations needed by the future desktop workflow while preserving current governance, preflight, lifecycle, dependency, evidence, and durable-history rules; lifecycle transitions move the entire work-item directory and follow the existing any-state-to-any-state formal model with post-state validation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-009",
       "text": "Decision and evidence mutation are not required for WI054 closeout; if any such mutation is introduced, it must preserve existing durable-history/front-matter/evidence-immutability semantics, and completed evidence is never exposed as a generic overwrite operation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-010",
       "text": "For every supported surface with an existing Python mutation/generation equivalent, add executable Python/Rust before-after parity fixtures that compare canonical repository state. For new typed Rust mutation operations without a Python command equivalent, add canonical before/after fixtures and require both the Python reference validator and Rust validator on the resulting state; do not create duplicate Python mutation code solely to manufacture parity.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-011",
       "text": "No native/desktop/future client is required or permitted by the supported core API to directly write governed RepoPact records; supported writes are available through the typed mutation plan/apply boundary rather than arbitrary JSON Patch or filesystem-write authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-012",
       "text": "Any assisted-analysis extension boundary remains provider-neutral and proposal-only; no LLM/provider dependency enters RepoPact authority and provider output cannot activate work, waive criteria, approve frozen changes, fabricate authorization, or bypass validation.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-013",
       "text": "WI050 admission/guard/enforcement/IPC/platform/protected-service semantics remain outside this work item and existing fail-closed security behavior is neither ported nor weakened as a side effect of the new graph, analysis, or mutation APIs.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-014",
       "text": "Closeout evidence lists supported graph queries, analyzers, mutation request variants/fields, content-addressed read-set design, parity/canonical fixtures, stale-plan tests, recovery/failure-injection tests, generated projections, known unsupported mutations, and confirmation that Tauri/Python cutover/WI050 migration remain separate work.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-015",
       "text": "Evolve the WI053 one-shot Rust façade into a reusable `RepositorySession`/immutable-snapshot read model used consistently by validation, graph, analysis, and mutation planning, with a shared indexed canonical-record view rather than independent filesystem crawlers in each crate.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-016",
       "text": "Frozen-surface intersections are deterministically surfaced during analysis/planning with their source reason, and WI054 native apply fails closed for protected mutations unless an already-governed operator-approval mechanism explicitly covers the operation; a caller-supplied boolean is not treated as operator authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-017",
       "text": "Reuse/refactor the WI053 Rust dashboard projection so validation and mutation generation share one canonical implementation, prove Python/Rust dashboard parity, and do not port general SPEC mutation generation unless an actually supported WI054 mutation changes SPEC inputs.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     },
     {
       "id": "GAM-018",
       "text": "Do not introduce a persistent repository-local transaction database, hidden journal format, daemon state, or other durable runtime-state contract as an implementation detail; if such state becomes necessary for crash recovery, record and govern that architecture separately before adopting it.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260910-054-rust-graph-mutation-core"]
     }
   ],
   "created": "2026-09-09",
-  "updated": "2026-09-09"
+  "updated": "2026-09-10"
 }

@@ -1,0 +1,126 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-054-rust-graph-mutation-core",
+  "timestamp": "2026-09-10T04:19:36Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "054",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Editable Python installation passed before WI054 implementation." 
+    },
+    {
+      "command": "python -m repopact.validate_repo",
+      "exit_code": 0,
+      "summary": "Python repository validation passed before closeout metadata was finalized."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "205 tests passed in 438.228 seconds; the 2 existing formal-model tests remained skipped."
+    },
+    {
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check",
+      "exit_code": 0,
+      "summary": "Rust workspace formatting passed."
+    },
+    {
+      "command": "cargo check --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "All Rust workspace crates and the CLI compiled with Cargo output kept outside the checkout."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "All workspace tests passed, including 11 mutation tests, 4 repository topology/reference tests, graph/analysis tests, and existing WI053 tests."
+    },
+    {
+      "command": "python -m repopact.run_conformance --command \"<rust-validator> validate --root {repo}\"",
+      "exit_code": 0,
+      "summary": "The existing Python-driven alternate-implementation runner passed 20/20 legacy cases and 8/8 WI050 admission vectors."
+    },
+    {
+      "command": "Rust executable create/edit/transition parity harness",
+      "exit_code": 0,
+      "summary": "Python and Rust create produced equal normalized repository trees and both validators accepted; Rust typed edit and completed-to-active transition were accepted by both validators, with transition source removal and extra history preservation verified."
+    },
+    {
+      "command": "Rust canonical edit/transition fixture tests",
+      "exit_code": 0,
+      "summary": "Exact expected after-state fixtures passed for typed edit and lifecycle transition; no arbitrary JSON patch surface was introduced."
+    },
+    {
+      "command": "Rust mutation stale/recovery/failure-injection tests",
+      "exit_code": 0,
+      "summary": "Planning no-write, expected-absent target stale, consumed work/owner/dashboard input stale, external drift rejection, failure before/after operation rollback, pending-completion post-validation rollback, deterministic planning, and unrelated-file isolation all passed."
+    },
+    {
+      "command": "python -m repopact.check_frozen_surface --base 4ae514e3ac915ddf8e0c64b362cf820a67c440bc",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected and .github/workflows/** remained untouched."
+    }
+  ],
+  "artifacts": [
+    "rust/Cargo.toml",
+    "rust/Cargo.lock",
+    "rust/README.md",
+    "rust/crates/repopact-types",
+    "rust/crates/repopact-schema",
+    "rust/crates/repopact-repository",
+    "rust/crates/repopact-validation",
+    "rust/crates/repopact-graph",
+    "rust/crates/repopact-analysis",
+    "rust/crates/repopact-mutation",
+    "rust/crates/repopact-core",
+    "rust/apps/repopact-cli",
+    "rust/crates/repopact-mutation/tests/fixtures",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows",
+    "python": "3.13",
+    "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+    "base_commit": "4ae514e3ac915ddf8e0c64b362cf820a67c440bc",
+    "cargo_target": "outside checkout: %TEMP%/repopact-rust-target-054"
+  },
+  "python_baseline": {
+    "editable_install": "passed",
+    "repository_validation": "passed",
+    "tests": "205 passed, 2 skipped",
+    "python_changes": "none; Python remains the reference implementation and conformance driver"
+  },
+  "graph": {
+    "nodes": "repository, work items, acceptance criteria, evidence runs, scopes, roles, decisions, policies, contracts, invariants, frozen entries, audit findings",
+    "edges": "depends_on, reverse_dependency, contains, supported_by, supports_work_item, owned_by, affects, supersedes, constrained_by, allows",
+    "queries": "dependencies, reverse_dependencies, acceptance_criteria, evidence_for_criterion, edges_from",
+    "analysis": "next id, scope validity/overlap, dependency/reverse/cycle effects, evidence gaps, unresolved findings, contracts, frozen impact, provenance, and explicit-scope related work",
+    "explanation": "findings are facts, constraints, or suggestions and carry source record/path basis"
+  },
+  "mutation": {
+    "request_variants": "CreateWorkItem, EditWorkItem, TransitionWorkItem",
+    "fields": "typed create title/status/date/owner_scope/affected_scopes/depends_on/provenance/acceptance_criteria; typed edit title/owner_scope/affected_scopes/depends_on/provenance/acceptance_criteria with derived updated date; transition id/status",
+    "read_set": "sorted content-addressed file/directory facts including expected-absent paths; token includes repository identity and facts, never HEAD/mtime/size",
+    "apply": "complete typed operation set, in-memory preimages, deterministic writes/moves, owned dashboard regeneration, Rust post-validation, rollback on any failure, no persistent transaction state",
+    "frozen": "protected intersections include source reason and apply fails closed without a caller-controlled approval boolean"
+  },
+  "parity": {
+    "python_equivalent": "create work item and dashboard projection matched the Python reference tree after line-ending normalization",
+    "rust_native": "canonical edit and transition before/after fixtures matched exactly; Python and Rust validators accepted resulting states",
+    "topology": "linked worktree, ignored-directory, deterministic discovery, record-relative reference, and repository identity parity retained from WI053 and passed focused tests"
+  },
+  "unsupported_nonparity_surfaces": [
+    "Tauri/UI and desktop integration",
+    "PyO3/native wheels and Python CLI/canonical-core cutover",
+    "generic decision mutation, evidence mutation, arbitrary JSON Patch, and arbitrary filesystem writes",
+    "general SPEC mutation generation beyond the supported work-item/dashboard inputs",
+    "provider-backed AI or opaque similarity authority",
+    "persistent repository-local transaction database, daemon, or journal",
+    "WI050 admission, guard, enforcement, IPC, platform backend, protected-service, cryptographic approval, and authorization migration",
+    "Rust remains an alternate implementation outside the explicitly proven WI054 surfaces"
+  ],
+  "architecture_finding": "Decision 0040 is satisfied without amendment. WI052 sequencing remains valid: WI055 may wrap the proven typed core, while WI056 must preserve Python compatibility and the explicit unsupported-surface boundary."
+}

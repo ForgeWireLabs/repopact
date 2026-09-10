@@ -9,15 +9,18 @@ without relying on an in-place build cache.
 from __future__ import annotations
 
 import copy
+import base64
 import gzip
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 from typing import Any
@@ -27,6 +30,9 @@ from .package_version import package_version
 
 EXPECTED_SCHEMAS = 14
 EXPECTED_TEMPLATES = 7
+_SBOM_SOURCE_PATH = re.compile(
+    r"path\+file:///[^\" ]+?/(repopact-[^/\" ]+)/"
+)
 
 
 def _wheel_version(version: str) -> str:
@@ -241,6 +247,48 @@ def _normalize_sdist(path: Path, epoch: int) -> None:
     target.replace(path)
 
 
+def _normalize_wheel(path: Path, epoch: int) -> None:
+    """Canonicalize generated SBOM paths and the dependent RECORD hashes.
+
+    Maturin's Cargo SBOM contains the temporary directory used for each
+    source export.  That directory is not part of the artifact's identity,
+    so retain the source-distribution root name and remove only that
+    environment-specific prefix.  Rebuilding RECORD after this transformation
+    keeps the wheel internally valid while leaving all package payload bytes
+    untouched.
+    """
+    with zipfile.ZipFile(path) as source:
+        entries = {name: source.read(name) for name in source.namelist()}
+        infos = {name: copy.copy(source.getinfo(name)) for name in source.namelist()}
+    record_names = [name for name in entries if name.endswith(".dist-info/RECORD")]
+    if len(record_names) != 1:
+        raise ReleaseBuildError("wheel must contain exactly one RECORD file")
+    record_name = record_names[0]
+    for name in list(entries):
+        if name.endswith(".dist-info/sboms/repopact-engine.cyclonedx.json"):
+            text = entries[name].decode("utf-8")
+            entries[name] = _SBOM_SOURCE_PATH.sub(r"path+file:///\1/", text).encode("utf-8")
+
+    record_lines: list[str] = []
+    for name in sorted(entries):
+        if name == record_name:
+            continue
+        payload = entries[name]
+        digest = base64.urlsafe_b64encode(hashlib.sha256(payload).digest()).rstrip(b"=").decode()
+        record_lines.append(f"{name},sha256={digest},{len(payload)}")
+    record_lines.append(f"{record_name},,")
+    entries[record_name] = ("\n".join(record_lines) + "\n").encode("utf-8")
+
+    target = path.with_suffix(path.suffix + ".tmp")
+    epoch_time = time.gmtime(epoch)[:6]
+    with zipfile.ZipFile(target, "w") as output:
+        for name in sorted(entries):
+            info = infos[name]
+            info.date_time = epoch_time
+            output.writestr(info, entries[name])
+    target.replace(path)
+
+
 def _export(root: Path, revision: str, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     archive_path = destination.parent / "source.zip"
@@ -264,6 +312,10 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     env = os.environ.copy()
     env["SOURCE_DATE_EPOCH"] = epoch
     env["PYTHONHASHSEED"] = "0"
+    if sys.platform == "win32":
+        # cargo/rustc otherwise leaves PE timestamps and CodeView identifiers
+        # dependent on the individual source-export build directory.
+        env["RUSTFLAGS"] = "-C debuginfo=0 -C link-arg=/DEBUG:NONE -C link-arg=/Brepro"
     _run(
         [
             "cargo",
@@ -297,6 +349,7 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
         raise ReleaseBuildError(
             f"build produced {len(wheels)} wheel(s) and {len(sdists)} sdist(s); expected one each"
         )
+    _normalize_wheel(wheels[0], int(epoch))
     _normalize_sdist(sdists[0], int(epoch))
     return {
         "version": version,

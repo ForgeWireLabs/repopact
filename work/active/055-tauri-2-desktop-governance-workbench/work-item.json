@@ -1,0 +1,165 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "055",
+  "title": "Tauri 2 Desktop Governance Workbench",
+  "status": "active",
+  "owner_scope": "work",
+  "affected_scopes": [
+    "work",
+    "tooling",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "053",
+    "054"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-09T19:44:00Z",
+    "note": "Created before Tauri 2 desktop implementation began; activated only after WI053/WI054 completed with durable evidence and a Sol architecture review defined the desktop session, DTO, plan-handle, watcher, and capability boundaries."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "TUI-001",
+      "text": "Create a Tauri 2 desktop application using a local Vite + React + TypeScript frontend as a consumer of reusable Rust core APIs; repository, validation, analysis, graph, and mutation semantics are not independently reimplemented in the web frontend.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-002",
+      "text": "Add a testable Rust desktop-adapter/service boundary, separate from Tauri macros and frontend code where practical, that owns frontend-safe DTO mapping, desktop repository/session state, plan-handle storage, service errors, and watcher integration while delegating governance semantics to the proven core crates.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-003",
+      "text": "Provide repository selection/open/switch through a Rust-side native directory picker and a native-owned active repository session; switching repositories stops the prior watcher, creates a new session generation, invalidates prior mutation-plan handles, and does not grant the frontend generic recursive filesystem authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-004",
+      "text": "Define stable serializable desktop repository/work/decision/evidence/validation/analysis/graph/mutation/event DTOs and mechanically generate or mechanically check the corresponding TypeScript contract from Rust so the frontend does not hand-maintain duplicate RepoPact domain enums or wire semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-005",
+      "text": "Provide dashboard/health and navigation for Work, Decisions, Evidence, Graph, Validation, Analysis, and Settings using structured Rust-backed view models rather than frontend parsing/crawling of canonical repository files.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-006",
+      "text": "Implement work browsing/detail UX with lifecycle/scope/dependency filtering, search, acceptance-criterion/evidence state, source-backed relationships/analysis/frozen context, validation context, and advanced canonical raw representation that is read-only and resolvable only through core-indexed record identity rather than arbitrary filesystem paths.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-007",
+      "text": "Implement guided work-item creation covering title/intent, deterministic analysis, scope/ownership, dependencies, acceptance criteria, evidence expectations, governance/frozen review, core-generated mutation preview, and explicit apply without inventing a new `evidence_plan` schema field or other UI-only durable contract.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-008",
+      "text": "Implement WI054-supported typed work-item edit and lifecycle-transition workflows through plan/preview/apply; backend supplies canonical date/preflight inputs, no raw JSON write mode is introduced, and the UI does not invent a stricter lifecycle transition matrix than RepoPact's existing any-state-to-any-state post-validation model.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-009",
+      "text": "Keep executable `MutationPlan` objects in Rust memory and expose only a frontend `MutationPlanView` plus opaque handle/token; `apply_mutation_plan` retrieves the original plan by current desktop session, rechecks WI054 content-addressed preconditions, rejects stale/session-mismatched handles, and never executes caller-supplied path operations or a frontend-round-tripped raw plan.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-010",
+      "text": "Bound and lifecycle-manage the native plan registry: clear it on repository switch, invalidate successful/terminal plan handles as appropriate, require explicit re-plan after stale-plan failure, and introduce no persistent repository-local transaction/plan database or hidden journal.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-011",
+      "text": "Provide decision and evidence browse/detail UX from canonical Rust-backed records and graph relationships while preserving decision semantics and evidence durability/immutability; generic decision/evidence mutation is not introduced in WI055.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-012",
+      "text": "Expose relationship graph and deterministic analysis views derived from the core, with navigation to source records/basis and a keyboard/screen-reader-usable relationship list/table alternative; frontend layout libraries, if used, have presentation authority only.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-013",
+      "text": "Implement repository watching in Rust below the webview with path normalization, relevance classification, debounce/coalescing, safe session/snapshot refresh, typed repository-change events, repository-switch/shutdown cleanup, and bounded full-snapshot rebuild as a correctness fallback when incremental refresh is not safely available.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-014",
+      "text": "Self-originated mutation changes converge immediately to the authoritative post-apply view and later watcher events that resolve to the same snapshot/view token do not cause feedback loops or duplicate semantic refresh; external edits remain observable and invalid external states are surfaced rather than silently repaired.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-015",
+      "text": "Constrain the Tauri 2 command/capability surface using explicit application command permissions/manifest configuration and a local main-window capability; keep `withGlobalTauri` disabled, use local frontend assets/CSP, and expose no generic frontend filesystem, shell/process, arbitrary path traversal, or remote-origin authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-016",
+      "text": "Use a dedicated Rust-side native dialog operation for repository selection and grant frontend event listening only as needed for native repository-change notifications; generic dialog/filesystem JavaScript APIs and frontend event emission are not used as governance authority mechanisms unless separately justified and narrowed.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-017",
+      "text": "The desktop explicitly distinguishes its local Tauri application containment boundary from WI050 protected admission/operator/guard/enforcement/IPC/platform/protected-service authority and does not port, weaken, or claim equivalence to those security semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-018",
+      "text": "Provide modern, responsive, information-dense and accessible UI behavior with keyboard navigation, visible focus, semantic labels/errors, non-color-only status, dark/light themes, reduced-motion consideration, accessible graph alternatives, and clear loading/empty/error/stale-plan/repository-refresh states.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-019",
+      "text": "Add executable desktop-adapter/frontend/security tests covering DTO binding drift, session replacement/stale-session rejection, plan-handle integrity/invalidation, watcher coalescing/refresh convergence, indexed raw-record path restriction, TypeScript checking, production frontend build, major UI workflows/accessibility, and Tauri capability assertions.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-020",
+      "text": "Run an end-to-end desktop smoke on the available host against a scratch adopted RepoPact repository proving open/browse/validate/analyze/graph, create/edit/transition plan+preview+apply, external-change refresh, stale-plan rejection, repository-switch stale-session/plan rejection, and final supported-state validation without using the development repository as an uncontrolled mutation fixture.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-021",
+      "text": "Preserve the WI054 baseline: Python install/tests, Rust workspace checks/tests, legacy alternate-implementation conformance, WI050 corpus, linked-worktree/reference behavior, frozen surface, and no unexpected Python semantic changes remain green after desktop implementation.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-022",
+      "text": "Record exact Windows/Linux/macOS execution and packaging status honestly: produce the available local desktop build/bundle on the development host when supported, distinguish unsigned local artifacts from production signing/notarization, avoid frozen CI/release changes without separate approval, and do not claim unexecuted platforms as validated.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "TUI-023",
+      "text": "Closeout evidence identifies the exact Tauri/Rust/frontend versions, application/crate layout, command and capability allowlists, DTO-generation mechanism, watcher/session/plan-handle architecture, UI workflows, test/build/E2E results, cross-platform/package status, known deferred surfaces, and confirmation that Python canonical-core cutover/WI050 migration remain separate work.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-09",
+  "updated": "2026-09-09"
+}

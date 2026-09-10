@@ -3,6 +3,7 @@ from __future__ import annotations
 import gzip
 import hashlib
 import io
+import json
 import tarfile
 import tempfile
 import unittest
@@ -88,6 +89,39 @@ class ReleaseBuildTests(unittest.TestCase):
                 hashlib.sha256(first.read_bytes()).digest(),
                 hashlib.sha256(second.read_bytes()).digest(),
             )
+
+    def test_wheel_normalization_removes_maturin_sbom_export_path_drift(self) -> None:
+        sbom_name = "repopact-3.0.1.dist-info/sboms/repopact-engine.cyclonedx.json"
+
+        def make_wheel(path: Path, temporary_name: str) -> None:
+            with zipfile.ZipFile(path, "w") as archive:
+                archive.writestr("repopact/__init__.py", "")
+                archive.writestr(
+                    sbom_name,
+                    json.dumps(
+                        {
+                            "bom-ref": (
+                                "path+file:///C:/Temp/"
+                                f"{temporary_name}/repopact-3.0.1/rust/apps/repopact-engine"
+                            )
+                        }
+                    ),
+                )
+                archive.writestr("repopact-3.0.1.dist-info/RECORD", "stale\n")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            first = Path(temporary) / "first.whl"
+            second = Path(temporary) / "second.whl"
+            make_wheel(first, ".tmpfirst")
+            make_wheel(second, ".tmpsecond")
+            release_build._normalize_wheel(first, 42)
+            release_build._normalize_wheel(second, 42)
+            self.assertEqual(first.read_bytes(), second.read_bytes())
+            with zipfile.ZipFile(first) as archive:
+                sbom = archive.read(sbom_name)
+                record = archive.read("repopact-3.0.1.dist-info/RECORD").decode()
+            self.assertNotIn(".tmp", sbom.decode())
+            self.assertIn("repopact-3.0.1.dist-info/sboms/repopact-engine.cyclonedx.json,sha256=", record)
 
 
 if __name__ == "__main__":

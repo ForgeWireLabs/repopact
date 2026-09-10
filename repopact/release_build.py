@@ -1,11 +1,9 @@
 """Build release artifacts from a clean committed Git tree.
 
-Setuptools does not remove files that are no longer part of a distribution from
-an existing ``build/lib`` directory. After RepoPact moved seventeen flat modules
-under the ``repopact`` package, ``python -m build --wheel`` could therefore
-silently repackage obsolete modules from an ignored checkout cache. Release
-artifacts are instead built twice from independent ``git archive`` exports and
+Release artifacts are built twice from independent ``git archive`` exports and
 must be byte-identical and structurally conformant before they are copied out.
+The Maturin build includes the Python package and the platform-native engine
+without relying on an in-place build cache.
 """
 
 from __future__ import annotations
@@ -27,8 +25,18 @@ from typing import Any
 from .package_version import package_version
 
 
-EXPECTED_SCHEMAS = 8
-EXPECTED_TEMPLATES = 6
+EXPECTED_SCHEMAS = 14
+EXPECTED_TEMPLATES = 7
+
+
+def _wheel_version(version: str) -> str:
+    """Use the PEP 440 spelling emitted by Maturin for a source identity."""
+    for suffix in ("alpha", "a", "beta", "b", "rc", "dev"):
+        marker = suffix
+        if marker in version and version.rsplit(marker, 1)[1].isdigit():
+            prefix, number = version.rsplit(marker, 1)
+            return version if prefix.endswith(".") else f"{prefix}.{marker}{number}"
+    return version
 
 
 class ReleaseBuildError(RuntimeError):
@@ -71,10 +79,14 @@ def _sha256(path: Path) -> str:
 def inspect_wheel(path: Path, version: str) -> dict[str, Any]:
     with zipfile.ZipFile(path) as archive:
         names = sorted(archive.namelist())
+        metadata_entries = [name for name in names if name.endswith(".dist-info/METADATA")]
+        wheel_entries = [name for name in names if name.endswith(".dist-info/WHEEL")]
+        if len(metadata_entries) != 1 or len(wheel_entries) != 1:
+            raise ReleaseBuildError("wheel must contain exactly one METADATA and WHEEL record")
+        metadata = archive.read(metadata_entries[0]).decode("utf-8")
+        wheel_metadata = archive.read(wheel_entries[0]).decode("utf-8")
         top_entries = [name for name in names if name.endswith(".dist-info/top_level.txt")]
-        if len(top_entries) != 1:
-            raise ReleaseBuildError("wheel must contain exactly one top_level.txt")
-        top_level = archive.read(top_entries[0]).decode("utf-8").strip().splitlines()
+        top_level = archive.read(top_entries[0]).decode("utf-8").strip().splitlines() if top_entries else []
     root_modules = sorted(name for name in names if "/" not in name and name.endswith(".py"))
     import_roots = sorted({
         name.split("/", 1)[0]
@@ -84,12 +96,53 @@ def inspect_wheel(path: Path, version: str) -> dict[str, Any]:
     schemas = sorted(name for name in names if name.startswith("repopact/schemas/") and name.endswith(".json"))
     templates = sorted(name for name in names if name.startswith("repopact/templates/") and not name.endswith("/"))
     data_files = sorted(name for name in names if ".data/data/" in name)
-    expected_name = f"repopact-{version}-py3-none-any.whl"
+    expected_version = _wheel_version(version)
+    expected_prefix = f"repopact-{expected_version}-"
+    wheel_stem = path.name.removesuffix(".whl")
+    tag_text = wheel_stem[len(expected_prefix):] if wheel_stem.startswith(expected_prefix) else ""
+    tags = tag_text.split("-") if tag_text else []
+    engine_scripts = [
+        name for name in names
+        if name.endswith(".data/scripts/repopact-engine.exe")
+        or name.endswith(".data/scripts/repopact-engine")
+    ]
+    launcher_scripts = [
+        name for name in names
+        if name.endswith(".data/scripts/repopact.exe")
+        or name.endswith(".data/scripts/repopact")
+    ]
+    desktop_payload = sorted(
+        name for name in names
+        if "src-tauri" in name.lower() or "repopact-desktop" in name.lower()
+    )
     errors: list[str] = []
-    if path.name != expected_name:
-        errors.append(f"wheel name is {path.name}, expected {expected_name}")
-    if top_level != ["repopact"]:
-        errors.append(f"top_level.txt is {top_level!r}, expected ['repopact']")
+    if len(tags) != 3:
+        errors.append(f"wheel filename has no valid python/abi/platform tags: {path.name}")
+    else:
+        python_tag, abi_tag, platform_tag = tags
+        if python_tag != "py3":
+            errors.append(f"wheel Python tag is {python_tag!r}, expected 'py3'")
+        if abi_tag != "none":
+            errors.append(f"wheel ABI tag is {abi_tag!r}, expected 'none'")
+        if platform_tag == "any":
+            errors.append("wheel must be platform-specific because it contains native binaries")
+        if python_tag.startswith("cp") or abi_tag.startswith("cp"):
+            errors.append("wheel must not depend on a CPython extension ABI")
+    metadata_fields = {
+        line.split(":", 1)[0]: line.split(":", 1)[1].strip()
+        for line in metadata.splitlines()
+        if ":" in line
+    }
+    if metadata_fields.get("Name") != "repopact":
+        errors.append(f"wheel metadata name is {metadata_fields.get('Name')!r}, expected 'repopact'")
+    if metadata_fields.get("Version") != expected_version:
+        errors.append(
+            f"wheel metadata version is {metadata_fields.get('Version')!r}, expected {expected_version!r}"
+        )
+    if "Root-Is-Purelib: true" in wheel_metadata:
+        errors.append("native wheel must not be marked Root-Is-Purelib")
+    if top_level and top_level != ["repopact"]:
+        errors.append(f"top_level.txt is {top_level!r}, expected ['repopact'] when present")
     if import_roots != ["repopact"]:
         errors.append(f"wheel import roots are {import_roots!r}, expected ['repopact']")
     if root_modules:
@@ -100,6 +153,14 @@ def inspect_wheel(path: Path, version: str) -> dict[str, Any]:
         errors.append(f"wheel contains {len(templates)} templates, expected {EXPECTED_TEMPLATES}")
     if data_files:
         errors.append(f"wheel contains deprecated data-files entries: {', '.join(data_files)}")
+    if not any(name == "repopact/__init__.py" for name in names):
+        errors.append("wheel is missing repopact/__init__.py")
+    if len(engine_scripts) != 1:
+        errors.append(f"wheel contains {len(engine_scripts)} repopact-engine scripts, expected one")
+    if len(launcher_scripts) != 1:
+        errors.append(f"wheel contains {len(launcher_scripts)} repopact launchers, expected one")
+    if desktop_payload:
+        errors.append(f"wheel contains desktop payload: {', '.join(desktop_payload)}")
     if errors:
         raise ReleaseBuildError("; ".join(errors))
     return {
@@ -111,14 +172,20 @@ def inspect_wheel(path: Path, version: str) -> dict[str, Any]:
         "schemas": len(schemas),
         "templates": len(templates),
         "data_files": len(data_files),
+        "python_tag": tags[0] if len(tags) == 3 else None,
+        "abi_tag": tags[1] if len(tags) == 3 else None,
+        "platform_tag": tags[2] if len(tags) == 3 else None,
+        "engine_scripts": engine_scripts,
+        "launcher_scripts": launcher_scripts,
     }
 
 
 def inspect_sdist(path: Path, version: str) -> dict[str, Any]:
-    expected_name = f"repopact-{version}.tar.gz"
+    expected_version = _wheel_version(version)
+    expected_name = f"repopact-{expected_version}.tar.gz"
     if path.name != expected_name:
         raise ReleaseBuildError(f"sdist name is {path.name}, expected {expected_name}")
-    prefix = f"repopact-{version}/"
+    prefix = f"repopact-{expected_version}/"
     with tarfile.open(path, "r:gz") as archive:
         names = sorted(member.name for member in archive.getmembers() if member.isfile())
     root_modules = sorted(
@@ -130,15 +197,29 @@ def inspect_sdist(path: Path, version: str) -> dict[str, Any]:
     )
     if root_modules:
         raise ReleaseBuildError(f"sdist contains flat root modules: {', '.join(root_modules)}")
+    required = {
+        f"{prefix}pyproject.toml",
+        f"{prefix}rust/Cargo.toml",
+        f"{prefix}rust/Cargo.lock",
+        f"{prefix}rust/apps/repopact-engine/Cargo.toml",
+        f"{prefix}rust/apps/repopact-engine/src/main.rs",
+        f"{prefix}rust/crates/repopact-protocol/src/lib.rs",
+        f"{prefix}repopact/__init__.py",
+        f"{prefix}repopact/engine_client.py",
+    }
+    missing = sorted(required - set(names))
+    if missing:
+        raise ReleaseBuildError(f"sdist is missing required source-build files: {', '.join(missing)}")
     return {
         "path": path.name,
         "sha256": _sha256(path),
         "root_modules": root_modules,
+        "rust_sources": sum(name.startswith(f"{prefix}rust/") for name in names),
     }
 
 
 def _normalize_sdist(path: Path, epoch: int) -> None:
-    """Rewrite setuptools' timestamp-bearing sdist as a canonical tar.gz."""
+    """Rewrite the timestamp-bearing sdist as a canonical tar.gz."""
     target = path.with_suffix(path.suffix + ".tmp")
     with tarfile.open(path, "r:gz") as source:
         members = sorted(source.getmembers(), key=lambda member: member.name)
@@ -182,7 +263,16 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     env["SOURCE_DATE_EPOCH"] = epoch
     env["PYTHONHASHSEED"] = "0"
     _run(
-        [sys.executable, "-m", "build", "--outdir", str(output)],
+        [
+            sys.executable,
+            "-m",
+            "maturin",
+            "build",
+            "--sdist",
+            "--locked",
+            "--out",
+            str(output),
+        ],
         cwd=source,
         env=env,
     )

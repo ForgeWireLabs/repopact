@@ -23,15 +23,20 @@ class ReleaseBuildTests(unittest.TestCase):
         self.assertEqual(first, semver_label_to_pep440("3.0.1-preview.1+windows"))
         self.assertNotEqual("3.0.1", first)
     def _wheel(self, root: Path, *, flat_module: bool = False) -> Path:
-        path = root / "repopact-3.0.1-py3-none-any.whl"
+        path = root / "repopact-3.0.1-py3-none-win_amd64.whl"
         with zipfile.ZipFile(path, "w") as archive:
             archive.writestr("repopact/__init__.py", "")
             for index in range(release_build.EXPECTED_SCHEMAS):
                 archive.writestr(f"repopact/schemas/{index}.json", "{}")
             for index in range(release_build.EXPECTED_TEMPLATES):
                 archive.writestr(f"repopact/templates/{index}.txt", "")
-            archive.writestr("repopact-3.0.1.dist-info/top_level.txt", "repopact\n")
-            archive.writestr("repopact-3.0.1.dist-info/METADATA", "Version: 3.0.1\n")
+            archive.writestr("repopact-3.0.1.data/scripts/repopact.exe", "launcher")
+            archive.writestr("repopact-3.0.1.data/scripts/repopact-engine.exe", "engine")
+            archive.writestr("repopact-3.0.1.dist-info/METADATA", "Name: repopact\nVersion: 3.0.1\n")
+            archive.writestr(
+                "repopact-3.0.1.dist-info/WHEEL",
+                "Wheel-Version: 1.0\nRoot-Is-Purelib: false\nTag: py3-none-win_amd64\n",
+            )
             if flat_module:
                 archive.writestr("frontmatter.py", "")
         return path
@@ -44,6 +49,8 @@ class ReleaseBuildTests(unittest.TestCase):
             )
         self.assertEqual(["repopact"], report["import_roots"])
         self.assertEqual(0, report["data_files"])
+        self.assertEqual("win_amd64", report["platform_tag"])
+        self.assertEqual(1, len(report["engine_scripts"]))
 
     def test_stale_flat_module_is_rejected_even_when_top_level_txt_is_clean(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

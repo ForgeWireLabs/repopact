@@ -3,7 +3,7 @@
   "id": "20260910-057-native-picker-closeout",
   "timestamp": "2026-09-10T21:40:30Z",
   "work_item": "057",
-  "result": "pass",
+  "result": "passed",
   "provenance": "concrete",
   "commands": [
     {

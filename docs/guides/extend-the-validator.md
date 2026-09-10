@@ -2,12 +2,15 @@
 
 *Diataxis mode: how-to (task-oriented).*
 
-The validator (`repopact/validate_repo.py`) splits work in two layers (decision
-[`0003`](../../decisions/0003-validate-records-against-json-schemas.md)):
+The canonical validator is the packaged Rust engine, invoked by `repopact
+validate`. The Python module `repopact/validate_repo.py` remains an explicit
+legacy comparator and supports retained Python workflows during the transition.
+Both split work in two layers (decision [`0003`](../../decisions/0003-validate-records-against-json-schemas.md)):
 
 - **Packaged schemas** (`repopact/schemas/*.json`) are authoritative for record
   *structure* and are copied to adopter repositories as `schemas/*.json`.
-- **The validator** is authoritative for cross-record *semantics*.
+- **The canonical engine** is authoritative for cross-record *semantics* on
+  migrated surfaces.
 
 Put each new rule in the right layer.
 
@@ -19,9 +22,12 @@ are validated against the schema via `jsonschema`.
 
 ## Add a semantic rule
 
-For a rule JSON Schema cannot express (a cross-reference, a lifecycle constraint, a
-graph property), add a check in `validate_repo.py` that appends a `Problem`. Keep
-diagnostics deterministic and path-scoped.
+For a rule JSON Schema cannot express (a cross-reference, a lifecycle constraint,
+or a graph property), add the migrated semantic rule to the appropriate Rust
+crate and return a structured diagnostic. Keep diagnostics deterministic and
+path-scoped. Update `validate_repo.py` only when maintaining the explicit legacy
+comparator or a retained Python-only surface; it is not a hidden fallback for
+the public command.
 
 ```python
 def validate_my_rule(root: Path, problems: list[Problem]) -> None:
@@ -29,7 +35,8 @@ def validate_my_rule(root: Path, problems: list[Problem]) -> None:
     problems.append(Problem(path, "clear, specific message"))
 ```
 
-Wire it into `validate()`.
+Wire it into the relevant Rust validator path and add a comparator update when
+parity evidence requires it.
 
 ## Always add a test
 

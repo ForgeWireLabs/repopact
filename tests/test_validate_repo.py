@@ -39,7 +39,6 @@ class RepositoryValidationTests(unittest.TestCase):
         "test_symbol_hits_ignores_context_lines",
         "test_seed_data_uses_package_resources_not_data_files",
         "test_spec_generation_is_idempotent",
-        "test_cli_validate_returns_zero_on_valid_repo",
         "test_split_num_strips_tracker_prefix",
         "test_section_lifecycle_keywords",
     }
@@ -835,7 +834,8 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_seed_data_uses_package_resources_not_data_files(self) -> None:
         pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        self.assertIn("[tool.setuptools.package-data]", pyproject)
+        self.assertIn('[tool.maturin]', pyproject)
+        self.assertIn('bindings = "bin"', pyproject)
         self.assertNotIn("[tool.setuptools.data-files]", pyproject)
         for resource in ("schemas/work-item.schema.json", "templates/work-item.json"):
             current = init_repo._seed_dir(resource.split("/", 1)[0]).joinpath(
@@ -856,28 +856,34 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- CLI dispatch (005) -------------------------------------------------
 
     def test_cli_validate_returns_zero_on_valid_repo(self) -> None:
-        self.assertEqual(0, repopact_cli.main(["validate", "--root", str(self.root)]))
+        target = Path(self.temp.name) / "cli-valid"  # type: ignore[union-attr]
+        init_repo.bootstrap(target)
+        self.assertEqual(0, repopact_cli.main(["validate", "--root", str(target)]))
 
     def test_cli_new_stamps_a_valid_record(self) -> None:
-        rc = repopact_cli.main(["new", "work-item", "Cli Probe", "--root", str(self.root)])
+        target = Path(self.temp.name) / "cli-new"  # type: ignore[union-attr]
+        init_repo.bootstrap(target)
+        rc = repopact_cli.main(["new", "work-item", "Cli Probe", "--root", str(target)])
         self.assertEqual(0, rc)
-        stamped = list((self.root / "work" / "active").glob("*-cli-probe/work-item.json"))
+        stamped = list((target / "work" / "active").glob("*-cli-probe/work-item.json"))
         self.assertEqual(1, len(stamped))
         data = json.loads(stamped[0].read_text(encoding="utf-8"))
         self.assertEqual(
-            "../../../repopact/schemas/work-item.schema.json",
+            "../../../schemas/work-item.schema.json",
             data["$schema"],
         )
-        self.assertEqual([], [p.message for p in validate(self.root)])
+        self.assertEqual([], [p.message for p in validate(target)])
 
     def test_cli_new_can_stamp_proposed_work_item(self) -> None:
-        rc = repopact_cli.main(["new", "work-item", "Cli Proposal", "--status", "proposed", "--root", str(self.root)])
+        target = Path(self.temp.name) / "cli-proposal"  # type: ignore[union-attr]
+        init_repo.bootstrap(target)
+        rc = repopact_cli.main(["new", "work-item", "Cli Proposal", "--status", "proposed", "--root", str(target)])
         self.assertEqual(0, rc)
-        stamped = list((self.root / "work" / "proposed").glob("*-cli-proposal/work-item.json"))
+        stamped = list((target / "work" / "proposed").glob("*-cli-proposal/work-item.json"))
         self.assertEqual(1, len(stamped))
         data = json.loads(stamped[0].read_text(encoding="utf-8"))
         self.assertEqual("proposed", data["status"])
-        self.assertEqual([], [p.message for p in validate(self.root)])
+        self.assertEqual([], [p.message for p in validate(target)])
 
     def test_cli_new_uses_conventional_root_schema_in_adopter(self) -> None:
         target = Path(self.temp.name) / "new-adopter"

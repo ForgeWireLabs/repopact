@@ -1,5 +1,17 @@
 # Tooling Alignment Report
 
+## 2026-09-10 canonical Rust engine cutover
+
+- WI056 makes the Rust engine the canonical authority for the proven repository,
+  validation, dashboard, graph, analysis, and typed work-item mutation surfaces.
+- `repopact` remains the Python compatibility CLI. `validate`, `dashboard`, and
+  typed work-item commands cross the versioned local JSON engine boundary;
+  `validate_repo.py` remains an explicit comparator and retained workflows keep
+  their documented Python authority.
+- Maturin `bin` packaging installs the platform-native `repopact-engine` beside
+  the Python package. WI050 admission/guard/enforcement remains protected and
+  Python-owned.
+
 ## 2026-09-03 WI050 opt-in provider boundary
 
 - `admission.evaluate_action` checks the adopter-owned policy before guard or
@@ -91,7 +103,7 @@
 - Adopter-manifest validation checks declaration structure and local overlay
   integrity; remote version currency remains the fleet verifier's responsibility,
   so package publication and ecosystem rollout are genuinely separate phases.
-- The declared development extra installs pytest, build, and twine while the
+- The declared development extra installs pytest, Maturin, and twine while the
   required repository suite remains standard-library unittest.
 
 ## 2026-07-26 semantic freshness and ledger reconciliation

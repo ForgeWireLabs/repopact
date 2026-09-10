@@ -22,8 +22,8 @@ def semver_label_to_pep440(label: str) -> str:
     """Map a valid RepoPact SemVer pre-release identity deterministically to PEP 440.
 
     Conventional alpha/beta/rc/dev labels stay readable. Other legal SemVer
-    pre-releases use a lossless hexadecimal local segment so setuptools never gets
-    to apply an incidental, potentially ambiguous normalization.
+    pre-releases use a lossless hexadecimal local segment so a build backend never
+    gets to apply an incidental, potentially ambiguous normalization.
     """
     match = RELEASE_LABEL_RE.fullmatch(label)
     if not match:
@@ -64,5 +64,6 @@ def package_version(root: Path) -> str:
     return semver_label_to_pep440(label)
 
 
-# setuptools' dynamic attr reader obtains this value while building from the source tree.
+# The source-side package identity remains useful to the compatibility client and
+# retained Python commands; the Maturin build metadata carries the same identity.
 __version__ = package_version(Path(__file__).resolve().parent.parent)

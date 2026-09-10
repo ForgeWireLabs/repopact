@@ -1,8 +1,9 @@
 # RepoPact Rust foundation
 
-This workspace is the WI053 alternate implementation foundation. It is a
-read-only validation surface; the Python implementation and the canonical
-on-disk JSON schemas remain the authority during this work item.
+This workspace contains RepoPact's canonical Rust semantic engine and the
+language-neutral crates behind it. The Python package is a compatibility client
+for migrated surfaces; canonical on-disk JSON schemas remain the record-format
+authority.
 
 ## Layout
 
@@ -25,6 +26,11 @@ on-disk JSON schemas remain the authority during this work item.
   graph, analysis, plan, and apply operations.
 - `apps/repopact-cli` — `repopact-cli validate --root <repository>` plus
   testing-oriented typed create/transition plan/apply commands.
+- `repopact-protocol` — versioned request/response DTOs for the local engine
+  boundary; it contains no repository semantics.
+- `apps/repopact-engine` — one-request-per-process JSON engine for Python and
+  other language-neutral clients. `repopact-engine` owns semantic validation,
+  dashboard projection, graph/analysis reads, and typed work-item mutations.
 
 Build and test with:
 
@@ -41,7 +47,9 @@ explicitly. Apply preserves preimages in ephemeral process memory, stages the
 complete operation through the typed plan, regenerates the owned dashboard,
 and reports success only after Rust post-validation.
 
-WI054 does not implement Tauri, Python cutover, generic decision/evidence
+The engine protocol does not implement Tauri, generic decision/evidence
 mutation, persistent repository-local transaction state, or WI050
 admission/enforcement semantics. Those surfaces fail explicitly or remain
-Python-owned rather than being guessed or silently accepted.
+Python-owned rather than being guessed or silently accepted. The Rust engine
+requires the Rust toolchain for source builds; installing a platform wheel does
+not require Cargo or a Rust compiler.

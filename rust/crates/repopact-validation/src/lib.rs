@@ -49,6 +49,13 @@ pub fn validate_snapshot(snapshot: &RepositorySnapshot) -> ValidationReport {
 pub fn render_dashboard(root: impl AsRef<Path>) -> Result<String, String> {
     let repository = Repository::open(root);
     let snapshot = repository.session().snapshot();
+    render_dashboard_snapshot(&snapshot)
+}
+
+/// Render the dashboard from an already opened immutable repository generation.
+/// This keeps callers such as the compatibility engine on the same snapshot
+/// boundary as validation, graph, and analysis instead of recrawling the root.
+pub fn render_dashboard_snapshot(snapshot: &RepositorySnapshot) -> Result<String, String> {
     let mut validator = Validator::from_snapshot(&snapshot);
     validator.work = loaded_work(snapshot.index());
     if validator.work.iter().any(|record| record.item.is_none()) {

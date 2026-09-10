@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/repopact-types",
+    "crates/repopact-protocol",
     "crates/repopact-schema",
     "crates/repopact-repository",
     "crates/repopact-validation",
@@ -11,6 +12,7 @@ members = [
     "crates/repopact-core",
     "crates/repopact-desktop-api",
     "apps/repopact-cli",
+    "apps/repopact-engine",
     "apps/repopact-desktop/src-tauri",
 ]
 
@@ -24,6 +26,7 @@ repopact-mutation = { path = "crates/repopact-mutation" }
 repopact-repository = { path = "crates/repopact-repository" }
 repopact-schema = { path = "crates/repopact-schema" }
 repopact-types = { path = "crates/repopact-types" }
+repopact-protocol = { path = "crates/repopact-protocol" }
 repopact-validation = { path = "crates/repopact-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }

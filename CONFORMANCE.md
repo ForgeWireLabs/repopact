@@ -10,17 +10,20 @@ least one case, every case must reference a known rule, and every fixture direct
 must be declared. The coverage gate fails before implementation results are
 accepted when the inventory or fixture mapping drifts.
 
-Each reject fixture must isolate exactly one primary diagnostic from the reference
-validator. The runner reports the declared diagnostic and any unexpected secondary
+Each reject fixture must isolate exactly one primary diagnostic from the canonical
+fixture oracle. The runner reports the declared diagnostic and any unexpected secondary
 violations deterministically; a secondary violation fails the case even when the
 expected text is also present. Dashboard absence and drift cases explicitly opt out
 of canonical fixture regeneration so dashboard enforcement itself can be tested.
 
-Reference run:
+Canonical Rust engine run:
 
 ```powershell
 python -m repopact.run_conformance
 ```
+
+Add `--legacy-python` to run the historical Python validator as an independent
+regression comparator. It is not the product authority for migrated surfaces.
 
 Third-party implementation run:
 

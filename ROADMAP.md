@@ -67,8 +67,9 @@ it and the surfaces around it:
 
 ## Later
 
-- **Alternative validator** in a compiled language, proving the SPEC is
-  implementation-independent (the conformance suite is its runnable target).
+- **Canonical Rust engine** with a versioned local JSON protocol, proving the
+  SPEC is implementation-independent while retaining an explicit Python
+  compatibility/comparator surface.
 - **GitHub Action** that runs the gates as a reusable workflow.
 - **External ingestion at L5**: tracker exports and design documents as
   first-class, evidence-bearing records with provenance.

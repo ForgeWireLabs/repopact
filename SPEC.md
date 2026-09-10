@@ -20,9 +20,10 @@ recoverable without a prior conversation.
 
 An implementation is **RepoPact-conformant** if, given a repository tree, it
 accepts exactly the repositories that satisfy every rule in §3–§7 and rejects the
-rest. `repopact/validate_repo.py` is the **reference implementation**; where this
-prose and the reference implementation disagree, that is a defect in one of them
-and is resolved by an audit finding, not by silent divergence.
+rest. The packaged Rust engine is the canonical implementation for the proven
+repository and validation surfaces. `repopact/validate_repo.py` remains an
+independent legacy comparator during the compatibility transition; any observed
+divergence is resolved by an audit finding, not by silent fallback.
 
 ### Pre-execution admission (WI050)
 
@@ -198,9 +199,9 @@ package/runtime source at the same compatibility core; the exact tagged release
 tree remains valid without it. Distribution metadata maps the label
 deterministically to PEP 440.
 
-## 9. Conformance and reference implementation
+## 9. Conformance and canonical implementation
 
-Run the reference implementation:
+Run the canonical Rust engine through the Python compatibility CLI:
 
 ```
 pip install -r requirements.txt
@@ -208,7 +209,8 @@ repopact validate
 ```
 
 A conformant alternative implementation must produce an equivalent accept/reject
-decision on the same repository. RepoPact governs its own development, so this
+decision on the same repository. The legacy Python comparator is retained for
+independent parity checks. RepoPact governs its own development, so this
 repository is the canonical conformance example.
 
 A machine-checkable corpus lives in [`conformance/`](conformance/): a valid

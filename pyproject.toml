@@ -1,10 +1,13 @@
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.15,<2"]
+build-backend = "maturin"
 
 [project]
 name = "repopact"
-dynamic = ["version"]
+# Maturin's bin backend requires a concrete PEP 440 project version. Keep this
+# synchronized with VERSION/RELEASE_LABEL; the engine handshake and release
+# verifier fail closed if the two release identities drift.
+version = "3.0.2.dev1"
 description = "A repository-native standard for durable agent work: binding invariants, evidence-gated work items, and drift audits."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,25 +16,22 @@ dependencies = ["jsonschema>=4.20"]
 
 [project.optional-dependencies]
 enforcement = ["cryptography>=43"]
-dev = ["build>=1.2", "pytest>=8", "twine>=6", "cryptography>=43"]
+dev = ["maturin>=1.15,<2", "pytest>=8", "twine>=6", "cryptography>=43"]
 
 [project.urls]
 Homepage = "https://github.com/ForgeWireLabs/repopact"
 Repository = "https://github.com/ForgeWireLabs/repopact"
 
-[project.scripts]
-repopact = "repopact.cli:main"
-
-# One top-level name. Before 3.0.0 this shipped seventeen flat `py-modules`, so
-# installing RepoPact claimed `frontmatter`, `doctor`, `new`, `takeover`, and
-# thirteen other generic names in the environment's import namespace — colliding
-# outright with the `python-frontmatter` distribution. See decision 0029.
-[tool.setuptools]
-packages = ["repopact"]
-include-package-data = false
-
-[tool.setuptools.package-data]
-repopact = ["schemas/*.json", "templates/*"]
-
-[tool.setuptools.dynamic]
-version = { attr = "repopact.package_version.__version__" }
+[tool.maturin]
+bindings = "bin"
+manifest-path = "rust/apps/repopact-engine/Cargo.toml"
+python-source = "."
+python-packages = ["repopact"]
+targets = [
+    { name = "repopact-engine", kind = "bin" },
+    { name = "repopact", kind = "bin" },
+]
+include = [
+    { path = "repopact/schemas/*.json", format = ["sdist", "wheel"] },
+    { path = "repopact/templates/*", format = ["sdist", "wheel"] },
+]

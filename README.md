@@ -61,7 +61,7 @@ intent -> scoped authority -> work item -> implementation -> evidence -> audit -
 ## Install & quick start
 
 ```powershell
-pip install repopact                # the CLI + reference validator, from PyPI
+pip install repopact                # Python compatibility CLI + Rust engine wheel
 repopact init --target ../your-repo # seed a valid RepoPact in a new repo
 cd ../your-repo
 repopact new work-item "Title of the work"   # stamps active work (incl. the preflight marker)
@@ -78,6 +78,13 @@ Records are validated against `schemas/*.json`
 [`0003`](decisions/0003-validate-records-against-json-schemas.md)). Begin with
 [`AGENTS.md`](AGENTS.md), then [`governance/charter.md`](governance/charter.md) and
 [`governance/workflow.md`](governance/workflow.md).
+
+The default conformance run exercises the canonical Rust engine. The historical
+Python validator remains available as an explicit comparator:
+
+```powershell
+python -m repopact.run_conformance --legacy-python
+```
 
 Alternative implementations can run the published conformance suite:
 

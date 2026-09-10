@@ -19,6 +19,7 @@ from pathlib import Path
 import jsonschema
 
 from . import generate_dashboard
+from . import engine_client
 from . import validate_repo
 
 
@@ -151,28 +152,45 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=MANIFEST)
     parser.add_argument(
         "--command",
-        default=f'"{sys.executable}" -m repopact.cli validate --root "{{repo}}"',
+        default=None,
         help="Implementation command template; {repo} is replaced with the fixture repo path.",
+    )
+    parser.add_argument(
+        "--legacy-python",
+        action="store_true",
+        help="Also run the independent legacy Python validator comparator.",
     )
     args = parser.parse_args()
 
     try:
-        results = run_suite(args.command, args.manifest.resolve())
-    except (OSError, ValueError, json.JSONDecodeError, jsonschema.ValidationError) as exc:
+        canonical = args.command or engine_client.canonical_command_template()
+        results = run_suite(canonical, args.manifest.resolve())
+    except (OSError, ValueError, json.JSONDecodeError, jsonschema.ValidationError, engine_client.EngineError) as exc:
         print(f"CONFORMANCE MANIFEST ERROR: {exc}", file=sys.stderr)
         return 2
     failed = [result for result in results if not result.passed]
     for result in results:
         status = "PASS" if result.passed else "FAIL"
         print(f"{status} {result.case_id}: {result.detail}")
-    print(f"\nLegacy conformance: {len(results) - len(failed)}/{len(results)} cases passed.")
+    print(f"\nCanonical Rust conformance: {len(results) - len(failed)}/{len(results)} cases passed.")
+    if args.legacy_python:
+        legacy_command = f'"{sys.executable}" -m repopact.validate_repo --root "{{repo}}"'
+        legacy_results = run_suite(legacy_command, args.manifest.resolve())
+        legacy_failed = [result for result in legacy_results if not result.passed]
+        for result in legacy_results:
+            status = "PASS" if result.passed else "FAIL"
+            print(f"{status} legacy-python {result.case_id}: {result.detail}")
+        print(
+            f"\nLegacy Python comparator: "
+            f"{len(legacy_results) - len(legacy_failed)}/{len(legacy_results)} cases passed."
+        )
     from .admission_conformance import run_admission_corpus
     admission_results = run_admission_corpus()
     admission_failed = [row for row in admission_results if not row[1]]
     for case_id, passed, detail in admission_results:
         print(f"{'PASS' if passed else 'FAIL'} {case_id}: {detail}")
     print(f"\nWI050 admission corpus: {len(admission_results) - len(admission_failed)}/{len(admission_results)} vectors passed.")
-    return 1 if failed or admission_failed else 0
+    return 1 if failed or admission_failed or (args.legacy_python and legacy_failed) else 0
 
 
 if __name__ == "__main__":

@@ -2873,6 +2873,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "repopact-engine"
+version = "0.1.0"
+dependencies = [
+ "repopact-analysis",
+ "repopact-core",
+ "repopact-graph",
+ "repopact-mutation",
+ "repopact-protocol",
+ "repopact-types",
+ "repopact-validation",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "repopact-graph"
 version = "0.1.0"
 dependencies = [
@@ -2893,6 +2908,14 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "repopact-protocol"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

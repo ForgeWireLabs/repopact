@@ -20,6 +20,41 @@ import jsonschema
 from .repo_model import STATUSES
 
 
+def _rust_validate(root: Path) -> int:
+    from .engine_client import EngineError, EngineClient, render_validation
+
+    try:
+        return render_validation(EngineClient().call("validate", root=root))
+    except EngineError as exc:
+        print(f"Rust engine compatibility error: {exc}", file=sys.stderr)
+        return 1
+
+
+def _rust_mutation(root: Path, operation: str, params: dict[str, Any], label: str) -> int:
+    from .engine_client import EngineError, EngineClient
+
+    try:
+        response = EngineClient().call(operation, root=root, params=params)
+    except EngineError as exc:
+        print(f"Rust engine compatibility error: {exc}", file=sys.stderr)
+        return 1
+    result = response.get("result") or {}
+    diagnostics = response.get("diagnostics") or result.get("diagnostics") or []
+    if not result.get("success", False):
+        for diagnostic in diagnostics:
+            code = diagnostic.get("code", "engine.diagnostic")
+            location = diagnostic.get("path") or diagnostic.get("record") or "<repository>"
+            print(f"ERROR [{code}] {location}: {diagnostic.get('message', '')}")
+        print("Mutation failed; no repository changes were accepted.", file=sys.stderr)
+        return 1
+    record = next(
+        (path for path in result.get("changed_paths", []) if str(path).endswith("/work-item.json")),
+        None,
+    )
+    print(f"{label} {record or 'work-item'}")
+    return 0
+
+
 def _operator_signer(admission: Any, key_file: Path | None, root: Path):
     """Load or create an external encrypted signer only with user presence."""
     if key_file is None:
@@ -191,13 +226,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import admission
             try: admission.setup_admission(target, signer=_operator_signer(admission, args.key_file, target))
             except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
-        from . import validate_repo
-        problems = validate_repo.validate(target)
-        if problems:
-            for p in problems:
-                print(f"ERROR {p.path.relative_to(target)}: {p.message}")
-            print(f"\nBootstrap produced an invalid repository: {len(problems)} error(s).")
-            return 1
+        result = _rust_validate(target)
+        if result:
+            print("\nBootstrap produced an invalid repository.")
+            return result
         print(f"Bootstrapped a valid RepoPact at {target}")
         return 0
 
@@ -216,13 +248,10 @@ def main(argv: list[str] | None = None) -> int:
             from . import admission
             try: admission.setup_admission(target, signer=_operator_signer(admission, args.key_file, target))
             except Exception as exc: print(f"Admission setup failed: {exc}", file=sys.stderr); return 1
-        from . import validate_repo
-        problems = validate_repo.validate(target)
-        if problems:
-            for p in problems:
-                print(f"ERROR {p.path.relative_to(target)}: {p.message}")
-            print(f"\nAdoption produced {len(problems)} validation error(s) to resolve.")
-            return 1
+        result = _rust_validate(target)
+        if result:
+            print("\nAdoption produced validation error(s) to resolve.")
+            return result
         print("\nAdopted repository validates as a conformant RepoPact.")
         return 0
 
@@ -278,16 +307,19 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception as exc: print(f"Revocation failed: {exc}", file=sys.stderr); return 1
         if args.command == "work":
             root = args.root.resolve()
-            from . import new
             if args.work_command == "propose":
-                path = new.new_work_item(args.title, date.today(), root, status="proposed"); print(f"Created proposed {path.relative_to(root)}"); return 0
-            path = next(root.glob(f"work/*/{args.work_item}*/work-item.json"), None)
-            if path is None: print("Unknown work item", file=sys.stderr); return 1
-            if path.is_symlink() or not path.resolve().is_relative_to(root):
-                print("Proposal path is outside the repository", file=sys.stderr); return 1
-            data = json.loads(path.read_text(encoding="utf-8"));
-            if data.get("status") != "proposed": print("Only proposed work may be amended", file=sys.stderr); return 1
-            data["title"] = args.title; data["updated"] = date.today().isoformat(); path.write_bytes(admission.canonical_json(data) + b"\n"); print(f"Updated {path.relative_to(root)}"); return 0
+                return _rust_mutation(
+                    root,
+                    "work.propose",
+                    {"title": args.title, "date": date.today().isoformat()},
+                    "Created proposed",
+                )
+            return _rust_mutation(
+                root,
+                "work.amend_proposal",
+                {"id": args.work_item, "title": args.title, "date": date.today().isoformat()},
+                "Updated",
+            )
         if args.command == "approval":
             if args.approval_command == "pending":
                 root = args.root.resolve(); req_dir = root / "evidence" / "admission" / "requests"
@@ -371,22 +403,19 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "doctor":
         from . import doctor
-        from . import validate_repo
         if args.fix:
             for a in (doctor.fix(root) or ["nothing to fix"]):
                 print(f"  ~ {a}")
         findings = doctor.diagnose(root)
-        problems = validate_repo.validate(root)
+        validation_status = _rust_validate(root)
         errs = [f for f in findings if f.severity == "error"]
         warns = [f for f in findings if f.severity == "warn"]
         for f in errs + warns:
             print(f"{f.severity.upper():5} [{f.code}] {f.message}")
-        for p in problems:
-            print(f"INVALID {p.path.relative_to(root)}: {p.message}")
-        if not errs and not warns and not problems:
+        if not errs and not warns and not validation_status:
             print("repopact doctor: healthy.")
             return 0
-        return 1 if errs or problems else 0
+        return 1 if errs or validation_status else 0
 
     if args.command == "takeover":
         from . import takeover
@@ -403,27 +432,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.dry_run:
             print("\nDry run: nothing written.")
             return 0
-        from . import validate_repo
-        problems = validate_repo.validate(root)
-        for p in problems:
-            print(f"ERROR {p.path.relative_to(root)}: {p.message}")
-        print("\nwork/ ledger imported; repository validates." if not problems
-              else f"\nImport produced {len(problems)} validation error(s).")
-        return 1 if problems else 0
+        validation_status = _rust_validate(root)
+        print("\nwork/ ledger imported; repository validates." if not validation_status
+              else "\nImport produced validation error(s).")
+        return validation_status
 
     if args.command == "validate":
-        from . import validate_repo
-        problems = validate_repo.validate(root)
-        for p in problems:
-            print(f"ERROR {p.path.relative_to(root)}: {p.message}")
-        print("Repository governance validation passed." if not problems
-              else f"\nValidation failed with {len(problems)} error(s).")
-        return 1 if problems else 0
+        return _rust_validate(root)
 
     if args.command == "dashboard":
-        from . import generate_dashboard
-        out = generate_dashboard.write_dashboard(root)
-        print(f"Generated {out.relative_to(root)}")
+        from .engine_client import EngineError, EngineClient
+        try:
+            EngineClient().call("dashboard.write", root=root)
+        except EngineError as exc:
+            print(f"Rust engine compatibility error: {exc}", file=sys.stderr)
+            return 1
+        print("Generated audits/reports/dashboard.md")
         return 0
 
     if args.command == "spec":
@@ -443,13 +467,18 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "new":
-        from . import new
         if args.kind == "work-item":
             if args.status != "proposed" and (root / "governance" / "admission-policy.json").is_file():
                 print("WI050 admission requires operator-controlled activation; create proposed work first.", file=sys.stderr)
                 return 1
-            path = new.new_work_item(args.title, date.today(), root, status=args.status)
+            return _rust_mutation(
+                root,
+                "work.create",
+                {"title": args.title, "date": date.today().isoformat(), "status": args.status},
+                "Created",
+            )
         else:
+            from . import new
             path = new.new_markdown(args.kind, args.title, date.today(), root)
         print(f"Created {path.relative_to(root)}")
         return 0

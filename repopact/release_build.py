@@ -67,7 +67,7 @@ def _run(
             f"command timed out after {timeout}s ({' '.join(command)})"
         ) from exc
     if result.returncode != 0:
-        output = (result.stdout + result.stderr).strip()
+        output = ((result.stdout or "") + (result.stderr or "")).strip()
         raise ReleaseBuildError(f"command failed ({' '.join(command)}): {output}")
     return result.stdout.strip()
 

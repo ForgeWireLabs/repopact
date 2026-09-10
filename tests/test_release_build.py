@@ -114,8 +114,8 @@ class ReleaseBuildTests(unittest.TestCase):
             second = Path(temporary) / "second.whl"
             make_wheel(first, ".tmpfirst")
             make_wheel(second, ".tmpsecond")
-            release_build._normalize_wheel(first, 42)
-            release_build._normalize_wheel(second, 42)
+            release_build._normalize_wheel(first, 1789081237)
+            release_build._normalize_wheel(second, 1789081237)
             self.assertEqual(first.read_bytes(), second.read_bytes())
             with zipfile.ZipFile(first) as archive:
                 sbom = archive.read(sbom_name)

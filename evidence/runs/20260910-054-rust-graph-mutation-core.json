@@ -10,7 +10,7 @@
     {
       "command": "python -m pip install -e \".[dev]\"",
       "exit_code": 0,
-      "summary": "Editable Python installation passed before WI054 implementation." 
+      "summary": "Editable Python installation passed before WI054 implementation."
     },
     {
       "command": "python -m repopact.validate_repo",

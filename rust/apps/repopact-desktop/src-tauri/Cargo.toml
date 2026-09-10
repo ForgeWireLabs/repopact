@@ -1,0 +1,21 @@
+[package]
+name = "repopact-desktop"
+version = "0.1.0"
+description = "RepoPact desktop governance workbench"
+authors = ["ForgeWireLabs"]
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-build = { version = "2.5.3", features = [] }
+
+[dependencies]
+repopact-analysis.workspace = true
+repopact-desktop-api.workspace = true
+repopact-types.workspace = true
+serde.workspace = true
+tauri = { version = "2.11.5", features = [] }
+tauri-plugin-dialog = "2.7.3"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]

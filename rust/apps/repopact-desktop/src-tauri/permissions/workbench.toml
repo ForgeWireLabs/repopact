@@ -1,0 +1,24 @@
+"$schema" = "../gen/schemas/desktop-schema.json"
+
+[[permission]]
+identifier = "workbench-commands"
+description = "Allow only the typed RepoPact workbench commands."
+commands.allow = [
+  "select_repository",
+  "close_repository",
+  "repository_overview",
+  "refresh_repository",
+  "validate_repository",
+  "list_work_items",
+  "get_work_item",
+  "list_decisions",
+  "get_decision",
+  "list_evidence",
+  "get_evidence",
+  "relationship_graph",
+  "analyze_work_item",
+  "plan_mutation",
+  "apply_mutation_plan",
+  "discard_mutation_plan",
+  "poll_repository_events"
+]

@@ -1,0 +1,20 @@
+[package]
+name = "repopact-desktop-api"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+notify = "8.2.0"
+repopact-analysis.workspace = true
+repopact-core.workspace = true
+repopact-graph.workspace = true
+repopact-mutation.workspace = true
+repopact-repository.workspace = true
+repopact-types.workspace = true
+repopact-validation.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tempfile = "3.23.0"

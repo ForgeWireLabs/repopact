@@ -1,0 +1,35 @@
+{
+  "name": "repopact-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "build": "tsc --noEmit && vite build",
+    "tauri": "tauri",
+    "types:generate": "node scripts/generate-types.mjs",
+    "types:check": "npm run types:generate && git diff --exit-code -- src/generated/types.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "2.11.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "axe-core": "4.13.0",
+    "jsdom": "27.1.0",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "5.0.0"
+  }
+}

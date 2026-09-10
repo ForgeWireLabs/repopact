@@ -9,12 +9,15 @@ members = [
     "crates/repopact-analysis",
     "crates/repopact-mutation",
     "crates/repopact-core",
+    "crates/repopact-desktop-api",
     "apps/repopact-cli",
+    "apps/repopact-desktop/src-tauri",
 ]
 
 [workspace.dependencies]
 jsonschema = { version = "0.55.1", default-features = false }
 repopact-core = { path = "crates/repopact-core" }
+repopact-desktop-api = { path = "crates/repopact-desktop-api" }
 repopact-analysis = { path = "crates/repopact-analysis" }
 repopact-graph = { path = "crates/repopact-graph" }
 repopact-mutation = { path = "crates/repopact-mutation" }

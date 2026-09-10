@@ -1,0 +1,1 @@
+{"main-window":{"identifier":"main-window","description":"The main RepoPact workbench window.","local":true,"windows":["main"],"permissions":["workbench-commands","core:event:allow-listen","core:event:allow-unlisten"]}}

@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 5 |
-| active | 7 |
+| active | 8 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 45 |
@@ -40,4 +40,5 @@ All audit scopes are within their review cadence.
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 052: Rust Core and Tauri 2 User Workbench Foundation (active)
 - 056: Python Compatibility and Canonical Rust-Core Cutover (active)
+- 058: User-Centric Tabbed Workbench Information Architecture (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

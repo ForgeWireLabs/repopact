@@ -34,4 +34,6 @@ targets = [
 include = [
     { path = "repopact/schemas/*.json", format = ["sdist", "wheel"] },
     { path = "repopact/templates/*", format = ["sdist", "wheel"] },
+    { path = "VERSION", format = ["sdist"] },
+    { path = "RELEASE_LABEL", format = ["sdist"] },
 ]

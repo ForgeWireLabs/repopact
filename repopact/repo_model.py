@@ -21,6 +21,15 @@ IGNORED_PARTS = {
     "build", "dist", "fixtures", "worktrees",
 }
 
+GIT_QUERY_TIMEOUT_SECONDS = 5
+
+
+def _git_query_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    environment["GIT_TERMINAL_PROMPT"] = "0"
+    environment["GIT_OPTIONAL_LOCKS"] = "0"
+    return environment
+
 
 def _resolved(path: Path) -> Path:
     """Resolve a path without requiring it to exist, with a safe fallback."""
@@ -74,8 +83,10 @@ def _git_common_dir(root: Path) -> Path | None:
             capture_output=True,
             text=True,
             check=False,
+            timeout=GIT_QUERY_TIMEOUT_SECONDS,
+            env=_git_query_environment(),
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if result.returncode != 0 or not result.stdout.strip():
         return None
@@ -95,8 +106,10 @@ def _registered_worktree_roots(root: Path) -> set[Path]:
             capture_output=True,
             text=True,
             check=False,
+            timeout=GIT_QUERY_TIMEOUT_SECONDS,
+            env=_git_query_environment(),
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return set()
     if result.returncode != 0:
         return set()

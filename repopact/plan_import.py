@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import posixpath
 import re
 import sys
@@ -200,8 +201,9 @@ def collect_from_github(root: Path, limit: int = 200) -> list[PlanItem]:
         result = subprocess.run(
             ["gh", "issue", "list", "--state", "all", "--limit", str(limit),
              "--json", "number,title,body,state,url"],
-            cwd=root, capture_output=True, text=True)
-    except OSError:
+            cwd=root, capture_output=True, text=True, timeout=10,
+            env={**os.environ, "GH_PROMPT_DISABLED": "1"})
+    except (OSError, subprocess.TimeoutExpired):
         return []
     if result.returncode != 0:
         return []

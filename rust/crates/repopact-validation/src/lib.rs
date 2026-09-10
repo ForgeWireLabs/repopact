@@ -1,10 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+#[cfg(test)]
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use repopact_repository::{path_string, Repository, STATUSES};
+use repopact_repository::{
+    path_string, IndexedRecord, RecordIndex, Repository, RepositorySnapshot, RepositoryTopology,
+    STATUSES,
+};
 use repopact_schema::SchemaStore;
 use repopact_types::{Diagnostic, LifecycleStatus, ValidationReport, WorkItem};
 use serde_json::{Map, Value};
@@ -28,15 +31,16 @@ struct LoadedWork {
 
 pub fn validate(root: impl AsRef<Path>) -> ValidationReport {
     let repository = Repository::open(root);
-    Validator::new(repository).validate()
+    let snapshot = repository.session().snapshot();
+    validate_snapshot(&snapshot)
 }
 
 /// Validate a snapshot opened by the shared repository session. The current
 /// semantic validator still owns the WI053 rule implementation, but callers do
 /// not need to reopen or independently crawl a repository to select the
 /// validation boundary.
-pub fn validate_snapshot(snapshot: &repopact_repository::RepositorySnapshot) -> ValidationReport {
-    Validator::new(snapshot.repository().clone()).validate()
+pub fn validate_snapshot(snapshot: &RepositorySnapshot) -> ValidationReport {
+    Validator::from_snapshot(snapshot).validate()
 }
 
 /// Render the owned dashboard projection without writing it. Mutation planning
@@ -44,18 +48,9 @@ pub fn validate_snapshot(snapshot: &repopact_repository::RepositorySnapshot) -> 
 /// of the generated artifact.
 pub fn render_dashboard(root: impl AsRef<Path>) -> Result<String, String> {
     let repository = Repository::open(root);
-    let mut validator = Validator::new(repository.clone());
-    validator.work = repository
-        .discover_work_items()
-        .into_iter()
-        .map(|record| LoadedWork {
-            path: record.path,
-            item: record
-                .value
-                .ok()
-                .and_then(|value| serde_json::from_value::<WorkItem>(value).ok()),
-        })
-        .collect();
+    let snapshot = repository.session().snapshot();
+    let mut validator = Validator::from_snapshot(&snapshot);
+    validator.work = loaded_work(snapshot.index());
     if validator.work.iter().any(|record| record.item.is_none()) {
         return Err("unable to render dashboard from malformed work-item records".to_owned());
     }
@@ -66,6 +61,8 @@ pub fn render_dashboard(root: impl AsRef<Path>) -> Result<String, String> {
 
 pub struct Validator {
     repository: Repository,
+    topology: RepositoryTopology,
+    index: RecordIndex,
     schemas: SchemaStore,
     diagnostics: Vec<Diagnostic>,
     work: Vec<LoadedWork>,
@@ -75,13 +72,35 @@ pub struct Validator {
 
 impl Validator {
     pub fn new(repository: Repository) -> Self {
+        let snapshot = repository.session().snapshot();
+        Self::from_snapshot(&snapshot)
+    }
+
+    pub fn from_snapshot(snapshot: &RepositorySnapshot) -> Self {
+        let repository = snapshot.repository().clone();
         let schemas = SchemaStore::new(repository.root());
+        let evidence_ids = snapshot
+            .index()
+            .evidence
+            .iter()
+            .filter_map(|record| {
+                record
+                    .value
+                    .as_ref()
+                    .ok()?
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+            })
+            .collect();
         Self {
             repository,
+            topology: snapshot.topology().clone(),
+            index: snapshot.index().clone(),
             schemas,
             diagnostics: Vec::new(),
             work: Vec::new(),
-            evidence_ids: BTreeSet::new(),
+            evidence_ids,
             work_ids: BTreeSet::new(),
         }
     }
@@ -147,7 +166,7 @@ impl Validator {
 
     fn validate_version(&mut self) {
         let path = self.repository.root().join("VERSION");
-        let Ok(value) = fs::read_to_string(&path) else {
+        let Some(value) = self.index.text(&path) else {
             self.push(self.at("version.missing", "missing VERSION file", &path));
             return;
         };
@@ -163,17 +182,14 @@ impl Validator {
 
     fn validate_release_label(&mut self) {
         let path = self.repository.root().join("RELEASE_LABEL");
-        if !path.is_file() {
+        let Some(label) = self.index.text(&path).map(str::trim) else {
             return;
-        }
-        let label = fs::read_to_string(&path)
+        };
+        let version = self
+            .index
+            .text(&self.repository.root().join("VERSION"))
             .unwrap_or_default()
-            .trim()
-            .to_owned();
-        let version = fs::read_to_string(self.repository.root().join("VERSION"))
-            .unwrap_or_default()
-            .trim()
-            .to_owned();
+            .trim();
         let Some((base, prerelease)) = parse_release_label(&label) else {
             self.push(self.at(
                 "release-label.invalid",
@@ -197,9 +213,9 @@ impl Validator {
     fn validate_release_surface(&mut self) {
         let readme = self.repository.root().join("README.md");
         let version_path = self.repository.root().join("VERSION");
-        let (Ok(text), Ok(version)) = (
-            fs::read_to_string(&readme),
-            fs::read_to_string(&version_path),
+        let (Some(text), Some(version)) = (
+            self.index.text(&readme).map(str::to_owned),
+            self.index.text(&version_path).map(str::to_owned),
         ) else {
             return;
         };
@@ -247,7 +263,12 @@ impl Validator {
     }
 
     fn validate_contracts(&mut self) {
-        let contracts = self.repository.iter_contracts();
+        let contracts = self
+            .index
+            .contracts
+            .iter()
+            .map(|record| record.path.clone())
+            .collect::<Vec<_>>();
         let root_contract = self.repository.root().join("AGENTS.md");
         if !contracts.iter().any(|path| path == &root_contract) {
             self.push(self.at(
@@ -287,8 +308,10 @@ impl Validator {
     }
 
     fn registered_contract_dirs(&self) -> BTreeSet<PathBuf> {
-        let path = self.repository.root().join("audits/registry.json");
-        let Ok(value) = read_json(&path) else {
+        let Some(record) = self.index.audit_registry.as_ref() else {
+            return BTreeSet::new();
+        };
+        let Ok(value) = record.value.as_ref() else {
             return BTreeSet::new();
         };
         object_array(&value, "scopes")
@@ -304,7 +327,12 @@ impl Validator {
 
     fn validate_invariants(&mut self) {
         let path = self.repository.root().join("governance/invariants.json");
-        let Ok(value) = read_json(&path) else {
+        let Some(value) = self
+            .index
+            .invariants
+            .as_ref()
+            .and_then(|record| record.value.clone().ok())
+        else {
             self.push(self.at(
                 "invariants.unreadable",
                 "governance/invariants.json is not valid JSON",
@@ -346,7 +374,12 @@ impl Validator {
             .repository
             .root()
             .join("governance/frozen-surface.json");
-        let Ok(value) = read_json(&path) else {
+        let Some(value) = self
+            .index
+            .frozen_surface
+            .as_ref()
+            .and_then(|record| record.value.clone().ok())
+        else {
             self.push(self.at(
                 "frozen-surface.unreadable",
                 "governance/frozen-surface.json is not valid JSON",
@@ -377,7 +410,12 @@ impl Validator {
 
     fn validate_owners(&mut self) -> (BTreeSet<String>, bool) {
         let path = self.repository.root().join("governance/owners.json");
-        let Ok(value) = read_json(&path) else {
+        let Some(value) = self
+            .index
+            .owners
+            .as_ref()
+            .and_then(|record| record.value.clone().ok())
+        else {
             self.push(self.at(
                 "owners.unreadable",
                 "governance/owners.json is not valid JSON",
@@ -437,23 +475,9 @@ impl Validator {
         scopes: &[&Map<String, Value>],
         owners_path: &Path,
     ) {
-        if !self.repository.root().join(".git").exists() {
-            return;
-        }
-        let Ok(output) = Command::new("git")
-            .args([
-                "-C",
-                &path_string(self.repository.root()),
-                "ls-files",
-                "--cached",
-            ])
-            .output()
-        else {
+        let Some(tracked_paths) = self.topology.tracked_paths().cloned() else {
             return;
         };
-        if !output.status.success() {
-            return;
-        }
         let patterns = scopes
             .iter()
             .flat_map(|scope| {
@@ -461,13 +485,10 @@ impl Validator {
                 map_string_array(scope, "paths").map(move |pattern| (id, pattern))
             })
             .collect::<Vec<_>>();
-        for relative in String::from_utf8_lossy(&output.stdout)
-            .lines()
-            .filter(|line| !line.is_empty())
-        {
+        for relative in tracked_paths {
             let matches = patterns
                 .iter()
-                .filter(|(_, pattern)| wildcard_match(relative, pattern))
+                .filter(|(_, pattern)| wildcard_match(&relative, pattern))
                 .map(|(id, _)| *id)
                 .collect::<BTreeSet<_>>();
             if matches.is_empty() {
@@ -490,17 +511,12 @@ impl Validator {
     }
 
     fn validate_work(&mut self, owner_scopes: &BTreeSet<String>, enforce_disjoint: bool) {
-        let evidence_ids = self
-            .repository
-            .discover_evidence_ids()
-            .into_iter()
-            .collect::<BTreeSet<_>>();
-        self.evidence_ids = evidence_ids;
         let preflight = self.preflight_config();
         let evidence_provenance = self.evidence_provenance();
         let mut seen = BTreeMap::new();
-        for record in self.repository.discover_work_items() {
-            let data = match record.value {
+        for record in self.index.work_items.clone() {
+            let directory = record_directory(&record);
+            let data = match record.value.clone() {
                 Ok(value) => value,
                 Err(error) => {
                     self.push(self.at("work.json-invalid", error, &record.path));
@@ -532,8 +548,7 @@ impl Validator {
                     continue;
                 }
             };
-            let expected_status = record
-                .directory
+            let expected_status = directory
                 .parent()
                 .and_then(Path::file_name)
                 .and_then(|name| name.to_str())
@@ -563,8 +578,7 @@ impl Validator {
             } else {
                 self.work_ids.insert(item.id.clone());
             }
-            let directory_name = record
-                .directory
+            let directory_name = directory
                 .file_name()
                 .and_then(|name| name.to_str())
                 .unwrap_or("");
@@ -575,11 +589,11 @@ impl Validator {
                     &record.path,
                 ));
             }
-            if !record.directory.join("README.md").is_file() {
+            if self.index.text(&directory.join("README.md")).is_none() {
                 self.push(self.at(
                     "work.readme-missing",
                     "missing README.md narrative",
-                    &record.directory,
+                    directory,
                 ));
             }
             if !owner_scopes.contains(&item.owner_scope) {
@@ -699,7 +713,7 @@ impl Validator {
                     &record.path,
                 ));
             }
-            self.validate_readme_checkbox_parity(&record.directory, &item, &record.path);
+            self.validate_readme_checkbox_parity(directory, &item, &record.path);
             self.work.push(LoadedWork {
                 path: record.path,
                 item: Some(item),
@@ -747,18 +761,20 @@ impl Validator {
     }
 
     fn preflight_config(&self) -> Value {
-        read_json(&self.repository.root().join("governance/owners.json"))
-            .ok()
+        self.index
+            .owners
+            .as_ref()
+            .and_then(|record| record.value.clone().ok())
             .and_then(|value| value.get("preflight").cloned())
             .unwrap_or_else(|| Value::Object(Map::new()))
     }
 
     fn evidence_provenance(&self) -> HashMap<String, String> {
-        self.repository
-            .discover_evidence()
-            .into_iter()
+        self.index
+            .evidence
+            .iter()
             .filter_map(|record| {
-                let Value::Object(value) = record.value.ok()? else {
+                let Value::Object(value) = record.value.as_ref().ok()? else {
                     return None;
                 };
                 Some((
@@ -774,7 +790,7 @@ impl Validator {
     }
 
     fn validate_readme_checkbox_parity(&mut self, directory: &Path, item: &WorkItem, path: &Path) {
-        let Ok(text) = fs::read_to_string(directory.join("README.md")) else {
+        let Some(text) = self.index.text(&directory.join("README.md")) else {
             return;
         };
         let mut boxes = HashMap::new();
@@ -952,12 +968,8 @@ impl Validator {
     }
 
     fn validate_orphan_work_dirs(&mut self) {
-        let work = self.repository.root().join("work");
-        let Ok(children) = sorted_dirs(&work) else {
-            return;
-        };
         let mut candidates = Vec::new();
-        for child in children {
+        for child in &self.index.work_directories {
             let name = child
                 .file_name()
                 .and_then(|value| value.to_str())
@@ -966,18 +978,26 @@ impl Validator {
                 continue;
             }
             if STATUSES.contains(&name) {
-                candidates.extend(sorted_dirs(&child).unwrap_or_default());
+                candidates.push(child.clone());
             } else {
-                candidates.push(child);
+                candidates.push(child.clone());
             }
         }
         for directory in candidates {
-            if directory.join("work-item.json").is_file() {
+            if self
+                .index
+                .work_items
+                .iter()
+                .any(|record| record.path.parent() == Some(directory.as_path()))
+            {
                 continue;
             }
-            let has_planning = directory.join("README.md").is_file()
-                || directory.join("AGENTS.md").is_file()
-                || directory.join("_audit").is_dir();
+            let has_planning = self.index.text(&directory.join("README.md")).is_some()
+                || self.index.text(&directory.join("AGENTS.md")).is_some()
+                || self.index.text_files.keys().any(|path| {
+                    path.parent()
+                        .is_some_and(|parent| parent == directory.join("_audit"))
+                });
             if has_planning {
                 self.push(self.at(
                     "work.orphan-directory",
@@ -990,7 +1010,7 @@ impl Validator {
 
     fn validate_evidence(&mut self) {
         let mut seen = HashMap::new();
-        for record in self.repository.discover_evidence() {
+        for record in self.index.evidence.clone() {
             let data = match record.value {
                 Ok(value) => value,
                 Err(error) => {
@@ -1074,8 +1094,9 @@ impl Validator {
                         &record.path,
                     ));
                 } else if let Some(timestamp) = parsed {
-                    if let Some((commit_time, sha)) =
-                        recording_commit(&self.repository, &record.path)
+                    if let Some((commit_time, sha)) = self
+                        .topology
+                        .recording_commit(&self.repository.relative_path(&record.path))
                     {
                         if timestamp > commit_time + 300 {
                             self.push(self.at(
@@ -1103,7 +1124,15 @@ impl Validator {
 
     fn validate_audit_registry(&mut self) {
         let path = self.repository.root().join("audits/registry.json");
-        let Ok(value) = read_json(&path) else {
+        let Some(record) = self.index.audit_registry.as_ref() else {
+            self.push(self.at(
+                "audit-registry.unreadable",
+                "audits/registry.json is not valid JSON",
+                &path,
+            ));
+            return;
+        };
+        let Ok(value) = record.value.clone() else {
             self.push(self.at(
                 "audit-registry.unreadable",
                 "audits/registry.json is not valid JSON",
@@ -1167,15 +1196,12 @@ impl Validator {
 
     fn validate_dashboard(&mut self) {
         let path = self.repository.root().join("audits/reports/dashboard.md");
-        if !path.is_file() {
+        let Some(actual) = self.index.text(&path) else {
             self.push(self.at(
                 "dashboard.missing",
                 "missing generated dashboard; run `repopact dashboard --root .`",
                 &path,
             ));
-            return;
-        }
-        let Ok(actual) = fs::read_to_string(&path) else {
             return;
         };
         let Some(expected) = self.generate_dashboard() else {
@@ -1187,36 +1213,28 @@ impl Validator {
     }
 
     fn generate_dashboard(&self) -> Option<String> {
-        let registry = read_json(&self.repository.root().join("audits/registry.json")).ok()?;
-        let invariants =
-            read_json(&self.repository.root().join("governance/invariants.json")).ok()?;
-        let frozen = read_json(
-            &self
-                .repository
-                .root()
-                .join("governance/frozen-surface.json"),
-        )
-        .ok()?;
+        let registry = self.index.audit_registry.as_ref()?.value.as_ref().ok()?;
+        let invariants = self.index.invariants.as_ref()?.value.as_ref().ok()?;
+        let frozen = self.index.frozen_surface.as_ref()?.value.as_ref().ok()?;
         let mut counts = HashMap::new();
         for record in &self.work {
             let item = record.item.as_ref()?;
             *counts.entry(item.status.as_str()).or_insert(0usize) += 1;
         }
-        let contracts = self.repository.iter_contracts().len();
-        let evidence_count = self.repository.discover_evidence_ids().len();
+        let contracts = self.index.contracts.len();
+        let evidence_count = self.index.evidence.len();
         let audit_entries = object_array(&registry, "scopes").count();
         let invariant_count = object_array(&invariants, "invariants").count();
         let frozen_count = object_array(&frozen, "protected").count();
-        let decision_count = count_markdown_records(&self.repository.root().join("decisions"));
-        let policy_count =
-            count_markdown_records(&self.repository.root().join("governance/policies"));
-        let finding_count = count_json_records(&self.repository.root().join("audits/findings"));
+        let decision_count = self.index.decisions.len();
+        let policy_count = self.index.policies.len();
+        let finding_count = self.index.audit_findings.len();
         let spec_version = [
             self.repository.root().join("scripts/REPOPACT_VERSION"),
             self.repository.root().join("VERSION"),
         ]
         .into_iter()
-        .find_map(|path| fs::read_to_string(path).ok())
+        .find_map(|path| self.index.text(&path).map(str::to_owned))
         .map(|value| value.trim().to_owned())
         .unwrap_or_else(|| "unknown".to_owned());
         let today = today_utc();
@@ -1323,9 +1341,23 @@ impl Validator {
     }
 }
 
-fn read_json(path: &Path) -> Result<Value, String> {
-    let bytes = fs::read(path).map_err(|error| error.to_string())?;
-    serde_json::from_slice(&bytes).map_err(|error| error.to_string())
+fn loaded_work(index: &RecordIndex) -> Vec<LoadedWork> {
+    index
+        .work_items
+        .iter()
+        .map(|record| LoadedWork {
+            path: record.path.clone(),
+            item: record
+                .value
+                .clone()
+                .ok()
+                .and_then(|value| serde_json::from_value::<WorkItem>(value).ok()),
+        })
+        .collect()
+}
+
+fn record_directory(record: &IndexedRecord) -> &Path {
+    record.path.parent().unwrap_or(&record.path)
 }
 
 fn object_array<'a>(value: &'a Value, key: &str) -> impl Iterator<Item = &'a Map<String, Value>> {
@@ -1374,22 +1406,6 @@ fn wildcard_match(value: &str, pattern: &str) -> bool {
         previous = current;
     }
     previous[value.len()]
-}
-
-fn sorted_dirs(path: &Path) -> Result<Vec<PathBuf>, String> {
-    let mut result = fs::read_dir(path)
-        .map_err(|error| error.to_string())?
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            entry
-                .file_type()
-                .ok()
-                .filter(|kind| kind.is_dir())
-                .map(|_| entry.path())
-        })
-        .collect::<Vec<_>>();
-    result.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
-    Ok(result)
 }
 
 fn is_digits_at_least(value: &str, length: usize) -> bool {
@@ -1519,39 +1535,6 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
     (year, month, day)
 }
 
-fn count_markdown_records(path: &Path) -> usize {
-    fs::read_dir(path)
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            entry.file_type().ok().is_some_and(|kind| kind.is_file())
-                && entry
-                    .path()
-                    .extension()
-                    .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
-                && entry.file_name().to_string_lossy().to_ascii_uppercase() != "README.MD"
-        })
-        .count()
-}
-
-fn count_json_records(path: &Path) -> usize {
-    fs::read_dir(path)
-        .ok()
-        .into_iter()
-        .flatten()
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            entry.file_type().ok().is_some_and(|kind| kind.is_file())
-                && entry
-                    .path()
-                    .extension()
-                    .is_some_and(|extension| extension == "json")
-        })
-        .count()
-}
-
 fn requires_preflight(item: &WorkItem, config: &Value) -> bool {
     if config.get("enabled").and_then(Value::as_bool) == Some(false) {
         return false;
@@ -1570,34 +1553,6 @@ fn requires_preflight(item: &WorkItem, config: &Value) -> bool {
         return true;
     }
     from_date.is_some_and(|date| item.created.as_str() > date)
-}
-
-fn recording_commit(repository: &Repository, path: &Path) -> Option<(i64, String)> {
-    let relative = repository.relative_path(path);
-    if relative == "<root>" {
-        return None;
-    }
-    let output = Command::new("git")
-        .args([
-            "-C",
-            &path_string(repository.root()),
-            "log",
-            "--follow",
-            "--diff-filter=A",
-            "--format=%ct:%H",
-            "--reverse",
-            "--",
-            &relative,
-        ])
-        .output()
-        .ok()?;
-    if !output.status.success() {
-        return None;
-    }
-    let output_text = String::from_utf8_lossy(&output.stdout);
-    let first = output_text.lines().find(|line| !line.trim().is_empty())?;
-    let (seconds, sha) = first.split_once(':')?;
-    Some((seconds.parse().ok()?, sha.to_owned()))
 }
 
 #[cfg(test)]
@@ -1627,6 +1582,19 @@ mod tests {
             parse_timestamp("2026-01-01T02:00:00+02:00"),
             parse_timestamp("2026-01-01T00:00:00Z")
         );
+    }
+
+    #[test]
+    fn validate_snapshot_reuses_supplied_git_facts_without_new_queries() {
+        let root = temp_root("snapshot-query-free");
+        fs::create_dir_all(root.join(".git")).unwrap();
+        let runner = repopact_repository::CountingGitRunner::native();
+        let repository = Repository::with_git_runner(&root, runner.clone());
+        let snapshot = repository.session().snapshot();
+        let before = runner.count();
+        let _ = validate_snapshot(&snapshot);
+        assert_eq!(before, runner.count());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

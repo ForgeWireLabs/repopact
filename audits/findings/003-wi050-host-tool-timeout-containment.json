@@ -1,0 +1,10 @@
+{
+  "$schema": "../../repopact/schemas/audit-finding.schema.json",
+  "id": "003",
+  "scope": "governance",
+  "observed": "WI050 protected platform and guard paths invoke host tools such as sc.exe and icacls without finite timeout or termination containment. These calls are bounded by the protected service/ACL workflows and are not reachable from the WI057 desktop repository picker, but a hung host tool could still delay or strand a protected security operation.",
+  "risk": "medium",
+  "reconciliation": "Recorded as WI050-owned follow-up. WI057 preserves the WI050 admission, guard, platform, and protected-service security semantics and makes no unreviewed timeout or process-control change. WI050 should add platform-appropriate bounded execution and termination proof before its remaining implementation criteria close.",
+  "state": "open",
+  "created": "2026-09-10"
+}

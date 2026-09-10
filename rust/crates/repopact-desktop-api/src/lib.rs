@@ -17,7 +17,9 @@ use repopact_mutation::{
     CreateWorkItem, EditWorkItem, GeneratedImpact, MutationDiagnostic, MutationPlan,
     MutationRequest, MutationResult, TransitionWorkItem, WorkItemEdits,
 };
-use repopact_repository::{IndexedRecord, RecordIndex, RepositorySnapshot, IGNORED_PARTS};
+use repopact_repository::{
+    GitRunner, IndexedRecord, RecordIndex, Repository, RepositorySnapshot, IGNORED_PARTS,
+};
 use repopact_types::{
     AcceptanceCriterion, Diagnostic, RecordKind, RecordRef, RepositoryIdentity, Severity, WorkItem,
 };
@@ -26,6 +28,23 @@ use serde_json::Value;
 
 const PLAN_LIMIT: usize = 32;
 const WATCH_DEBOUNCE: Duration = Duration::from_millis(120);
+const WATCH_IGNORED_PARTS: [&str; 15] = [
+    ".git",
+    "target",
+    "node_modules",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+    "fixtures",
+    "worktrees",
+    ".cache",
+    "coverage",
+    "out",
+];
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DesktopError {
@@ -354,10 +373,14 @@ struct ActiveSession {
     id: String,
     generation: u64,
     core: RepoPactCore,
+    snapshot: Arc<RepositorySnapshot>,
+    graph: GraphView,
+    overview: RepositoryOverview,
     watcher: Option<RepositoryWatcher>,
     plans: BTreeMap<String, StoredPlan>,
     plan_order: VecDeque<String>,
     pending_self_paths: BTreeSet<String>,
+    refresh_in_flight: bool,
 }
 
 #[derive(Default)]
@@ -383,6 +406,22 @@ impl DesktopService {
         &self,
         root: impl AsRef<Path>,
     ) -> Result<RepositoryOverview, DesktopError> {
+        self.open_repository_with_runner(root, None)
+    }
+
+    pub fn open_repository_with_git_runner(
+        &self,
+        root: impl AsRef<Path>,
+        git_runner: Arc<dyn GitRunner>,
+    ) -> Result<RepositoryOverview, DesktopError> {
+        self.open_repository_with_runner(root, Some(git_runner))
+    }
+
+    fn open_repository_with_runner(
+        &self,
+        root: impl AsRef<Path>,
+        git_runner: Option<Arc<dyn GitRunner>>,
+    ) -> Result<RepositoryOverview, DesktopError> {
         let root = root.as_ref();
         if !root.is_dir() {
             return Err(DesktopError::new(
@@ -390,27 +429,36 @@ impl DesktopService {
                 format!("repository root is not a directory: {}", root.display()),
             ));
         }
-        let mut state = self.lock()?;
-        state.next_session += 1;
-        let generation = state.next_session;
-        let id = format!("session-{generation}");
-        let core = RepoPactCore::open(root);
+        let repository = git_runner
+            .map(|runner| Repository::with_git_runner(root, runner))
+            .unwrap_or_else(|| Repository::open(root));
+        let core = RepoPactCore::open_repository(repository);
+        let snapshot = Arc::new(core.snapshot());
         let watcher = RepositoryWatcher::start(root, WATCH_DEBOUNCE).ok();
+        let generation = {
+            let mut state = self.lock()?;
+            state.next_session += 1;
+            state.next_session
+        };
+        let id = format!("session-{generation}");
+        let graph = graph_view(core.graph_snapshot(&snapshot));
+        let overview = overview_from_snapshot(&id, generation, watcher.is_some(), &snapshot);
         let active = ActiveSession {
             id: id.clone(),
             generation,
             core,
+            snapshot,
+            graph,
+            overview: overview.clone(),
             watcher,
             plans: BTreeMap::new(),
             plan_order: VecDeque::new(),
             pending_self_paths: BTreeSet::new(),
+            refresh_in_flight: false,
         };
+        let mut state = self.lock()?;
         state.active = Some(active);
-        let active = state
-            .active
-            .as_ref()
-            .expect("active session just installed");
-        Ok(overview(active))
+        Ok(overview)
     }
 
     pub fn close_repository(&self) -> Result<(), DesktopError> {
@@ -420,28 +468,68 @@ impl DesktopService {
     }
 
     pub fn repository_overview(&self) -> Result<RepositoryOverview, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        Ok(overview(active))
+        let state = self.lock()?;
+        Ok(state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?
+            .overview
+            .clone())
     }
 
     pub fn refresh_repository(&self) -> Result<RepositoryOverview, DesktopError> {
-        self.repository_overview()
+        let (id, generation, core, watcher_running) = {
+            let mut state = self.lock()?;
+            let active = active_mut(&mut state)?;
+            if active.refresh_in_flight {
+                return Ok(active.overview.clone());
+            }
+            active.refresh_in_flight = true;
+            (
+                active.id.clone(),
+                active.generation,
+                RepoPactCore::open_repository(active.core.repository().clone()),
+                active.watcher.is_some(),
+            )
+        };
+        let snapshot = Arc::new(core.snapshot());
+        let graph = graph_view(core.graph_snapshot(&snapshot));
+        let next_generation = generation + 1;
+        let overview = overview_from_snapshot(&id, next_generation, watcher_running, &snapshot);
+        let mut state = self.lock()?;
+        let active = active_mut(&mut state)?;
+        if active.id != id || active.generation != generation {
+            active.refresh_in_flight = false;
+            return Err(DesktopError::new(
+                "session.stale",
+                "the repository session changed during refresh",
+            ));
+        }
+        active.generation = next_generation;
+        active.snapshot = snapshot;
+        active.graph = graph;
+        active.overview = overview.clone();
+        active.refresh_in_flight = false;
+        active.pending_self_paths.clear();
+        Ok(overview)
     }
 
     pub fn validate_repository(&self) -> Result<ValidationView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        Ok(validation_view(&active.core.validate()))
+        let state = self.lock()?;
+        Ok(state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?
+            .overview
+            .validation
+            .clone())
     }
 
     pub fn list_work_items(
         &self,
         query: Option<String>,
     ) -> Result<Vec<WorkItemSummaryView>, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let snapshot = active.core.snapshot();
+        let snapshot = self.snapshot()?;
         let needle = query.unwrap_or_default().to_lowercase();
         Ok(snapshot
             .index()
@@ -458,9 +546,7 @@ impl DesktopService {
     }
 
     pub fn get_work_item(&self, id: &str) -> Result<WorkItemDetailView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let snapshot = active.core.snapshot();
+        let snapshot = self.snapshot()?;
         let record = snapshot
             .index()
             .work_items
@@ -524,16 +610,18 @@ impl DesktopService {
     }
 
     pub fn graph(&self) -> Result<GraphView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let graph = active.core.graph();
-        Ok(graph_view(graph))
+        let state = self.lock()?;
+        Ok(state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?
+            .graph
+            .clone())
     }
 
     pub fn analyze(&self, query: AnalysisQuery) -> Result<AnalysisView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let report = active.core.analyze(&query);
+        let snapshot = self.snapshot()?;
+        let report = repopact_analysis::analyze(&snapshot, &query);
         Ok(AnalysisView {
             findings: report
                 .findings
@@ -544,16 +632,32 @@ impl DesktopService {
     }
 
     pub fn plan_mutation(&self, intent: MutationIntent) -> Result<MutationPlanView, DesktopError> {
-        let mut state = self.lock()?;
-        let next_plan = {
-            state.next_plan += 1;
-            state.next_plan
+        let (snapshot, session_id, generation, next_plan) = {
+            let mut state = self.lock()?;
+            let next_plan = {
+                state.next_plan += 1;
+                state.next_plan
+            };
+            let active = active_mut(&mut state)?;
+            (
+                active.snapshot.clone(),
+                active.id.clone(),
+                active.generation,
+                next_plan,
+            )
         };
-        let active = active_mut(&mut state)?;
         let request = intent.clone().into_request();
-        let plan = active.core.plan_mutation(request);
-        let handle = format!("plan-{}-{next_plan}", active.generation);
-        let view = plan_view(&active.id, &handle, &intent, &plan);
+        let plan = repopact_mutation::plan(&snapshot, request);
+        let handle = format!("plan-{generation}-{next_plan}");
+        let view = plan_view(&session_id, &handle, &intent, &plan);
+        let mut state = self.lock()?;
+        let active = active_mut(&mut state)?;
+        if active.id != session_id || active.generation != generation {
+            return Err(DesktopError::new(
+                "session.stale",
+                "the repository session changed while planning",
+            ));
+        }
         active.plans.insert(handle.clone(), StoredPlan { plan });
         active.plan_order.push_back(handle);
         while active.plan_order.len() > PLAN_LIMIT {
@@ -569,32 +673,104 @@ impl DesktopService {
         session_id: &str,
         plan_handle: &str,
     ) -> Result<MutationApplyView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        if active.id != session_id {
-            return Err(DesktopError::new(
-                "session.stale",
-                "the repository session changed; select the repository again",
-            ));
-        }
-        let stored = active.plans.remove(plan_handle).ok_or_else(|| {
-            DesktopError::new(
-                "plan.stale",
-                "the mutation plan is missing, expired, or already consumed",
+        let (repository, plan, generation) = {
+            let mut state = self.lock()?;
+            let active = active_mut(&mut state)?;
+            if active.id != session_id {
+                return Err(DesktopError::new(
+                    "session.stale",
+                    "the repository session changed; select the repository again",
+                ));
+            }
+            let stored = active.plans.remove(plan_handle).ok_or_else(|| {
+                DesktopError::new(
+                    "plan.stale",
+                    "the mutation plan is missing, expired, or already consumed",
+                )
+            })?;
+            active.plan_order.retain(|handle| handle != plan_handle);
+            active.refresh_in_flight = true;
+            (
+                active.core.repository().clone(),
+                stored.plan,
+                active.generation,
             )
-        })?;
-        active.plan_order.retain(|handle| handle != plan_handle);
-        let result = active.core.apply_mutation(&stored.plan);
+        };
+        let result = RepoPactCore::open_repository(repository.clone()).apply_mutation(&plan);
         let stale = result
             .diagnostics
             .iter()
             .any(|diagnostic| diagnostic.code.contains("stale"));
-        if result.success {
-            active
-                .pending_self_paths
-                .extend(result.changed_paths.iter().cloned());
+        if !result.success {
+            if stale {
+                // A failed read-set check proves that the cached generation is
+                // no longer current. Refresh it before allowing a re-plan,
+                // while keeping the failed plan's mutation authority consumed.
+                let core = RepoPactCore::open_repository(repository.clone());
+                let snapshot = Arc::new(core.snapshot());
+                let graph = graph_view(core.graph_snapshot(&snapshot));
+                let next_generation = generation + 1;
+                let watcher_running = {
+                    let state = self.lock()?;
+                    state
+                        .active
+                        .as_ref()
+                        .is_some_and(|active| active.id == session_id && active.watcher.is_some())
+                };
+                let overview =
+                    overview_from_snapshot(session_id, next_generation, watcher_running, &snapshot);
+                let mut state = self.lock()?;
+                let active = active_mut(&mut state)?;
+                if active.id != session_id || active.generation != generation {
+                    return Err(DesktopError::new(
+                        "session.stale",
+                        "the repository session changed after stale-plan refresh",
+                    ));
+                }
+                active.generation = next_generation;
+                active.snapshot = snapshot;
+                active.graph = graph;
+                active.overview = overview;
+                active.refresh_in_flight = false;
+                return Ok(apply_view(session_id, next_generation, result, stale));
+            }
+            let mut state = self.lock()?;
+            if let Some(active) = state.active.as_mut() {
+                if active.id == session_id && active.generation == generation {
+                    active.refresh_in_flight = false;
+                }
+            }
+            return Ok(apply_view(session_id, generation, result, stale));
         }
-        Ok(apply_view(active, result, stale))
+        let changed_paths = result.changed_paths.clone();
+        let core = RepoPactCore::open_repository(repository);
+        let snapshot = Arc::new(core.snapshot());
+        let graph = graph_view(core.graph_snapshot(&snapshot));
+        let next_generation = generation + 1;
+        let watcher_running = {
+            let state = self.lock()?;
+            state
+                .active
+                .as_ref()
+                .is_some_and(|active| active.id == session_id && active.watcher.is_some())
+        };
+        let overview =
+            overview_from_snapshot(session_id, next_generation, watcher_running, &snapshot);
+        let mut state = self.lock()?;
+        let active = active_mut(&mut state)?;
+        if active.id != session_id || active.generation != generation {
+            return Err(DesktopError::new(
+                "session.stale",
+                "the repository session changed after applying the plan",
+            ));
+        }
+        active.generation = next_generation;
+        active.snapshot = snapshot;
+        active.graph = graph;
+        active.overview = overview;
+        active.pending_self_paths.extend(changed_paths);
+        active.refresh_in_flight = false;
+        Ok(apply_view(session_id, next_generation, result, stale))
     }
 
     pub fn discard_mutation_plan(
@@ -621,22 +797,67 @@ impl DesktopService {
     }
 
     pub fn poll_repository_events(&self) -> Result<Vec<RepositoryChangedEvent>, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let Some(watcher) = active.watcher.as_mut() else {
-            return Ok(Vec::new());
+        let (session_id, generation, repository, changes, old_token, watcher_running) = {
+            let mut state = self.lock()?;
+            let active = active_mut(&mut state)?;
+            let Some(watcher) = active.watcher.as_mut() else {
+                return Ok(Vec::new());
+            };
+            if active.refresh_in_flight {
+                return Ok(Vec::new());
+            }
+            let changes = watcher.drain();
+            if changes.is_empty() {
+                return Ok(Vec::new());
+            }
+            active.refresh_in_flight = true;
+            (
+                active.id.clone(),
+                active.generation,
+                active.core.repository().clone(),
+                changes,
+                active.snapshot.token(),
+                active.watcher.is_some(),
+            )
         };
-        let changes = watcher.drain();
-        if changes.is_empty() {
-            return Ok(Vec::new());
-        }
-        let snapshot = active.core.snapshot();
-        let overview = overview_from_snapshot(active, &snapshot);
+        let core = RepoPactCore::open_repository(repository);
+        let snapshot = Arc::new(core.snapshot());
         let snapshot_token = snapshot.token();
         let mut paths = BTreeSet::new();
         for change in changes {
             paths.extend(change);
         }
+        let next_generation = generation + 1;
+        let overview = if snapshot_token == old_token {
+            None
+        } else {
+            Some(overview_from_snapshot(
+                &session_id,
+                next_generation,
+                watcher_running,
+                &snapshot,
+            ))
+        };
+        let graph = if snapshot_token == old_token {
+            None
+        } else {
+            Some(graph_view(core.graph_snapshot(&snapshot)))
+        };
+        let mut state = self.lock()?;
+        let active = active_mut(&mut state)?;
+        if active.id != session_id || active.generation != generation {
+            active.refresh_in_flight = false;
+            return Ok(Vec::new());
+        }
+        active.refresh_in_flight = false;
+        if snapshot_token == old_token {
+            for path in &paths {
+                active.pending_self_paths.remove(path);
+            }
+            return Ok(Vec::new());
+        }
+        let overview = overview.expect("changed snapshot has an overview");
+        let graph = graph.expect("changed snapshot has a graph");
         let self_apply = paths
             .iter()
             .all(|path| active.pending_self_paths.remove(path));
@@ -646,9 +867,13 @@ impl DesktopService {
             active.pending_self_paths.clear();
             ChangeOrigin::External
         };
+        active.generation = next_generation;
+        active.snapshot = snapshot;
+        active.graph = graph;
+        active.overview = overview.clone();
         Ok(vec![RepositoryChangedEvent {
-            session_id: active.id.clone(),
-            generation: active.generation,
+            session_id,
+            generation: next_generation,
             snapshot_token,
             origin,
             changed_paths: paths.into_iter().collect(),
@@ -657,9 +882,7 @@ impl DesktopService {
     }
 
     fn list_records(&self, kind: RecordKind) -> Result<Vec<RecordSummaryView>, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let snapshot = active.core.snapshot();
+        let snapshot = self.snapshot()?;
         Ok(records_for_kind(snapshot.index(), kind)
             .into_iter()
             .map(|record| RecordSummaryView {
@@ -670,9 +893,7 @@ impl DesktopService {
     }
 
     fn get_record(&self, kind: RecordKind, id: &str) -> Result<RecordDetailView, DesktopError> {
-        let mut state = self.lock()?;
-        let active = active_mut(&mut state)?;
-        let snapshot = active.core.snapshot();
+        let snapshot = self.snapshot()?;
         let record = records_for_kind(snapshot.index(), kind)
             .into_iter()
             .find(|record| record.reference.id == id || record.reference.path == id)
@@ -686,6 +907,16 @@ impl DesktopService {
         self.state.lock().map_err(|_| {
             DesktopError::new("desktop.state-poisoned", "desktop state is unavailable")
         })
+    }
+
+    fn snapshot(&self) -> Result<Arc<RepositorySnapshot>, DesktopError> {
+        let state = self.lock()?;
+        Ok(state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?
+            .snapshot
+            .clone())
     }
 }
 
@@ -723,20 +954,17 @@ fn validation_view(report: &repopact_types::ValidationReport) -> ValidationView 
     }
 }
 
-fn overview(active: &ActiveSession) -> RepositoryOverview {
-    let snapshot = active.core.snapshot();
-    overview_from_snapshot(active, &snapshot)
-}
-
 fn overview_from_snapshot(
-    active: &ActiveSession,
+    session_id: &str,
+    generation: u64,
+    watcher_running: bool,
     snapshot: &RepositorySnapshot,
 ) -> RepositoryOverview {
     let validation = validation_view(&repopact_validation::validate_snapshot(snapshot));
     let graph = repopact_graph::build(snapshot);
     RepositoryOverview {
-        session_id: active.id.clone(),
-        generation: active.generation,
+        session_id: session_id.to_owned(),
+        generation,
         identity: snapshot.identity(),
         validation,
         work_item_count: snapshot.index().work_items.len(),
@@ -746,12 +974,12 @@ fn overview_from_snapshot(
         graph_edge_count: graph.edges.len(),
         snapshot_token: snapshot.token(),
         watcher: WatcherStatusView {
-            state: if active.watcher.is_some() {
+            state: if watcher_running {
                 WatcherState::Running
             } else {
                 WatcherState::Unavailable
             },
-            recursive: active.watcher.is_some(),
+            recursive: watcher_running,
             debounce_ms: WATCH_DEBOUNCE.as_millis() as u64,
         },
     }
@@ -852,10 +1080,15 @@ fn plan_view(
     }
 }
 
-fn apply_view(active: &ActiveSession, result: MutationResult, stale: bool) -> MutationApplyView {
+fn apply_view(
+    session_id: &str,
+    generation: u64,
+    result: MutationResult,
+    stale: bool,
+) -> MutationApplyView {
     MutationApplyView {
-        session_id: active.id.clone(),
-        generation: active.generation,
+        session_id: session_id.to_owned(),
+        generation,
         plan_token: result.plan_token.clone(),
         success: result.success,
         rolled_back: result.rolled_back,
@@ -880,6 +1113,8 @@ struct RawWatchChange {
 pub struct RepositoryWatcher {
     _watcher: RecommendedWatcher,
     receiver: mpsc::Receiver<RawWatchChange>,
+    #[cfg(test)]
+    test_sender: mpsc::Sender<RawWatchChange>,
     root: PathBuf,
     debounce: Duration,
     pending_paths: BTreeSet<String>,
@@ -890,6 +1125,7 @@ impl RepositoryWatcher {
     pub fn start(root: impl AsRef<Path>, debounce: Duration) -> Result<Self, DesktopError> {
         let root = root.as_ref().to_path_buf();
         let (sender, receiver) = mpsc::channel();
+        let callback_sender = sender.clone();
         let callback_root = root.clone();
         let mut watcher = RecommendedWatcher::new(
             move |result: notify::Result<Event>| {
@@ -906,7 +1142,7 @@ impl RepositoryWatcher {
                 if paths.is_empty() {
                     return;
                 }
-                let _ = sender.send(RawWatchChange {
+                let _ = callback_sender.send(RawWatchChange {
                     paths,
                     received_at: Instant::now(),
                 });
@@ -920,6 +1156,8 @@ impl RepositoryWatcher {
         Ok(Self {
             _watcher: watcher,
             receiver,
+            #[cfg(test)]
+            test_sender: sender,
             root,
             debounce,
             pending_paths: BTreeSet::new(),
@@ -951,6 +1189,14 @@ impl RepositoryWatcher {
     pub fn root(&self) -> &Path {
         &self.root
     }
+
+    #[cfg(test)]
+    fn inject_for_test(&self, paths: &[&str]) {
+        let _ = self.test_sender.send(RawWatchChange {
+            paths: paths.iter().map(|path| (*path).to_owned()).collect(),
+            received_at: Instant::now(),
+        });
+    }
 }
 
 fn is_relevant_event(event: &Event) -> bool {
@@ -964,7 +1210,8 @@ fn normalize_watch_path(root: &Path, path: &Path) -> Option<String> {
 }
 
 fn is_ignored_path(path: &str) -> bool {
-    path.split('/').any(|part| IGNORED_PARTS.contains(&part))
+    path.split('/')
+        .any(|part| IGNORED_PARTS.contains(&part) || WATCH_IGNORED_PARTS.contains(&part))
 }
 
 #[cfg(test)]
@@ -1033,7 +1280,115 @@ mod tests {
         );
         assert!(is_ignored_path("fixtures/sample/work-item.json"));
         assert!(is_ignored_path("node_modules/pkg/index.js"));
+        assert!(is_ignored_path("target/debug/repopact-cli.exe"));
+        assert!(is_ignored_path(".cache/generated.json"));
         assert!(!is_ignored_path("work/active/item/work-item.json"));
+    }
+
+    #[test]
+    fn desktop_reads_reuse_one_snapshot_generation_without_git_fanout() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        let runner = repopact_repository::CountingGitRunner::native();
+        let service = DesktopService::new();
+        let opened = service
+            .open_repository_with_git_runner(dir.path(), runner.clone())
+            .unwrap();
+        let construction_count = runner.count();
+        assert!(construction_count <= 4);
+
+        assert_eq!(
+            opened.snapshot_token,
+            service.repository_overview().unwrap().snapshot_token
+        );
+        assert!(service.list_work_items(None).unwrap().is_empty());
+        assert!(service.list_decisions().unwrap().is_empty());
+        assert!(service.list_evidence().unwrap().is_empty());
+        assert!(service.graph().unwrap().nodes.len() >= 1);
+        assert!(!service
+            .analyze(AnalysisQuery::default())
+            .unwrap()
+            .findings
+            .is_empty());
+        let _ = service.validate_repository().unwrap();
+        assert_eq!(construction_count, runner.count());
+        assert!(runner.max_concurrency() <= 1);
+        eprintln!(
+            "desktop read fanout git_invocations={} max_concurrency={}",
+            runner.count(),
+            runner.max_concurrency()
+        );
+    }
+
+    #[test]
+    fn refresh_replaces_generation_and_suppresses_unchanged_watcher_tokens() {
+        let dir = tempdir().unwrap();
+        let runner = repopact_repository::CountingGitRunner::native();
+        let service = DesktopService::new();
+        let first = service
+            .open_repository_with_git_runner(dir.path(), runner.clone())
+            .unwrap();
+        let refreshed = service.refresh_repository().unwrap();
+        assert!(refreshed.generation > first.generation);
+        assert!(runner.count() <= 8);
+        assert!(service.poll_repository_events().unwrap().is_empty());
+    }
+
+    #[test]
+    fn watcher_burst_has_one_bounded_refresh_and_ignores_build_churn() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        let item = dir.path().join("work/active/001-burst");
+        fs::create_dir_all(&item).unwrap();
+        fs::write(
+            item.join("work-item.json"),
+            r#"{"id":"001","title":"initial"}"#,
+        )
+        .unwrap();
+        let runner = repopact_repository::CountingGitRunner::native();
+        let service = DesktopService::new();
+        service
+            .open_repository_with_git_runner(dir.path(), runner.clone())
+            .unwrap();
+        let baseline = runner.count();
+        for title in ["first", "second", "third", "final"] {
+            fs::write(
+                item.join("work-item.json"),
+                format!(r#"{{"id":"001","title":"{title}"}}"#),
+            )
+            .unwrap();
+        }
+        fs::create_dir_all(dir.path().join("target/debug")).unwrap();
+        for number in 0..8 {
+            fs::write(
+                dir.path()
+                    .join(format!("target/debug/generated-{number}.txt")),
+                "ignored",
+            )
+            .unwrap();
+        }
+        for _ in 0..8 {
+            let state = service.lock().unwrap();
+            state
+                .active
+                .as_ref()
+                .and_then(|active| active.watcher.as_ref())
+                .expect("test repository watcher should be available")
+                .inject_for_test(&["work/active/001-burst/work-item.json"]);
+        }
+        let mut events = Vec::new();
+        for _ in 0..20 {
+            std::thread::sleep(Duration::from_millis(80));
+            events.extend(service.poll_repository_events().unwrap());
+            if !events.is_empty() {
+                break;
+            }
+        }
+        assert_eq!(events.len(), 1, "one governed burst should publish once");
+        assert!(runner.count() - baseline <= 4);
+        assert!(runner.max_concurrency() <= 1);
+        std::thread::sleep(Duration::from_millis(180));
+        assert!(service.poll_repository_events().unwrap().is_empty());
     }
 
     #[test]
@@ -1051,5 +1406,17 @@ mod tests {
         assert!(detail.readable);
         assert!(detail.text.is_some());
         assert!(service.get_decision("C:/not-indexed.json").is_err());
+    }
+
+    #[test]
+    fn desktop_boundary_has_no_generic_process_authority() {
+        let source = include_str!("lib.rs");
+        let production = source
+            .split("#[cfg(test)]\nmod tests")
+            .next()
+            .expect("desktop test module marker should be present");
+        assert!(!production.contains("std::process"));
+        assert!(!production.contains("Command::new"));
+        assert!(!production.contains("shell = true"));
     }
 }

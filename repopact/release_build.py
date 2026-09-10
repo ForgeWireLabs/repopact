@@ -35,15 +35,29 @@ class ReleaseBuildError(RuntimeError):
     """Raised when a release artifact is dirty, ambiguous, or structurally wrong."""
 
 
-def _run(command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> str:
-    result = subprocess.run(
-        command,
-        cwd=cwd,
-        env=env,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+def _run(
+    command: list[str], *, cwd: Path, env: dict[str, str] | None = None,
+    timeout: float | None = None,
+) -> str:
+    run_env = env
+    if command and command[0].lower() == "git":
+        run_env = dict(os.environ) if env is None else dict(env)
+        run_env["GIT_TERMINAL_PROMPT"] = "0"
+        run_env["GIT_OPTIONAL_LOCKS"] = "0"
+    try:
+        result = subprocess.run(
+            command,
+            cwd=cwd,
+            env=run_env,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ReleaseBuildError(
+            f"command timed out after {timeout}s ({' '.join(command)})"
+        ) from exc
     if result.returncode != 0:
         output = (result.stdout + result.stderr).strip()
         raise ReleaseBuildError(f"command failed ({' '.join(command)}): {output}")
@@ -163,7 +177,7 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     output.mkdir()
     version = (source / "VERSION").read_text(encoding="utf-8").strip()
     artifact_version = package_version(source)
-    epoch = _run(["git", "show", "-s", "--format=%ct", revision], cwd=root)
+    epoch = _run(["git", "show", "-s", "--format=%ct", revision], cwd=root, timeout=5)
     env = os.environ.copy()
     env["SOURCE_DATE_EPOCH"] = epoch
     env["PYTHONHASHSEED"] = "0"
@@ -192,10 +206,12 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
 def build_release(root: Path, outdir: Path, revision: str = "HEAD") -> dict[str, Any]:
     root = root.resolve()
     outdir = outdir.resolve()
-    dirty = _run(["git", "status", "--porcelain", "--untracked-files=all"], cwd=root)
+    dirty = _run(
+        ["git", "status", "--porcelain", "--untracked-files=all"], cwd=root, timeout=5
+    )
     if dirty:
         raise ReleaseBuildError("release build requires a clean Git worktree")
-    commit = _run(["git", "rev-parse", f"{revision}^{{commit}}"], cwd=root)
+    commit = _run(["git", "rev-parse", f"{revision}^{{commit}}"], cwd=root, timeout=5)
     if outdir.exists() and any(outdir.iterdir()):
         raise ReleaseBuildError(f"release output directory is not empty: {outdir}")
     outdir.mkdir(parents=True, exist_ok=True)

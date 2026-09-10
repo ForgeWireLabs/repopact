@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import os
 import re
 import subprocess
 import sys
@@ -57,8 +58,16 @@ def diff_text(root: Path, base: str) -> str | None:
 
 def _git(root: Path, args: list[str]) -> list[str] | None:
     try:
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True)
-    except (OSError, subprocess.CalledProcessError):
+        result = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
     return [line for line in result.stdout.splitlines()]
 

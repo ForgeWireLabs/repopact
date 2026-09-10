@@ -1,13 +1,16 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::sync::Arc;
 
 use repopact_types::{
     hex_digest, PathState, ReadFact, ReadSet, RecordKind, RecordRef, RepositoryIdentity, WorkItem,
 };
 use serde_json::Value;
 use sha2::{Digest, Sha256};
+
+pub mod git;
+pub use git::{CountingGitRunner, GitError, GitInvocation, GitOutput, GitRunner, NativeGitRunner};
 
 pub const STATUSES: [&str; 5] = ["proposed", "active", "blocked", "deferred", "completed"];
 pub const IGNORED_PARTS: [&str; 9] = [
@@ -25,6 +28,98 @@ pub const IGNORED_PARTS: [&str; 9] = [
 #[derive(Debug, Clone)]
 pub struct Repository {
     root: PathBuf,
+    git_runner: Arc<dyn GitRunner>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RepositoryTopology {
+    common_dir: Option<PathBuf>,
+    linked_worktree_roots: BTreeSet<PathBuf>,
+    tracked_paths: Option<BTreeSet<String>>,
+    recording_commits: BTreeMap<String, (i64, String)>,
+}
+
+impl RepositoryTopology {
+    fn build(repository: &Repository) -> Self {
+        let common_dir = git_common_dir(&repository.root, repository.git_runner.as_ref());
+        let mut linked_worktree_roots =
+            registered_worktree_roots(&repository.root, repository.git_runner.as_ref());
+        if let Some(worktrees_dir) = common_dir.as_ref().map(|path| path.join("worktrees")) {
+            walk_for_linked_worktrees(
+                &repository.root,
+                &repository.root,
+                &worktrees_dir,
+                &mut linked_worktree_roots,
+            );
+        }
+        let tracked_paths = repository
+            .root
+            .join(".git")
+            .exists()
+            .then(|| {
+                repository
+                    .git_runner
+                    .run(&repository.root, &["ls-files", "--cached"], "tracked-paths")
+                    .ok()
+                    .filter(|output| output.status.success())
+                    .map(|output| {
+                        String::from_utf8_lossy(&output.stdout)
+                            .lines()
+                            .filter(|path| !path.is_empty())
+                            .map(str::to_owned)
+                            .collect()
+                    })
+            })
+            .flatten();
+        let recording_commits = repository
+            .root
+            .join(".git")
+            .exists()
+            .then(|| {
+                repository
+                    .git_runner
+                    .run(
+                        &repository.root,
+                        &[
+                            "log",
+                            "--diff-filter=A",
+                            "--format=__REPOPACT_COMMIT__%ct %H",
+                            "--reverse",
+                            "--name-only",
+                            "--",
+                            "evidence/runs",
+                        ],
+                        "evidence-recording-commits",
+                    )
+                    .ok()
+                    .filter(|output| output.status.success())
+                    .map(|output| parse_recording_commits(&output.stdout))
+            })
+            .flatten()
+            .unwrap_or_default();
+        Self {
+            common_dir,
+            linked_worktree_roots,
+            tracked_paths,
+            recording_commits,
+        }
+    }
+
+    pub fn common_dir(&self) -> Option<&Path> {
+        self.common_dir.as_deref()
+    }
+
+    pub fn linked_worktree_roots(&self) -> &BTreeSet<PathBuf> {
+        &self.linked_worktree_roots
+    }
+
+    pub fn tracked_paths(&self) -> Option<&BTreeSet<String>> {
+        self.tracked_paths.as_ref()
+    }
+
+    pub fn recording_commit(&self, path: &str) -> Option<&(i64, String)> {
+        self.recording_commits.get(path)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -63,11 +158,19 @@ pub struct RecordIndex {
     pub audit_findings: Vec<IndexedRecord>,
     pub dashboard: Option<IndexedRecord>,
     pub source_paths: Vec<PathBuf>,
+    pub work_directories: Vec<PathBuf>,
+    pub text_files: BTreeMap<PathBuf, String>,
 }
 
 impl RecordIndex {
     pub fn build(repository: &Repository) -> Self {
+        let topology = repository.topology();
+        Self::build_with_topology(repository, &topology)
+    }
+
+    pub fn build_with_topology(repository: &Repository, topology: &RepositoryTopology) -> Self {
         let mut index = Self::default();
+        index.work_directories = repository.discover_work_directories();
         for record in repository.discover_work_items() {
             let id = record
                 .value
@@ -91,7 +194,7 @@ impl RecordIndex {
                 record.path.clone(),
                 record.value,
             ));
-            index.add_directory_files(&record.directory);
+            index.add_directory_files(repository, &record.directory, topology);
         }
         for record in repository.discover_evidence() {
             let id = record
@@ -121,7 +224,7 @@ impl RecordIndex {
         index.policies =
             discover_markdown_records(repository, "governance/policies", RecordKind::Policy);
         index.contracts = repository
-            .iter_contracts()
+            .iter_contracts_with_topology(topology)
             .into_iter()
             .map(|path| {
                 let id = repository.relative_path(&path);
@@ -155,6 +258,7 @@ impl RecordIndex {
         for path in [
             "AGENTS.md",
             "repopact/AGENTS.md",
+            "README.md",
             "VERSION",
             "RELEASE_LABEL",
             "scripts/REPOPACT_VERSION",
@@ -174,7 +278,7 @@ impl RecordIndex {
                 record
                     .path
                     .parent()
-                    .map(|directory| repository.files_under(directory))
+                    .map(|directory| repository.files_under_with_topology(directory, topology))
                     .unwrap_or_default()
             }));
         index
@@ -211,6 +315,18 @@ impl RecordIndex {
             .source_paths
             .sort_by(|left, right| path_string(left).cmp(&path_string(right)));
         index.source_paths.dedup();
+        index.text_files = index
+            .source_paths
+            .iter()
+            .filter_map(|path| Some((path.clone(), fs::read_to_string(path).ok()?)))
+            .collect();
+        for directory in &index.work_directories {
+            for path in repository.files_under_with_topology(directory, topology) {
+                if let Ok(text) = fs::read_to_string(&path) {
+                    index.text_files.entry(path).or_insert(text);
+                }
+            }
+        }
         index
     }
 
@@ -224,6 +340,10 @@ impl RecordIndex {
         self.work_item(id)
             .and_then(|record| record.value.clone().ok())
             .and_then(|value| serde_json::from_value(value).ok())
+    }
+
+    pub fn text(&self, path: &Path) -> Option<&str> {
+        self.text_files.get(path).map(String::as_str)
     }
 
     pub fn read_set(&self, repository: &Repository) -> ReadSet {
@@ -257,8 +377,14 @@ impl RecordIndex {
             .then(|| IndexedRecord::text(RecordRef::new(kind, relative, relative), path))
     }
 
-    fn add_directory_files(&mut self, directory: &Path) {
-        self.source_paths.extend(walk_files(directory));
+    fn add_directory_files(
+        &mut self,
+        repository: &Repository,
+        directory: &Path,
+        topology: &RepositoryTopology,
+    ) {
+        self.source_paths
+            .extend(repository.files_under_with_topology(directory, topology));
     }
 }
 
@@ -300,6 +426,7 @@ pub struct RepositorySession {
 #[derive(Debug, Clone)]
 pub struct RepositorySnapshot {
     repository: Repository,
+    topology: RepositoryTopology,
     index: RecordIndex,
     read_set: ReadSet,
 }
@@ -311,15 +438,23 @@ impl RepositorySession {
         }
     }
 
+    pub fn with_git_runner(root: impl AsRef<Path>, git_runner: Arc<dyn GitRunner>) -> Self {
+        Self {
+            repository: Repository::with_git_runner(root, git_runner),
+        }
+    }
+
     pub fn repository(&self) -> &Repository {
         &self.repository
     }
 
     pub fn snapshot(&self) -> RepositorySnapshot {
-        let index = RecordIndex::build(&self.repository);
+        let topology = self.repository.topology();
+        let index = RecordIndex::build_with_topology(&self.repository, &topology);
         let read_set = index.read_set(&self.repository);
         RepositorySnapshot {
             repository: self.repository.clone(),
+            topology,
             index,
             read_set,
         }
@@ -333,11 +468,14 @@ impl RepositorySnapshot {
     pub fn index(&self) -> &RecordIndex {
         &self.index
     }
+    pub fn topology(&self) -> &RepositoryTopology {
+        &self.topology
+    }
     pub fn read_set(&self) -> &ReadSet {
         &self.read_set
     }
     pub fn identity(&self) -> RepositoryIdentity {
-        self.repository.identity()
+        self.repository.identity_from_topology(&self.topology)
     }
     pub fn token(&self) -> String {
         self.read_set.token(&self.identity())
@@ -346,8 +484,13 @@ impl RepositorySnapshot {
 
 impl Repository {
     pub fn open(root: impl AsRef<Path>) -> Self {
+        Self::with_git_runner(root, Arc::new(NativeGitRunner::default()))
+    }
+
+    pub fn with_git_runner(root: impl AsRef<Path>, git_runner: Arc<dyn GitRunner>) -> Self {
         Self {
             root: normalize_path(root.as_ref()),
+            git_runner,
         }
     }
 
@@ -365,14 +508,31 @@ impl Repository {
     }
 
     pub fn identity(&self) -> RepositoryIdentity {
-        let common = git_common_dir(&self.root);
-        let linked_root = linked_worktree_root(&self.root, common.as_deref());
+        let topology = self.topology();
+        self.identity_from_topology(&topology)
+    }
+
+    pub fn identity_from_topology(&self, topology: &RepositoryTopology) -> RepositoryIdentity {
+        let common = topology.common_dir();
+        let linked_root = linked_worktree_root(&self.root, common);
         RepositoryIdentity {
             root: path_string(&self.root),
-            git_common_dir: common.as_deref().map(path_string),
+            git_common_dir: common.map(path_string),
             git_worktree_root: linked_root.as_deref().map(path_string),
             linked_worktree: linked_root.is_some(),
         }
+    }
+
+    pub fn topology(&self) -> RepositoryTopology {
+        RepositoryTopology::build(self)
+    }
+
+    pub fn git_runner(&self) -> &Arc<dyn GitRunner> {
+        &self.git_runner
+    }
+
+    pub fn git_query(&self, args: &[&str], label: &str) -> Result<GitOutput, GitError> {
+        self.git_runner.run(&self.root, args, label)
     }
 
     pub fn discover_work_items(&self) -> Vec<WorkItemFile> {
@@ -395,6 +555,29 @@ impl Repository {
             }
         }
         files
+    }
+
+    pub fn discover_work_directories(&self) -> Vec<PathBuf> {
+        let work = self.root.join("work");
+        let Ok(children) = sorted_directories(&work) else {
+            return Vec::new();
+        };
+        let mut directories = Vec::new();
+        for child in children {
+            let name = child
+                .file_name()
+                .and_then(|value| value.to_str())
+                .unwrap_or("");
+            if name.starts_with('.') || name.starts_with('_') {
+                continue;
+            }
+            if STATUSES.contains(&name) {
+                directories.extend(sorted_directories(&child).unwrap_or_default());
+            } else {
+                directories.push(child);
+            }
+        }
+        directories
     }
 
     pub fn discover_evidence(&self) -> Vec<EvidenceFile> {
@@ -420,10 +603,14 @@ impl Repository {
     }
 
     pub fn iter_contracts(&self) -> Vec<PathBuf> {
+        let topology = self.topology();
+        self.iter_contracts_with_topology(&topology)
+    }
+
+    pub fn iter_contracts_with_topology(&self, topology: &RepositoryTopology) -> Vec<PathBuf> {
         let root = &self.root;
-        let linked = discover_embedded_worktree_roots(root);
         let mut contracts = Vec::new();
-        walk_contracts(root, root, &linked, &mut contracts);
+        walk_contracts(root, root, topology.linked_worktree_roots(), &mut contracts);
         contracts.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
         contracts
     }
@@ -439,11 +626,11 @@ impl Repository {
     }
 
     pub fn registered_worktree_roots(&self) -> BTreeSet<PathBuf> {
-        registered_worktree_roots(&self.root)
+        registered_worktree_roots(&self.root, self.git_runner.as_ref())
     }
 
     pub fn discover_embedded_worktree_roots(&self) -> BTreeSet<PathBuf> {
-        discover_embedded_worktree_roots(&self.root)
+        discover_embedded_worktree_roots_with_runner(&self.root, self.git_runner.as_ref())
     }
 
     pub fn session(&self) -> RepositorySession {
@@ -453,10 +640,23 @@ impl Repository {
     }
 
     pub fn files_under(&self, path: &Path) -> Vec<PathBuf> {
+        let topology = self.topology();
+        self.files_under_with_topology(path, &topology)
+    }
+
+    pub fn files_under_with_topology(
+        &self,
+        path: &Path,
+        topology: &RepositoryTopology,
+    ) -> Vec<PathBuf> {
         let path = normalize_path(path);
-        let linked = discover_embedded_worktree_roots(&self.root);
         let mut files = Vec::new();
-        walk_files_inner(&self.root, &path, &linked, &mut files);
+        walk_files_inner(
+            &self.root,
+            &path,
+            topology.linked_worktree_roots(),
+            &mut files,
+        );
         files.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
         files
     }
@@ -521,6 +721,28 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 
 pub fn path_string(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
+}
+
+fn parse_recording_commits(bytes: &[u8]) -> BTreeMap<String, (i64, String)> {
+    let mut commits = BTreeMap::new();
+    let mut current = None;
+    for line in String::from_utf8_lossy(bytes).lines() {
+        if let Some(value) = line.strip_prefix("__REPOPACT_COMMIT__") {
+            let mut parts = value.split_whitespace();
+            current = Some((
+                parts
+                    .next()
+                    .and_then(|value| value.parse().ok())
+                    .unwrap_or(0),
+                parts.next().unwrap_or_default().to_owned(),
+            ));
+        } else if line.starts_with("evidence/runs/") {
+            if let Some(commit) = current.clone() {
+                commits.entry(line.to_owned()).or_insert(commit);
+            }
+        }
+    }
+    commits
 }
 
 fn read_json(path: &Path) -> Result<Value, String> {
@@ -824,7 +1046,7 @@ fn gitdir_from_entry(entry: &Path) -> Option<PathBuf> {
     Some(normalize_path(&target))
 }
 
-fn git_common_dir(root: &Path) -> Option<PathBuf> {
+fn git_common_dir(root: &Path, runner: &dyn GitRunner) -> Option<PathBuf> {
     let entry = root.join(".git");
     if let Some(direct) = gitdir_from_entry(&entry) {
         if direct
@@ -839,9 +1061,8 @@ fn git_common_dir(root: &Path) -> Option<PathBuf> {
     if !entry.exists() {
         return None;
     }
-    let output = Command::new("git")
-        .args(["-C", &path_string(root), "rev-parse", "--git-common-dir"])
-        .output()
+    let output = runner
+        .run(root, &["rev-parse", "--git-common-dir"], "git-common-dir")
         .ok()?;
     if !output.status.success() {
         return None;
@@ -865,14 +1086,11 @@ fn linked_worktree_root(root: &Path, common: Option<&Path>) -> Option<PathBuf> {
     is_descendant(&direct, &worktrees).then_some(root.to_path_buf())
 }
 
-fn registered_worktree_roots(root: &Path) -> BTreeSet<PathBuf> {
+fn registered_worktree_roots(root: &Path, runner: &dyn GitRunner) -> BTreeSet<PathBuf> {
     if !root.join(".git").exists() {
         return BTreeSet::new();
     }
-    let Ok(output) = Command::new("git")
-        .args(["-C", &path_string(root), "worktree", "list", "--porcelain"])
-        .output()
-    else {
+    let Ok(output) = runner.run(root, &["worktree", "list", "--porcelain"], "worktree-list") else {
         return BTreeSet::new();
     };
     if !output.status.success() {
@@ -896,12 +1114,20 @@ fn registered_worktree_roots(root: &Path) -> BTreeSet<PathBuf> {
 }
 
 pub fn discover_embedded_worktree_roots(root: &Path) -> BTreeSet<PathBuf> {
+    let repository = Repository::open(root);
+    discover_embedded_worktree_roots_with_runner(&repository.root, repository.git_runner.as_ref())
+}
+
+fn discover_embedded_worktree_roots_with_runner(
+    root: &Path,
+    runner: &dyn GitRunner,
+) -> BTreeSet<PathBuf> {
     let root = normalize_path(root);
     if !root.join(".git").exists() {
         return BTreeSet::new();
     }
-    let mut linked = registered_worktree_roots(&root);
-    let common = git_common_dir(&root);
+    let mut linked = registered_worktree_roots(&root, runner);
+    let common = git_common_dir(&root, runner);
     let worktrees_dir = common.map(|path| path.join("worktrees"));
     let Some(worktrees_dir) = worktrees_dir else {
         return linked;
@@ -994,6 +1220,7 @@ fn ignored_part(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn temp_root(name: &str) -> PathBuf {
@@ -1004,6 +1231,57 @@ mod tests {
         let root = std::env::temp_dir().join(format!("repopact-rust-{name}-{suffix}"));
         fs::create_dir_all(&root).unwrap();
         root
+    }
+
+    #[test]
+    fn snapshot_git_invocation_count_is_bounded_independent_of_work_items() {
+        let root = temp_root("git-fanout-baseline");
+        let git = |args: &[&str]| {
+            Command::new("git")
+                .args(args)
+                .current_dir(&root)
+                .output()
+                .expect("git is required for the deterministic count fixture")
+        };
+        assert!(git(&["init", "-q"]).status.success());
+        fs::create_dir_all(root.join("work/active")).unwrap();
+        for count in [1usize, 10, 50, 100] {
+            for entry in fs::read_dir(root.join("work/active")).unwrap().flatten() {
+                fs::remove_dir_all(entry.path()).unwrap();
+            }
+            for number in 0..count {
+                let directory = root.join(format!("work/active/{number:03}-item"));
+                fs::create_dir_all(&directory).unwrap();
+                fs::write(directory.join("work-item.json"), "{}").unwrap();
+            }
+            let runner = CountingGitRunner::native();
+            let repository = Repository::with_git_runner(&root, runner.clone());
+            let _ = repository.session().snapshot();
+            eprintln!(
+                "optimized work_items={count} git_invocations={}",
+                runner.count()
+            );
+            assert!(
+                runner.count() <= 4,
+                "snapshot Git count grew for {count} work items"
+            );
+        }
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn production_git_spawning_is_centralized_in_the_approved_helper() {
+        let source = include_str!("lib.rs");
+        let production = source
+            .split("#[cfg(test)]\nmod tests")
+            .next()
+            .expect("repository test module marker should be present");
+        assert!(!production.contains("Command::new(\"git\")"));
+        let validation = include_str!("../../repopact-validation/src/lib.rs");
+        assert!(!validation.contains("Command::new(\"git\")"));
+        let helper = include_str!("git.rs");
+        assert!(helper.contains("GIT_TERMINAL_PROMPT"));
+        assert!(helper.contains("wait_bounded"));
     }
 
     #[test]

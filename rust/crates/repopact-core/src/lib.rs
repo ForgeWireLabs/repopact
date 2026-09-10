@@ -14,36 +14,74 @@ pub struct RepoPactCore {
 
 impl RepoPactCore {
     pub fn open(root: impl AsRef<Path>) -> Self {
+        Self::open_repository(Repository::open(root))
+    }
+
+    pub fn open_repository(repository: Repository) -> Self {
         Self {
-            session: Repository::open(root).session(),
+            session: repository.session(),
         }
+    }
+
+    pub fn repository(&self) -> &Repository {
+        self.session.repository()
     }
 
     pub fn identity(&self) -> RepositoryIdentity {
         self.session.repository().identity()
     }
 
+    /// Build one fresh immutable generation. Desktop/session consumers should
+    /// retain this snapshot and use the `*_snapshot` projections below.
     pub fn snapshot(&self) -> RepositorySnapshot {
         self.session.snapshot()
     }
 
+    /// Fresh-snapshot convenience for isolated callers.
     pub fn validate(&self) -> ValidationReport {
         let snapshot = self.snapshot();
-        repopact_validation::validate_snapshot(&snapshot)
+        self.validate_snapshot(&snapshot)
     }
 
+    pub fn validate_snapshot(&self, snapshot: &RepositorySnapshot) -> ValidationReport {
+        repopact_validation::validate_snapshot(snapshot)
+    }
+
+    /// Fresh-snapshot convenience for isolated callers.
     pub fn graph(&self) -> RepositoryGraph {
-        build(&self.snapshot())
+        self.graph_snapshot(&self.snapshot())
     }
 
+    pub fn graph_snapshot(&self, snapshot: &RepositorySnapshot) -> RepositoryGraph {
+        build(snapshot)
+    }
+
+    /// Fresh-snapshot convenience for isolated callers.
     pub fn analyze(&self, query: &AnalysisQuery) -> AnalysisReport {
         let snapshot = self.snapshot();
-        analyze(&snapshot, query)
+        self.analyze_snapshot(&snapshot, query)
     }
 
+    pub fn analyze_snapshot(
+        &self,
+        snapshot: &RepositorySnapshot,
+        query: &AnalysisQuery,
+    ) -> AnalysisReport {
+        analyze(snapshot, query)
+    }
+
+    /// Fresh-snapshot convenience for isolated callers.
     pub fn plan_mutation(&self, request: MutationRequest) -> MutationPlan {
         let snapshot = self.snapshot();
-        plan(&snapshot, request)
+        self.plan_mutation_snapshot(&snapshot, request)
+    }
+
+    pub fn plan_mutation_snapshot(
+        &self,
+        snapshot: &RepositorySnapshot,
+        request: MutationRequest,
+    ) -> MutationPlan {
+        plan(snapshot, request)
     }
 
     pub fn apply_mutation(&self, mutation: &MutationPlan) -> MutationResult {

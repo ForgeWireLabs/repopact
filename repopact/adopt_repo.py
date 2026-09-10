@@ -17,6 +17,7 @@ plan without touching the tree. The result is validated before it returns.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 import sys
@@ -124,9 +125,9 @@ def find_nested_contracts(root: Path) -> list[Path]:
 def git_stats(root: Path) -> dict[str, object]:
     def run(args: list[str]) -> str | None:
         try:
-            r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True)
+            r = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=True, timeout=5, env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"})
             return r.stdout.strip()
-        except (OSError, subprocess.CalledProcessError):
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             return None
     commits = run(["rev-list", "--count", "HEAD"])
     head = run(["rev-parse", "--short", "HEAD"])
@@ -152,8 +153,10 @@ def gitignored_records(root: Path, rels: list[str]) -> list[str]:
         return []
     try:
         result = subprocess.run(["git", "check-ignore", "--stdin"], cwd=root,
-                                input="\n".join(rels), capture_output=True, text=True)
-    except OSError:
+                                input="\n".join(rels), capture_output=True, text=True,
+                                timeout=5,
+                                env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"})
+    except (OSError, subprocess.TimeoutExpired):
         return []
     if result.returncode not in (0, 1):  # 0 = some ignored, 1 = none ignored
         return []

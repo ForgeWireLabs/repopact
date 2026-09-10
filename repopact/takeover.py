@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import posixpath
 import re
 import shutil
@@ -45,8 +46,11 @@ from . import validate_repo
 def _git(root: Path, args: list[str]) -> str | None:
     """Run a git command in ``root``; return stdout, or None on any failure."""
     try:
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
-    except OSError:
+        result = subprocess.run(
+            ["git", *args], cwd=root, capture_output=True, text=True, timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
+        )
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if result.returncode != 0:
         return None

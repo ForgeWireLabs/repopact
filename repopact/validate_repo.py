@@ -4,6 +4,7 @@ import argparse
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -179,6 +180,8 @@ def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
         text=True,
         capture_output=True,
         check=False,
+        timeout=5,
+        env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
     )
 
 
@@ -397,6 +400,8 @@ def discover_tracked_paths(root: Path) -> list[str] | None:
             text=True,
             capture_output=True,
             check=False,
+            timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
         )
         if probe.returncode != 0 or probe.stdout.strip() != "true":
             return None
@@ -406,8 +411,10 @@ def discover_tracked_paths(root: Path) -> list[str] | None:
             text=True,
             capture_output=True,
             check=False,
+            timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     if result.returncode != 0:
         return None
@@ -843,6 +850,7 @@ def _evidence_recording_commit(root: Path, path: Path) -> tuple[datetime, str] |
             capture_output=True,
             text=True,
             timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "GIT_OPTIONAL_LOCKS": "0"},
         )
     except (OSError, subprocess.SubprocessError):
         return None

@@ -9,7 +9,10 @@ const result = spawnSync(
   ["run", "--manifest-path", join(packageRoot, "..", "..", "Cargo.toml"), "-p", "repopact-desktop-api", "--bin", "generate-types", "--", join(packageRoot, "src", "generated", "types.ts")],
   {
     cwd: packageRoot,
-    env: { ...process.env, CARGO_TARGET_DIR: join(tmpdir(), "repopact-rust-target-055") },
+    env: {
+      ...process.env,
+      CARGO_TARGET_DIR: process.env.CARGO_TARGET_DIR ?? join(tmpdir(), "repopact-rust-target"),
+    },
     stdio: "inherit",
   },
 );

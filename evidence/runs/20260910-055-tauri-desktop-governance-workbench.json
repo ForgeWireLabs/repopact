@@ -1,0 +1,234 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-055-tauri-desktop-governance-workbench",
+  "timestamp": "2026-09-10T06:16:09Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "055",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Editable Python installation passed before desktop implementation."
+    },
+    {
+      "command": "python -m repopact.validate_repo",
+      "exit_code": 0,
+      "summary": "Python repository validation remained green at the WI055 baseline."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "205 tests passed in 468.662 seconds; the 2 existing formal-model tests remained skipped."
+    },
+    {
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check",
+      "exit_code": 0,
+      "summary": "All Rust workspace formatting checks passed."
+    },
+    {
+      "command": "cargo check --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "Existing Rust crates, repopact-desktop-api, and the Tauri transport compiled with target output outside the checkout."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace --quiet",
+      "exit_code": 0,
+      "summary": "All Rust workspace tests passed, including desktop adapter tests and the WI054 graph/analysis/mutation regression suites."
+    },
+    {
+      "command": "python -m repopact.run_conformance --command \"<rust-validator> validate --root {repo}\"",
+      "exit_code": 0,
+      "summary": "The existing Python-driven alternate-implementation runner passed 20/20 legacy cases and 8/8 WI050 admission vectors."
+    },
+    {
+      "command": "python -m unittest tests.test_validate_repo.RepositoryValidationTests.test_nonconventional_linked_worktree_is_structurally_excluded tests.test_validate_repo.RepositoryValidationTests.test_stale_linked_worktree_git_file_is_excluded_without_git_registry tests.test_takeover_refs -v",
+      "exit_code": 0,
+      "summary": "Focused linked-worktree and record-relative reference parity passed 9/9 tests."
+    },
+    {
+      "command": "npm ci --ignore-scripts",
+      "exit_code": 0,
+      "summary": "The deterministic frontend lockfile installed with zero reported vulnerabilities."
+    },
+    {
+      "command": "npm run types:check",
+      "exit_code": 0,
+      "summary": "Rust-owned generated TypeScript bindings were regenerated and had no tracked drift."
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "summary": "TypeScript checking passed."
+    },
+    {
+      "command": "npm test -- --run",
+      "exit_code": 0,
+      "summary": "Three frontend test files and five tests passed, including accessibility and boundary/security assertions; jsdom emitted only its expected canvas-not-implemented warning from axe."
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "summary": "Production Vite build passed."
+    },
+    {
+      "command": "npm run tauri -- --version; npm run tauri -- info",
+      "exit_code": 0,
+      "summary": "Tauri CLI 2.11.4 and the Windows Tauri 2.11.5 toolchain were inspected."
+    },
+    {
+      "command": "npm run tauri -- dev",
+      "exit_code": 1,
+      "summary": "The local Tauri dev app launched with a responding RepoPact Workbench window; the operator stopped the dev process with Ctrl+C, producing the expected STATUS_CONTROL_C_EXIT shell status."
+    },
+    {
+      "command": "npm run tauri -- build --debug --no-bundle",
+      "exit_code": 0,
+      "summary": "Windows debug desktop executable built successfully."
+    },
+    {
+      "command": "npm run tauri -- build",
+      "exit_code": 0,
+      "summary": "Windows release executable and NSIS/MSI bundles built successfully with CARGO_TARGET_DIR outside the checkout."
+    },
+    {
+      "command": "cargo run --manifest-path rust/Cargo.toml -p repopact-desktop-api --bin desktop-smoke -- <scratch-repo>",
+      "exit_code": 0,
+      "summary": "Desktop adapter smoke passed valid snapshot, native typed create/edit/transition plan/apply, external watcher refresh, stale-plan rejection, and stale-session rejection."
+    },
+    {
+      "command": "python -m repopact.validate_repo --root <scratch-repo>; repopact-cli.exe validate --root <scratch-repo>",
+      "exit_code": 0,
+      "summary": "The final scratch adopted repository validated with both Python and Rust validators."
+    },
+    {
+      "command": "python -m repopact.check_frozen_surface --base e4c48c0fdfe1459425620dd035d3ab98b434eb03",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected; .github/workflows/** remained untouched."
+    }
+  ],
+  "artifacts": [
+    "rust/Cargo.toml",
+    "rust/Cargo.lock",
+    "rust/crates/repopact-desktop-api",
+    "rust/apps/repopact-desktop/package.json",
+    "rust/apps/repopact-desktop/package-lock.json",
+    "rust/apps/repopact-desktop/src",
+    "rust/apps/repopact-desktop/src-tauri",
+    "rust/apps/repopact-desktop/dist",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows 10.0.26200 x64",
+    "webview2": "152.0.4191.66",
+    "python": "3.13.15",
+    "rust": "rustc 1.98.0 (88d9e12ae 2026-08-18)",
+    "node": "24.19.0",
+    "npm": "11.17.0",
+    "base_commit": "e4c48c0fdfe1459425620dd035d3ab98b434eb03",
+    "cargo_target": "outside checkout: %TEMP%/repopact-rust-target-055"
+  },
+  "python_baseline": {
+    "editable_install": "passed",
+    "repository_validation": "passed",
+    "tests": "205 passed, 2 skipped",
+    "legacy_conformance": "20/20",
+    "wi050_admission_corpus": "8/8",
+    "python_changes": "none; Python remains the reference implementation and conformance driver"
+  },
+  "desktop": {
+    "rust_crates": [
+      "repopact-desktop-api",
+      "repopact-desktop (Tauri transport)"
+    ],
+    "frontend": [
+      "React 19.3.0",
+      "React DOM 19.3.0",
+      "TypeScript 7.0.2",
+      "Vite 8.2.2",
+      "Vitest 5.0.0",
+      "@tauri-apps/api 2.11.1"
+    ],
+    "tauri": [
+      "tauri 2.11.5",
+      "tauri-build 2.6.3 resolved from manifest compatibility",
+      "tauri-plugin-dialog 2.7.3",
+      "Tauri CLI 2.11.4"
+    ],
+    "layout": "rust/crates/repopact-desktop-api plus rust/apps/repopact-desktop/{src,src-tauri}; reusable governance crates remain Tauri-free.",
+    "commands": [
+      "select_repository",
+      "close_repository",
+      "repository_overview",
+      "refresh_repository",
+      "validate_repository",
+      "list_work_items",
+      "get_work_item",
+      "list_decisions",
+      "get_decision",
+      "list_evidence",
+      "get_evidence",
+      "relationship_graph",
+      "analyze_work_item",
+      "plan_mutation",
+      "apply_mutation_plan",
+      "discard_mutation_plan",
+      "poll_repository_events"
+    ],
+    "capability": "main-window",
+    "custom_permission": "workbench-commands",
+    "event_permissions": ["core:event:allow-listen", "core:event:allow-unlisten"],
+    "frontend_authority": "No frontend fs/shell/process/remote-origin/arbitrary-path authority. tauri-plugin-fs is only a transitive Rust dependency of the dialog plugin and is not initialized or capability-authorized for the webview."
+  },
+  "dto_generation": {
+    "owner": "Rust repopact-desktop-api/src/bin/generate-types.rs",
+    "output": "rust/apps/repopact-desktop/src/generated/types.ts",
+    "check": "npm run types:check",
+    "result": "passed; lifecycle values and DTO wire shapes are generated from Rust source"
+  },
+  "session_and_plans": {
+    "session": "One native active repository; session-N generation/id; switch tears down watcher and clears plans; stale session ids reject commands.",
+    "registry": "Bounded in-memory registry of 32 opaque plan handles; stored entry retains the original Rust MutationPlan, session binding, and MutationPlanView.",
+    "apply": "apply_mutation_plan accepts session id plus opaque handle only, rechecks WI054 content-addressed read-set preconditions, consumes successful/terminal handles, and never accepts frontend file operations or a round-tripped raw plan.",
+    "persistence": "No repository-local transaction database, hidden journal, or persistent plan state."
+  },
+  "watcher": {
+    "implementation": "notify 8.2.0 RecommendedWatcher below the webview",
+    "behavior": "Recursive normalized repository-relative paths, ignored-directory filtering, access-event filtering, 120ms debounce/coalescing, bounded full snapshot refresh, typed event polling/emission, external/self-apply origin classification, and session shutdown/switch cleanup.",
+    "result": "External refresh and self-apply convergence passed in desktop smoke; invalid external state remains observable through refreshed validation diagnostics."
+  },
+  "ui": {
+    "delivered": "Dashboard/health, Work browse/detail/filter/search, guided three-step create, typed edit/transition plan review, Decisions read-only browse/detail, Evidence read-only browse/detail, Graph table, Validation, Analysis, Settings, theme and accessibility states.",
+    "native_smoke": "Windows release app launched; native folder picker selected the scratch repository; Dashboard, Work, Decisions, and Settings views were observed with live watcher status and repository-change toast.",
+    "boundaries": "React owns presentation/form state only; it does not parse canonical files, implement governance rules, expose evidence_plan, or hold executable mutation authority."
+  },
+  "e2e": {
+    "scratch_repo": "C:/Users/jerem/AppData/Local/Temp/repopact-wi055-cf2853324af44c069deed8826b51ec79",
+    "operations": "Rust desktop boundary smoke covered open, browse/read derivation, validation, analysis, graph, typed create/edit/transition plan-preview-apply, external refresh, stale-plan rejection after consumed-input drift, and stale-session rejection after repository switch.",
+    "final_validation": "Python and Rust validators both passed on the final scratch state; development repository was not used as an uncontrolled mutation fixture.",
+    "visual_automation_note": "The configured desktop UI automation helper could not initialize on this host because its kernel asset path was unavailable (os error 3); native launch/folder selection/view navigation were additionally exercised with the Windows window and keyboard path."
+  },
+  "packaging": {
+    "windows": {
+      "debug_executable": "C:/Users/jerem/AppData/Local/Temp/repopact-rust-target-055/debug/repopact-desktop.exe",
+      "release_executable": "C:/Users/jerem/AppData/Local/Temp/repopact-rust-target-055/release/repopact-desktop.exe",
+      "nsis": "C:/Users/jerem/AppData/Local/Temp/repopact-rust-target-055/release/bundle/nsis/RepoPact Workbench_0.1.0_x64-setup.exe (3,374,198 bytes; NotSigned)",
+      "msi": "C:/Users/jerem/AppData/Local/Temp/repopact-rust-target-055/release/bundle/msi/RepoPact Workbench_0.1.0_x64_en-US.msi (5,120,000 bytes; NotSigned)",
+      "status": "built and launch-checked on Windows"
+    },
+    "linux": "unexecuted on Windows host; no cross-platform execution claim",
+    "macos": "unexecuted on Windows host; no cross-platform execution claim",
+    "signing": "production signing/notarization deferred; local artifacts are unsigned",
+    "frozen_release_surface": "no CI/release workflow changes"
+  },
+  "unsupported_nonparity_surfaces": [
+    "PyO3/native-wheel packaging and Python canonical-core cutover remain WI056/follow-on work.",
+    "Generic decision/evidence mutation, arbitrary JSON Patch, arbitrary filesystem writes, and general SPEC mutation remain unsupported.",
+    "WI050 admission, guard, enforcement, IPC, platform backend, protected-service, and operator-authority semantics remain separate and were not ported.",
+    "Provider-backed AI/LLM authority and persistent repository-local transaction state remain unsupported.",
+    "Linux/macOS runtime and packaging were not executed on the Windows host; production signing/notarization was not available."
+  ],
+  "architecture_finding": "Decision 0041 and the WI052/WI054 sequencing remain valid. The reusable no-Tauri desktop adapter is the correct seam for WI056 Python cutover evaluation; any future native visual E2E harness should be added as test infrastructure without broadening the capability boundary."
+}

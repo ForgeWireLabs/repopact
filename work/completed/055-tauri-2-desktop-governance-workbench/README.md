@@ -1,6 +1,6 @@
 # Work Item 055 — Tauri 2 Desktop Governance Workbench
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** work-coordinator
 
@@ -365,3 +365,11 @@ Frozen `.github/workflows/**` remains outside WI055 absent separate operator app
 ## Closeout standard
 
 WI055 closes when the Tauri desktop can open/switch an adopted repository, present health/work/decisions/evidence/validation/graph/analysis through typed Rust-backed views, perform WI054-supported work-item creation/edit/transition through opaque plan handles and explicit preview/apply, react to repository changes through the Rust watcher/event layer, and demonstrate a constrained Tauri security surface with no duplicate frontend governance authority.
+
+## Closeout evidence
+
+WI055 is satisfied by `20260910-055-tauri-desktop-governance-workbench`. The evidence records the exact Tauri/Rust/frontend versions, command and capability allowlists, Rust-owned TypeScript generation, bounded in-memory session/plan registry, Rust-native watcher, UI surfaces, frontend and Rust tests, Python baseline/conformance, Windows launch/build/bundle results, and the scratch-repository smoke.
+
+The Windows host launch and native folder picker were exercised against an adopted scratch repository. The reusable Rust desktop boundary smoke additionally proved typed create/edit/transition plan-preview-apply, external refresh, stale-plan rejection after input drift, and stale-session rejection after repository switch. The configured desktop automation helper was unavailable on this host, so the visual automation limitation is recorded explicitly in the evidence rather than presented as a screenshot-only claim.
+
+No Python source, canonical schema, invariant, charter, `.github/workflows/**`, or WI050 authority surface changed. PyO3/Python cutover, generic decision/evidence mutation, persistent transaction state, and cross-platform runtime/package verification remain outside WI055.

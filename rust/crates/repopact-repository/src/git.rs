@@ -8,6 +8,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
+const TERMINATION_GRACE: Duration = Duration::from_millis(250);
 
 /// Captured output from one bounded, non-interactive Git query.
 #[derive(Debug)]
@@ -102,7 +103,12 @@ impl NativeGitRunner {
         command
     }
 
-    fn wait_bounded(&self, child: &mut Child, label: &str) -> Result<GitOutput, GitError> {
+    fn wait_bounded(
+        &self,
+        child: &mut Child,
+        containment: &mut Option<ProcessContainment>,
+        label: &str,
+    ) -> Result<GitOutput, GitError> {
         let stdout = child
             .stdout
             .take()
@@ -118,14 +124,14 @@ impl NativeGitRunner {
             match child.try_wait() {
                 Ok(Some(status)) => break status,
                 Ok(None) if Instant::now() >= deadline => {
-                    terminate_child_tree(child);
+                    terminate_child_tree(child, containment.take());
                     let _ = stdout_reader.join();
                     let _ = stderr_reader.join();
                     return Err(GitError::timeout(label, self.timeout));
                 }
                 Ok(None) => thread::sleep(Duration::from_millis(10)),
                 Err(error) => {
-                    terminate_child_tree(child);
+                    terminate_child_tree(child, containment.take());
                     let _ = stdout_reader.join();
                     let _ = stderr_reader.join();
                     return Err(GitError::new(label, error.to_string()));
@@ -148,17 +154,103 @@ impl NativeGitRunner {
     }
 }
 
-fn terminate_child_tree(child: &mut Child) {
+fn terminate_child_tree(child: &mut Child, containment: Option<ProcessContainment>) {
     #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let _ = Command::new("taskkill")
-            .args(["/PID", &child.id().to_string(), "/T", "/F"])
-            .creation_flags(0x08000000)
-            .output();
+    if let Some(containment) = containment {
+        containment.terminate();
     }
     let _ = child.kill();
-    let _ = child.wait();
+    let deadline = Instant::now() + TERMINATION_GRACE;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) | Err(_) => break,
+            Ok(None) if Instant::now() >= deadline => break,
+            Ok(None) => thread::sleep(Duration::from_millis(10)),
+        }
+    }
+}
+
+#[cfg(windows)]
+type ProcessContainment = WindowsJobObject;
+
+#[cfg(not(windows))]
+type ProcessContainment = ();
+
+#[cfg(windows)]
+#[derive(Debug)]
+struct WindowsJobObject {
+    handle: windows_sys::Win32::Foundation::HANDLE,
+}
+
+#[cfg(windows)]
+impl WindowsJobObject {
+    fn attach(child: &Child) -> io::Result<Self> {
+        use std::mem::size_of;
+        use std::os::windows::io::AsRawHandle;
+        use std::ptr::null;
+        use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+        use windows_sys::Win32::System::JobObjects::{
+            AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+            SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+            JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        };
+
+        // The job owns the containment boundary. Once configured, closing it
+        // terminates any still-live Git descendants, including on error paths.
+        let handle = unsafe { CreateJobObjectW(null(), null()) };
+        if handle.is_null() {
+            return Err(io::Error::last_os_error());
+        }
+        let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        let configured = unsafe {
+            SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                (&limits as *const JOBOBJECT_EXTENDED_LIMIT_INFORMATION).cast(),
+                size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            ) != 0
+        };
+        if !configured {
+            unsafe { CloseHandle(handle) };
+            return Err(io::Error::last_os_error());
+        }
+        let assigned = unsafe { AssignProcessToJobObject(handle, child.as_raw_handle() as HANDLE) };
+        if assigned == 0 {
+            unsafe { CloseHandle(handle) };
+            return Err(io::Error::last_os_error());
+        }
+        Ok(Self { handle })
+    }
+
+    fn terminate(&self) {
+        use windows_sys::Win32::System::JobObjects::TerminateJobObject;
+
+        unsafe {
+            let _ = TerminateJobObject(self.handle, 1);
+        }
+    }
+}
+
+#[cfg(windows)]
+impl Drop for WindowsJobObject {
+    fn drop(&mut self) {
+        use windows_sys::Win32::Foundation::CloseHandle;
+
+        unsafe {
+            let _ = CloseHandle(self.handle);
+        }
+    }
+}
+
+#[cfg(windows)]
+fn contain_child(child: &Child) -> io::Result<ProcessContainment> {
+    WindowsJobObject::attach(child)
+}
+
+#[cfg(not(windows))]
+fn contain_child(_child: &Child) -> io::Result<ProcessContainment> {
+    Ok(())
 }
 
 impl GitRunner for NativeGitRunner {
@@ -167,7 +259,12 @@ impl GitRunner for NativeGitRunner {
         let mut child = command
             .spawn()
             .map_err(|error| GitError::new(label, format!("unable to start Git: {error}")))?;
-        self.wait_bounded(&mut child, label)
+        let containment = contain_child(&child).map_err(|error| {
+            terminate_child_tree(&mut child, None);
+            GitError::new(label, format!("unable to contain Git process: {error}"))
+        })?;
+        let mut containment = Some(containment);
+        self.wait_bounded(&mut child, &mut containment, label)
     }
 }
 
@@ -184,7 +281,12 @@ impl NativeGitRunner {
             .command(program, root, args)
             .spawn()
             .map_err(|error| GitError::new(label, error.to_string()))?;
-        self.wait_bounded(&mut child, label)
+        let containment = contain_child(&child).map_err(|error| {
+            terminate_child_tree(&mut child, None);
+            GitError::new(label, error.to_string())
+        })?;
+        let mut containment = Some(containment);
+        self.wait_bounded(&mut child, &mut containment, label)
     }
 }
 
@@ -277,5 +379,20 @@ mod tests {
         let error = result.expect_err("the test child should exceed the finite timeout");
         assert!(error.timed_out);
         assert!(started.elapsed() < Duration::from_secs(1));
+    }
+
+    #[test]
+    fn production_timeout_path_uses_process_containment() {
+        let source = include_str!("git.rs")
+            .split("#[cfg(test)]")
+            .next()
+            .expect("production helper should precede tests");
+        assert!(!source.contains("taskkill"));
+        assert!(source.contains("contain_child"));
+        #[cfg(windows)]
+        {
+            assert!(source.contains("JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"));
+            assert!(source.contains("creation_flags(0x08000000)"));
+        }
     }
 }

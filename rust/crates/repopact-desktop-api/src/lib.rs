@@ -385,6 +385,7 @@ struct ActiveSession {
 
 #[derive(Default)]
 struct DesktopState {
+    next_open_request: u64,
     next_session: u64,
     next_plan: u64,
     active: Option<ActiveSession>,
@@ -429,6 +430,11 @@ impl DesktopService {
                 format!("repository root is not a directory: {}", root.display()),
             ));
         }
+        let open_request = {
+            let mut state = self.lock()?;
+            state.next_open_request += 1;
+            state.next_open_request
+        };
         let repository = git_runner
             .map(|runner| Repository::with_git_runner(root, runner))
             .unwrap_or_else(|| Repository::open(root));
@@ -457,6 +463,12 @@ impl DesktopService {
             refresh_in_flight: false,
         };
         let mut state = self.lock()?;
+        if open_request != state.next_open_request {
+            return Err(DesktopError::new(
+                "session.stale",
+                "the repository selection was superseded by a newer selection",
+            ));
+        }
         state.active = Some(active);
         Ok(overview)
     }
@@ -499,7 +511,6 @@ impl DesktopService {
         let mut state = self.lock()?;
         let active = active_mut(&mut state)?;
         if active.id != id || active.generation != generation {
-            active.refresh_in_flight = false;
             return Err(DesktopError::new(
                 "session.stale",
                 "the repository session changed during refresh",
@@ -846,7 +857,6 @@ impl DesktopService {
         let mut state = self.lock()?;
         let active = active_mut(&mut state)?;
         if active.id != session_id || active.generation != generation {
-            active.refresh_in_flight = false;
             return Ok(Vec::new());
         }
         active.refresh_in_flight = false;
@@ -1218,7 +1228,91 @@ fn is_ignored_path(path: &str) -> bool {
 mod tests {
     use super::*;
     use std::fs;
+    use std::sync::{Condvar, Mutex};
+    use std::thread;
     use tempfile::tempdir;
+
+    #[derive(Debug, Default)]
+    struct GateState {
+        armed: bool,
+        entered: bool,
+        released: bool,
+        entries: usize,
+    }
+
+    #[derive(Debug)]
+    struct GitGate {
+        delegate: Arc<dyn GitRunner>,
+        state: Arc<(Mutex<GateState>, Condvar)>,
+    }
+
+    impl GitGate {
+        fn new(delegate: Arc<dyn GitRunner>) -> Arc<Self> {
+            Arc::new(Self {
+                delegate,
+                state: Arc::new((Mutex::new(GateState::default()), Condvar::new())),
+            })
+        }
+
+        fn arm(&self) {
+            let (lock, _) = &*self.state;
+            let mut state = lock.lock().unwrap();
+            state.armed = true;
+            state.entered = false;
+            state.released = false;
+        }
+
+        fn wait_entered(&self) {
+            let (lock, condition) = &*self.state;
+            let state = lock.lock().unwrap();
+            let (state, _) = condition
+                .wait_timeout_while(state, Duration::from_secs(5), |state| !state.entered)
+                .unwrap();
+            assert!(state.entered, "the gated Git query did not begin");
+        }
+
+        fn release(&self) {
+            let (lock, condition) = &*self.state;
+            let mut state = lock.lock().unwrap();
+            state.released = true;
+            condition.notify_all();
+        }
+
+        fn entries(&self) -> usize {
+            let (lock, _) = &*self.state;
+            lock.lock().unwrap().entries
+        }
+    }
+
+    impl GitRunner for GitGate {
+        fn run(
+            &self,
+            root: &Path,
+            args: &[&str],
+            label: &str,
+        ) -> Result<repopact_repository::GitOutput, repopact_repository::GitError> {
+            let should_wait = {
+                let (lock, condition) = &*self.state;
+                let mut state = lock.lock().unwrap();
+                if state.armed && !state.entered {
+                    state.entered = true;
+                    state.entries += 1;
+                    condition.notify_all();
+                    true
+                } else {
+                    false
+                }
+            };
+            if should_wait {
+                let (lock, condition) = &*self.state;
+                let mut state = lock.lock().unwrap();
+                while !state.released {
+                    state = condition.wait(state).unwrap();
+                }
+            }
+            self.delegate.run(root, args, label)
+        }
+    }
 
     #[test]
     fn plan_view_does_not_expose_file_operations_and_apply_uses_handle_registry() {
@@ -1332,6 +1426,73 @@ mod tests {
         assert!(refreshed.generation > first.generation);
         assert!(runner.count() <= 8);
         assert!(service.poll_repository_events().unwrap().is_empty());
+    }
+
+    #[test]
+    fn stale_refresh_cannot_clear_new_session_single_flight_guard() {
+        let first = tempdir().unwrap();
+        let second = tempdir().unwrap();
+        fs::create_dir_all(first.path().join(".git")).unwrap();
+        fs::create_dir_all(second.path().join(".git")).unwrap();
+        let first_delegate = repopact_repository::CountingGitRunner::native();
+        let second_delegate = repopact_repository::CountingGitRunner::native();
+        let first_gate = GitGate::new(first_delegate);
+        let second_gate = GitGate::new(second_delegate);
+        let service = DesktopService::new();
+        service
+            .open_repository_with_git_runner(first.path(), first_gate.clone())
+            .unwrap();
+        first_gate.arm();
+
+        let stale_service = service.clone();
+        let stale_refresh = thread::spawn(move || stale_service.refresh_repository());
+        first_gate.wait_entered();
+
+        let second_view = service
+            .open_repository_with_git_runner(second.path(), second_gate.clone())
+            .unwrap();
+        second_gate.arm();
+        let current_service = service.clone();
+        let current_refresh = thread::spawn(move || current_service.refresh_repository());
+        second_gate.wait_entered();
+
+        first_gate.release();
+        let stale_result = stale_refresh.join().unwrap();
+        assert_eq!(stale_result.unwrap_err().code, "session.stale");
+
+        let entries_before_second_attempt = second_gate.entries();
+        let second_attempt = service.refresh_repository().unwrap();
+        assert_eq!(second_attempt.generation, second_view.generation);
+        assert_eq!(second_gate.entries(), entries_before_second_attempt);
+
+        second_gate.release();
+        let completed = current_refresh.join().unwrap().unwrap();
+        assert!(completed.generation > second_view.generation);
+    }
+
+    #[test]
+    fn slower_older_open_cannot_overwrite_newer_selection() {
+        let first = tempdir().unwrap();
+        let second = tempdir().unwrap();
+        fs::create_dir_all(first.path().join(".git")).unwrap();
+        let first_delegate = repopact_repository::CountingGitRunner::native();
+        let first_gate = GitGate::new(first_delegate);
+        let service = DesktopService::new();
+        first_gate.arm();
+        let old_service = service.clone();
+        let old_root = first.path().to_path_buf();
+        let old_gate = first_gate.clone();
+        let old_open =
+            thread::spawn(move || old_service.open_repository_with_git_runner(old_root, old_gate));
+        first_gate.wait_entered();
+
+        let new_view = service.open_repository(second.path()).unwrap();
+        first_gate.release();
+        let old_result = old_open.join().unwrap();
+        assert_eq!(old_result.unwrap_err().code, "session.stale");
+        let current = service.repository_overview().unwrap();
+        assert_eq!(current.session_id, new_view.session_id);
+        assert_eq!(current.identity.root, new_view.identity.root);
     }
 
     #[test]

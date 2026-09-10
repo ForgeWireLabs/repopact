@@ -1,0 +1,99 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-057-process-amplification-remediation",
+  "timestamp": "2026-09-10T18:00:00Z",
+  "work_item": "057",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"cargo fmt --manifest-path rust/Cargo.toml --all -- --check","exit_code":0,"summary":"Rust workspace formatting passed after the containment and session-publication corrections."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml -p repopact-repository -- --nocapture","exit_code":0,"summary":"Repository topology/counting, centralized-process, Windows containment, timeout, and linked-worktree/reference tests passed; 8 tests passed."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml -p repopact-desktop-api -- --nocapture","exit_code":0,"summary":"Desktop cache, watcher, stale-refresh single-flight, concurrent-open ordering, security-boundary, and mutation-handle tests passed; 10 tests passed."},
+    {"command":"cargo check --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"The complete Rust workspace, including the corrected Windows process-containment boundary, compiled successfully."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace --quiet","exit_code":0,"summary":"All Rust workspace tests passed after the containment and session-publication corrections."},
+    {"command":"cargo build --manifest-path rust/Cargo.toml -p repopact-cli","exit_code":0,"summary":"The Rust alternate validator CLI rebuilt from the corrected source."},
+    {"command":"python -m repopact.run_conformance --command '\"C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-rust-target-057\\debug\\repopact-cli.exe\" validate --root {repo}'","exit_code":0,"summary":"The existing Python-driven alternate-implementation runner passed 20/20 legacy cases and 8/8 WI050 admission vectors using the rebuilt Rust CLI."},
+    {"command":"python -m unittest discover -s tests -v","exit_code":0,"summary":"The full Python regression suite passed: 205 tests passed and 2 intentional formal-model tests were skipped."},
+    {"command":"powershell.exe parser check for work/active/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1","exit_code":0,"summary":"The operator-only Windows process monitor parses successfully without launching the Workbench or issuing Git commands."},
+    {"command":"npm ci --ignore-scripts; npm run types:check; npm run typecheck; npm test -- --run; npm run build","exit_code":0,"summary":"Frontend dependencies installed without vulnerabilities; generated bindings, TypeScript, 3 frontend files/5 tests, and production Vite build passed."},
+    {"command":"npx tauri build --debug --no-bundle","exit_code":0,"summary":"The corrected Windows debug Workbench executable built successfully with an external Cargo target."},
+    {"command":"python -m repopact.validate_repo","exit_code":0,"summary":"Governance validation passed after the durable evidence and acceptance reconciliation."},
+    {"command":"python -m repopact.check_frozen_surface --base 7f575fff11e0cd0c6bec1965b3044c4ad1478fed","exit_code":0,"summary":"No frozen-surface changes detected; .github/workflows/** remained untouched."}
+  ],
+  "artifacts": [
+    "rust/crates/repopact-repository/src/git.rs",
+    "rust/crates/repopact-repository/src/lib.rs",
+    "rust/crates/repopact-validation/src/lib.rs",
+    "rust/crates/repopact-core/src/lib.rs",
+    "rust/crates/repopact-desktop-api/src/lib.rs",
+    "work/active/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1",
+    "work/active/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/operator-assisted-native-picker-validation.md",
+    "audits/findings/003-wi050-host-tool-timeout-containment.json"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows 10.0.26200 x64",
+    "base_commit": "7f575fff11e0cd0c6bec1965b3044c4ad1478fed",
+    "cargo_target": "outside checkout: %TEMP%/repopact-rust-target-057"
+  },
+  "root_cause": "RecordIndex work-item traversal repeated Git worktree discovery, desktop read fan-out constructed fresh snapshots, validation recrawled supplied snapshots, and raw Git children lacked one bounded GUI-safe process boundary.",
+  "process_counts": {
+    "pre_fix_snapshot_git_invocations": {"1": 2, "10": 11, "50": 51, "100": 101},
+    "post_fix_snapshot_git_invocations": {"1": 3, "10": 3, "50": 3, "100": 3},
+    "post_fix_unchanged_desktop_read_additional_git_invocations": 0,
+    "post_fix_maximum_git_query_concurrency": 1,
+    "desktop_watcher_burst_refreshes": 1
+  },
+  "process_inventory": {
+    "rust": [
+      {"site":"rust/crates/repopact-repository/src/git.rs::NativeGitRunner","class":"approved bounded Git query helper","disposition":"single argv boundary; captured stdout/stderr/status; GIT_TERMINAL_PROMPT=0; GIT_OPTIONAL_LOCKS=0; finite timeout; Windows CREATE_NO_WINDOW; Windows Job Object kill-on-close containment; injectable CountingGitRunner"},
+      {"site":"rust/crates/repopact-repository/src/lib.rs and repopact-validation callers","class":"repository/validation metadata queries","disposition":"all production Git calls route through GitRunner; static regression forbids raw production Git spawning outside git.rs"},
+      {"site":"rust/crates/repopact-repository/src/lib.rs tests","class":"test-only fixture setup","disposition":"direct Git commands remain test-only and are excluded from production authority"},
+      {"site":"rust/crates/repopact-mutation/src/lib.rs::std::process::id","class":"process identification, not launch","disposition":"not an external-process launch"},
+      {"site":"repopact-desktop-api, repopact-core, repopact-graph, repopact-analysis, Tauri transport, React","class":"runtime read/event/UI paths","disposition":"no external-process launch authority; desktop security static tests remain green"}
+    ],
+    "python": [
+      {"site":"repopact/repo_model.py","class":"bounded Git topology queries","disposition":"5-second timeout and non-interactive Git environment; finite per-reference call path"},
+      {"site":"repopact/validate_repo.py","class":"bounded Git validation/ownership/history queries","disposition":"5-second timeout and non-interactive Git environment; timeout fails closed"},
+      {"site":"repopact/check_frozen_surface.py","class":"fixed Git diff queries","disposition":"5-second timeout and non-interactive Git environment"},
+      {"site":"repopact/adopt_repo.py and repopact/takeover.py","class":"bounded user-triggered metadata/safety queries","disposition":"5-second timeout and non-interactive Git environment; recoverability semantics preserved"},
+      {"site":"repopact/plan_import.py","class":"single user-triggered gh query","disposition":"10-second timeout and GH_PROMPT_DISABLED"},
+      {"site":"repopact/fleet_verify.py","class":"remote/local verification queries","disposition":"existing explicit Git/GitHub/network timeouts preserved"},
+      {"site":"repopact/release_build.py","class":"one-shot release/build operation","disposition":"build/launcher steps intentionally retain operation-specific duration; Git metadata subcommands use explicit 5-second timeouts"},
+      {"site":"repopact/adapters.py","class":"explicitly admitted child launcher","disposition":"separate launcher authority; not a query/event loop and not changed under WI057"},
+      {"site":"repopact/admission.py, repopact/guard_ipc.py, repopact/platform_backends.py","class":"WI050/protected admission and host-tool substrate","disposition":"audited only; no WI050 security semantics changed; WI050-owned timeout finding recorded"},
+      {"site":"repopact/run_conformance.py and run_admission_platform_conformance.py","class":"test/conformance harness","disposition":"fixture/setup or explicitly requested alternate-implementation launcher, not desktop runtime authority"}
+    ]
+  },
+  "parity": {
+    "legacy_conformance": "20/20",
+    "wi050_admission_corpus": "8/8",
+    "linked_worktree_reference": "9/9 focused tests from WI055 baseline",
+    "frozen_surface": "passed against 7f575fff11e0cd0c6bec1965b3044c4ad1478fed",
+    "desktop_security_frontend": "security boundary, generated types, TypeScript, 3 frontend files/5 tests, and production build passed"
+  },
+  "python_changes": "No Python source changes in this correction pass; the earlier WI057 Python query-timeout hygiene remains in force and the full Python suite passed.",
+  "acceptance_reconciliation": {
+    "satisfied": ["RPS-001","RPS-002","RPS-003","RPS-004","RPS-005","RPS-006","RPS-007","RPS-008","RPS-009","RPS-010","RPS-011","RPS-012","RPS-013","RPS-014","RPS-015","RPS-016","RPS-017","RPS-019"],
+    "pending": ["RPS-018","RPS-020"],
+    "reason": "The deterministic safeguards and regression corpus are complete. Native operator-assisted picker evidence is still pending because the GUI automation helper failed before application launch; closeout evidence therefore remains pending."
+  },
+  "native_operator_validation": {
+    "status": "pending",
+    "executable": "C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-rust-target-057\\debug\\repopact-desktop.exe",
+    "harness": "work/active/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1",
+    "automation_status": "not attempted by this harness",
+    "blocker": "The prescribed GUI automation helper failed during initialization twice with 'failed to write kernel assets: The system cannot find the path specified. (os error 3)' before any app launch."
+  },
+  "wi050": {
+    "admission_corpus": "8/8",
+    "finding": "audits/findings/003-wi050-host-tool-timeout-containment.json",
+    "semantics_changed": false
+  },
+  "unsupported_nonparity_surfaces": [
+    "RPS-018 native picker responsiveness, manual switching/refresh behavior, console-flash observation, and process-tree closeout await operator evidence.",
+    "WI050 protected host-tool timeout containment remains WI050-owned and was not changed under WI057.",
+    "WI056 canonical-engine/Python cutover remains out of scope and blocked."
+  ],
+  "architecture_finding": "No WI052 or Decision 0040-0042 amendment is required. WI056 must consume the corrected generation/session APIs and remain blocked until WI057 native operator evidence and closeout are complete."
+}

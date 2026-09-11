@@ -1,0 +1,72 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260910-058-adaptive-ia",
+  "timestamp": "2026-09-11T02:03:14Z",
+  "work_item": "058",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"cargo fmt --manifest-path rust/Cargo.toml --all -- --check","exit_code":0,"summary":"Rust workspace formatting passed."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"All Rust workspace tests passed, including 8 repository tests, 11 desktop API tests, cached snapshot/process regressions, linked-worktree/reference tests, and 5 engine protocol tests."},
+    {"command":"$env:CARGO_TARGET_DIR=<temp>; npm run types:check; npm run typecheck; npm test -- --run; npm run build","exit_code":0,"summary":"Generated DTOs are current; TypeScript, 4 frontend test files/10 tests, and production Vite build passed."},
+    {"command":"$env:CARGO_TARGET_DIR=<temp>; npm run tauri -- build --debug --no-bundle","exit_code":0,"summary":"Windows Tauri debug executable built successfully."},
+    {"command":"python -m unittest discover -s tests -v","exit_code":0,"summary":"Full Python regression passed: 212 tests, 2 intentional formal-model skips."},
+    {"command":"python -m repopact.run_conformance --legacy-python","exit_code":0,"summary":"Canonical Rust conformance 20/20, legacy Python comparator 20/20, and WI050 admission corpus 8/8."},
+    {"command":"python -m repopact.cli check-frozen --base db9990dd285e75b2f9c9dc9df388275d78b10569","exit_code":0,"summary":"No frozen-surface changes detected."}
+  ],
+  "artifacts": [
+    "rust/apps/repopact-desktop/src/App.tsx",
+    "rust/apps/repopact-desktop/src/styles.css",
+    "rust/apps/repopact-desktop/src/lib/api.ts",
+    "rust/apps/repopact-desktop/src/generated/types.ts",
+    "rust/apps/repopact-desktop/src/ia.test.tsx",
+    "rust/apps/repopact-desktop/src-tauri/tauri.conf.json",
+    "rust/crates/repopact-desktop-api/src/lib.rs",
+    "rust/crates/repopact-desktop-api/src/bin/generate-types.rs",
+    "work/completed/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1"
+  ],
+  "environment": {
+    "date": "2026-09-10",
+    "os": "Windows 10.0.26200 x64",
+    "base_commit": "db9990dd285e75b2f9c9dc9df388275d78b10569",
+    "windows_executable": "C:/Users/jerem/AppData/Local/Temp/repopact-wi058-tauri-final/debug/repopact-desktop.exe",
+    "android_sdk": "unavailable",
+    "xcode": "unavailable"
+  },
+  "process_and_cache_regressions": {
+    "snapshot_git_invocations": "3/3/3/3 for 1/10/50/100 work items from WI057 baseline",
+    "unchanged_cached_read_additional_git_invocations": 0,
+    "maximum_git_query_concurrency": 1,
+    "watcher_burst_refreshes": 1,
+    "generated_directory_filtering": "passed",
+    "desktop_frontend_git_or_snapshot_calls_for_tab_page_layout_changes": 0
+  },
+  "platform_matrix": {
+    "windows": {"runtime": "operator-assisted passed", "build": "passed", "host": "available"},
+    "linux": {"runtime": "unexecuted", "build": "unexecuted; no Linux host/toolchain"},
+    "macos": {"runtime": "unexecuted", "build": "unexecuted; no macOS/Xcode host"},
+    "android": {"runtime": "unexecuted", "build": "unexecuted; adb/Android SDK unavailable"},
+    "ios": {"runtime": "unexecuted", "build": "unexecuted; Xcode/simulator unavailable"}
+  },
+  "native_operator_validation": {
+    "status": "passed",
+    "executable": "C:/Users/jerem/AppData/Local/Temp/repopact-wi058-tauri-final/debug/repopact-desktop.exe",
+    "harness": "work/completed/057-desktop-repository-selection-git-process-storm-and-runtime-amplification-audit/desktop-picker-process-audit.ps1",
+    "log": "C:/Users/jerem/AppData/Local/Temp/repopact-wi058-native-picker-processes.csv",
+    "automation_runtime": "@oai/sky unavailable before execution: failed to write kernel assets (os error 3)",
+    "operator_confirmation": "User confirmed completion of the requested RepoPact and scratch/adopted repository navigation, refresh, repository switching, wide/compact, tabbed, list-detail/back, and Graph checks.",
+    "initial_process_observation": "Workbench PID 19508; Git descendants remained zero before manual interaction",
+    "sample_count": 385,
+    "maximum_git_descendants": 2,
+    "transient_nonzero_git_observation": "One transient sample observed 2 Git descendants at 2026-09-11T02:02:39.5295660Z; the remaining observed Git samples were zero.",
+    "tail_observation": "Git descendants were zero at the end of the harness run; cleanup completed for Workbench PID 19508."
+  },
+  "closeout": {
+    "native_windows_ia": "passed",
+    "wi058_ready": true,
+    "wi056_compatibility": "preserved; no engine authority changes"
+  },
+  "residuals": [
+    "Linux, macOS, Android, and iOS runtime validation was not executed in this Windows host environment."
+  ]
+}

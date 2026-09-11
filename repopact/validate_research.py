@@ -35,15 +35,63 @@ def _load_metadata(root: Path, problems: list[ResearchProblem]) -> dict[str, Any
     return data
 
 
-def _read(root: Path, relative: str, problems: list[ResearchProblem]) -> str | None:
-    path = root / relative
-    if not path.is_file():
-        problems.append(ResearchProblem(path, "missing research fact source"))
+def _resolve_local(root: Path, relative: str) -> Path | None:
+    """Resolve ``relative`` against ``root`` and return it only if the result
+    is provably contained within ``root``. Mirrors the Rust validator's
+    ``resolve_within_root`` (WI059 containment correction): research is
+    explicitly repository-local, so a configured reference that escapes the
+    repository (``../outside``, an absolute path elsewhere, or a symlink
+    resolving outside root) must never be read, only rejected. Never reads
+    the target's content to decide."""
+    if not relative:
         return None
     try:
-        return path.read_text(encoding="utf-8")
+        resolved = (root / relative).resolve()
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        return None
+    return resolved
+
+
+def _require_local(
+    root: Path,
+    relative: object,
+    path: Path,
+    missing_message: str,
+    problems: list[ResearchProblem],
+) -> bool:
+    """Existence-only check for a metadata-configured reference. Pushes
+    ``missing_message`` when absent/wrong-typed, or the distinct
+    ``research reference escapes the repository`` message when it would
+    resolve outside the repository (WI059 containment correction) — an
+    escaping reference is never treated as a valid local source. Returns
+    True only when the reference is present and contained."""
+    if not isinstance(relative, str) or not relative:
+        problems.append(ResearchProblem(path, missing_message))
+        return False
+    resolved = _resolve_local(root, relative)
+    if resolved is None:
+        problems.append(ResearchProblem(path, f"research reference escapes the repository: {relative}"))
+        return False
+    if not resolved.is_file():
+        problems.append(ResearchProblem(path, missing_message))
+        return False
+    return True
+
+
+def _read(root: Path, relative: str, problems: list[ResearchProblem]) -> str | None:
+    path = root / relative
+    resolved = _resolve_local(root, relative)
+    if resolved is None:
+        problems.append(ResearchProblem(path, f"research reference escapes the repository: {relative}"))
+        return None
+    if not resolved.is_file():
+        problems.append(ResearchProblem(resolved, "missing research fact source"))
+        return None
+    try:
+        return resolved.read_text(encoding="utf-8")
     except OSError as exc:
-        problems.append(ResearchProblem(path, f"cannot read research fact source: {exc}"))
+        problems.append(ResearchProblem(resolved, f"cannot read research fact source: {exc}"))
         return None
 
 
@@ -81,12 +129,13 @@ def _validate_freshness(
         ))
         return
 
-    policy = freshness.get("policy")
-    if not isinstance(policy, str) or not policy or not (root / policy).is_file():
-        problems.append(ResearchProblem(
-            metadata_path,
-            "research claim freshness policy must name an existing file",
-        ))
+    _require_local(
+        root,
+        freshness.get("policy"),
+        metadata_path,
+        "research claim freshness policy must name an existing file",
+        problems,
+    )
 
     parsed: dict[str, date] = {}
     for field in ("verified_on", "review_by"):
@@ -228,9 +277,13 @@ def _validate_benchmark(
         problems.append(ResearchProblem(metadata_path, "benchmark.pactbench.task_count must be an integer"))
         return
     count = pactbench["task_count"]
-    source = pactbench.get("source")
-    if not isinstance(source, str) or not (root / source).is_file():
-        problems.append(ResearchProblem(metadata_path, "benchmark PactBench count source must name an existing artifact"))
+    _require_local(
+        root,
+        pactbench.get("source"),
+        metadata_path,
+        "benchmark PactBench count source must name an existing artifact",
+        problems,
+    )
     for entry in _configured_list(pactbench, "documents", metadata_path, problems):
         if not isinstance(entry, dict) or not isinstance(entry.get("path"), str) or not isinstance(entry.get("pattern"), str):
             problems.append(ResearchProblem(metadata_path, "PactBench documents entries require path and pattern"))
@@ -350,8 +403,13 @@ def _validate_trace(
         problems.append(ResearchProblem(metadata_path, "proposed-state trace decisions must be a non-empty list"))
         decisions = []
     for relative in [capture, *decisions, *(str(trace.get(field, "")) for field in local_fields)]:
-        if not relative or not (root / relative).is_file():
-            problems.append(ResearchProblem(metadata_path, f"proposed-state trace target does not exist: {relative}"))
+        _require_local(
+            root,
+            relative,
+            metadata_path,
+            f"proposed-state trace target does not exist: {relative}",
+            problems,
+        )
     findings = _read(root, "research/findings.md", problems)
     if findings is not None and (f"| {finding} |" not in findings or "captures/013-proposed-lifecycle-adoption-pressure.md" not in findings):
         problems.append(ResearchProblem(root / "research/findings.md", "F-014 must link capture 013 in the findings register"))

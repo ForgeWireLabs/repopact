@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from datetime import date
 from pathlib import Path
@@ -44,6 +45,35 @@ class ResearchMetadataTests(unittest.TestCase):
         messages = [problem.message for problem in validate_repo(self.root)]
         self.assertTrue(any("repeated T7" in message for message in messages))
         self.assertTrue(any("missing T10" in message for message in messages))
+
+    def _set_metadata_field(self, path: str, value) -> None:
+        metadata_path = self.root / "research" / "metadata.json"
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+        node = data
+        *parents, leaf = path.split(".")
+        for key in parents:
+            node = node[key]
+        node[leaf] = value
+        metadata_path.write_text(json.dumps(data), encoding="utf-8")
+
+    def test_freshness_policy_escaping_repository_is_rejected(self) -> None:
+        outside = self.root.parent / "outside-policy.md"
+        outside.write_text("# Not part of this repository\n", encoding="utf-8")
+        self.addCleanup(outside.unlink, missing_ok=True)
+        self._set_metadata_field("claim_freshness.policy", "../outside-policy.md")
+        messages = self.messages()
+        self.assertTrue(any("escapes the repository" in message for message in messages))
+        self.assertFalse(any("Not part of this repository" in message for message in messages))
+
+    def test_benchmark_source_escaping_repository_is_rejected(self) -> None:
+        self._set_metadata_field("benchmark.pactbench.source", "../../etc/outside-source.json")
+        messages = self.messages()
+        self.assertTrue(any("escapes the repository" in message for message in messages))
+
+    def test_trace_target_escaping_repository_is_rejected(self) -> None:
+        self._set_metadata_field("proposed_state_trace.work_item", "../outside-work-item.json")
+        messages = self.messages()
+        self.assertTrue(any("escapes the repository" in message for message in messages))
 
     def test_lifecycle_figure_without_proposed_is_rejected(self) -> None:
         self.replace("research/figures.md", "│ proposed │", "│ candidate │")

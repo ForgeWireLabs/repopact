@@ -4,8 +4,17 @@
   "title": "Cross-Platform Workbench Installation, Launcher Integration, and Operator Validation",
   "status": "active",
   "owner_scope": "tooling",
-  "affected_scopes": ["tooling", "docs", "work", "evidence"],
-  "depends_on": ["055", "058", "060"],
+  "affected_scopes": [
+    "tooling",
+    "docs",
+    "work",
+    "evidence"
+  ],
+  "depends_on": [
+    "055",
+    "058",
+    "060"
+  ],
   "provenance": "concrete",
   "preflight": {
     "created_before_work_started": true,
@@ -13,29 +22,164 @@
     "note": "Opened after Jeremy personally inspected the Precision post-WI060 and found a product-level gap: no discoverable Windows Start-menu/Desktop launcher, no confirmed Android app-drawer discoverability, and no Linux GUI install at all. WI060 proved Android *runtime* behavior against adb-driven install/launch; it never proved that RepoPact Workbench behaves like a normally installed, operator-discoverable application on any platform. This item is packaging/launcher-integration and operator-validation only: it does not reopen WI060's Android repository-access boundary, does not touch WI050/WI057/WI059 authority, and does not implement WI061's mobile repository-acquisition architecture. It also folds in a live-discovered branding gap: the installed Android launcher icon is a Tauri placeholder rather than a recognizable RepoPact mark; Jeremy asked for a minimal 'RP' icon, treated here as part of this same installation/launcher validation effort rather than a separate work item."
   },
   "acceptance_criteria": [
-    {"id":"AC-001","text":"Record the discovered gap explicitly: Windows never had an NSIS/MSI installer built or installed (no Start-menu entry, Desktop shortcut, Add/Remove Programs registration, or uninstall behavior proven); Android was only installed/launched via adb (launcher-drawer discoverability never separately proven); Linux Tauri GUI package was never built or installed under WSL2 Debian 13 (WI059 only exercised Rust CLI validation there).","state":"pending","evidence":[]},
-    {"id":"AC-002","text":"Build a real Windows NSIS installer via the Tauri CLI (not target/debug or target/release run directly), install it as a normal per-user install, and programmatically verify: installed executable path, Add/Remove Programs uninstall registry entry, Start-menu .lnk shortcut, shortcut target path, and shortcut icon path.","state":"pending","evidence":[]},
-    {"id":"AC-003","text":"Add a Desktop shortcut to the NSIS installer using Tauri's supported NSIS hook mechanism (not a full custom installer, not a hard-coded C:\\Projects\\repopact or Cargo target path): created during install pointing at the installed executable with the application icon, removed during uninstall.","state":"pending","evidence":[]},
-    {"id":"AC-004","text":"Jeremy personally launches RepoPact from the installed Start-menu entry and personally confirms the Workbench opens. Launching the raw EXE from PowerShell does not satisfy this criterion.","state":"pending","evidence":[]},
-    {"id":"AC-005","text":"Jeremy personally launches RepoPact from the installed Desktop shortcut and personally confirms the Workbench opens.","state":"pending","evidence":[]},
-    {"id":"AC-006","text":"From the installed (not dev-tree) app, perform a short installed-runtime smoke test: Workbench launches, Dashboard loads, repository selection works, an existing RepoPact checkout opens, Work list renders, Validation renders, close/relaunch works.","state":"pending","evidence":[]},
-    {"id":"AC-007","text":"Uninstall RepoPact through the generated uninstaller and verify: installed executable removed, Start-menu shortcut removed, Desktop shortcut removed, uninstall registry entry removed. Reinstall the same package and verify both shortcuts return and the application launches. No user repositories or RepoPact source trees are deleted by uninstall.","state":"pending","evidence":[]},
-    {"id":"AC-008","text":"Confirm via Android package-manager tooling that com.forgewirelabs.repopact.workbench/.MainActivity resolves for android.intent.action.MAIN + android.intent.category.LAUNCHER, and inspect its application label, icon resources, and installed user/profile. A programmatic launcher-intent start is a package-manager registration sanity check only, not a substitute for operator discoverability.","state":"pending","evidence":[]},
-    {"id":"AC-009","text":"Jeremy personally returns to the Android home screen, opens the app drawer, visually confirms the RepoPact Workbench icon and label are present and correct, taps it, and confirms the Workbench opens. If it is present in the app drawer but not pinned to the home screen, that is normal Android behavior and must not be changed; if it is absent from the app drawer despite the LAUNCHER manifest entry, that is a real packaging defect to diagnose, not a pass.","state":"pending","evidence":[]},
-    {"id":"AC-010","text":"Restart the Android emulator and, after boot, confirm (via adb tooling and Jeremy's own observation, not package-manager output alone) that the app remains installed, the launcher entry remains visible in the app drawer, and tapping it still launches RepoPact.","state":"pending","evidence":[]},
-    {"id":"AC-011","text":"Determine whether the Debian 13 WSL2 environment has WSLg GUI support (DISPLAY/WAYLAND_DISPLAY/mnt/wslg) before attempting any Linux GUI validation, and record the distro/kernel details truthfully. If WSLg is unavailable, report that distinctly rather than treating a successful package build/install as equivalent GUI runtime proof.","state":"pending","evidence":[]},
-    {"id":"AC-012","text":"From a Linux-native checkout (not /mnt/c) synchronized to the same tested commit, install only the required Tauri Linux build/runtime prerequisites (WebKitGTK 4.1/GTK and standard Tauri native build deps for Debian), with any sudo password entered interactively by Jeremy and never bypassed or stored.","state":"pending","evidence":[]},
-    {"id":"AC-013","text":"Build a real Tauri Debian .deb package (not `cargo build` alone) and inspect its contents before installing: application binary, icon assets, .desktop launcher file, and Debian dependency metadata.","state":"pending","evidence":[]},
-    {"id":"AC-014","text":"Install the generated .deb normally, record its package name/version via `dpkg -l`, and validate the installed /usr/share/applications .desktop file's Name, Exec, Icon, and categories, confirming its referenced executable and icon paths actually exist on disk.","state":"pending","evidence":[]},
-    {"id":"AC-015","text":"If WSLg is available, launch RepoPact via its installed desktop integration (`gtk-launch <desktop-id>` or equivalent), not the build tree, and Jeremy visually confirms the Workbench window renders through WSLg; perform a short smoke test (window renders, Dashboard visible, compact/wide shell intact, close/relaunch succeeds) using a Linux-local repository or scratch copy rather than the Windows checkout through /mnt/c. If WSLg is unavailable, this criterion is explicitly waived with the limitation recorded, not silently skipped.","state":"pending","evidence":[]},
-    {"id":"AC-016","text":"Uninstall the .deb and verify the package, .desktop entry, installed binary, and installed icons are all removed; reinstall and confirm the application launches again, proving package lifecycle rather than a one-off build.","state":"pending","evidence":[]},
-    {"id":"AC-017","text":"Replace the placeholder Tauri icon set with a minimal custom 'RP' mark (simple, high-contrast, centered, no extra words, no illustration) at its canonical Tauri icon source, regenerate all derived platform outputs via the standard Tauri icon workflow (not a hand-patched single mipmap), and document the source asset path, generation command, and every regenerated output.","state":"pending","evidence":[]},
-    {"id":"AC-018","text":"Rebuild and reinstall the Android debug app with the new icon set and visually confirm in the app drawer that the launcher icon now shows the custom RP mark (not the old placeholder), launching from it afterward; if Android's launcher cache requires a clear/reinstall to refresh, document exactly what was done.","state":"pending","evidence":[]},
-    {"id":"AC-019","text":"Rebuild the Windows installer with the new icon set, install/reinstall, and verify the Start-menu entry and Desktop shortcut both show the new RP icon, launching from both; document any icon-cache refresh performed.","state":"pending","evidence":[]},
-    {"id":"AC-020","text":"Rebuild the Linux .deb (where the WI062 Linux flow is available) with the new icon set, reinstall, and verify the .desktop entry's Icon field resolves to the updated asset; if WSLg GUI confirmation is unavailable in this environment, record that limitation truthfully rather than skip the packaging/path verification.","state":"pending","evidence":[]},
-    {"id":"AC-021","text":"No Tauri capability, CSP, filesystem, or shell/process permission is loosened; WI050 admission, WI057 process-count guarantees, WI059 validator authority, and WI060's Android production repository-selection boundary are all preserved unchanged. This item is packaging/install/branding integration only.","state":"pending","evidence":[]},
-    {"id":"AC-022","text":"After all packaging and icon changes, the Rust workspace tests, frontend typecheck/tests/build, Tauri security tests, canonical `repopact validate`, dashboard canonicality, frozen-surface check, and (since Tauri/Rust runtime-adjacent files changed) the WI057 process-count regression all pass, with the pre-existing host-only WI050 Python `cryptography` failure remaining the only known, unrelated gap unless the environment itself changed.","state":"pending","evidence":[]},
-    {"id":"AC-023","text":"WI062 closes only when Jeremy can personally state, for each platform where infrastructure exists: Windows — he sees RepoPact in Start and on the Desktop and can launch it; Android — he sees RepoPact (with the correct RP icon) in the app drawer and can launch it; Linux — he installed RepoPact and, if WSLg is available, saw the native Workbench window launch from its installed desktop entry. Criteria requiring Jeremy's personal confirmation are never marked satisfied on the basis of scripts or agent automation alone.","state":"pending","evidence":[]}
+    {
+      "id": "AC-001",
+      "text": "Record the discovered gap explicitly: Windows never had an NSIS/MSI installer built or installed (no Start-menu entry, Desktop shortcut, Add/Remove Programs registration, or uninstall behavior proven); Android was only installed/launched via adb (launcher-drawer discoverability never separately proven); Linux Tauri GUI package was never built or installed under WSL2 Debian 13 (WI059 only exercised Rust CLI validation there).",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-002",
+      "text": "Build a real Windows NSIS installer via the Tauri CLI (not target/debug or target/release run directly), install it as a normal per-user install, and programmatically verify: installed executable path, Add/Remove Programs uninstall registry entry, Start-menu .lnk shortcut, shortcut target path, and shortcut icon path.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-003",
+      "text": "Add a Desktop shortcut to the NSIS installer using Tauri's supported NSIS hook mechanism (not a full custom installer, not a hard-coded C:\\Projects\\repopact or Cargo target path): created during install pointing at the installed executable with the application icon, removed during uninstall.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-004",
+      "text": "Jeremy personally launches RepoPact from the installed Start-menu entry and personally confirms the Workbench opens. Launching the raw EXE from PowerShell does not satisfy this criterion.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-005",
+      "text": "Jeremy personally launches RepoPact from the installed Desktop shortcut and personally confirms the Workbench opens.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-006",
+      "text": "From the installed (not dev-tree) app, perform a short installed-runtime smoke test: Workbench launches, Dashboard loads, repository selection works, an existing RepoPact checkout opens, Work list renders, Validation renders, close/relaunch works.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-007",
+      "text": "Uninstall RepoPact through the generated uninstaller and verify: installed executable removed, Start-menu shortcut removed, Desktop shortcut removed, uninstall registry entry removed. Reinstall the same package and verify both shortcuts return and the application launches. No user repositories or RepoPact source trees are deleted by uninstall.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-008",
+      "text": "Confirm via Android package-manager tooling that com.forgewirelabs.repopact.workbench/.MainActivity resolves for android.intent.action.MAIN + android.intent.category.LAUNCHER, and inspect its application label, icon resources, and installed user/profile. A programmatic launcher-intent start is a package-manager registration sanity check only, not a substitute for operator discoverability.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-009",
+      "text": "Jeremy personally returns to the Android home screen, opens the app drawer, visually confirms the RepoPact Workbench icon and label are present and correct, taps it, and confirms the Workbench opens. If it is present in the app drawer but not pinned to the home screen, that is normal Android behavior and must not be changed; if it is absent from the app drawer despite the LAUNCHER manifest entry, that is a real packaging defect to diagnose, not a pass.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-010",
+      "text": "Restart the Android emulator and, after boot, confirm (via adb tooling and Jeremy's own observation, not package-manager output alone) that the app remains installed, the launcher entry remains visible in the app drawer, and tapping it still launches RepoPact.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-011",
+      "text": "Determine whether the Debian 13 WSL2 environment has WSLg GUI support (DISPLAY/WAYLAND_DISPLAY/mnt/wslg) before attempting any Linux GUI validation, and record the distro/kernel details truthfully. If WSLg is unavailable, report that distinctly rather than treating a successful package build/install as equivalent GUI runtime proof.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-012",
+      "text": "From a Linux-native checkout (not /mnt/c) synchronized to the same tested commit, install only the required Tauri Linux build/runtime prerequisites (WebKitGTK 4.1/GTK and standard Tauri native build deps for Debian), with any sudo password entered interactively by Jeremy and never bypassed or stored.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-013",
+      "text": "Build a real Tauri Debian .deb package (not `cargo build` alone) and inspect its contents before installing: application binary, icon assets, .desktop launcher file, and Debian dependency metadata.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-014",
+      "text": "Install the generated .deb normally, record its package name/version via `dpkg -l`, and validate the installed /usr/share/applications .desktop file's Name, Exec, Icon, and categories, confirming its referenced executable and icon paths actually exist on disk.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-015",
+      "text": "If WSLg is available, launch RepoPact via its installed desktop integration (`gtk-launch <desktop-id>` or equivalent), not the build tree, and Jeremy visually confirms the Workbench window renders through WSLg; perform a short smoke test (window renders, Dashboard visible, compact/wide shell intact, close/relaunch succeeds) using a Linux-local repository or scratch copy rather than the Windows checkout through /mnt/c. If WSLg is unavailable, this criterion is explicitly waived with the limitation recorded, not silently skipped.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-016",
+      "text": "Uninstall the .deb and verify the package, .desktop entry, installed binary, and installed icons are all removed; reinstall and confirm the application launches again, proving package lifecycle rather than a one-off build.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-017",
+      "text": "Replace the placeholder Tauri icon set with a minimal custom 'RP' mark (simple, high-contrast, centered, no extra words, no illustration) at its canonical Tauri icon source, regenerate all derived platform outputs via the standard Tauri icon workflow (not a hand-patched single mipmap), and document the source asset path, generation command, and every regenerated output.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-018",
+      "text": "Rebuild and reinstall the Android debug app with the new icon set and visually confirm in the app drawer that the launcher icon now shows the custom RP mark (not the old placeholder), launching from it afterward; if Android's launcher cache requires a clear/reinstall to refresh, document exactly what was done.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-019",
+      "text": "Rebuild the Windows installer with the new icon set, install/reinstall, and verify the Start-menu entry and Desktop shortcut both show the new RP icon, launching from both; document any icon-cache refresh performed.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-020",
+      "text": "Rebuild the Linux .deb (where the WI062 Linux flow is available) with the new icon set, reinstall, and verify the .desktop entry's Icon field resolves to the updated asset; if WSLg GUI confirmation is unavailable in this environment, record that limitation truthfully rather than skip the packaging/path verification.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-021",
+      "text": "No Tauri capability, CSP, filesystem, or shell/process permission is loosened; WI050 admission, WI057 process-count guarantees, WI059 validator authority, and WI060's Android production repository-selection boundary are all preserved unchanged. This item is packaging/install/branding integration only.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-022",
+      "text": "After all packaging and icon changes, the Rust workspace tests, frontend typecheck/tests/build, Tauri security tests, canonical `repopact validate`, dashboard canonicality, frozen-surface check, and (since Tauri/Rust runtime-adjacent files changed) the WI057 process-count regression all pass, with the pre-existing host-only WI050 Python `cryptography` failure remaining the only known, unrelated gap unless the environment itself changed.",
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-windows-nsis-and-android-icon"
+      ]
+    },
+    {
+      "id": "AC-023",
+      "text": "WI062 closes only when Jeremy can personally state, for each platform where infrastructure exists: Windows \u2014 he sees RepoPact in Start and on the Desktop and can launch it; Android \u2014 he sees RepoPact (with the correct RP icon) in the app drawer and can launch it; Linux \u2014 he installed RepoPact and, if WSLg is available, saw the native Workbench window launch from its installed desktop entry. Criteria requiring Jeremy's personal confirmation are never marked satisfied on the basis of scripts or agent automation alone.",
+      "state": "pending",
+      "evidence": []
+    }
   ],
   "created": "2026-09-11",
   "updated": "2026-09-11"

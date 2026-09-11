@@ -1,0 +1,71 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260911-062-windows-nsis-and-android-icon",
+  "timestamp": "2026-09-11T23:18:33Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"npx tauri icon src-tauri/icons/app-icon-source.png -o src-tauri/icons -v","exit_code":0,"summary":"Regenerated the full Tauri icon set (desktop icon.ico/icon.png/32x32/64x64/128x128, Appx Square*Logo.png, iOS AppIcon-*.png, Android mipmap-*/ic_launcher*.png) from a single new master 'RP' source through Tauri's canonical icon-generation workflow."},
+    {"command":"npm run tauri -- android build --debug --target x86_64","exit_code":0,"summary":"Rebuilt the Android debug APK with the new icon set."},
+    {"command":"adb install -r app-universal-debug.apk","exit_code":0,"summary":"Reinstalled the Android debug app; package updated successfully."},
+    {"command":"npm run tauri -- build --bundles nsis","exit_code":0,"summary":"Built a real Windows NSIS installer (release profile) with the new icon set and the Desktop-shortcut NSIS hook: RepoPact Workbench_0.1.0_x64-setup.exe."},
+    {"command":"RepoPact Workbench_0.1.0_x64-setup.exe /S (silent install)","exit_code":0,"summary":"Per-user (currentUser) install verified programmatically: installed exe at %LOCALAPPDATA%\\RepoPact Workbench\\repopact-desktop.exe, HKCU uninstall registry entry present with correct DisplayIcon/InstallLocation/UninstallString, Start-menu .lnk and Desktop .lnk both created, both targeting the installed exe (not a dev or Cargo target path)."},
+    {"command":"Start-Process on the Start-menu .lnk","exit_code":0,"summary":"Installed-runtime launch smoke test: process started from the installed path, MainWindowTitle='RepoPact Workbench', Responding=True after 8s. Deeper interactive smoke test (repository selection, Dashboard/Work/Validation rendering) requires either Jeremy's own hands or a computer-use grant this non-interactive session could not obtain (request_access was auto-denied with no interactive user present to approve it) -- left for Jeremy's own confirmation per AC-004/AC-006."},
+    {"command":"uninstall.exe /S then reinstall","exit_code":0,"summary":"Uninstall removed the installed exe, install directory, both shortcuts, and the uninstall registry entry (all confirmed absent). Reinstall restored the exe and both shortcuts, and the reinstalled app launched again (new PID, Responding=True). No user repositories or RepoPact source trees were touched by uninstall."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"Rust workspace regression after the tauri.conf.json/icon changes: all tests passed, including the WI057 snapshot_git_invocation_count_is_bounded_independent_of_work_items regression."},
+    {"command":"npm run types:check; npm run typecheck; npx vitest run; npm run build","exit_code":0,"summary":"Frontend regression: DTOs current, typecheck clean, 5 test files / 14 tests passed (including tauri-security.test.ts), production build passed."},
+    {"command":"python -m repopact.cli dashboard; python -m repopact.cli validate; python -m repopact.cli check-frozen --base 9baa28fd6aaf376781064f9206024c8c4efbbf6d","exit_code":0,"summary":"Dashboard regenerated, canonical validation passed, no frozen-surface changes."}
+  ],
+  "artifacts": [
+    "rust/apps/repopact-desktop/src-tauri/icons/app-icon-source.png",
+    "rust/apps/repopact-desktop/src-tauri/icons/icon.ico",
+    "rust/apps/repopact-desktop/src-tauri/icons/icon.png",
+    "rust/apps/repopact-desktop/src-tauri/gen/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+    "rust/apps/repopact-desktop/src-tauri/tauri.conf.json",
+    "rust/apps/repopact-desktop/src-tauri/windows/nsis-hooks.nsh",
+    "work/active/062-cross-platform-workbench-installation-launcher-integration-and-operator-validation/evidence/android/"
+  ],
+  "environment": {
+    "date": "2026-09-11",
+    "os": "Windows 10.0.19045 x64",
+    "nsis_installer_path": "rust/target/release/bundle/nsis/RepoPact Workbench_0.1.0_x64-setup.exe",
+    "nsis_installer_sha256": "d7dece0921fed9e8427513c3858071a1330141be63243c922bf37311310fa9fb",
+    "installed_executable": "C:/Users/jerem/AppData/Local/RepoPact Workbench/repopact-desktop.exe",
+    "android_device": "Android SDK built for x86_64 emulator, Android 15 (API 35)",
+    "android_package": "com.forgewirelabs.repopact.workbench"
+  },
+  "icon_regeneration": {
+    "source_asset": "rust/apps/repopact-desktop/src-tauri/icons/app-icon-source.png (1024x1024 PNG, RepoPact teal #087F76 background, centered white bold 'RP' mark, generated programmatically with PIL/Arial Bold and verified against Android's adaptive-icon safe zone)",
+    "tool": "npx tauri icon <source> -o src-tauri/icons -v (Tauri CLI's canonical icon-generation workflow, not a hand-patched single target)",
+    "outputs_regenerated": [
+      "src-tauri/icons/icon.ico, icon.png, 32x32.png, 64x64.png, 128x128.png, 128x128@2x.png (desktop/Windows)",
+      "src-tauri/icons/Square30x30Logo.png .. Square310x310Logo.png, StoreLogo.png (Appx, unused by current bundle targets but part of the canonical pipeline output)",
+      "src-tauri/icons/ios/AppIcon-*.png, icon.icns (iOS/macOS assets; neither platform is built by WI060/WI062, generated because they are part of the same source-of-truth pipeline)",
+      "src-tauri/gen/android/app/src/main/res/mipmap-{h,m,x,xx,xxx}dpi/ic_launcher.png, ic_launcher_round.png, ic_launcher_foreground.png, and res/values/ic_launcher_background.xml (Android launcher, adaptive-icon foreground/background)"
+    ]
+  },
+  "android_icon_verification": {
+    "steps": "rebuilt the debug APK, reinstalled over the existing package (no uninstall/cache-clear needed -- adb install -r updated the launcher icon cleanly), returned to the home screen, opened the app drawer via swipe-up, and visually confirmed the launcher tile now shows the teal 'RP' mark (not the prior Tauri placeholder) under the label 'RepoPac...'.",
+    "tap_to_launch": "tapped the new icon in the app drawer; the Workbench's own splash screen (which also renders the RP mark at full size) appeared, followed by the normal repository-selection screen -- confirmed via screenshot.",
+    "icon_cache": "no launcher-cache clear or extra reinstall was required beyond the normal debug APK reinstall."
+  },
+  "windows_nsis_verification": {
+    "install_mode": "currentUser (per-user, no administrator privileges required), matching the existing NsisConfig default and the directive's preference.",
+    "desktop_shortcut_mechanism": "added via Tauri's supported NsisConfig.installerHooks (rust/apps/repopact-desktop/src-tauri/windows/nsis-hooks.nsh), using the NSIS_HOOK_POSTINSTALL/NSIS_HOOK_PREUNINSTALL macros and Tauri's own $INSTDIR/${MAINBINARYNAME} installer variables -- no hard-coded dev or Cargo target path, no replacement of the generated installer template.",
+    "installed_exe_icon": "confirmed via System.Drawing.Icon.ExtractAssociatedIcon on the installed exe: the extracted icon is the new RP mark, so both the Start-menu .lnk (icon index 0, default) and the Desktop .lnk (explicit icon path to the installed exe, index 0) show it.",
+    "uninstall_cleanup_confirmed": ["installed executable removed", "install directory removed", "Start-menu .lnk removed", "Desktop .lnk removed", "HKCU uninstall registry entry removed"],
+    "reinstall_confirmed": ["executable restored", "Start-menu .lnk restored", "Desktop .lnk restored", "application launches again from the Start-menu shortcut"]
+  },
+  "closeout": {
+    "windows_packaging": "NSIS installer + Desktop-shortcut hook + uninstall/reinstall lifecycle all programmatically verified",
+    "windows_operator_confirmation": "PENDING -- Jeremy has not yet personally clicked the Start-menu entry or Desktop shortcut himself; the app was left running after an agent-driven launch for him to inspect",
+    "android_icon": "verified end-to-end (rebuild, reinstall, app-drawer visual confirmation, tap-to-launch) by the agent; Jeremy has not yet personally confirmed the app-drawer icon himself",
+    "windows_non_regression": "green (Rust workspace, frontend, canonical validate, dashboard, frozen-surface)"
+  },
+  "residuals": [
+    "Windows AC-004/AC-005/AC-006 (Jeremy personally launching from Start-menu and Desktop, and doing the installed-runtime smoke test) remain pending his own action.",
+    "Android AC-009/AC-018 (Jeremy personally confirming the app-drawer icon and tapping it himself) remain pending his own action; the agent's own drawer screenshot and tap-to-launch are a sanity check, not a substitute.",
+    "Linux packaging (AC-011 through AC-016, AC-020) is tracked separately and was still in progress when this evidence run was recorded."
+  ]
+}

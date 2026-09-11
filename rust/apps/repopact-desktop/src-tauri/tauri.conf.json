@@ -30,6 +30,12 @@
     "active": true,
     "icon": ["icons/icon.ico"],
     "targets": ["nsis", "msi", "deb", "appimage", "dmg"],
-    "createUpdaterArtifacts": false
+    "createUpdaterArtifacts": false,
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "windows/nsis-hooks.nsh"
+      }
+    }
   }
 }

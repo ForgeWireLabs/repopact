@@ -1803,51 +1803,33 @@ mod tests {
 
     #[test]
     fn checkbox_checked_satisfied_matches() {
-        let root = work_item_with_readme(
-            "- [x] **AC-1** done\n",
-            vec![("AC-1", "satisfied")],
-        );
+        let root = work_item_with_readme("- [x] **AC-1** done\n", vec![("AC-1", "satisfied")]);
         assert!(checkbox_codes(&root).is_empty());
     }
 
     #[test]
     fn checkbox_unchecked_satisfied_mismatches() {
-        let root = work_item_with_readme(
-            "- [ ] **AC-1** done\n",
-            vec![("AC-1", "satisfied")],
-        );
+        let root = work_item_with_readme("- [ ] **AC-1** done\n", vec![("AC-1", "satisfied")]);
         assert_eq!(checkbox_codes(&root), vec!["work.readme-checkbox-mismatch"]);
     }
 
     #[test]
     fn checkbox_checked_pending_mismatches() {
-        let root = work_item_with_readme(
-            "- [x] **AC-1** done\n",
-            vec![("AC-1", "pending")],
-        );
+        let root = work_item_with_readme("- [x] **AC-1** done\n", vec![("AC-1", "pending")]);
         assert_eq!(checkbox_codes(&root), vec!["work.readme-checkbox-mismatch"]);
     }
 
     #[test]
     fn checkbox_unchecked_pending_matches() {
-        let root = work_item_with_readme(
-            "- [ ] **AC-1** done\n",
-            vec![("AC-1", "pending")],
-        );
+        let root = work_item_with_readme("- [ ] **AC-1** done\n", vec![("AC-1", "pending")]);
         assert!(checkbox_codes(&root).is_empty());
     }
 
     #[test]
     fn checkbox_waived_matches_either_state() {
-        let root = work_item_with_readme(
-            "- [x] **AC-1** done\n",
-            vec![("AC-1", "waived")],
-        );
+        let root = work_item_with_readme("- [x] **AC-1** done\n", vec![("AC-1", "waived")]);
         assert!(checkbox_codes(&root).is_empty());
-        let root = work_item_with_readme(
-            "- [ ] **AC-1** done\n",
-            vec![("AC-1", "waived")],
-        );
+        let root = work_item_with_readme("- [ ] **AC-1** done\n", vec![("AC-1", "waived")]);
         assert!(checkbox_codes(&root).is_empty());
     }
 

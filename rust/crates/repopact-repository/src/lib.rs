@@ -349,6 +349,11 @@ impl RecordIndex {
         // WI059: fold in every local file the adopter manifest / research
         // metadata reference, so the new validators consume this one
         // generation instead of reopening the filesystem per referenced path.
+        // Every reference is repository-containment-checked via
+        // `resolve_within_root` BEFORE it is added to source_paths/
+        // text_files/adopter_overlay_bytes; an escaping reference is simply
+        // dropped here (never read) and the validator reports it separately
+        // from the already-materialized generation.
         if let Some(value) = index
             .adopters
             .as_ref()
@@ -356,7 +361,7 @@ impl RecordIndex {
         {
             let overlays: Vec<PathBuf> = adopter_overlay_paths(value)
                 .into_iter()
-                .map(|relative| normalize_path(&repository.root.join(relative)))
+                .filter_map(|relative| resolve_within_root(&repository.root, &relative))
                 .collect();
             index.adopter_overlay_bytes = overlays
                 .iter()
@@ -372,7 +377,7 @@ impl RecordIndex {
             index.source_paths.extend(
                 research_referenced_paths(value)
                     .into_iter()
-                    .map(|relative| repository.root.join(relative)),
+                    .filter_map(|relative| resolve_within_root(&repository.root, &relative)),
             );
         }
         index
@@ -763,6 +768,28 @@ impl Repository {
     }
 }
 
+/// Resolve `relative` against `root` and return it only if the result is
+/// provably contained within `root` — never by reading the target's
+/// *content*, only by resolving the path itself (which `normalize_path`
+/// already does via `fs::canonicalize` when the target exists, following
+/// symlinks/reparse points; a nonexistent target falls back to pure textual
+/// `.`/`..` normalization). This is the single choke point every
+/// metadata-directed path (adopter overlay, research-metadata reference)
+/// must pass before it may be added to `source_paths`/`text_files`/
+/// `adopter_overlay_bytes`, so a snapshot can never ingest content from
+/// outside the repository (WI059 containment correction): `../outside`,
+/// nested escape sequences, an absolute path outside the root (which
+/// `Path::join` already treats as replacing `root` entirely), and a
+/// symlink/reparse point whose canonical target resolves outside the root
+/// are all rejected the same way, before any `fs::read`/`fs::read_to_string`
+/// of that path is attempted.
+pub fn resolve_within_root(root: &Path, relative: &str) -> Option<PathBuf> {
+    let candidate = root.join(relative);
+    let resolved = normalize_path(&candidate);
+    let root_resolved = normalize_path(root);
+    resolved.starts_with(&root_resolved).then_some(resolved)
+}
+
 pub fn normalize_path(path: &Path) -> PathBuf {
     if let Ok(canonical) = fs::canonicalize(path) {
         return canonical;
@@ -986,7 +1013,9 @@ fn research_referenced_paths(metadata: &Value) -> Vec<String> {
     let mut paths = Vec::new();
     push_str(
         &mut paths,
-        metadata.get("claim_freshness").and_then(|v| v.get("policy")),
+        metadata
+            .get("claim_freshness")
+            .and_then(|v| v.get("policy")),
     );
 
     if let Some(lifecycle) = metadata.get("lifecycle") {
@@ -1565,5 +1594,224 @@ mod tests {
         let _ = git(&["worktree", "remove", "--force", &worktree_string]);
         let _ = git(&["worktree", "prune"]);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    // WI059 containment correction: a snapshot must never read a metadata-
+    // directed path outside Repository::root(), whether or not validation
+    // later reports it as invalid. These tests inspect RecordIndex directly
+    // (not through Validator) so a regression here can never be masked by a
+    // diagnostic-message check alone.
+
+    const SENTINEL_CONTENT: &str = "SENTINEL-DO-NOT-INGEST-OUTSIDE-REPOSITORY-CONTENT";
+
+    fn write_json(path: &Path, value: &Value) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, serde_json::to_vec_pretty(value).unwrap()).unwrap();
+    }
+
+    fn vendored_adopters_manifest(overlay_path: &str) -> Value {
+        serde_json::json!({
+            "version": 1,
+            "upstream": {"repository": "org/repo", "version_file": "VERSION"},
+            "adopters": [{
+                "id": "adopter-one",
+                "repository": "org/repo-one",
+                "default_branch": "main",
+                "consumption": {
+                    "type": "vendored",
+                    "version_file": "VERSION",
+                    "upstream_version": "1.0.0",
+                    "upstream_revision": "0".repeat(40),
+                    "files": [{
+                        "upstream_path": "repopact/cli.py",
+                        "adopter_path": "vendor/cli.py",
+                        "mode": "overlay",
+                        "upstream_sha256": "0".repeat(64),
+                        "adopter_sha256": "0".repeat(64),
+                        "overlay_path": overlay_path,
+                        "overlay_sha256": "0".repeat(64),
+                    }],
+                },
+                "validation_commands": ["repopact validate"],
+            }],
+        })
+    }
+
+    fn research_metadata_referencing(policy: &str) -> Value {
+        serde_json::json!({
+            "version": 1,
+            "claim_freshness": {
+                "policy": policy,
+                "verified_on": "2026-01-01",
+                "review_by": "2026-01-15",
+                "documents": [],
+            },
+        })
+    }
+
+    fn build_index(root: &Path) -> RecordIndex {
+        let repository = Repository::open(root);
+        RecordIndex::build(&repository)
+    }
+
+    fn assert_not_ingested(index: &RecordIndex, repository: &Repository, outside: &Path) {
+        let normalized = normalize_path(outside);
+        assert!(
+            !index.source_paths.contains(&normalized),
+            "source_paths must not contain an out-of-repository path"
+        );
+        assert!(
+            index.text(&normalized).is_none(),
+            "text_files must not contain out-of-repository content"
+        );
+        assert!(
+            index.overlay_bytes(&normalized).is_none(),
+            "adopter_overlay_bytes must not contain out-of-repository content"
+        );
+        let read_set = index.read_set(repository);
+        assert!(
+            !format!("{read_set:?}").contains(SENTINEL_CONTENT),
+            "read set must carry no trace of out-of-repository content"
+        );
+    }
+
+    #[test]
+    fn valid_relative_adopter_overlay_is_ingested() {
+        let root = temp_root("containment-adopter-valid");
+        fs::write(root.join("VERSION"), "0.1.0\n").unwrap();
+        fs::write(root.join("vendor-overlay.py"), "print('inside')\n").unwrap();
+        write_json(
+            &root.join("governance/adopters.json"),
+            &vendored_adopters_manifest("vendor-overlay.py"),
+        );
+        let index = build_index(&root);
+        let expected = normalize_path(&root.join("vendor-overlay.py"));
+        assert!(index.source_paths.contains(&expected));
+        assert!(index.overlay_bytes(&expected).is_some());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn adopter_overlay_escaping_via_relative_traversal_is_not_ingested() {
+        let root = temp_root("containment-adopter-relative-escape");
+        fs::write(root.join("VERSION"), "0.1.0\n").unwrap();
+        let outside_dir = temp_root("containment-adopter-outside");
+        let outside_file = outside_dir.join("secret.py");
+        fs::write(&outside_file, SENTINEL_CONTENT).unwrap();
+        let outside_name = outside_dir.file_name().unwrap().to_str().unwrap();
+        write_json(
+            &root.join("governance/adopters.json"),
+            &vendored_adopters_manifest(&format!("../{outside_name}/secret.py")),
+        );
+        let repository = Repository::open(&root);
+        let index = RecordIndex::build(&repository);
+        assert_not_ingested(&index, &repository, &outside_file);
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn adopter_overlay_escaping_via_absolute_path_is_not_ingested() {
+        let root = temp_root("containment-adopter-absolute-escape");
+        fs::write(root.join("VERSION"), "0.1.0\n").unwrap();
+        let outside_dir = temp_root("containment-adopter-absolute-outside");
+        let outside_file = outside_dir.join("secret.py");
+        fs::write(&outside_file, SENTINEL_CONTENT).unwrap();
+        write_json(
+            &root.join("governance/adopters.json"),
+            &vendored_adopters_manifest(&outside_file.to_string_lossy()),
+        );
+        let repository = Repository::open(&root);
+        let index = RecordIndex::build(&repository);
+        assert_not_ingested(&index, &repository, &outside_file);
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn valid_relative_research_reference_is_ingested() {
+        let root = temp_root("containment-research-valid");
+        fs::create_dir_all(root.join("governance/policies")).unwrap();
+        fs::write(root.join("governance/policies/freshness.md"), "# Policy\n").unwrap();
+        write_json(
+            &root.join("research/metadata.json"),
+            &research_metadata_referencing("governance/policies/freshness.md"),
+        );
+        let index = build_index(&root);
+        let expected = normalize_path(&root.join("governance/policies/freshness.md"));
+        assert!(index.source_paths.contains(&expected));
+        assert!(index.text(&expected).is_some());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn research_reference_escaping_via_relative_traversal_is_not_ingested() {
+        let root = temp_root("containment-research-relative-escape");
+        let outside_dir = temp_root("containment-research-outside");
+        let outside_file = outside_dir.join("secret-policy.md");
+        fs::write(&outside_file, SENTINEL_CONTENT).unwrap();
+        let outside_name = outside_dir.file_name().unwrap().to_str().unwrap();
+        write_json(
+            &root.join("research/metadata.json"),
+            &research_metadata_referencing(&format!("../{outside_name}/secret-policy.md")),
+        );
+        let repository = Repository::open(&root);
+        let index = RecordIndex::build(&repository);
+        assert_not_ingested(&index, &repository, &outside_file);
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn research_reference_escaping_via_absolute_path_is_not_ingested() {
+        let root = temp_root("containment-research-absolute-escape");
+        let outside_dir = temp_root("containment-research-absolute-outside");
+        let outside_file = outside_dir.join("secret-policy.md");
+        fs::write(&outside_file, SENTINEL_CONTENT).unwrap();
+        write_json(
+            &root.join("research/metadata.json"),
+            &research_metadata_referencing(&outside_file.to_string_lossy()),
+        );
+        let repository = Repository::open(&root);
+        let index = RecordIndex::build(&repository);
+        assert_not_ingested(&index, &repository, &outside_file);
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[test]
+    fn adopter_overlay_escaping_via_symlink_is_not_ingested() {
+        let root = temp_root("containment-adopter-symlink-escape");
+        fs::write(root.join("VERSION"), "0.1.0\n").unwrap();
+        let outside_dir = temp_root("containment-adopter-symlink-outside");
+        let outside_file = outside_dir.join("secret.py");
+        fs::write(&outside_file, SENTINEL_CONTENT).unwrap();
+        let link = root.join("link-overlay.py");
+        let linked = symlink_file(&outside_file, &link);
+        if !linked {
+            eprintln!("skipping symlink containment test: platform/permissions do not allow creating a file symlink");
+            fs::remove_dir_all(&root).unwrap();
+            fs::remove_dir_all(&outside_dir).unwrap();
+            return;
+        }
+        write_json(
+            &root.join("governance/adopters.json"),
+            &vendored_adopters_manifest("link-overlay.py"),
+        );
+        let repository = Repository::open(&root);
+        let index = RecordIndex::build(&repository);
+        assert_not_ingested(&index, &repository, &outside_file);
+        fs::remove_dir_all(&root).unwrap();
+        fs::remove_dir_all(&outside_dir).unwrap();
+    }
+
+    #[cfg(windows)]
+    fn symlink_file(target: &Path, link: &Path) -> bool {
+        std::os::windows::fs::symlink_file(target, link).is_ok()
+    }
+
+    #[cfg(not(windows))]
+    fn symlink_file(target: &Path, link: &Path) -> bool {
+        std::os::unix::fs::symlink(target, link).is_ok()
     }
 }

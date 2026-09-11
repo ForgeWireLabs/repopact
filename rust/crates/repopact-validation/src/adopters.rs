@@ -49,18 +49,17 @@ impl Validator {
             })
             .collect();
         if !all_unique(&ids) {
-            self.push(self.at(
-                "adopters.duplicate-id",
-                "adopter ids must be unique",
-                &path,
-            ));
+            self.push(self.at("adopters.duplicate-id", "adopter ids must be unique", &path));
         }
 
         let repositories: Vec<String> = entries
             .iter()
             .map(|entry| {
                 normalize_repository_identity(
-                    entry.get("repository").and_then(Value::as_str).unwrap_or(""),
+                    entry
+                        .get("repository")
+                        .and_then(Value::as_str)
+                        .unwrap_or(""),
                 )
             })
             .collect();
@@ -96,17 +95,16 @@ impl Validator {
             .get("overlay_path")
             .and_then(Value::as_str)
             .unwrap_or("");
-        let root = repopact_repository::normalize_path(self.repository.root());
-        let overlay =
-            repopact_repository::normalize_path(&self.repository.root().join(overlay_relative));
-        if overlay.strip_prefix(&root).is_err() {
+        let Some(overlay) =
+            repopact_repository::resolve_within_root(self.repository.root(), overlay_relative)
+        else {
             self.push(self.at(
                 "adopters.overlay-path-escape",
                 format!("vendored overlay path escapes the repository: {overlay_relative}"),
                 manifest_path,
             ));
             return;
-        }
+        };
         let Some(bytes) = self.index.overlay_bytes(&overlay) else {
             self.push(self.at(
                 "adopters.overlay-missing",
@@ -140,7 +138,10 @@ fn all_unique(values: &[String]) -> bool {
 /// Mirrors Python's `str(repository).lower().removesuffix(".git")`.
 fn normalize_repository_identity(repository: &str) -> String {
     let lower = repository.to_ascii_lowercase();
-    lower.strip_suffix(".git").map(str::to_owned).unwrap_or(lower)
+    lower
+        .strip_suffix(".git")
+        .map(str::to_owned)
+        .unwrap_or(lower)
 }
 
 /// `bytes.replace(b"\r\n", b"\n")`, matching Python's checksum normalization
@@ -172,7 +173,10 @@ mod tests {
     use crate::Validator;
 
     fn temp_root(name: &str) -> PathBuf {
-        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("repopact-rust-adopters-{name}-{suffix}"));
         fs::create_dir_all(&root).unwrap();
         root
@@ -218,7 +222,9 @@ mod tests {
     fn absent_manifest_is_silent() {
         let root = temp_root("absent");
         assert!(!has_code(&root, "adopters.duplicate-id"));
-        assert!(!codes(&root).iter().any(|code| code.starts_with("adopters.")));
+        assert!(!codes(&root)
+            .iter()
+            .any(|code| code.starts_with("adopters.")));
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -232,7 +238,9 @@ mod tests {
                 pypi_adopter("adopter-two", "org/repo-two"),
             ]),
         );
-        assert!(!codes(&root).iter().any(|code| code.starts_with("adopters.")));
+        assert!(!codes(&root)
+            .iter()
+            .any(|code| code.starts_with("adopters.")));
         assert!(!has_code(&root, "unsupported.semantic-surface"));
         fs::remove_dir_all(root).unwrap();
     }
@@ -276,7 +284,12 @@ mod tests {
         fs::remove_dir_all(root).unwrap();
     }
 
-    fn vendored_adopter(id: &str, repository: &str, overlay_path: &str, overlay_sha256: &str) -> serde_json::Value {
+    fn vendored_adopter(
+        id: &str,
+        repository: &str,
+        overlay_path: &str,
+        overlay_sha256: &str,
+    ) -> serde_json::Value {
         json!({
             "id": id,
             "repository": repository,

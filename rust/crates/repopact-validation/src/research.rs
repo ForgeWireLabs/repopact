@@ -12,7 +12,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use regex::Regex;
-use repopact_repository::{RecordIndex, Repository};
+use repopact_repository::{resolve_within_root, RecordIndex, Repository};
 use repopact_types::Diagnostic;
 use serde_json::Value;
 
@@ -25,7 +25,10 @@ impl Validator {
         let root = self.repository.root().to_path_buf();
         let metadata_path = root.join("research/metadata.json");
         let upstream_record = self.index.text(&root.join("research/paper.md")).is_some()
-            && self.index.text(&root.join("research/protocol.md")).is_some();
+            && self
+                .index
+                .text(&root.join("research/protocol.md"))
+                .is_some();
         let record = self.index.research_metadata.clone();
         if record.is_none() && !upstream_record {
             return;
@@ -77,7 +80,14 @@ fn validate_metadata(
     today: &str,
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
-    validate_freshness(index, repository, metadata, metadata_path, today, &mut diagnostics);
+    validate_freshness(
+        index,
+        repository,
+        metadata,
+        metadata_path,
+        today,
+        &mut diagnostics,
+    );
     validate_lifecycle(index, repository, metadata, metadata_path, &mut diagnostics);
     validate_benchmark(index, repository, metadata, metadata_path, &mut diagnostics);
     validate_threats(index, repository, metadata, metadata_path, &mut diagnostics);
@@ -89,12 +99,107 @@ fn at(repository: &Repository, code: &str, message: impl Into<String>, path: &Pa
     Diagnostic::error(code.to_owned(), message).with_path(repository.relative_path(path))
 }
 
-fn read_local<'a>(index: &'a RecordIndex, repository: &Repository, relative: &str) -> Option<&'a str> {
+/// A metadata-configured relative reference, resolved against the same
+/// containment-checked snapshot `RecordIndex::build_with_topology` already
+/// populated. `Escaped` is distinct from `Missing` (WI059 containment
+/// correction): a reference that resolves outside the repository was never
+/// read into the snapshot in the first place, and must be reported as
+/// `research.path-escape` rather than the misleading "source is missing".
+enum LocalRef<'a> {
+    Present(&'a str),
+    Missing,
+    Escaped,
+}
+
+fn resolve_local<'a>(
+    index: &'a RecordIndex,
+    repository: &Repository,
+    relative: &str,
+) -> LocalRef<'a> {
+    if relative.is_empty() {
+        return LocalRef::Missing;
+    }
+    if resolve_within_root(repository.root(), relative).is_none() {
+        return LocalRef::Escaped;
+    }
+    match index.text(&repository.root().join(relative)) {
+        Some(text) => LocalRef::Present(text),
+        None => LocalRef::Missing,
+    }
+}
+
+/// Read a fixed, hardcoded repository-relative path (e.g. `research/figures.md`)
+/// that is not attacker/metadata-controlled, so no containment check applies.
+fn read_fixed<'a>(
+    index: &'a RecordIndex,
+    repository: &Repository,
+    relative: &str,
+) -> Option<&'a str> {
     index.text(&repository.root().join(relative))
 }
 
-fn document_exists(index: &RecordIndex, repository: &Repository, relative: &str) -> bool {
-    !relative.is_empty() && read_local(index, repository, relative).is_some()
+fn push_escape(
+    repository: &Repository,
+    relative: &str,
+    path: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    diagnostics.push(at(
+        repository,
+        "research.path-escape",
+        format!("research reference escapes the repository: {relative}"),
+        path,
+    ));
+}
+
+/// Resolve a metadata-configured document reference and read its text,
+/// pushing exactly one diagnostic (`research.path-escape` or
+/// `research.source-missing`) and returning `None` on failure.
+fn resolve_source<'a>(
+    index: &'a RecordIndex,
+    repository: &Repository,
+    relative: &str,
+    metadata_path: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Option<&'a str> {
+    match resolve_local(index, repository, relative) {
+        LocalRef::Present(text) => Some(text),
+        LocalRef::Missing => {
+            diagnostics.push(at(
+                repository,
+                "research.source-missing",
+                format!("missing research fact source: {relative}"),
+                metadata_path,
+            ));
+            None
+        }
+        LocalRef::Escaped => {
+            push_escape(repository, relative, metadata_path, diagnostics);
+            None
+        }
+    }
+}
+
+/// Existence-only check for a metadata-configured reference. Returns `true`
+/// only when the reference is both contained within the repository and
+/// readable; an escaping reference reports `research.path-escape` itself
+/// (the caller should not also report its own generic "missing" message in
+/// that case) and returns `false`.
+fn document_present(
+    index: &RecordIndex,
+    repository: &Repository,
+    relative: &str,
+    escape_path: &Path,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> bool {
+    match resolve_local(index, repository, relative) {
+        LocalRef::Present(_) => true,
+        LocalRef::Missing => false,
+        LocalRef::Escaped => {
+            push_escape(repository, relative, escape_path, diagnostics);
+            false
+        }
+    }
 }
 
 fn configured_list<'a>(
@@ -170,7 +275,10 @@ fn markdown_section<'a>(text: &'a str, title: &str) -> Option<&'a str> {
 fn first_fenced_block(body: &str) -> Option<&str> {
     static FENCE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let regex = FENCE.get_or_init(|| Regex::new(r"(?s)```(.*?)```").expect("valid fence pattern"));
-    regex.captures(body).and_then(|c| c.get(1)).map(|m| m.as_str())
+    regex
+        .captures(body)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str())
 }
 
 fn contains_word(text: &str, word: &str) -> bool {
@@ -188,7 +296,9 @@ fn validate_freshness(
     today: &str,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(freshness) = metadata.get("claim_freshness").filter(|value| value.is_object())
+    let Some(freshness) = metadata
+        .get("claim_freshness")
+        .filter(|value| value.is_object())
     else {
         diagnostics.push(at(
             repository,
@@ -199,8 +309,12 @@ fn validate_freshness(
         return;
     };
 
-    let policy = freshness.get("policy").and_then(Value::as_str).unwrap_or("");
-    if policy.is_empty() || !document_exists(index, repository, policy) {
+    let policy = freshness
+        .get("policy")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if policy.is_empty() || !document_present(index, repository, policy, metadata_path, diagnostics)
+    {
         diagnostics.push(at(
             repository,
             "research.freshness-policy-missing",
@@ -209,8 +323,14 @@ fn validate_freshness(
         ));
     }
 
-    let verified_on = freshness.get("verified_on").and_then(Value::as_str).unwrap_or_default();
-    let review_by = freshness.get("review_by").and_then(Value::as_str).unwrap_or_default();
+    let verified_on = freshness
+        .get("verified_on")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
+    let review_by = freshness
+        .get("review_by")
+        .and_then(Value::as_str)
+        .unwrap_or_default();
     let verified_ymd = parse_ymd(verified_on);
     let review_ymd = parse_ymd(review_by);
     if verified_ymd.is_none() {
@@ -278,7 +398,10 @@ fn validate_freshness(
         .iter()
         .map(|value| value.as_str().unwrap_or("").to_owned())
         .collect();
-    let unique_count = documents.iter().collect::<std::collections::BTreeSet<_>>().len();
+    let unique_count = documents
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
     if unique_count != documents.len() {
         diagnostics.push(at(
             repository,
@@ -297,19 +420,30 @@ fn validate_freshness(
         if !missing.is_empty() {
             details.push(format!(
                 "missing {}",
-                missing.iter().map(|value| value.as_str()).collect::<Vec<_>>().join(", ")
+                missing
+                    .iter()
+                    .map(|value| value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
         if !unexpected.is_empty() {
             details.push(format!(
                 "unexpected {}",
-                unexpected.iter().map(|value| value.as_str()).collect::<Vec<_>>().join(", ")
+                unexpected
+                    .iter()
+                    .map(|value| value.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
         diagnostics.push(at(
             repository,
             "research.freshness-coverage-incomplete",
-            format!("research claim freshness coverage is incomplete: {}", details.join("; ")),
+            format!(
+                "research claim freshness coverage is incomplete: {}",
+                details.join("; ")
+            ),
             metadata_path,
         ));
     }
@@ -322,7 +456,9 @@ fn top_level_research_documents(index: &RecordIndex, repository: &Repository) ->
         .keys()
         .filter(|path| {
             path.parent() == Some(research_dir.as_path())
-                && path.extension().is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
         })
         .map(|path| repository.relative_path(path))
         .collect();
@@ -350,7 +486,11 @@ fn validate_lifecycle(
         .get("states")
         .and_then(Value::as_array)
         .map(|states| {
-            states.iter().map(|value| value.as_str().unwrap_or("")).collect::<Vec<_>>() == STATUSES
+            states
+                .iter()
+                .map(|value| value.as_str().unwrap_or(""))
+                .collect::<Vec<_>>()
+                == STATUSES
         })
         .unwrap_or(false);
     if !states_match {
@@ -366,7 +506,13 @@ fn validate_lifecycle(
         return;
     }
 
-    for entry in configured_list(lifecycle, "set_documents", repository, metadata_path, diagnostics) {
+    for entry in configured_list(
+        lifecycle,
+        "set_documents",
+        repository,
+        metadata_path,
+        diagnostics,
+    ) {
         let path_rel = entry.get("path").and_then(Value::as_str);
         let pattern_src = entry.get("pattern").and_then(Value::as_str);
         let (Some(path_rel), Some(pattern_src)) = (path_rel, pattern_src) else {
@@ -379,13 +525,8 @@ fn validate_lifecycle(
             continue;
         };
         let target_path = repository.root().join(path_rel);
-        let Some(text) = read_local(index, repository, path_rel) else {
-            diagnostics.push(at(
-                repository,
-                "research.source-missing",
-                format!("missing research fact source: {path_rel}"),
-                metadata_path,
-            ));
+        let Some(text) = resolve_source(index, repository, path_rel, metadata_path, diagnostics)
+        else {
             continue;
         };
         let Ok(pattern) = Regex::new(pattern_src) else {
@@ -424,7 +565,13 @@ fn validate_lifecycle(
         }
     }
 
-    for entry in configured_list(lifecycle, "figure_documents", repository, metadata_path, diagnostics) {
+    for entry in configured_list(
+        lifecycle,
+        "figure_documents",
+        repository,
+        metadata_path,
+        diagnostics,
+    ) {
         let path_rel = entry.get("path").and_then(Value::as_str);
         let section = entry.get("section").and_then(Value::as_str);
         let (Some(path_rel), Some(section)) = (path_rel, section) else {
@@ -437,13 +584,8 @@ fn validate_lifecycle(
             continue;
         };
         let target_path = repository.root().join(path_rel);
-        let Some(text) = read_local(index, repository, path_rel) else {
-            diagnostics.push(at(
-                repository,
-                "research.source-missing",
-                format!("missing research fact source: {path_rel}"),
-                metadata_path,
-            ));
+        let Some(text) = resolve_source(index, repository, path_rel, metadata_path, diagnostics)
+        else {
             continue;
         };
         let Some(body) = markdown_section(text, section) else {
@@ -456,19 +598,32 @@ fn validate_lifecycle(
             continue;
         };
         let diagram = first_fenced_block(body).unwrap_or(body);
-        let observed: Vec<&str> = STATUSES.iter().copied().filter(|state| contains_word(diagram, state)).collect();
+        let observed: Vec<&str> = STATUSES
+            .iter()
+            .copied()
+            .filter(|state| contains_word(diagram, state))
+            .collect();
         if observed != STATUSES {
-            let missing: Vec<&str> = STATUSES.iter().copied().filter(|state| !observed.contains(state)).collect();
+            let missing: Vec<&str> = STATUSES
+                .iter()
+                .copied()
+                .filter(|state| !observed.contains(state))
+                .collect();
             diagnostics.push(at(
                 repository,
                 "research.lifecycle-figure-mismatch",
-                format!("lifecycle figure contradicts metadata; missing state(s): {}", missing.join(", ")),
+                format!(
+                    "lifecycle figure contradicts metadata; missing state(s): {}",
+                    missing.join(", ")
+                ),
                 &target_path,
             ));
         }
     }
 
-    let release = lifecycle.get("provenance_typing_release").and_then(Value::as_str);
+    let release = lifecycle
+        .get("provenance_typing_release")
+        .and_then(Value::as_str);
     let release_valid = release.is_some_and(is_semver_core);
     if !release_valid {
         diagnostics.push(at(
@@ -477,7 +632,7 @@ fn validate_lifecycle(
             "lifecycle provenance_typing_release must be semantic",
             metadata_path,
         ));
-    } else if let Some(figures_text) = read_local(index, repository, "research/figures.md") {
+    } else if let Some(figures_text) = read_fixed(index, repository, "research/figures.md") {
         let release = release.unwrap_or_default();
         let body = markdown_section(figures_text, "Figure 3").unwrap_or("");
         let release_core = release.split('.').take(2).collect::<Vec<_>>().join(".");
@@ -530,8 +685,11 @@ fn validate_benchmark(
         ));
         return;
     };
-    let source = pactbench.get("source").and_then(Value::as_str).unwrap_or("");
-    if !document_exists(index, repository, source) {
+    let source = pactbench
+        .get("source")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    if !document_present(index, repository, source, metadata_path, diagnostics) {
         diagnostics.push(at(
             repository,
             "research.benchmark-source-missing",
@@ -539,7 +697,13 @@ fn validate_benchmark(
             metadata_path,
         ));
     }
-    for entry in configured_list(pactbench, "documents", repository, metadata_path, diagnostics) {
+    for entry in configured_list(
+        pactbench,
+        "documents",
+        repository,
+        metadata_path,
+        diagnostics,
+    ) {
         let path_rel = entry.get("path").and_then(Value::as_str);
         let pattern_src = entry.get("pattern").and_then(Value::as_str);
         let (Some(path_rel), Some(pattern_src)) = (path_rel, pattern_src) else {
@@ -552,13 +716,8 @@ fn validate_benchmark(
             continue;
         };
         let target_path = repository.root().join(path_rel);
-        let Some(text) = read_local(index, repository, path_rel) else {
-            diagnostics.push(at(
-                repository,
-                "research.source-missing",
-                format!("missing research fact source: {path_rel}"),
-                metadata_path,
-            ));
+        let Some(text) = resolve_source(index, repository, path_rel, metadata_path, diagnostics)
+        else {
             continue;
         };
         let Ok(pattern) = Regex::new(pattern_src) else {
@@ -593,7 +752,10 @@ fn validate_benchmark(
         }
     }
 
-    let Some(mappings) = benchmark.get("study_hypotheses").and_then(Value::as_object).filter(|m| !m.is_empty())
+    let Some(mappings) = benchmark
+        .get("study_hypotheses")
+        .and_then(Value::as_object)
+        .filter(|m| !m.is_empty())
     else {
         diagnostics.push(at(
             repository,
@@ -604,7 +766,11 @@ fn validate_benchmark(
         return;
     };
     let mut ordered: Vec<(&String, &Value)> = mappings.iter().collect();
-    ordered.sort_by_key(|(key, _)| key.trim_start_matches(|c: char| !c.is_ascii_digit()).parse::<i64>().unwrap_or(0));
+    ordered.sort_by_key(|(key, _)| {
+        key.trim_start_matches(|c: char| !c.is_ascii_digit())
+            .parse::<i64>()
+            .unwrap_or(0)
+    });
     let expected_start = ordered
         .first()
         .and_then(|(_, value)| value.as_str())
@@ -614,7 +780,13 @@ fn validate_benchmark(
         .and_then(|(_, value)| value.as_str())
         .and_then(|value| value.trim_start_matches('H').parse::<i64>().ok());
     if let (Some(expected_start), Some(expected_end)) = (expected_start, expected_end) {
-        for entry in configured_list(benchmark, "range_documents", repository, metadata_path, diagnostics) {
+        for entry in configured_list(
+            benchmark,
+            "range_documents",
+            repository,
+            metadata_path,
+            diagnostics,
+        ) {
             let path_rel = entry.get("path").and_then(Value::as_str);
             let pattern_src = entry.get("pattern").and_then(Value::as_str);
             let (Some(path_rel), Some(pattern_src)) = (path_rel, pattern_src) else {
@@ -627,13 +799,9 @@ fn validate_benchmark(
                 continue;
             };
             let target_path = repository.root().join(path_rel);
-            let Some(text) = read_local(index, repository, path_rel) else {
-                diagnostics.push(at(
-                    repository,
-                    "research.source-missing",
-                    format!("missing research fact source: {path_rel}"),
-                    metadata_path,
-                ));
+            let Some(text) =
+                resolve_source(index, repository, path_rel, metadata_path, diagnostics)
+            else {
                 continue;
             };
             let Ok(pattern) = Regex::new(pattern_src) else {
@@ -674,17 +842,25 @@ fn validate_benchmark(
 
     static HEADING_PATTERN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let heading_pattern = HEADING_PATTERN.get_or_init(|| {
-        Regex::new(r"(?m)^###\s+(S[0-9]+)\b[^\n]*[\u{2192}-]+\s*(H[0-9]+)\b").expect("valid heading pattern")
+        Regex::new(r"(?m)^###\s+(S[0-9]+)\b[^\n]*[\u{2192}-]+\s*(H[0-9]+)\b")
+            .expect("valid heading pattern")
     });
     static TABLE_PATTERN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    let table_pattern = TABLE_PATTERN
-        .get_or_init(|| Regex::new(r"(?m)^\|\s*(S[0-9]+)\s*\|\s*(H[0-9]+)\s*\|").expect("valid table pattern"));
+    let table_pattern = TABLE_PATTERN.get_or_init(|| {
+        Regex::new(r"(?m)^\|\s*(S[0-9]+)\s*\|\s*(H[0-9]+)\s*\|").expect("valid table pattern")
+    });
 
     let expected_mapping: BTreeMap<String, String> = mappings
         .iter()
         .filter_map(|(key, value)| Some((key.clone(), value.as_str()?.to_owned())))
         .collect();
-    for relative in configured_list(benchmark, "mapping_documents", repository, metadata_path, diagnostics) {
+    for relative in configured_list(
+        benchmark,
+        "mapping_documents",
+        repository,
+        metadata_path,
+        diagnostics,
+    ) {
         let Some(relative) = relative.as_str() else {
             diagnostics.push(at(
                 repository,
@@ -695,13 +871,8 @@ fn validate_benchmark(
             continue;
         };
         let target_path = repository.root().join(relative);
-        let Some(text) = read_local(index, repository, relative) else {
-            diagnostics.push(at(
-                repository,
-                "research.source-missing",
-                format!("missing research fact source: {relative}"),
-                metadata_path,
-            ));
+        let Some(text) = resolve_source(index, repository, relative, metadata_path, diagnostics)
+        else {
             continue;
         };
         let mut observed: BTreeMap<String, String> = heading_pattern
@@ -748,10 +919,16 @@ fn validate_threats(
         ));
         return;
     };
-    let identifiers: Vec<String> = configured_list(threats, "identifiers", repository, metadata_path, diagnostics)
-        .into_iter()
-        .filter_map(|value| value.as_str().map(str::to_owned))
-        .collect();
+    let identifiers: Vec<String> = configured_list(
+        threats,
+        "identifiers",
+        repository,
+        metadata_path,
+        diagnostics,
+    )
+    .into_iter()
+    .filter_map(|value| value.as_str().map(str::to_owned))
+    .collect();
     if identifiers.is_empty() {
         return;
     }
@@ -764,7 +941,10 @@ fn validate_threats(
         ));
         return;
     }
-    let unique_count = identifiers.iter().collect::<std::collections::BTreeSet<_>>().len();
+    let unique_count = identifiers
+        .iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
     if unique_count != identifiers.len() {
         diagnostics.push(at(
             repository,
@@ -775,8 +955,10 @@ fn validate_threats(
     }
 
     static HEADING_PATTERN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    let heading_pattern = HEADING_PATTERN
-        .get_or_init(|| Regex::new(r"(?m)^#{2,3}\s+(T[0-9]+)\s*(?::|\u{2014}|-)").expect("valid threat heading pattern"));
+    let heading_pattern = HEADING_PATTERN.get_or_init(|| {
+        Regex::new(r"(?m)^#{2,3}\s+(T[0-9]+)\s*(?::|\u{2014}|-)")
+            .expect("valid threat heading pattern")
+    });
 
     for relative in configured_list(threats, "documents", repository, metadata_path, diagnostics) {
         let Some(relative) = relative.as_str() else {
@@ -789,13 +971,8 @@ fn validate_threats(
             continue;
         };
         let target_path = repository.root().join(relative);
-        let Some(text) = read_local(index, repository, relative) else {
-            diagnostics.push(at(
-                repository,
-                "research.source-missing",
-                format!("missing research fact source: {relative}"),
-                metadata_path,
-            ));
+        let Some(text) = resolve_source(index, repository, relative, metadata_path, diagnostics)
+        else {
             continue;
         };
         let observed: Vec<String> = heading_pattern
@@ -835,7 +1012,10 @@ fn validate_threats(
             diagnostics.push(at(
                 repository,
                 "research.threat-identifier-mismatch",
-                format!("threat identifiers contradict metadata: {}", details.join("; ")),
+                format!(
+                    "threat identifiers contradict metadata: {}",
+                    details.join("; ")
+                ),
                 &target_path,
             ));
         }
@@ -849,7 +1029,10 @@ fn validate_trace(
     metadata_path: &Path,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(trace) = metadata.get("proposed_state_trace").filter(|value| value.is_object()) else {
+    let Some(trace) = metadata
+        .get("proposed_state_trace")
+        .filter(|value| value.is_object())
+    else {
         diagnostics.push(at(
             repository,
             "research.trace-invalid",
@@ -875,7 +1058,11 @@ fn validate_trace(
         .get("decisions")
         .and_then(Value::as_array)
         .filter(|list| !list.is_empty())
-        .map(|list| list.iter().filter_map(|value| value.as_str().map(str::to_owned)).collect())
+        .map(|list| {
+            list.iter()
+                .filter_map(|value| value.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_else(|| {
             diagnostics.push(at(
                 repository,
@@ -890,10 +1077,16 @@ fn validate_trace(
     let mut targets: Vec<String> = vec![capture.to_owned()];
     targets.extend(decisions);
     for field in local_fields {
-        targets.push(trace.get(field).and_then(Value::as_str).unwrap_or("").to_owned());
+        targets.push(
+            trace
+                .get(field)
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+        );
     }
     for relative in &targets {
-        if !document_exists(index, repository, relative) {
+        if !document_present(index, repository, relative, metadata_path, diagnostics) {
             diagnostics.push(at(
                 repository,
                 "research.trace-target-missing",
@@ -903,7 +1096,7 @@ fn validate_trace(
         }
     }
 
-    if let Some(findings) = read_local(index, repository, "research/findings.md") {
+    if let Some(findings) = read_fixed(index, repository, "research/findings.md") {
         if !findings.contains("| F-014 |")
             || !findings.contains("captures/013-proposed-lifecycle-adoption-pressure.md")
         {
@@ -916,15 +1109,27 @@ fn validate_trace(
         }
     }
 
-    if let Some(capture_text) = read_local(index, repository, capture) {
+    if let LocalRef::Present(capture_text) = resolve_local(index, repository, capture) {
         let required_tokens: Vec<String> = [
             "0023".to_owned(),
             "025".to_owned(),
             "20260629-proposed-lifecycle-state".to_owned(),
             "0024".to_owned(),
-            trace.get("release_tag").and_then(Value::as_str).unwrap_or("").to_owned(),
-            trace.get("release_commit").and_then(Value::as_str).unwrap_or("").to_owned(),
-            trace.get("adopter_commit").and_then(Value::as_str).unwrap_or("").to_owned(),
+            trace
+                .get("release_tag")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            trace
+                .get("release_commit")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
+            trace
+                .get("adopter_commit")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned(),
             "20260718-repopact-2-2-0-adopter-rollout".to_owned(),
         ]
         .into_iter()
@@ -939,7 +1144,10 @@ fn validate_trace(
             diagnostics.push(at(
                 repository,
                 "research.trace-capture-token-missing",
-                format!("proposed-state capture is missing trace token(s): {}", absent.join(", ")),
+                format!(
+                    "proposed-state capture is missing trace token(s): {}",
+                    absent.join(", ")
+                ),
                 &repository.root().join(capture),
             ));
         }
@@ -959,7 +1167,10 @@ mod tests {
     use crate::Validator;
 
     fn temp_root(name: &str) -> PathBuf {
-        let suffix = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let root = std::env::temp_dir().join(format!("repopact-rust-research-{name}-{suffix}"));
         fs::create_dir_all(&root).unwrap();
         root
@@ -1087,7 +1298,10 @@ mod tests {
         let root = temp_root("upstream-only");
         write(&root, "research/paper.md", "# Paper\n");
         write(&root, "research/protocol.md", "# Protocol\n");
-        assert_eq!(research_codes(&root, "2026-01-10"), vec!["research.metadata-missing"]);
+        assert_eq!(
+            research_codes(&root, "2026-01-10"),
+            vec!["research.metadata-missing"]
+        );
     }
 
     #[test]
@@ -1101,7 +1315,9 @@ mod tests {
     fn expired_freshness_with_injected_date_is_rejected() {
         let root = temp_root("expired");
         valid_fixture(&root);
-        assert!(research_codes(&root, "2026-02-01").contains(&"research.freshness-expired".to_owned()));
+        assert!(
+            research_codes(&root, "2026-02-01").contains(&"research.freshness-expired".to_owned())
+        );
     }
 
     #[test]
@@ -1111,9 +1327,15 @@ mod tests {
         let metadata_path = root.join("research/metadata.json");
         let mut metadata: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&metadata_path).unwrap()).unwrap();
-        metadata["claim_freshness"]["documents"] = json!(["research/paper.md", "research/protocol.md"]);
-        fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap()).unwrap();
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.freshness-coverage-incomplete".to_owned()));
+        metadata["claim_freshness"]["documents"] =
+            json!(["research/paper.md", "research/protocol.md"]);
+        fs::write(
+            &metadata_path,
+            serde_json::to_string_pretty(&metadata).unwrap(),
+        )
+        .unwrap();
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.freshness-coverage-incomplete".to_owned()));
     }
 
     #[test]
@@ -1125,7 +1347,8 @@ mod tests {
             "research/figures.md",
             "## Figure 2\n\n```\nproposed -> active -> completed\n```\n\n## Figure 3\n\nRepoPact 2.0 ships provenance typing today.\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.lifecycle-figure-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.lifecycle-figure-mismatch".to_owned()));
     }
 
     #[test]
@@ -1137,7 +1360,8 @@ mod tests {
             "research/paper.md",
             "# Paper\n\nstates: {proposed, active, blocked, deferred, completed}\n\ntasks: 999\n\nH1-H2\n\n| S1 | H1 |\n| S2 | H2 |\n\n## T1: threat one\n## T2: threat two\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.benchmark-task-count-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.benchmark-task-count-mismatch".to_owned()));
     }
 
     #[test]
@@ -1149,7 +1373,8 @@ mod tests {
             "research/paper.md",
             "# Paper\n\nstates: {proposed, active, blocked, deferred, completed}\n\ntasks: 5\n\nH1-H9\n\n| S1 | H1 |\n| S2 | H2 |\n\n## T1: threat one\n## T2: threat two\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.benchmark-range-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.benchmark-range-mismatch".to_owned()));
     }
 
     #[test]
@@ -1161,7 +1386,8 @@ mod tests {
             "research/paper.md",
             "# Paper\n\nstates: {proposed, active, blocked, deferred, completed}\n\ntasks: 5\n\nH1-H2\n\n| S1 | H9 |\n| S2 | H2 |\n\n## T1: threat one\n## T2: threat two\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.benchmark-mapping-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.benchmark-mapping-mismatch".to_owned()));
     }
 
     #[test]
@@ -1173,7 +1399,8 @@ mod tests {
             "research/paper.md",
             "# Paper\n\nstates: {proposed, active, blocked, deferred, completed}\n\ntasks: 5\n\nH1-H2\n\n| S1 | H1 |\n| S2 | H2 |\n\n## T1: threat one\n## T1: threat one again\n## T2: threat two\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.threat-identifier-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.threat-identifier-mismatch".to_owned()));
     }
 
     #[test]
@@ -1185,7 +1412,8 @@ mod tests {
             "research/paper.md",
             "# Paper\n\nstates: {proposed, active, blocked, deferred, completed}\n\ntasks: 5\n\nH1-H2\n\n| S1 | H1 |\n| S2 | H2 |\n\n## T1: threat one\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.threat-identifier-mismatch".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.threat-identifier-mismatch".to_owned()));
     }
 
     #[test]
@@ -1196,8 +1424,40 @@ mod tests {
         let mut metadata: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&metadata_path).unwrap()).unwrap();
         metadata["proposed_state_trace"]["work_item"] = json!("evidence/runs/does-not-exist.json");
-        fs::write(&metadata_path, serde_json::to_string_pretty(&metadata).unwrap()).unwrap();
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.trace-target-missing".to_owned()));
+        fs::write(
+            &metadata_path,
+            serde_json::to_string_pretty(&metadata).unwrap(),
+        )
+        .unwrap();
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.trace-target-missing".to_owned()));
+    }
+
+    #[test]
+    fn escaping_reference_is_rejected_and_never_read_as_valid() {
+        let root = temp_root("path-escape");
+        valid_fixture(&root);
+        let outside = root.parent().unwrap().join(format!(
+            "research-escape-outside-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::write(&outside, "SENTINEL-DO-NOT-INGEST").unwrap();
+        let outside_name = outside.file_name().unwrap().to_str().unwrap().to_owned();
+        let metadata_path = root.join("research/metadata.json");
+        let mut metadata: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&metadata_path).unwrap()).unwrap();
+        metadata["claim_freshness"]["policy"] = json!(format!("../{outside_name}"));
+        fs::write(
+            &metadata_path,
+            serde_json::to_string_pretty(&metadata).unwrap(),
+        )
+        .unwrap();
+        let codes = research_codes(&root, "2026-01-10");
+        assert!(codes.contains(&"research.path-escape".to_owned()));
+        fs::remove_file(&outside).unwrap();
     }
 
     #[test]
@@ -1209,7 +1469,8 @@ mod tests {
             "research/captures/013-proposed-lifecycle-adoption-pressure.md",
             "only some of the required tokens: 0023\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.trace-capture-token-missing".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.trace-capture-token-missing".to_owned()));
     }
 
     #[test]
@@ -1221,6 +1482,7 @@ mod tests {
             "research/figures.md",
             "## Figure 2\n\n```\nproposed -> active -> blocked -> deferred -> completed\n```\n\n## Figure 3\n\nProvenance typing remains a future escape hatch.\n",
         );
-        assert!(research_codes(&root, "2026-01-10").contains(&"research.provenance-figure-regressed".to_owned()));
+        assert!(research_codes(&root, "2026-01-10")
+            .contains(&"research.provenance-figure-regressed".to_owned()));
     }
 }

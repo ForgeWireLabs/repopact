@@ -5,9 +5,10 @@ use std::time::Duration;
 
 use repopact_analysis::AnalysisQuery;
 use repopact_desktop_api::{
-    AnalysisView, DesktopError, DesktopService, GraphView, MutationApplyView, MutationIntent,
-    MutationPlanView, RecordDetailView, RecordSummaryView, RepositoryChangedEvent,
-    RepositoryOverview, ValidationView, WorkItemDetailView, WorkItemSummaryView,
+    AnalysisView, DecisionSummaryView, DesktopError, DesktopService, EvidenceSummaryView,
+    GraphView, MutationApplyView, MutationIntent, MutationPlanView, RecordDetailView,
+    RepositoryChangedEvent, RepositoryOverview, ValidationView, WorkItemDetailView,
+    WorkItemSummaryView,
 };
 use serde::Deserialize;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -81,7 +82,7 @@ fn get_work_item(
 #[tauri::command]
 fn list_decisions(
     service: State<'_, DesktopService>,
-) -> Result<Vec<RecordSummaryView>, DesktopError> {
+) -> Result<Vec<DecisionSummaryView>, DesktopError> {
     service.list_decisions()
 }
 
@@ -96,7 +97,7 @@ fn get_decision(
 #[tauri::command]
 fn list_evidence(
     service: State<'_, DesktopService>,
-) -> Result<Vec<RecordSummaryView>, DesktopError> {
+) -> Result<Vec<EvidenceSummaryView>, DesktopError> {
     service.list_evidence()
 }
 

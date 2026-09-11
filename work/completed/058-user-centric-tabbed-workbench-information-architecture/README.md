@@ -1,6 +1,6 @@
 # Work Item 058 — User-Centric Tabbed Workbench Information Architecture
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** tooling
 

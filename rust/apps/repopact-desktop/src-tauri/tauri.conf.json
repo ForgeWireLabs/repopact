@@ -17,8 +17,8 @@
         "title": "RepoPact Workbench",
         "width": 1360,
         "height": 900,
-        "minWidth": 980,
-        "minHeight": 640,
+        "minWidth": 420,
+        "minHeight": 560,
         "resizable": true
       }
     ],

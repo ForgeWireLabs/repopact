@@ -149,9 +149,23 @@ pub struct WorkItemDetailView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct RecordSummaryView {
+pub struct DecisionSummaryView {
     pub reference: RecordRef,
     pub readable: bool,
+    pub title: Option<String>,
+    pub status: Option<String>,
+    pub date: Option<String>,
+    pub supersedes: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EvidenceSummaryView {
+    pub reference: RecordRef,
+    pub readable: bool,
+    pub timestamp: Option<String>,
+    pub work_item: Option<String>,
+    pub result: Option<String>,
+    pub provenance: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -596,12 +610,24 @@ impl DesktopService {
         })
     }
 
-    pub fn list_decisions(&self) -> Result<Vec<RecordSummaryView>, DesktopError> {
-        self.list_records(RecordKind::Decision)
+    pub fn list_decisions(&self) -> Result<Vec<DecisionSummaryView>, DesktopError> {
+        let snapshot = self.snapshot()?;
+        Ok(snapshot
+            .index()
+            .decisions
+            .iter()
+            .map(decision_summary)
+            .collect())
     }
 
-    pub fn list_evidence(&self) -> Result<Vec<RecordSummaryView>, DesktopError> {
-        self.list_records(RecordKind::EvidenceRun)
+    pub fn list_evidence(&self) -> Result<Vec<EvidenceSummaryView>, DesktopError> {
+        let snapshot = self.snapshot()?;
+        Ok(snapshot
+            .index()
+            .evidence
+            .iter()
+            .map(evidence_summary)
+            .collect())
     }
 
     pub fn get_decision(&self, id: &str) -> Result<RecordDetailView, DesktopError> {
@@ -891,17 +917,6 @@ impl DesktopService {
         }])
     }
 
-    fn list_records(&self, kind: RecordKind) -> Result<Vec<RecordSummaryView>, DesktopError> {
-        let snapshot = self.snapshot()?;
-        Ok(records_for_kind(snapshot.index(), kind)
-            .into_iter()
-            .map(|record| RecordSummaryView {
-                reference: record.reference.clone(),
-                readable: record.value.is_ok() || record.text.is_some(),
-            })
-            .collect())
-    }
-
     fn get_record(&self, kind: RecordKind, id: &str) -> Result<RecordDetailView, DesktopError> {
         let snapshot = self.snapshot()?;
         let record = records_for_kind(snapshot.index(), kind)
@@ -1013,6 +1028,63 @@ fn work_summary(record: &IndexedRecord) -> Option<WorkItemSummaryView> {
             .flat_map(|criterion| criterion.evidence.iter())
             .count(),
     })
+}
+
+fn decision_summary(record: &IndexedRecord) -> DecisionSummaryView {
+    let fields = record.front_matter.as_ref().ok();
+    DecisionSummaryView {
+        reference: record.reference.clone(),
+        readable: record.value.is_ok() || record.text.is_some(),
+        title: front_matter_string(fields, "title"),
+        status: front_matter_string(fields, "status"),
+        date: front_matter_string(fields, "date"),
+        supersedes: front_matter_strings(fields, "supersedes"),
+    }
+}
+
+fn evidence_summary(record: &IndexedRecord) -> EvidenceSummaryView {
+    let object = record.value.as_ref().ok().and_then(Value::as_object);
+    EvidenceSummaryView {
+        reference: record.reference.clone(),
+        readable: record.value.is_ok() || record.text.is_some(),
+        timestamp: object
+            .and_then(|value| value.get("timestamp"))
+            .and_then(value_string),
+        work_item: object
+            .and_then(|value| value.get("work_item"))
+            .and_then(value_string),
+        result: object
+            .and_then(|value| value.get("result"))
+            .and_then(value_string),
+        provenance: object
+            .and_then(|value| value.get("provenance"))
+            .and_then(value_string),
+    }
+}
+
+fn front_matter_string(fields: Option<&BTreeMap<String, Value>>, key: &str) -> Option<String> {
+    fields
+        .and_then(|fields| fields.get(key))
+        .and_then(value_string)
+}
+
+fn front_matter_strings(fields: Option<&BTreeMap<String, Value>>, key: &str) -> Vec<String> {
+    fields
+        .and_then(|fields| fields.get(key))
+        .map(value_strings)
+        .unwrap_or_default()
+}
+
+fn value_string(value: &Value) -> Option<String> {
+    value.as_str().map(str::to_owned)
+}
+
+fn value_strings(value: &Value) -> Vec<String> {
+    value
+        .as_array()
+        .map(|values| values.iter().filter_map(value_string).collect())
+        .or_else(|| value_string(value).map(|value| vec![value]))
+        .unwrap_or_default()
 }
 
 fn typed_work(record: &IndexedRecord) -> Result<WorkItem, DesktopError> {
@@ -1567,6 +1639,39 @@ mod tests {
         assert!(detail.readable);
         assert!(detail.text.is_some());
         assert!(service.get_decision("C:/not-indexed.json").is_err());
+    }
+
+    #[test]
+    fn typed_decision_and_evidence_summaries_use_the_cached_snapshot() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(".git")).unwrap();
+        fs::create_dir_all(dir.path().join("decisions")).unwrap();
+        fs::create_dir_all(dir.path().join("evidence/runs")).unwrap();
+        fs::write(
+            dir.path().join("decisions/0042-test.md"),
+            "---\nid: 0042\ntitle: Canonical Rust engine\nstatus: accepted\ndate: 2026-09-01\nsupersedes: [0041]\n---\n# Test\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("evidence/runs/run-1.json"),
+            r#"{"id":"run-1","timestamp":"2026-09-10T10:00:00Z","work_item":"058","result":"passed","provenance":"test"}"#,
+        )
+        .unwrap();
+
+        let runner = repopact_repository::CountingGitRunner::native();
+        let service = DesktopService::new();
+        service
+            .open_repository_with_git_runner(dir.path(), runner.clone())
+            .unwrap();
+        let construction_count = runner.count();
+        let decision = service.list_decisions().unwrap().pop().unwrap();
+        let evidence = service.list_evidence().unwrap().pop().unwrap();
+        assert_eq!(decision.title.as_deref(), Some("Canonical Rust engine"));
+        assert_eq!(decision.status.as_deref(), Some("accepted"));
+        assert_eq!(decision.supersedes, vec!["0041"]);
+        assert_eq!(evidence.result.as_deref(), Some("passed"));
+        assert_eq!(evidence.work_item.as_deref(), Some("058"));
+        assert_eq!(construction_count, runner.count());
     }
 
     #[test]

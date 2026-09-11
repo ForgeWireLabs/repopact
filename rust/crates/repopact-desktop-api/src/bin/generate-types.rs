@@ -23,7 +23,8 @@ export interface AcceptanceCriterion { id: string; text: string; state: string; 
 export interface WorkItem { id: string; title: string; status: string; owner_scope: string; affected_scopes: string[]; depends_on: string[]; provenance: string; preflight: { created_before_work_started: boolean; created_at: string; note: string } | null; acceptance_criteria: AcceptanceCriterion[]; created: string; updated: string; }
 export interface WorkItemSummaryView { id: string; title: string; status: string; owner_scope: string; affected_scopes: string[]; depends_on: string[]; provenance: string; path: string; criterion_count: number; evidence_count: number; }
 export interface WorkItemDetailView { summary: WorkItemSummaryView; work_item: WorkItem; dependents: string[]; raw_record: unknown; }
-export interface RecordSummaryView { reference: RecordRef; readable: boolean; }
+export interface DecisionSummaryView { reference: RecordRef; readable: boolean; title: string | null; status: string | null; date: string | null; supersedes: string[]; }
+export interface EvidenceSummaryView { reference: RecordRef; readable: boolean; timestamp: string | null; work_item: string | null; result: string | null; provenance: string | null; }
 export interface RecordDetailView { reference: RecordRef; value: unknown | null; text: string | null; readable: boolean; }
 export interface GraphNode { id: string; kind: GraphNodeKind; label: string; source: RecordRef | null; }
 export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; source: RecordRef; }

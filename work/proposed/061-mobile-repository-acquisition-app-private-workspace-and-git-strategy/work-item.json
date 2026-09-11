@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "061",
+  "title": "Mobile Repository Acquisition, App-Private Workspace, and Git Strategy",
+  "status": "proposed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "docs"],
+  "depends_on": ["060"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-11T00:00:00Z",
+    "note": "Stamped by `repopact new` at WI060 closeout, as required by WI060 AND-016: WI060 proved the Workbench IA, Rust-backed reads, and Rust-owned mutation plan/apply flow all run correctly on Android against an app-private tree, but deliberately left production Android repository *acquisition* unresolved rather than silently redesigning RepoPact's repository model to appear Android-supported. This work item exists to decide that architecture, not to re-litigate WI060's runtime findings."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A comparison document weighs at least: (a) app-private import/export (SAF ACTION_OPEN_DOCUMENT_TREE or ACTION_OPEN_DOCUMENT to pick a source, then a safe recursive copy into app-private storage, with an explicit export/share-back path for edits); (b) SAF ACTION_OPEN_DOCUMENT_TREE used directly as a live working tree via the DocumentsContract/DocumentFile API instead of a filesystem path; (c) archive import (a .zip or similar bundle picked via SAF, expanded into app-private storage); (d) an embedded Git implementation (libgit2 via git2-rs, or gix) enabling real clone/pull/push without a system git binary; (e) remote clone/sync against a Git host (GitHub/GitLab/self-hosted) as the primary mobile acquisition path, bypassing local-tree import entirely. Each option is scored against: whether DesktopService's filesystem-directory assumption holds, whether NativeGitRunner's system-git assumption holds, RepositoryTopology's .git-presence gating, mutation plan/apply and opaque-plan-handle semantics, and the offline/no-Git-binary constraint proven in WI060.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "The comparison explicitly addresses write-back: for any option where the Android copy is not the canonical checkout (import/export, archive import), how a reviewed mutation plan applied on-device is reconciled with the source location (manual re-export, SAF write-back, or explicit non-goal for v1) rather than leaving mutated on-device state stranded.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "The comparison records the security and permission cost of each option against WI060's narrow-authority baseline (no broad storage/shell/process permissions, workbench-commands remains the IPC authority surface): SAF-based options avoid legacy broad storage permissions per option; an embedded Git library avoids requiring a system git binary but adds a compiled native dependency and its own permission-relevant surface (network access for remote operations) that must be scoped, not granted broadly.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "A recommendation is made and recorded as a durable decision (not merely narrative text in this work item) selecting one approach (or an explicit staged sequence, e.g. SAF import for v1 with embedded Git deferred) as the production Android repository-access architecture, with the rejected alternatives' reasons for rejection recorded for future reference.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "This work item records the comparison and decision only; it does not implement the selected architecture. Implementation is scoped to a further follow-up work item created at this item's closeout.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-11",
+  "updated": "2026-09-11"
+}

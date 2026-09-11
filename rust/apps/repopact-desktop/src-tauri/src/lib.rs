@@ -201,11 +201,10 @@ fn poll_repository_events(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let service = DesktopService::new();
-    let mut builder = tauri::Builder::default();
     #[cfg(not(target_os = "android"))]
-    {
-        builder = builder.plugin(tauri_plugin_dialog::init());
-    }
+    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
+    #[cfg(target_os = "android")]
+    let builder = tauri::Builder::default();
     builder
         .manage(service.clone())
         .invoke_handler(tauri::generate_handler![

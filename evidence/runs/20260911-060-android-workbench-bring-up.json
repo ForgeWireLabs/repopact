@@ -1,0 +1,87 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260911-060-android-workbench-bring-up",
+  "timestamp": "2026-09-11T21:23:05Z",
+  "work_item": "060",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"cargo fmt --manifest-path rust/Cargo.toml --all -- --check","exit_code":0,"summary":"Rust workspace formatting passed after the lib.rs/main.rs mobile-crate refactor."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"All Rust workspace tests passed (86 test cases across crates, including snapshot_git_invocation_count_is_bounded_independent_of_work_items from WI057)."},
+    {"command":"npm run types:check; npm run typecheck; npx vitest run; npm run build","exit_code":0,"summary":"Generated DTOs current; TypeScript clean; 5 frontend test files / 14 tests passed (10 pre-existing including tauri-security.test.ts, plus 4 new back-navigation.test.ts cases for the WI060 AND-011 state machine); production Vite build passed."},
+    {"command":"python -m unittest discover -s tests -v (REPOPACT_ENGINE set to the Windows debug repopact-engine.exe)","exit_code":1,"summary":"227/228 tests passed, 2 intentional formal-model skips. 1 failure: test_isolated_self_test_ignores_environment_and_checkout_injection fails because the 'cryptography' package is installed only under this machine's Python user-site (AppData/Roaming/Python/Python312/site-packages), which isolated (-I) subprocess mode deliberately excludes; installing it into the base interpreter's site-packages failed with PermissionError (no admin rights to C:/Program Files/Python312). This is a pre-existing local-environment gap unrelated to any WI060 change (no Android/mobile/frontend file is touched by this test) and not a regression introduced by this work item."},
+    {"command":"python -m repopact.run_conformance --legacy-python","exit_code":0,"summary":"Canonical Rust conformance 20/20, legacy Python comparator 21/21, and WI050 admission corpus 8/8."},
+    {"command":"python -m repopact.cli check-frozen --base cf41aaff285dd12af03f42af0f0f3bedd6f44558","exit_code":0,"summary":"No frozen-surface changes detected."},
+    {"command":"python -m repopact.cli dashboard","exit_code":0,"summary":"Dashboard regenerated from source records."}
+  ],
+  "artifacts": [
+    "rust/apps/repopact-desktop/src-tauri/Cargo.toml",
+    "rust/apps/repopact-desktop/src-tauri/src/main.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/android_validation.rs",
+    "rust/apps/repopact-desktop/src-tauri/capabilities/main-window.json",
+    "rust/apps/repopact-desktop/src-tauri/gen/android/",
+    "rust/apps/repopact-desktop/src/App.tsx",
+    "rust/apps/repopact-desktop/src/back-navigation.test.ts",
+    "work/active/060-android-workbench-bring-up-runtime-validation-and-repository-access-boundary/architecture-review.md",
+    "work/proposed/061-mobile-repository-acquisition-app-private-workspace-and-git-strategy/work-item.json",
+    "work/active/060-android-workbench-bring-up-runtime-validation-and-repository-access-boundary/evidence/device/"
+  ],
+  "environment": {
+    "date": "2026-09-11",
+    "os": "Windows 10.0.19045 x64",
+    "base_commit": "cf41aaff285dd12af03f42af0f0f3bedd6f44558",
+    "windows_executable": "rebuilt in-place after lib.rs/main.rs refactor via cargo test --workspace (Tauri desktop binary target)",
+    "android_sdk": "available (pre-existing Precision install)",
+    "android_device": "Android SDK built for x86_64 emulator, Android 15 (API 35), abi x86_64",
+    "android_package": "com.forgewirelabs.repopact.workbench",
+    "android_apk": "rust/apps/repopact-desktop/src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk",
+    "xcode": "unavailable"
+  },
+  "android_bring_up": {
+    "crate_shape": "converted to [lib] (staticlib/cdylib/rlib) with shared builder in src/lib.rs and #[cfg_attr(mobile, tauri::mobile_entry_point)] pub fn run(); src/main.rs reduced to a thin entry point preserving the Windows subsystem attribute.",
+    "android_project_init": "generated via `tauri android init` into src-tauri/gen/android, preserving applicationId com.forgewirelabs.repopact.workbench.",
+    "capability_surface": "main-window.json permissions: workbench-commands, core:event:allow-listen, core:event:allow-unlisten, core:app:allow-register-listener, core:app:allow-remove-listener. withGlobalTauri false. No core:default, no broad storage/shell/process/internet permissions added.",
+    "repository_selection_boundary": {
+      "production_android_build": "select_repository returns a typed repository.mobile-selection-unavailable DesktopError; no blocking_pick_folder() call, no content:// URI handling, no hard-coded path, no unrestricted open_repository(path) command.",
+      "debug_validation_mechanism": "cfg(all(target_os = \"android\", debug_assertions, feature = \"android-debug-validation\")) only; reads a Git-free tree staged by the operator via adb push + run-as into the debug app's private files/ directory (app_data_dir().join(\"files\").join(\"wi060-validation-repo\")); unreachable from a production build.",
+      "no_git_dependency": "confirmed via `adb shell run-as <pkg> which git` (no binary present on the device) and via logcat inspection during repository open/validate/mutation-apply showing no attempted git process launch."
+    },
+    "on_device_ia_validation": "Dashboard, Work, Decisions, Evidence, Graph, Validation, Analysis, and Settings sections all rendered real Rust-backed data on-device (61 work items, 69 evidence runs, 42 decisions, 777 governance graph edges, 94 analysis constraints); Graph rendered its compact stacked-card representation rather than the wide table.",
+    "back_button": {
+      "api_used": "@tauri-apps/api/app onBackButtonPress, registered only while there is RepoPact navigation state to unwind (open detail or open compact drawer); no listener is registered when the resolved action is 'exit', so Android's own default Back/activity-finish behavior runs unmodified.",
+      "unwind_tiers_verified_on_device": [
+        "close an open compact navigation drawer (first back press)",
+        "leave an open Work-item detail view and restore the underlying list state, tab, and highlighted selection (second unwind tier, verified against work item 032)",
+        "fall through to normal Android Back/exit when no internal state remains (verified via pidof: process present after the first back press, absent after the terminal press)"
+      ],
+      "frontend_tests": "back-navigation.test.ts: 4 new unit tests for the pure resolveBackAction state-machine function, all passing.",
+      "root_cause_fixed": "removed WI058's popstate/pushState mechanism, whose stale un-popped history entries caused Tauri's default WebView-history fallback to silently consume the terminal back press via webView.goBack() instead of falling through to activity exit."
+    },
+    "orientation_and_lifecycle": {
+      "rotation": "portrait -> landscape -> portrait preserved the open repository session, active primary page (Work), the open work-item detail (032), and list scroll/selection state across both rotations.",
+      "background_resume": "backgrounding via Home and relaunching returned to the same process (same pid, confirmed via adb shell pidof) with identical UI state; this is foreground/background continuity, not tested or claimed process-death recovery."
+    },
+    "ime_and_safe_area": {
+      "field_visibility": "the Guided Create title field remained fully visible above the on-screen keyboard when focused, and text entry worked correctly.",
+      "observed_limitation": "the form's submit button (\"Continue to guidance\") is pushed below the visible viewport while the IME is open and the form does not auto-scroll to reveal it; it becomes reachable once the IME is dismissed (tested via the hardware Back key, which closes only the IME on this press and does not trigger the app's own Back handling, matching standard Android IME-dismiss precedence). Recorded as an observed characteristic for a future pass, not blocking for WI060."
+    },
+    "mutation_plan_apply": {
+      "target": "a disposable on-device copy of the validation repository (files/wi060-validation-repo, backed up to files/wi060-validation-repo-pristine-backup before mutating and restored afterward); the canonical development checkout was never touched from the device.",
+      "flow": "opened work item 032's Transition form, selected a new status (proposed), reviewed the generated Rust-owned plan (opaque handle plan-1-1, session-bound token, full unified diff, generated impacts including the dashboard projection), and applied it.",
+      "result": "\"Plan applied and post-validation completed.\" toast observed; Dashboard/Work counts updated live (Proposed 5->6, Active 7->6) confirming a real file-system mutation was applied and re-validated by the Rust core, with zero git process dependency (device has no git binary at all)."
+    }
+  },
+  "closeout": {
+    "android_runtime_evidence": "durable; real device install/launch/interaction, not merely a successful build",
+    "production_android_repository_selection": "not claimed complete; explicitly typed as unresolved and handed to WI061",
+    "windows_non_regression": "green except one pre-existing, environment-only Python test failure unrelated to any WI060 change (see commands above)",
+    "wi058_wi059_compatibility": "preserved; WI058 and WI059 were not reopened or modified"
+  },
+  "residuals": [
+    "iOS/macOS bring-up was not attempted (out of scope per the WI060 directive).",
+    "The IME/submit-reachability characteristic on the Guided Create form is recorded but not fixed in WI060.",
+    "test_isolated_self_test_ignores_environment_and_checkout_injection fails on this machine due to a user-site-only cryptography install; fixing it requires elevated permissions to this machine's base Python installation and is outside WI060's scope.",
+    "Production Android repository acquisition remains an open architectural decision, tracked by work/proposed/061-mobile-repository-acquisition-app-private-workspace-and-git-strategy/."
+  ]
+}

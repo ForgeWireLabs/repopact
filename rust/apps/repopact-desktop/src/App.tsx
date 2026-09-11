@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { onBackButtonPress } from "@tauri-apps/api/app";
 import type {
   AnalysisView,
   DecisionSummaryView,
@@ -16,6 +17,25 @@ import type {
 } from "./generated/types";
 import { LIFECYCLE_STATUSES } from "./generated/types";
 import { desktopApi, type DesktopFailure } from "./lib/api";
+
+/**
+ * WI060 AND-011: the Android system-Back unwind order, factored out as a
+ * pure function so it is testable without Tauri's Android-only
+ * `onBackButtonPress` plugin event. Priority order: an open detail view
+ * (Work/Decisions/Evidence) closes first and restores the underlying list
+ * state (its query/tab/pager were never touched, so they persist
+ * automatically); then an open compact navigation drawer; only when neither
+ * is open does RepoPact have no internal mobile navigation state left to
+ * unwind, and the caller should fall through to the platform's normal
+ * Back/exit behavior.
+ */
+export type BackAction = "close-detail" | "close-nav" | "exit";
+
+export function resolveBackAction(state: { detail: unknown; navOpen: boolean }): BackAction {
+  if (state.detail) return "close-detail";
+  if (state.navOpen) return "close-nav";
+  return "exit";
+}
 
 export type PrimaryTab =
   | "dashboard"
@@ -325,13 +345,47 @@ function App() {
     };
   }, [loadViews]);
 
+  // WI060 AND-011: the official Android integration point. Registering this
+  // listener switches Tauri's Android runtime from its default "WebView
+  // history back, else exit" behavior to fully delegating Back to RepoPact,
+  // so it is registered ONLY while there is RepoPact navigation state to
+  // unwind (an open detail view or the compact drawer). When
+  // resolveBackAction says "exit" — no internal state left — this effect
+  // deliberately does not register a listener at all, so Android's own
+  // default Back/exit behavior (which already finishes the activity
+  // correctly) runs unmodified rather than RepoPact trying to reimplement
+  // activity-finish semantics itself.
   useEffect(() => {
-    const onBack = () => {
-      if (detail) setDetail(null);
-      else if (navOpen) setNavOpen(false);
+    if (resolveBackAction({ detail, navOpen }) === "exit") {
+      return;
+    }
+    let unregister: (() => void) | undefined;
+    let cancelled = false;
+    void onBackButtonPress(() => {
+      switch (resolveBackAction({ detail, navOpen })) {
+        case "close-detail":
+          setDetail(null);
+          break;
+        case "close-nav":
+          setNavOpen(false);
+          break;
+        case "exit":
+          break;
+      }
+    }).then((listener) => {
+      if (cancelled) {
+        void listener.unregister();
+        return;
+      }
+      unregister = () => void listener.unregister();
+    }).catch(() => {
+      // Not running inside a Tauri Android webview (desktop, browser dev
+      // server, or the test environment): there is no Back button to own.
+    });
+    return () => {
+      cancelled = true;
+      unregister?.();
     };
-    window.addEventListener("popstate", onBack);
-    return () => window.removeEventListener("popstate", onBack);
   }, [detail, navOpen]);
 
   const selectRepository = async () => {
@@ -363,7 +417,6 @@ function App() {
 
   const openDetail = (next: DetailState) => {
     setDetail(next);
-    if (compact && next) window.history.pushState({ repopactDetail: true }, "");
   };
 
   const openWorkItem = async (id: string) => {
@@ -455,7 +508,6 @@ function App() {
 
   const openNavigation = () => {
     setNavOpen(true);
-    if (compact) window.history.pushState({ repopactNavigation: true }, "");
   };
 
   return (

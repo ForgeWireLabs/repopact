@@ -1,6 +1,6 @@
 # 060 — Android Workbench Bring-Up, Runtime Validation, and Repository-Access Boundary
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** tooling-owner
 
@@ -45,7 +45,27 @@ production repository-access boundary.
 
 ## Closeout
 
-Each acceptance criterion (AND-001 through AND-017) is satisfied by linked
-evidence. WI060 closes only when Android runtime evidence is durable (not
-merely a successful Gradle/cargo build) and the Windows regression baseline
-remains green. See `work-item.json` for exact criteria.
+All acceptance criteria (AND-001 through AND-017) are satisfied by
+`evidence/runs/20260911-060-android-workbench-bring-up.json`, cross-referenced
+with the on-device screenshots and logcat under `evidence/device/` in this
+directory.
+
+Summary: the Tauri crate now has a real `[lib]` mobile shape; the Android
+project was initialized via `tauri android init`; the app builds, installs,
+and launches on a real Android target reaching the Workbench UI; the compact
+IA renders correctly across all eight sections against a debug-only,
+Git-free, app-private validation tree; Android system Back, orientation,
+lifecycle, and IME behavior were proven on-device (not merely coded); a real
+Rust-owned mutation plan/review/apply cycle was exercised on a disposable
+on-device copy with zero Git-process dependency; and the Windows regression
+baseline (Rust workspace, frontend, Python/conformance/WI050, frozen-surface,
+dashboard) is green except one pre-existing, environment-only Python test
+failure unrelated to any file this work item touched (a user-site-only
+`cryptography` install on this machine, requiring elevated permissions this
+session does not have — see the evidence run for detail).
+
+Production Android repository *acquisition* remains explicitly unresolved,
+as expected: `select_repository` returns a typed
+`repository.mobile-selection-unavailable` error on a normal Android build,
+and `work/proposed/061-mobile-repository-acquisition-app-private-workspace-and-git-strategy/`
+was opened to decide that architecture as a separate, deliberate follow-up.

@@ -84,3 +84,26 @@ currently exists in the repository. The correct WI060 posture is:
    is still unresolved (the expected outcome, given the facts above), record
    that explicitly and open a follow-up work item (WI061) to design it,
    rather than deciding or implementing that architecture inside WI060.
+
+## Closing boundary decision (recorded, not implemented, by WI060)
+
+Real on-device bring-up confirmed every fact above and did not change any of
+them: `select_repository` on Android still returns
+`repository.mobile-selection-unavailable` on a normal build; the only path
+that opens a repository on Android is the debug-only, feature-gated,
+app-private validation mechanism (`android_validation.rs`), which is
+unreachable from production authority. No new information surfaced during
+bring-up made a production Android repository-selection path possible
+without one of: (a) an Android-specific acquisition mechanism (SAF import,
+archive import, or a live SAF-backed working tree) that `DesktopService`
+does not currently understand, or (b) an embedded Git implementation that
+removes the system-`git`-binary assumption `NativeGitRunner` currently makes.
+
+Per AND-016, WI060 does not choose between these — it records that the
+boundary remains genuinely unresolved and opens
+`work/proposed/061-mobile-repository-acquisition-app-private-workspace-and-git-strategy/`
+to decide it. WI060's own scope ends at: the boundary is honestly typed and
+enforced (no silent redesign, no fake selection path), and everything on the
+Android side of that boundary (IA, Back, orientation, IME, real Rust reads
+and a real mutation plan/apply cycle) is proven to work end-to-end against a
+tree that already sits inside it.

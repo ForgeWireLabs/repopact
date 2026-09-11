@@ -27,10 +27,14 @@
 //!    'mkdir -p files/wi060-validation-repo && cp -r
 //!    /data/local/tmp/wi060-validation-repo/. files/wi060-validation-repo/'`
 //! 4. The path this function returns, `app.path().app_data_dir()` joined
-//!    with `wi060-validation-repo`, resolves (via Tauri's Android path
-//!    resolver) to that same app-private `files/` directory, i.e.
-//!    `/data/data/com.forgewirelabs.repopact.workbench/files/wi060-validation-repo`.
-//!    Nothing outside the app's own private storage is read or granted.
+//!    with `files/wi060-validation-repo`, resolves to that same app-private
+//!    directory. Tauri's Android `app_data_dir()` is `activity.dataDir`
+//!    (the package's data *root*, e.g.
+//!    `/data/user/0/com.forgewirelabs.repopact.workbench`), not its `files/`
+//!    subdirectory, so the join must include `files` explicitly — unlike
+//!    desktop platforms, where `app_data_dir()` already names a leaf
+//!    directory. Nothing outside the app's own private storage is read or
+//!    granted.
 //!
 //! If the directory has not been staged, this returns `None` and
 //! `select_repository` falls through to the same
@@ -43,8 +47,15 @@ use tauri::{AppHandle, Manager};
 
 const VALIDATION_REPO_DIR_NAME: &str = "wi060-validation-repo";
 
+/// Tauri's Android `app_data_dir()` resolves to `activity.dataDir`, i.e. the
+/// package's data *root* (`/data/user/0/<package>`, containing `files/`,
+/// `cache/`, `shared_prefs/`, ...), not its `files/` subdirectory — unlike
+/// desktop, where `app_data_dir()` already points at a leaf directory safe to
+/// write into directly. `run-as`'s shell cwd is that same data root, so
+/// `files/<name>` in the staging command and `app_data_dir().join("files")`
+/// here must agree.
 pub(crate) fn debug_validation_repository_path(app: &AppHandle) -> Option<PathBuf> {
     let base = app.path().app_data_dir().ok()?;
-    let candidate = base.join(VALIDATION_REPO_DIR_NAME);
+    let candidate = base.join("files").join(VALIDATION_REPO_DIR_NAME);
     candidate.is_dir().then_some(candidate)
 }

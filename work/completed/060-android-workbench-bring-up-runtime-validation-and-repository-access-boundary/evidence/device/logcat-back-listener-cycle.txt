@@ -1,0 +1,16 @@
+09-11 15:37:54.805   593  1228 I ActivityTaskManager: START u0 {flg=0x10000000 cmp=com.forgewirelabs.repopact.workbench/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=3
+09-11 15:37:54.807   824   900 D WindowManagerShell: onActivityRestartAttempt: ComponentInfo{com.forgewirelabs.repopact.workbench/com.forgewirelabs.repopact.workbench.MainActivity}
+09-11 15:39:38.100  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:41:23.109  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:43:05.046  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:43:06.195  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:45:04.170  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:45:05.325  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:46:57.311  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:46:58.487  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:48:38.682  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:48:39.846  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:50:23.969  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:50:25.131  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener
+09-11 15:53:57.016  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: registerListener
+09-11 15:53:58.177  3498  3498 V Tauri/Plugin: Tauri plugin: pluginId: app, command: removeListener

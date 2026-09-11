@@ -111,6 +111,12 @@
       "source": "governance/invariants.json#INV-7",
       "enforced_by": "repopact/validate_repo.py:validate_dashboard",
       "description": "The derived dashboard is generated rather than hand-maintained."
+    },
+    {
+      "id": "SPEC-4-readme-checkbox-parity",
+      "source": "decisions/0014-readme-checkbox-parity.md",
+      "enforced_by": "repopact/validate_repo.py:validate_readme_checkbox_parity",
+      "description": "Where a work-item README uses the checklist convention, every manifest criterion checkbox state must match the manifest (decision 0014)."
     }
   ],
   "cases": [
@@ -118,7 +124,11 @@
       "id": "valid-minimal",
       "path": "valid",
       "expect": "accept",
-      "rules": ["SPEC-4-record-validity", "INV-2", "INV-3"],
+      "rules": [
+        "SPEC-4-record-validity",
+        "INV-2",
+        "INV-3"
+      ],
       "description": "A minimal conformant RepoPact repository."
     },
     {
@@ -126,7 +136,9 @@
       "path": "valid-proposed",
       "overlay_on": "valid",
       "expect": "accept",
-      "rules": ["SPEC-5-lifecycle-proposed"],
+      "rules": [
+        "SPEC-5-lifecycle-proposed"
+      ],
       "description": "A proposed work item is structurally valid but does not grant implementation authority."
     },
     {
@@ -135,7 +147,10 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "depends on proposed work item",
-      "rules": ["SPEC-4-reference-resolution", "SPEC-5-lifecycle-proposed"],
+      "rules": [
+        "SPEC-4-reference-resolution",
+        "SPEC-5-lifecycle-proposed"
+      ],
       "description": "Accepted work cannot depend on a proposed work item as if it were accepted."
     },
     {
@@ -144,7 +159,10 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "completed item has pending criterion",
-      "rules": ["SPEC-4-acceptance", "INV-2"],
+      "rules": [
+        "SPEC-4-acceptance",
+        "INV-2"
+      ],
       "description": "A completed work item cannot retain pending acceptance criteria."
     },
     {
@@ -153,7 +171,10 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "satisfied without evidence",
-      "rules": ["SPEC-4-acceptance", "INV-3"],
+      "rules": [
+        "SPEC-4-acceptance",
+        "INV-3"
+      ],
       "description": "A satisfied acceptance criterion must link evidence."
     },
     {
@@ -162,7 +183,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "unknown dependency",
-      "rules": ["SPEC-4-reference-resolution"],
+      "rules": [
+        "SPEC-4-reference-resolution"
+      ],
       "description": "Work-item dependencies must resolve to known work items."
     },
     {
@@ -171,7 +194,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "not registered in audits/registry.json",
-      "rules": ["SPEC-4-contract-coverage"],
+      "rules": [
+        "SPEC-4-contract-coverage"
+      ],
       "description": "Nested AGENTS.md contracts must be represented in the audit registry."
     },
     {
@@ -180,7 +205,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "dependency cycle",
-      "rules": ["SPEC-4-acyclic-dependencies"],
+      "rules": [
+        "SPEC-4-acyclic-dependencies"
+      ],
       "description": "Dependency edges between work items must be acyclic."
     },
     {
@@ -188,7 +215,9 @@
       "path": "valid-provisional",
       "overlay_on": "valid",
       "expect": "accept",
-      "rules": ["SPEC-4-provenance"],
+      "rules": [
+        "SPEC-4-provenance"
+      ],
       "description": "Provisional active work is an admitted, honest intermediate state."
     },
     {
@@ -197,7 +226,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "cannot be completed; ratchet to concrete first (P2)",
-      "rules": ["SPEC-4-provenance"],
+      "rules": [
+        "SPEC-4-provenance"
+      ],
       "description": "A provisional item cannot claim completion."
     },
     {
@@ -206,7 +237,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "status 'active' does not match directory 'completed'",
-      "rules": ["SPEC-4-identity-agreement"],
+      "rules": [
+        "SPEC-4-identity-agreement"
+      ],
       "description": "Work-item status must agree with its lifecycle directory."
     },
     {
@@ -215,7 +248,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "must be semantic (MAJOR.MINOR.PATCH)",
-      "rules": ["SPEC-4-version"],
+      "rules": [
+        "SPEC-4-version"
+      ],
       "description": "VERSION must contain a semantic version."
     },
     {
@@ -223,7 +258,10 @@
       "path": "valid-release-label",
       "overlay_on": "valid",
       "expect": "accept",
-      "rules": ["SPEC-4-release-label", "SPEC-4-source-artifact-identity"],
+      "rules": [
+        "SPEC-4-release-label",
+        "SPEC-4-source-artifact-identity"
+      ],
       "description": "An optional RELEASE_LABEL pinned to VERSION is a valid product/maturity identity."
     },
     {
@@ -232,7 +270,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "must equal VERSION",
-      "rules": ["SPEC-4-release-label"],
+      "rules": [
+        "SPEC-4-release-label"
+      ],
       "description": "A RELEASE_LABEL whose core diverges from VERSION is rejected."
     },
     {
@@ -241,7 +281,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "schema result: 'unknown' is not one of",
-      "rules": ["SPEC-4-record-validity"],
+      "rules": [
+        "SPEC-4-record-validity"
+      ],
       "description": "A structurally invalid evidence record is rejected by its schema."
     },
     {
@@ -250,7 +292,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "work directory holds planning content",
-      "rules": ["SPEC-4-orphan-work-ledger"],
+      "rules": [
+        "SPEC-4-orphan-work-ledger"
+      ],
       "description": "Planning content cannot remain invisible to the work ledger."
     },
     {
@@ -259,7 +303,9 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "active scope conflict",
-      "rules": ["SPEC-4-disjoint-active-scopes"],
+      "rules": [
+        "SPEC-4-disjoint-active-scopes"
+      ],
       "description": "The optional disjoint-scope policy rejects overlapping active work."
     },
     {
@@ -269,7 +315,10 @@
       "dashboard": "remove",
       "expect": "reject",
       "expected_message": "missing generated dashboard",
-      "rules": ["SPEC-4-dashboard-integrity", "INV-7"],
+      "rules": [
+        "SPEC-4-dashboard-integrity",
+        "INV-7"
+      ],
       "description": "A repository without its canonical dashboard is rejected."
     },
     {
@@ -279,7 +328,10 @@
       "dashboard": "preserve",
       "expect": "reject",
       "expected_message": "dashboard is stale",
-      "rules": ["SPEC-4-dashboard-integrity", "INV-7"],
+      "rules": [
+        "SPEC-4-dashboard-integrity",
+        "INV-7"
+      ],
       "description": "A hand-maintained or stale dashboard is rejected."
     },
     {
@@ -288,8 +340,21 @@
       "overlay_on": "valid",
       "expect": "reject",
       "expected_message": "but VERSION is",
-      "rules": ["SPEC-4-release-surface"],
+      "rules": [
+        "SPEC-4-release-surface"
+      ],
       "description": "A README advertising a release that disagrees with VERSION is rejected."
+    },
+    {
+      "id": "readme-checkbox-mismatch",
+      "path": "invalid/readme-checkbox-mismatch",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "checkbox is unchecked",
+      "rules": [
+        "SPEC-4-readme-checkbox-parity"
+      ],
+      "description": "A README checklist marking a satisfied criterion unchecked is rejected (decision 0014)."
     }
   ]
 }

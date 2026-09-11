@@ -157,9 +157,26 @@ pub struct RecordIndex {
     pub audit_registry: Option<IndexedRecord>,
     pub audit_findings: Vec<IndexedRecord>,
     pub dashboard: Option<IndexedRecord>,
+    /// `governance/adopters.json` (WI059 CVP-003): optional maintainer-only
+    /// public adopter-fleet declaration. Locally referenced overlay files
+    /// (vendored `mode == "overlay"` contracts) are folded into
+    /// `source_paths`/`text_files` below so adopter validation stays a pure
+    /// projection over this one generation.
+    pub adopters: Option<IndexedRecord>,
+    /// `research/metadata.json` (WI059 CVP-005): optional canonical research
+    /// governance metadata. Every local document it references (freshness
+    /// policy, lifecycle/benchmark/threat/trace documents) is folded into
+    /// `source_paths`/`text_files` below for the same reason.
+    pub research_metadata: Option<IndexedRecord>,
     pub source_paths: Vec<PathBuf>,
     pub work_directories: Vec<PathBuf>,
     pub text_files: BTreeMap<PathBuf, String>,
+    /// Raw bytes of every adopter-manifest overlay path (WI059 CVP-003).
+    /// Checksum verification must hash exact bytes (after CRLF normalization),
+    /// not `text_files`' decoded-UTF-8 copy, so overlay content that is not
+    /// valid UTF-8 still participates correctly instead of silently vanishing
+    /// from the generation.
+    pub adopter_overlay_bytes: BTreeMap<PathBuf, Vec<u8>>,
 }
 
 impl RecordIndex {
@@ -254,6 +271,16 @@ impl RecordIndex {
             "audits/reports/dashboard.md",
             RecordKind::Dashboard,
         );
+        index.adopters = index.json_record(
+            repository,
+            "governance/adopters.json",
+            RecordKind::AdopterManifest,
+        );
+        index.research_metadata = index.json_record(
+            repository,
+            "research/metadata.json",
+            RecordKind::ResearchMetadata,
+        );
 
         for path in [
             "AGENTS.md",
@@ -305,11 +332,48 @@ impl RecordIndex {
             index.owners.as_ref(),
             index.audit_registry.as_ref(),
             index.dashboard.as_ref(),
+            index.adopters.as_ref(),
+            index.research_metadata.as_ref(),
         ]
         .into_iter()
         .flatten()
         {
             index.source_paths.push(record.path.clone());
+        }
+        // WI059: the top-level research/*.md set (README included, unlike
+        // discover_markdown_records) participates in freshness-coverage
+        // checking, so it must be part of this same generation.
+        index
+            .source_paths
+            .extend(top_level_markdown_files(&repository.root.join("research")));
+        // WI059: fold in every local file the adopter manifest / research
+        // metadata reference, so the new validators consume this one
+        // generation instead of reopening the filesystem per referenced path.
+        if let Some(value) = index
+            .adopters
+            .as_ref()
+            .and_then(|record| record.value.as_ref().ok())
+        {
+            let overlays: Vec<PathBuf> = adopter_overlay_paths(value)
+                .into_iter()
+                .map(|relative| normalize_path(&repository.root.join(relative)))
+                .collect();
+            index.adopter_overlay_bytes = overlays
+                .iter()
+                .filter_map(|path| Some((path.clone(), fs::read(path).ok()?)))
+                .collect();
+            index.source_paths.extend(overlays);
+        }
+        if let Some(value) = index
+            .research_metadata
+            .as_ref()
+            .and_then(|record| record.value.as_ref().ok())
+        {
+            index.source_paths.extend(
+                research_referenced_paths(value)
+                    .into_iter()
+                    .map(|relative| repository.root.join(relative)),
+            );
         }
         index
             .source_paths
@@ -344,6 +408,10 @@ impl RecordIndex {
 
     pub fn text(&self, path: &Path) -> Option<&str> {
         self.text_files.get(path).map(String::as_str)
+    }
+
+    pub fn overlay_bytes(&self, path: &Path) -> Option<&[u8]> {
+        self.adopter_overlay_bytes.get(path).map(Vec::as_slice)
     }
 
     pub fn read_set(&self, repository: &Repository) -> ReadSet {
@@ -833,6 +901,117 @@ fn discover_json_records(
             )
         })
         .collect()
+}
+
+/// Every `*.md` file directly under `directory` (including `README.md`,
+/// unlike `discover_markdown_records`). Used for `research/*.md`, whose
+/// membership as a *set* is itself part of the WI059 freshness-coverage
+/// contract, so README must participate.
+fn top_level_markdown_files(directory: &Path) -> Vec<PathBuf> {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            (entry.file_type().ok()?.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("md")))
+            .then_some(path)
+        })
+        .collect();
+    paths.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
+    paths
+}
+
+/// Repository-relative paths of every vendored `mode == "overlay"` file
+/// contract in a `governance/adopters.json` value (WI059 CVP-003). Only local
+/// checksum-verification inputs are collected here; fleet/network state is
+/// out of scope for the canonical validator.
+fn adopter_overlay_paths(adopters: &Value) -> Vec<String> {
+    let mut paths = Vec::new();
+    let Some(entries) = adopters.get("adopters").and_then(Value::as_array) else {
+        return paths;
+    };
+    for entry in entries {
+        let Some(consumption) = entry.get("consumption") else {
+            continue;
+        };
+        if consumption.get("type").and_then(Value::as_str) != Some("vendored") {
+            continue;
+        }
+        let Some(files) = consumption.get("files").and_then(Value::as_array) else {
+            continue;
+        };
+        for contract in files {
+            if contract.get("mode").and_then(Value::as_str) != Some("overlay") {
+                continue;
+            }
+            if let Some(overlay) = contract.get("overlay_path").and_then(Value::as_str) {
+                paths.push(overlay.to_owned());
+            }
+        }
+    }
+    paths
+}
+
+/// Repository-relative paths of every local document a `research/metadata.json`
+/// value references (WI059 CVP-005): freshness policy, lifecycle set/figure
+/// documents, benchmark source/documents, threat documents, and the
+/// proposed-state trace targets. Research execution/orchestration inputs are
+/// deliberately not collected here.
+fn research_referenced_paths(metadata: &Value) -> Vec<String> {
+    fn push_str(paths: &mut Vec<String>, value: Option<&Value>) {
+        if let Some(text) = value.and_then(Value::as_str) {
+            paths.push(text.to_owned());
+        }
+    }
+    fn push_entries_path(paths: &mut Vec<String>, list: Option<&Value>) {
+        for entry in list.and_then(Value::as_array).into_iter().flatten() {
+            if let Some(text) = entry.get("path").and_then(Value::as_str) {
+                paths.push(text.to_owned());
+            }
+        }
+    }
+    fn push_string_list(paths: &mut Vec<String>, list: Option<&Value>) {
+        for entry in list.and_then(Value::as_array).into_iter().flatten() {
+            if let Some(text) = entry.as_str() {
+                paths.push(text.to_owned());
+            }
+        }
+    }
+
+    let mut paths = Vec::new();
+    push_str(
+        &mut paths,
+        metadata.get("claim_freshness").and_then(|v| v.get("policy")),
+    );
+
+    if let Some(lifecycle) = metadata.get("lifecycle") {
+        push_entries_path(&mut paths, lifecycle.get("set_documents"));
+        push_entries_path(&mut paths, lifecycle.get("figure_documents"));
+    }
+    if let Some(benchmark) = metadata.get("benchmark") {
+        if let Some(pactbench) = benchmark.get("pactbench") {
+            push_str(&mut paths, pactbench.get("source"));
+            push_entries_path(&mut paths, pactbench.get("documents"));
+        }
+        push_entries_path(&mut paths, benchmark.get("range_documents"));
+        push_string_list(&mut paths, benchmark.get("mapping_documents"));
+    }
+    if let Some(threats) = metadata.get("threats") {
+        push_string_list(&mut paths, threats.get("documents"));
+    }
+    if let Some(trace) = metadata.get("proposed_state_trace") {
+        push_str(&mut paths, trace.get("capture"));
+        push_string_list(&mut paths, trace.get("decisions"));
+        push_str(&mut paths, trace.get("work_item"));
+        push_str(&mut paths, trace.get("implementation_evidence"));
+        push_str(&mut paths, trace.get("rollout_evidence"));
+    }
+    paths
 }
 
 fn walk_files(path: &Path) -> Vec<PathBuf> {

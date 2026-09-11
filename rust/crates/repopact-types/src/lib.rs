@@ -150,6 +150,8 @@ pub enum RecordKind {
     AuditRegistry,
     Dashboard,
     Template,
+    AdopterManifest,
+    ResearchMetadata,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

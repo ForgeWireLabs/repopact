@@ -2,7 +2,7 @@
 export type Severity = "error" | "warning" | "info";
 export type WatcherState = "running" | "unavailable" | "stopped";
 export type ChangeOrigin = "external" | "self_apply";
-export type RecordKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "audit_registry" | "dashboard" | "template";
+export type RecordKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "audit_registry" | "dashboard" | "template" | "adopter_manifest" | "research_metadata";
 export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding";
 export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows";
 export type AnalysisKind = "next_work_id" | "scope" | "dependency" | "evidence" | "finding" | "contract" | "frozen_surface" | "provenance" | "related_work";

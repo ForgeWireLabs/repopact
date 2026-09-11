@@ -22,7 +22,7 @@
 | Status | Count |
 | --- | ---: |
 | proposed | 5 |
-| active | 5 |
+| active | 6 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 49 |
@@ -38,4 +38,5 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
+- 060: Android Workbench Bring-Up, Runtime Validation, and Repository-Access Boundary (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

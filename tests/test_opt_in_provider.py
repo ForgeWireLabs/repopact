@@ -2,9 +2,6 @@
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
-import tempfile
 import unittest
 from pathlib import Path
 from typing import Any, Mapping
@@ -20,6 +17,7 @@ from repopact.admission import (
     verify_registration,
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter
+from repopact.dev_fixtures import open_fixture_repo
 from repopact.enforcement import EnforcementProvider, resolve_enforcement_requirement
 from repopact.guard_ipc import NativeGuardClient
 
@@ -73,18 +71,9 @@ class ExternalProviderFixture:
 
 class OptInProviderTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="repopact-opt-in-"))
-        self.root = self.tmp / "repo"
-        shutil.copytree(Path(__file__).parents[1], self.root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
-        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact test"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "fixture"], cwd=self.root, check=True, capture_output=True)
+        self.root = open_fixture_repo(self, prefix="repopact-opt-in-")
+        self.tmp = self.root.parent
         self.protected = self.tmp / "protected"
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_no_policy_is_valid_standalone_and_has_no_lease_prerequisite(self):
         decision = evaluate_action(self.root, {"kind": "mutation", "paths": ["src/a.py"]}, guard_health=GuardHealth(False, reason="no provider"))

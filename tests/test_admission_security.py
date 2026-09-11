@@ -4,7 +4,6 @@ import json
 import shutil
 import subprocess
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 
@@ -14,6 +13,7 @@ from repopact.admission import (
     setup_admission, verify_receipt, frozen_surface_digest,
 )
 from repopact.adapters import LauncherAdapter
+from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import ProtectedGuard
 from repopact.platform_backends import TestingBackend
 
@@ -22,20 +22,12 @@ class SecurityCorrectionTests(unittest.TestCase):
     """Focused regressions written before the WI050 correction pass."""
 
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="repopact-security-"))
-        self.root = self.tmp / "repo"
-        shutil.copytree(Path(__file__).parents[1], self.root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
-        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=self.root, check=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact test"], cwd=self.root, check=True)
-        subprocess.run(["git", "add", "."], cwd=self.root, check=True)
-        subprocess.run(["git", "commit", "-m", "fixture"], cwd=self.root, check=True, capture_output=True)
+        self.root = open_fixture_repo(self, prefix="repopact-security-")
+        self.tmp = self.root.parent
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key-1", "operator-1")
         setup_admission(self.root, self.protected, self.signer)
         self.test_health = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)).health()
-
-    def tearDown(self): shutil.rmtree(self.tmp, ignore_errors=True)
 
     def request(self, paths=("src/a.py",), profile="bounded", mode="normal", scopes=("src",), **kwargs):
         return make_request(self.root, "050", "session-1", profile=profile, scopes=list(scopes), paths=list(paths), mode=mode, protected_dir=self.protected, **kwargs)

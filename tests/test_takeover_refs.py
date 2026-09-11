@@ -9,6 +9,7 @@ nothing caught it.
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,7 @@ def _work_item(root: Path, status: str, dir_name: str) -> None:
 class MapRef(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
         _work_item(self.tmp, "completed", "107-fcr-llm-awq-runtime")
         _work_item(self.tmp, "active", "114-forgewire-fabric")
         self.idx = takeover._work_index(self.tmp)
@@ -58,6 +60,7 @@ class MapRef(unittest.TestCase):
 class RewriteInboundReferences(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
         _work_item(self.tmp, "completed", "107-fcr-llm-awq-runtime")
         (self.tmp / "docs").mkdir()
         (self.tmp / "docs" / "guide.md").write_text(

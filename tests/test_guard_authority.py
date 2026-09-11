@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-import shutil
-import subprocess
-import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 import sys
 
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
+from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
 from repopact.guard_ipc import NativeGuardClient, local_peer_binding
 from repopact.platform_backends import TestingBackend, WindowsBackend
@@ -17,22 +15,12 @@ import repopact.platform_backends as platform_backends
 
 class GuardAuthorityTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="repopact-lease-authority-"))
-        self.root = self.tmp / "repo"
-        shutil.copytree(Path(__file__).parents[1], self.root,
-                        ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "build", "dist", "*.egg-info"))
-        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact test"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "fixture"], cwd=self.root, check=True, capture_output=True)
+        self.root = open_fixture_repo(self, prefix="repopact-lease-authority-")
+        self.tmp = self.root.parent
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key", "operator")
         setup_admission(self.root, self.protected, self.signer)
         self.guard = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected))
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _request(self):
         request = make_request(self.root, "050", "session-a", scopes=["src"], paths=["src/a.py"], protected_dir=self.protected)
@@ -139,13 +127,9 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertNotIn("session", binding)
 
     def test_global_adoption_registry_keeps_independent_repositories_separate(self):
-        second = self.tmp / "second-repo"
-        shutil.copytree(self.root, second, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "build", "dist", "*.egg-info"))
-        subprocess.run(["git", "init"], cwd=second, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=second, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact test"], cwd=second, check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], cwd=second, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "fixture"], cwd=second, check=True, capture_output=True)
+        # Materialized independently from the real checkout (not by copying
+        # self.root) so fixtures never recursively include earlier fixtures.
+        second = open_fixture_repo(self, prefix="repopact-lease-authority-second-")
         registry = self.tmp / "global-registrations"
         setup_admission(self.root, registry, self.signer, registry_key="adoption")
         setup_admission(second, registry, self.signer, registry_key="adoption")

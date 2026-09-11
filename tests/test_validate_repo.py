@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -27,6 +26,7 @@ from repopact import (  # noqa: E402
     takeover,
     validate_repo,
 )
+from repopact.dev_fixtures import open_fixture_repo, robust_rmtree  # noqa: E402
 from repopact.validate_repo import validate  # noqa: E402
 
 
@@ -60,25 +60,17 @@ class RepositoryValidationTests(unittest.TestCase):
     }
 
     def setUp(self) -> None:
-        self.temp: tempfile.TemporaryDirectory[str] | None = None
         if self._testMethodName in self.READ_ONLY_TESTS:
             self.root = ROOT
             return
-        self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name) / "repo"
         if self._testMethodName in self.TEMP_ONLY_TESTS:
+            holder = tempfile.mkdtemp(prefix="repopact-validate-repo-empty-")
+            self.addCleanup(lambda: robust_rmtree(holder))
+            self.temp_dir = Path(holder)
+            self.root = self.temp_dir / "repo"
             return
-        shutil.copytree(
-            ROOT,
-            self.root,
-            ignore=shutil.ignore_patterns(
-                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "dist-*", "*.egg-info"
-            ),
-        )
-
-    def tearDown(self) -> None:
-        if self.temp is not None:
-            self.temp.cleanup()
+        self.root = open_fixture_repo(self, prefix="repopact-validate-repo-", init_git=False)
+        self.temp_dir = self.root.parent
 
     def problems(self) -> list[str]:
         return [problem.message for problem in validate(self.root)]
@@ -354,7 +346,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertFalse(any("not registered in audits/registry.json" in v for v in self.problems()))
 
     def _seed_git_repo(self, name: str = "git-root") -> Path:
-        repo = Path(self.temp.name) / name
+        repo = self.temp_dir / name
         init_repo.bootstrap(repo)
         run = lambda *args: subprocess.run(
             ["git", *args], cwd=repo, check=True, capture_output=True, text=True
@@ -441,7 +433,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(repo)])
 
     def test_exported_tree_discovery_has_no_git_dependency(self) -> None:
-        repo = Path(self.temp.name) / "exported-tree"
+        repo = self.temp_dir / "exported-tree"
         init_repo.bootstrap(repo)
         nested = repo / "governed" / "component"
         nested.mkdir(parents=True)
@@ -641,7 +633,7 @@ class RepositoryValidationTests(unittest.TestCase):
     def test_doctor_migrates_preflight_on_upgrade(self) -> None:
         # Simulate a pre-2.0 repo: governed, no preflight config, a marker-less legacy item.
         # Under 2.0 default-on it fails; doctor grandfathers it (decision 0021).
-        repo = Path(self.temp.name) / "upgraded"
+        repo = self.temp_dir / "upgraded"
         init_repo.bootstrap(repo)
         self.write_json(repo / "governance" / "owners.json", lambda d: d.pop("preflight", None))
         d = repo / "work" / "active" / "001-legacy"
@@ -813,14 +805,14 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- bootstrap (003 B1) -------------------------------------------------
 
     def test_bootstrap_produces_valid_repo(self) -> None:
-        target = Path(self.temp.name) / "seeded"
+        target = self.temp_dir / "seeded"
         init_repo.bootstrap(target)
         self.assertTrue((target / "work" / "proposed").is_dir())
         self.assertEqual([], [p.message for p in validate(target)])
 
     def test_bootstrap_uses_installed_tooling_instead_of_vendoring_modules(self) -> None:
         """A seeded repository contains state, while the package supplies tooling."""
-        target = Path(self.temp.name) / "seeded-package-tooling"
+        target = self.temp_dir / "seeded-package-tooling"
         init_repo.bootstrap(target)
         self.assertFalse((target / "scripts").exists())
         proc = subprocess.run(
@@ -856,12 +848,12 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- CLI dispatch (005) -------------------------------------------------
 
     def test_cli_validate_returns_zero_on_valid_repo(self) -> None:
-        target = Path(self.temp.name) / "cli-valid"  # type: ignore[union-attr]
+        target = self.temp_dir / "cli-valid"  # type: ignore[union-attr]
         init_repo.bootstrap(target)
         self.assertEqual(0, repopact_cli.main(["validate", "--root", str(target)]))
 
     def test_cli_new_stamps_a_valid_record(self) -> None:
-        target = Path(self.temp.name) / "cli-new"  # type: ignore[union-attr]
+        target = self.temp_dir / "cli-new"  # type: ignore[union-attr]
         init_repo.bootstrap(target)
         rc = repopact_cli.main(["new", "work-item", "Cli Probe", "--root", str(target)])
         self.assertEqual(0, rc)
@@ -875,7 +867,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(target)])
 
     def test_cli_new_can_stamp_proposed_work_item(self) -> None:
-        target = Path(self.temp.name) / "cli-proposal"  # type: ignore[union-attr]
+        target = self.temp_dir / "cli-proposal"  # type: ignore[union-attr]
         init_repo.bootstrap(target)
         rc = repopact_cli.main(["new", "work-item", "Cli Proposal", "--status", "proposed", "--root", str(target)])
         self.assertEqual(0, rc)
@@ -886,7 +878,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(target)])
 
     def test_cli_new_uses_conventional_root_schema_in_adopter(self) -> None:
-        target = Path(self.temp.name) / "new-adopter"
+        target = self.temp_dir / "new-adopter"
         init_repo.bootstrap(target)
         rc = repopact_cli.main([
             "new", "work-item", "Adopter Probe", "--root", str(target),
@@ -902,7 +894,7 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_cli_spec_fails_cleanly_without_spec_file(self) -> None:
         """F-001: `spec` must not traceback on a repo that has no SPEC.md."""
-        target = Path(self.temp.name) / "no-spec"
+        target = self.temp_dir / "no-spec"
         init_repo.bootstrap(target)
         self.assertFalse((target / "SPEC.md").exists())
         self.assertEqual(1, repopact_cli.main(["spec", "--root", str(target)]))
@@ -911,7 +903,7 @@ class RepositoryValidationTests(unittest.TestCase):
         """F-002: an uncommitted change to a protected path must be detected."""
         import subprocess
 
-        repo = Path(self.temp.name) / "frz"
+        repo = self.temp_dir / "frz"
         (repo / "governance").mkdir(parents=True)
         (repo / "governance" / "frozen-surface.json").write_text(
             json.dumps({"version": 1, "protected": [
@@ -936,7 +928,7 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def _seed_existing_repo(self) -> Path:
         """A minimal pre-existing project: CODEOWNERS, a CI workflow, a nested contract."""
-        repo = Path(self.temp.name) / "existing"
+        repo = self.temp_dir / "existing"
         (repo / ".github" / "workflows").mkdir(parents=True)
         (repo / "core").mkdir()
         (repo / "docs" / "_audit").mkdir(parents=True)
@@ -999,7 +991,7 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- plan import (011) --------------------------------------------------
 
     def _seed_adopted_repo_with_plans(self) -> Path:
-        repo = Path(self.temp.name) / "planned"
+        repo = self.temp_dir / "planned"
         init_repo.bootstrap(repo)
         # a todos/ tree: one active item, one completed item, one deferred item
         (repo / "todos" / "12-search").mkdir(parents=True)
@@ -1051,7 +1043,7 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- tracking import (015) ----------------------------------------------
 
     def _seed_repo_with_tracking(self) -> Path:
-        repo = Path(self.temp.name) / "tracked"
+        repo = self.temp_dir / "tracked"
         init_repo.bootstrap(repo)
         (repo / "tracking").mkdir()
         (repo / "tracking" / "decisions.md").write_text(
@@ -1097,7 +1089,7 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- takeover (015) -----------------------------------------------------
 
     def test_takeover_archives_fully_migrated_plan_dir(self) -> None:
-        repo = Path(self.temp.name) / "tk"
+        repo = self.temp_dir / "tk"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1109,7 +1101,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(repo)])
 
     def test_takeover_refuses_unmigrated_dir(self) -> None:
-        repo = Path(self.temp.name) / "tk2"
+        repo = self.temp_dir / "tk2"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1120,7 +1112,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(any(s["dir"] == "todos" for s in report["skipped"]))
 
     def test_takeover_aborts_when_invalid(self) -> None:
-        repo = Path(self.temp.name) / "tk3"
+        repo = self.temp_dir / "tk3"
         init_repo.bootstrap(repo)
         (repo / "AGENTS.md").unlink()                       # make it invalid
         report = takeover.takeover(repo)
@@ -1128,7 +1120,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], report["retired"])
 
     def test_takeover_refuses_dir_with_audit_scope_inside(self) -> None:
-        repo = Path(self.temp.name) / "tk_scope"
+        repo = self.temp_dir / "tk_scope"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1150,7 +1142,7 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_takeover_delete_documents_and_deletes_when_git_recoverable(self) -> None:
         import subprocess
-        repo = Path(self.temp.name) / "tk4"
+        repo = self.temp_dir / "tk4"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1177,7 +1169,7 @@ class RepositoryValidationTests(unittest.TestCase):
 
     def test_takeover_delete_downgrades_when_dir_has_gitignored_files(self) -> None:
         import subprocess
-        repo = Path(self.temp.name) / "tk6"
+        repo = self.temp_dir / "tk6"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1201,7 +1193,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(repo)])
 
     def test_takeover_delete_downgrades_to_archive_when_not_recoverable(self) -> None:
-        repo = Path(self.temp.name) / "tk5"
+        repo = self.temp_dir / "tk5"
         init_repo.bootstrap(repo)
         (repo / "todos" / "12-search").mkdir(parents=True)
         (repo / "todos" / "12-search" / "README.md").write_text("# Search\n", encoding="utf-8")
@@ -1217,7 +1209,7 @@ class RepositoryValidationTests(unittest.TestCase):
     # --- doctor (013) -------------------------------------------------------
 
     def _seed_drifted_repo(self) -> Path:
-        repo = Path(self.temp.name) / "drifted"
+        repo = self.temp_dir / "drifted"
         init_repo.bootstrap(repo)
         (repo / "AGENTS.md").unlink()                          # missing root contract
         reg = json.loads((repo / "audits" / "registry.json").read_text(encoding="utf-8"))
@@ -1242,7 +1234,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertEqual([], [p.message for p in validate(repo)])
 
     def test_doctor_healthy_on_clean_repo(self) -> None:
-        repo = Path(self.temp.name) / "clean"
+        repo = self.temp_dir / "clean"
         init_repo.bootstrap(repo)
         self.assertEqual([], [f for f in doctor.diagnose(repo) if f.severity == "error"])
 
@@ -1326,7 +1318,7 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(any(f.code == "source-of-truth-stale" for f in doctor.diagnose(self.root)))
 
     def test_import_plan_section_roadmap_without_checkboxes(self) -> None:
-        repo = Path(self.temp.name) / "roadmapped"
+        repo = self.temp_dir / "roadmapped"
         init_repo.bootstrap(repo)
         (repo / "ROADMAP.md").write_text(
             "# Roadmap\n\n## Now\n- Ship the API\n\n## Later\n- Mobile app\n\n"

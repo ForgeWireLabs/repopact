@@ -1,12 +1,8 @@
 from __future__ import annotations
 
 import json
-import shutil
-import subprocess
-import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 from repopact.admission import (
     Ed25519Signer, canonical_json, delegation_subset, digest, evaluate_action,
@@ -14,25 +10,18 @@ from repopact.admission import (
     verify_registration,
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter, LauncherAdapter
+from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import ProtectedGuard
 from repopact.platform_backends import LinuxBackend, MacOSBackend, WindowsBackend, TestingBackend
 
 
 class AdmissionTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="repopact-admission-"))
-        self.root = self.tmp / "repo"
-        shutil.copytree(Path(__file__).parents[1], self.root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc"))
-        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=self.root, check=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact test"], cwd=self.root, check=True)
-        subprocess.run(["git", "add", "."], cwd=self.root, check=True)
-        subprocess.run(["git", "commit", "-m", "fixture"], cwd=self.root, check=True, capture_output=True)
+        self.root = open_fixture_repo(self, prefix="repopact-admission-")
+        self.tmp = self.root.parent
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key-1", "operator-1")
         setup_admission(self.root, self.protected, self.signer)
-
-    def tearDown(self): shutil.rmtree(self.tmp, ignore_errors=True)
 
     def request(self, **kwargs):
         return make_request(self.root, "050", "session-1", scopes=["src"], paths=["src/example.py"], protected_dir=self.protected, **kwargs)

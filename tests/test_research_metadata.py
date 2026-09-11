@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import shutil
-import tempfile
 import unittest
 from datetime import date
 from pathlib import Path
@@ -10,23 +8,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 from repopact import validate_research  # noqa: E402
+from repopact.dev_fixtures import open_fixture_repo  # noqa: E402
 from repopact.validate_repo import validate as validate_repo  # noqa: E402
 
 
 class ResearchMetadataTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.temp = tempfile.TemporaryDirectory()
-        self.root = Path(self.temp.name) / "repo"
-        shutil.copytree(
-            ROOT,
-            self.root,
-            ignore=shutil.ignore_patterns(
-                ".git", ".venv", ".pytest_cache", "__pycache__", "build", "dist", "*.egg-info"
-            ),
-        )
-
-    def tearDown(self) -> None:
-        self.temp.cleanup()
+        self.root = open_fixture_repo(self, prefix="repopact-research-metadata-", init_git=False)
 
     def messages(self) -> list[str]:
         return [problem.message for problem in validate_research.validate(self.root)]

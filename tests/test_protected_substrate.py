@@ -3,13 +3,10 @@ from __future__ import annotations
 import contextlib
 import io
 import json
-import shutil
-import subprocess
-import tempfile
 import unittest
-from pathlib import Path
 
 from repopact import cli
+from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import ProtectedGuard
 from repopact.guard_ipc import decode, encode, envelope
 from repopact.platform_backends import PrivilegeRequired, TestingBackend, WindowsBackend
@@ -17,17 +14,8 @@ from repopact.platform_backends import PrivilegeRequired, TestingBackend, Window
 
 class ProtectedSubstrateTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp(prefix="repopact-substrate-"))
-        self.root = self.tmp / "repo"
-        shutil.copytree(Path(__file__).parents[1], self.root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "build", "dist"))
-        subprocess.run(["git", "init"], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "config", "user.email", "substrate@example.invalid"], cwd=self.root, check=True)
-        subprocess.run(["git", "config", "user.name", "RepoPact substrate"], cwd=self.root, check=True)
-        subprocess.run(["git", "add", "."], cwd=self.root, check=True, capture_output=True)
-        subprocess.run(["git", "commit", "-m", "substrate fixture"], cwd=self.root, check=True, capture_output=True)
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        self.root = open_fixture_repo(self, prefix="repopact-substrate-")
+        self.tmp = self.root.parent
 
     def test_caller_cannot_assert_protected_storage(self):
         with self.assertRaises(TypeError):

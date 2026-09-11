@@ -9,28 +9,21 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
 from .admission import Ed25519Signer, evaluate_action, issue_lease, issue_receipt, make_request, setup_admission
+from .dev_fixtures import FixtureRepo
 from .guard import ProtectedGuard
 from .guard_ipc import NativeGuardClient
 from .platform_backends import TestingBackend, current_backend
 
 
-def _fixture(source: Path) -> tuple[tempfile.TemporaryDirectory[str], Path, Path, Ed25519Signer]:
-    holder: tempfile.TemporaryDirectory[str] = tempfile.TemporaryDirectory(prefix="repopact-platform-conformance-")
-    root = Path(holder.name) / "repo"
-    shutil.copytree(source, root, ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "build", "dist"))
-    subprocess.run(["git", "init"], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "config", "user.email", "conformance@example.invalid"], cwd=root, check=True)
-    subprocess.run(["git", "config", "user.name", "RepoPact conformance"], cwd=root, check=True)
-    subprocess.run(["git", "add", "."], cwd=root, check=True, capture_output=True)
-    subprocess.run(["git", "commit", "-m", "platform conformance fixture"], cwd=root, check=True, capture_output=True)
-    protected = Path(holder.name) / "protected"
+def _fixture(source: Path) -> tuple[FixtureRepo, Path, Path, Ed25519Signer]:
+    holder = FixtureRepo(source_root=source, prefix="repopact-platform-conformance-")
+    holder.open()
+    root = holder.root
+    protected = root.parent / "protected"
     signer = Ed25519Signer.generate("platform-key", "platform-operator")
     setup_admission(root, protected, signer)
     return holder, root, protected, signer
@@ -72,7 +65,7 @@ def run(root: Path) -> dict[str, Any]:
                 "native": native,
                 "fixture": "temporary Git repository; testing-only backend is not platform proof"}
     finally:
-        holder.cleanup()
+        holder.close()
 
 
 def main(argv: list[str] | None = None) -> int:

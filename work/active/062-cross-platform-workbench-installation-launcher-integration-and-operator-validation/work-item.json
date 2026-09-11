@@ -95,8 +95,10 @@
     {
       "id": "AC-011",
       "text": "Determine whether the Debian 13 WSL2 environment has WSLg GUI support (DISPLAY/WAYLAND_DISPLAY/mnt/wslg) before attempting any Linux GUI validation, and record the distro/kernel details truthfully. If WSLg is unavailable, report that distinctly rather than treating a successful package build/install as equivalent GUI runtime proof.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260911-062-linux-environment-preflight"
+      ]
     },
     {
       "id": "AC-012",

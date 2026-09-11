@@ -1,0 +1,41 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260911-062-linux-environment-preflight",
+  "timestamp": "2026-09-11T23:36:47Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"wsl --list --verbose","exit_code":0,"summary":"Debian WSL2 distribution confirmed present and startable."},
+    {"command":"echo $DISPLAY; echo $WAYLAND_DISPLAY; ls -la /mnt/wslg; cat /etc/os-release; uname -a","exit_code":0,"summary":"WSLg GUI support confirmed available (DISPLAY=:0, WAYLAND_DISPLAY=wayland-0, /mnt/wslg populated with an active weston/PulseAudio session). Distro: Debian GNU/Linux 13 (trixie), kernel 6.18.33.2-microsoft-standard-WSL2 x86_64."},
+    {"command":"sudo -n true","exit_code":1,"summary":"Confirmed sudo requires an interactive password on this WSL user account (not passwordless). Per the WI062 directive, this session did not attempt to bypass or store a password; the required `sudo apt install` step for WebKitGTK/GTK build dependencies is left for Jeremy to run interactively."},
+    {"command":"python3 -c \"urllib.request... node-v24.15.0-linux-x64.tar.xz\"","exit_code":0,"summary":"Downloaded and size-verified a Linux-native Node.js v24.15.0 (matching the Windows-side version) into ~/.local/node, since no native Node.js was installed and installing it system-wide would have required sudo/apt; a user-space tarball install avoided that."},
+    {"command":"git clone --no-local /mnt/c/Projects/repopact /home/Jeremy-L/repopact-wi062","exit_code":0,"summary":"The pre-existing WI059 checkout at ~/repopact-wi059-validation/repopact had a corrupted/incomplete working tree (git considered rust/ untracked and its own ls-tree showed no rust/ blobs at HEAD, despite branch/log correctly showing 5ed42e0) -- a fresh full clone was made instead into a new Linux-native directory rather than trying to repair the old one."},
+    {"command":"npm install (in the fresh clone's rust/apps/repopact-desktop)","exit_code":0,"summary":"122 packages installed, 0 vulnerabilities found."},
+    {"command":"dpkg -l | grep webkit2gtk; apt-cache policy libwebkit2gtk-4.1-dev","exit_code":0,"summary":"Confirmed libwebkit2gtk-4.1-dev (and the related GTK/build dependencies) are NOT currently installed but ARE available in the configured apt sources (candidate 2.52.6-1~deb13u1). Installing them requires sudo, which requires Jeremy's interactive password entry -- not attempted or bypassed by this session."}
+  ],
+  "artifacts": [
+    "/home/Jeremy-L/repopact-wi062 (fresh Linux-native checkout, WSL2 Debian 13)",
+    "/home/Jeremy-L/.local/node (user-space Node.js v24.15.0)"
+  ],
+  "environment": {
+    "date": "2026-09-11",
+    "host_os": "Windows 10.0.19045 x64",
+    "wsl_distro": "Debian",
+    "wsl_distro_version": "Debian GNU/Linux 13 (trixie)",
+    "wsl_kernel": "6.18.33.2-microsoft-standard-WSL2 x86_64",
+    "wslg_available": true,
+    "display": ":0",
+    "wayland_display": "wayland-0",
+    "sudo_status": "requires interactive password; not bypassed or stored"
+  },
+  "closeout": {
+    "ac_011": "satisfied -- WSLg availability and distro/kernel details determined and recorded truthfully before attempting any GUI validation",
+    "ac_012": "blocked on Jeremy entering his sudo password interactively for `sudo apt install libwebkit2gtk-4.1-dev libjavascriptcoregtk-4.1-dev libsoup-3.0-dev libgtk-3-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev patchelf` in his own WSL Debian terminal; this session did not and will not enter or store that password",
+    "ac_013_through_ac_016": "blocked transitively on AC-012 (the .deb build needs WebKitGTK/GTK dev headers to compile the Tauri Linux backend)"
+  },
+  "residuals": [
+    "The pre-existing WI059 Linux checkout (~/repopact-wi059-validation/repopact) has a broken git working tree for the rust/ subtree and should probably be removed or re-cloned in a future session; it was left in place (not deleted) since removing another work item's environment artifact was out of WI062's scope.",
+    "Once Jeremy runs the required apt install, the .deb build (`npm run tauri -- build --bundles deb`) can proceed immediately from the already-cloned and already-npm-installed /home/Jeremy-L/repopact-wi062 checkout."
+  ]
+}

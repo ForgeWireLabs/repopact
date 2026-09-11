@@ -20,6 +20,7 @@
     {"command":"rename packaged repopact-engine.exe; repopact validate --root <scratch>; restore packaged repopact-engine.exe","exit_code":0,"summary":"Missing packaged engine failed explicitly with exit 1 and no legacy-Python fallback; restoration and subsequent validation passed."},
     {"command":"repopact-engine.exe < one handshake JSON request","exit_code":0,"summary":"Installed engine returned exactly one JSON response, matching product version 3.0.2.dev1, with zero stderr bytes."},
     {"command":"python -m pip wheel --no-deps --no-build-isolation repopact-3.0.2.dev1.tar.gz --wheel-dir <fresh-output>","exit_code":0,"summary":"Fresh isolated source build passed with Maturin 1.15.0 and Cargo/Rust 1.98.0; resulting wheel installed and validated on Windows."},
+    {"command":"git archive fb9728d7e59dd711f46a6f5bd45545e2ba82be63; pip wheel --no-deps <archived-source>; pip install current-wheel; pip install --force-reinstall archived-wheel","exit_code":0,"summary":"Package rollback proof passed in a temporary venv: the pre-cutover pure-Python wheel (sha256 2f662e2aa6f1a286fa831e1ec690fcdef8ec367a774d29529c52f535400975bb) replaced the current wheel and imported successfully."},
     {"command":"$env:REPOPACT_ENGINE='C:\\Users\\jerem\\AppData\\Local\\Temp\\repopact-rust-target-056-final\\debug\\repopact-engine.exe'; python -m repopact.cli validate --root .","exit_code":1,"summary":"Expected explicit fail-closed source-checkout result: unsupported governance/adopters.json and research/metadata.json plus the pre-existing Rust/Python README-checkbox parity gap."}
   ],
   "artifacts": [
@@ -98,10 +99,11 @@
     "signing, notarization, and publication remain separate governance"
   ],
   "rollback": {
-    "status": "documented and format-safe",
+    "status": "executed and format-safe",
     "procedure": "Reinstall a previously compatible RepoPact wheel or switch the development checkout to the previous committed revision; canonical repository records, completed work, and history are not rewritten.",
     "durable_format_change": false,
-    "reference": "docs/guides/packaging-and-engine.md"
+    "reference": "docs/guides/packaging-and-engine.md",
+    "proof": "Current wheel was replaced by an archived pre-cutover wheel in a temporary venv; no repository files or Git history were changed."
   },
   "wi050": {"admission_corpus":"8/8", "authority_changed":false, "engine_claims_wi050":false},
   "umbrella": {"wi052_original_criteria_reconciled":true, "wi052_ready_for_closeout":true},

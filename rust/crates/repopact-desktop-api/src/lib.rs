@@ -1676,7 +1676,7 @@ mod tests {
 
     #[test]
     fn desktop_boundary_has_no_generic_process_authority() {
-        let source = include_str!("lib.rs");
+        let source = include_str!("lib.rs").replace("\r\n", "\n");
         let production = source
             .split("#[cfg(test)]\nmod tests")
             .next()

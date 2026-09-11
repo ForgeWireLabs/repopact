@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "059",
   "title": "Canonical Rust Validation Self-Hosting and Extended-Surface Parity",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "tooling",
   "affected_scopes": ["tooling", "governance", "work", "docs", "evidence"],
   "depends_on": ["056"],
@@ -28,7 +28,8 @@
     {"id":"CVP-013","text":"Preserve WI057 repository/session/process guarantees while extending validation: one immutable snapshot/generation supplies the new checks, validation introduces no per-record Git/process amplification, and existing constant Git-query/concurrency regressions remain green.","state":"pending","evidence":[]},
     {"id":"CVP-014","text":"Run and preserve the post-WI056 regression baseline: Python suite, Rust workspace, canonical conformance, explicit legacy comparator, WI050 corpus, linked-worktree/reference parity, frontend/type/build checks where affected, packaging/engine protocol tests, and frozen-surface integrity; no frozen workflow change is implicit in this parity item.","state":"pending","evidence":[]},
     {"id":"CVP-015","text":"Update authority and developer documentation after implementation so governance/adopters.json local validation and research/metadata.json local validation are no longer inaccurately listed as canonical-Rust gaps, while retained Python fleet/research orchestration and any still-unmigrated surfaces remain stated exactly without claiming an all-Rust product.","state":"pending","evidence":[]},
-    {"id":"CVP-016","text":"Closeout evidence records the initial three-gap reproduction, exact migrated semantics, WI036 discrepancy classification, before/after canonical source-checkout validation, parity/conformance results, process/cache behavior, retained Python boundaries, WI050 non-migration, final main SHA, and any residual unsupported validation surface; WI059 may close only when the canonical validator is self-hosting for RepoPact's own repository-validation contract.","state":"pending","evidence":[]}
+    {"id":"CVP-016","text":"Closeout evidence records the initial three-gap reproduction, exact migrated semantics, WI036 discrepancy classification, before/after canonical source-checkout validation, parity/conformance results, process/cache behavior, retained Python boundaries, WI050 non-migration, final main SHA, and any residual unsupported validation surface; WI059 may close only when the canonical validator is self-hosting for RepoPact's own repository-validation contract.","state":"pending","evidence":[]},
+    {"id":"CVP-017","text":"Storage-bounded regression fixture execution: baseline and closeout regression execution for WI059 must exclude ignored/generated build output such as rust/target, never recursively copy .git, avoid multiplying prior fixture/build artifacts, disable Git automatic maintenance in disposable test repositories unless maintenance itself is under test, use task-owned temporary storage, guarantee cleanup across success and failure, leave no task-owned orphan Git/Python child processes, and record enough before/after resource evidence (disk, temp size, process count) to demonstrate bounded behavior.","state":"pending","evidence":[]}
   ],
   "created": "2026-09-10",
   "updated": "2026-09-10"

@@ -1,6 +1,6 @@
 # Work Item 059 — Canonical Rust Validation Self-Hosting and Extended-Surface Parity
 
-**Status:** Proposed
+**Status:** Active
 
 **Owner:** tooling-owner
 
@@ -152,4 +152,4 @@ WI059 closes only when:
 - documentation describes the new authority boundary accurately;
 - closeout evidence states any residual unsupported canonical validation surface exactly.
 
-This item should remain **proposed** while WI058 executes. Activation is a separate lifecycle decision.
+This item was activated on 2026-09-10 after WI058 completed. The proposal and preflight rationale above are preserved as originally recorded. Before semantic implementation began, a full-baseline attempt on a separate machine discovered a regression-fixture storage-amplification defect unrelated to WI059 semantics; that finding is recorded as CVP-017 above and detailed in [fixture-storage-finding.md](fixture-storage-finding.md).

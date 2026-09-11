@@ -6,6 +6,14 @@ authors = ["ForgeWireLabs"]
 edition = "2021"
 publish = false
 
+[lib]
+# Standard Tauri desktop/mobile shared-crate shape (WI060): the mobile
+# runtime loads this as a static/dynamic library and calls the
+# `tauri::mobile_entry_point`-annotated `run()` in src/lib.rs; the desktop
+# binary target (src/main.rs) links the same rlib and calls the same `run()`.
+name = "repopact_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
 [build-dependencies]
 tauri-build = { version = "2.5.3", features = [] }
 
@@ -19,3 +27,7 @@ tauri-plugin-dialog = "2.7.3"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]
+# WI060 AND-007: gates the debug-only, app-private Android validation
+# repository path. Never enabled in a production/release build; see
+# src/android_validation.rs.
+android-debug-validation = []

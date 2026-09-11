@@ -153,3 +153,20 @@ WI059 closes only when:
 - closeout evidence states any residual unsupported canonical validation surface exactly.
 
 This item was activated on 2026-09-10 after WI058 completed. The proposal and preflight rationale above are preserved as originally recorded. Before semantic implementation began, a full-baseline attempt on a separate machine discovered a regression-fixture storage-amplification defect unrelated to WI059 semantics; that finding is recorded as CVP-017 above and detailed in [fixture-storage-finding.md](fixture-storage-finding.md).
+
+## Implementation status (semantic-parity phase, 2026-09-11)
+
+The three semantic gaps (adopter-manifest parity, research-metadata parity,
+the WI036 checkbox discrepancy) have been implemented and proven with
+executable coverage; see [semantic-parity-inventory.md](semantic-parity-inventory.md)
+for the exact functions ported, what remains Python-owned, and the
+conformance/unit-test evidence. `repopact validate --root .` now validates
+this checkout through the canonical Rust engine with zero diagnostics, no
+`--legacy-python`, and no unsupported-surface entries for either migrated
+file.
+
+This status note records that the implementation exists and is green; it is
+not closeout. WI059 remains **active**: acceptance-criterion states in
+`work-item.json` are intentionally left `pending` until a durable closeout
+evidence run is recorded, and the item is not moved to `work/completed/`
+in this pass.

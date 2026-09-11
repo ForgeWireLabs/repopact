@@ -1,6 +1,6 @@
 # Work Item 059 — Canonical Rust Validation Self-Hosting and Extended-Surface Parity
 
-**Status:** Active
+**Status:** Completed
 
 **Owner:** tooling-owner
 
@@ -165,8 +165,25 @@ this checkout through the canonical Rust engine with zero diagnostics, no
 `--legacy-python`, and no unsupported-surface entries for either migrated
 file.
 
-This status note records that the implementation exists and is green; it is
-not closeout. WI059 remains **active**: acceptance-criterion states in
-`work-item.json` are intentionally left `pending` until a durable closeout
-evidence run is recorded, and the item is not moved to `work/completed/`
-in this pass.
+A subsequent architecture review found one containment flaw in the snapshot
+layer (a metadata-directed adopter-overlay or research-metadata path could be
+read into the immutable generation before an escape could be classified);
+that was corrected with one reusable `resolve_within_root` choke point in
+Rust and an equivalent containment check added to the Python comparator, with
+regression coverage proving out-of-repository content is never ingested. See
+[semantic-parity-inventory.md](semantic-parity-inventory.md) for detail.
+
+## Closeout
+
+WI059 closed on 2026-09-11. Durable closeout evidence is recorded as
+[`20260911-059-canonical-rust-validation-self-hosting`](../../../evidence/runs/20260911-059-canonical-rust-validation-self-hosting.json),
+which every acceptance criterion in `work-item.json` references. That
+evidence records: the original three-gap baseline; the CVP-017 fixture-
+amplification finding and fix; the containment-flaw finding and fix; adopter/
+research/checkbox parity results on Windows and Debian 13 (WSL2, a real
+Linux-native checkout, not a DrvFS/Windows path); the direct
+`repopact-engine` stdio protocol proof (handshake + validate) on both
+platforms; the public Python compatibility route with no legacy fallback;
+21/21 canonical conformance and legacy-comparator results; WI050's untouched
+8/8 corpus; WI057's unchanged process/scaling bounds; and the residual
+unsupported Rust surfaces (WI050 records only).

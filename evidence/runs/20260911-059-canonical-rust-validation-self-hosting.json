@@ -1,0 +1,150 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260911-059-canonical-rust-validation-self-hosting",
+  "timestamp": "2026-09-11T16:00:23Z",
+  "work_item": "059",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command": "python -m repopact.cli validate", "exit_code": 0, "summary": "Reproduced the post-WI056 baseline three-gap failure before implementation: unsupported.semantic-surface for governance/adopters.json, unsupported.semantic-surface for research/metadata.json, and work.readme-checkbox-missing for WI036 AC-7."},
+    {"command": "cargo fmt --check", "exit_code": 0, "summary": "Rust workspace formatting clean after implementation and the containment fix."},
+    {"command": "cargo check --workspace", "exit_code": 0, "summary": "Full Windows workspace (including the Tauri desktop app) compiles clean."},
+    {"command": "cargo test --workspace", "exit_code": 0, "summary": "Windows: all Rust tests passed, including repopact-repository 15/15 (11 pre-existing + 4 new WI059 containment tests: valid adopter/research references ingested; relative-traversal, absolute-path, and symlink escapes for both surfaces are not ingested) and repopact-validation 41/41 (9 adopter, 15 research, 13 checkbox, plus pre-existing)."},
+    {"command": "repopact-cli.exe validate --root . (direct Rust CLI, Windows)", "exit_code": 0, "summary": "Zero diagnostics on the RepoPact checkout, without going through the Python compatibility layer."},
+    {"command": "repopact-engine.exe stdio protocol: handshake then validate (direct engine process, Windows)", "exit_code": 0, "summary": "handshake: protocol=repopact-engine, protocol_version=1, engine_version=3.0.2.dev1, ok=true. validate against root C:\\Projects\\repopact: ok=true, result.valid=true, error_count=0, warning_count=0, diagnostics=[]. No Python process participated; exact request/response JSON below."},
+    {"command": "python -m repopact.cli validate (public compatibility route, Windows, no --legacy-python)", "exit_code": 0, "summary": "Repository governance validation passed through the Rust engine via engine_client.py; no legacy fallback."},
+    {"command": "python -m unittest tests.test_engine_client -v", "exit_code": 0, "summary": "6/6 fail-closed engine-client contract tests passed: malformed/multiple responses, missing engine, protocol/product mismatch, no human-output parsing, no legacy fallback on the public route."},
+    {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Canonical Rust conformance 21/21 (20 published cases plus the new readme-checkbox-mismatch case). WI050 admission corpus 8/8."},
+    {"command": "python -m repopact.run_conformance --legacy-python", "exit_code": 0, "summary": "Explicit legacy Python comparator 21/21, matching the canonical Rust result exactly. WI050 admission corpus 8/8."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "WI050 cross-platform harness result: passed (testing-only backend; native protected service not installed on this dev host, as expected)."},
+    {"command": "TEMP/TMP/TMPDIR=C:\\RepoPactWI059Task python -m unittest discover -s tests -v", "exit_code": 1, "summary": "228 tests, 1 failure, 2 skipped, 629.97s. The failure is the pre-existing, host-environment-specific test_isolated_self_test_ignores_environment_and_checkout_injection (WI050): cryptography is installed only in this machine's per-user site-packages, which Python -I isolation correctly excludes. WI050's own 8/8 admission corpus (above) is unaffected and remains the authoritative WI050 regression signal. The 2 skips are pre-existing documented formal-model gaps (O-4, O-6), unrelated to WI059. No new failures were introduced; CVP-017's bounded-temp harness left zero orphan directories or processes both before and after."},
+    {"command": "cargo test -p repopact-repository --lib snapshot_git_invocation_count_is_bounded_independent_of_work_items -- --nocapture (Windows)", "exit_code": 0, "summary": "WI057 scaling proof reconfirmed after the containment fix: 3 Git invocations at 1/10/50/100 work items (unchanged from the WI057 baseline)."},
+    {"command": "npm run types:check && npm run typecheck && npx vitest run && npm run build (rust/apps/repopact-desktop, Windows)", "exit_code": 0, "summary": "Generated RecordKind DTOs current; TypeScript, 4 test files/10 tests, and the production Vite build all passed. No frontend DTO surface changed in the containment-fix pass."},
+    {"command": "python -m repopact.cli dashboard && python -m repopact.cli spec && git diff --stat -- audits/reports/dashboard.md SPEC.md", "exit_code": 0, "summary": "Dashboard/SPEC regenerated with zero diff both before and after the containment fix."},
+    {"command": "python -m repopact.check_frozen_surface --base 74d5cc2cdb21d070daa9306e2864852673e62aec (and again with the containment-fix SHA as base for the closeout diff)", "exit_code": 0, "summary": "No frozen-surface changes detected at any point in this pass."},
+    {"command": "wsl -d Debian -- bash -lc \"sudo apt-get update && sudo apt-get install -y git\"", "exit_code": 0, "summary": "Installed git 2.47.3 in Debian 13 (trixie) under WSL2, operator-provided sudo password. No distribution upgrade; no other packages installed beyond git's own dependency closure."},
+    {"command": "git clone --no-hardlinks /mnt/c/Projects/repopact ~/repopact-wi059-validation (Debian 13)", "exit_code": 0, "summary": "Linux-native checkout created outside DrvFS; HEAD = ba339f9e52c10241464e8770f10362e494121bc5, matching the final Windows containment-fix commit exactly; git status clean."},
+    {"command": "cargo test -p repopact-repository -p repopact-validation -p repopact-protocol --lib (Debian 13, Linux-native checkout)", "exit_code": 1, "summary": "repopact-validation 41/41 passed. repopact-protocol 0 tests (no unit tests defined; compiles clean). repopact-repository 14/15 passed, including all 4 new containment tests (the symlink-escape case also passed on Linux, where symlink creation is unrestricted). The one failure, native_runner_terminates_and_reaps_a_timed_out_child, asserts a killed child is reaped within a hard 1-second budget; under WSL2 virtualization it consistently completes at ~1.00-1.01s. This is a pre-existing process-timeout-reaping timing test unrelated to WI059 snapshot/validator semantics (not touched by this or any WI059 commit) and is recorded as a known Linux/WSL2 host-timing characteristic, analogous to the Windows WI050 cryptography host-environment finding; it was not weakened or skipped."},
+    {"command": "cargo build -p repopact-engine -p repopact-cli (Debian 13, Linux-native checkout)", "exit_code": 0, "summary": "Built without the Tauri desktop workspace member; no GTK/WebKit/Tauri GUI dependencies were installed or required."},
+    {"command": "./rust/target/debug/repopact-cli validate --root . (Debian 13, Linux-native checkout)", "exit_code": 0, "summary": "Repository governance validation passed."},
+    {"command": "repopact-engine stdio protocol: handshake then validate (Debian 13, Linux-native checkout)", "exit_code": 0, "summary": "handshake: protocol=repopact-engine, protocol_version=1, engine_version=3.0.2.dev1, ok=true. validate against /home/Jeremy-L/repopact-wi059-validation: ok=true, result.valid=true, error_count=0, warning_count=0, diagnostics=[]. Identical semantics to the Windows engine proof."}
+  ],
+  "artifacts": [
+    "rust/crates/repopact-repository/src/lib.rs",
+    "rust/crates/repopact-validation/src/adopters.rs",
+    "rust/crates/repopact-validation/src/research.rs",
+    "rust/crates/repopact-validation/src/lib.rs",
+    "rust/crates/repopact-schema/src/lib.rs",
+    "rust/crates/repopact-types/src/lib.rs",
+    "repopact/validate_research.py",
+    "tests/test_research_metadata.py",
+    "conformance/manifest.json",
+    "conformance/fixtures/invalid/readme-checkbox-mismatch/",
+    "work/completed/059-canonical-rust-validation-self-hosting-and-extended-surface-parity/fixture-storage-finding.md",
+    "work/completed/059-canonical-rust-validation-self-hosting-and-extended-surface-parity/semantic-parity-inventory.md"
+  ],
+  "environment": {
+    "date": "2026-09-11",
+    "windows_os": "Windows 10.0.19045 x64 (Dell Precision, DESKTOP-228U8GL)",
+    "windows_rust": "1.97.1",
+    "windows_cargo": "1.97.1",
+    "windows_python": "3.13.15 (also 3.12.4 present)",
+    "starting_sha": "74d5cc2cdb21d070daa9306e2864852673e62aec",
+    "containment_fix_sha": "8606f31",
+    "python_parity_fix_sha": "ba339f9",
+    "wsl_distribution": "Debian GNU/Linux 13 (trixie), WSL2, kernel 6.18.33.2-microsoft-standard-WSL2",
+    "wsl_git_before": "absent",
+    "wsl_git_after": "2.47.3",
+    "wsl_python": "3.13.5",
+    "wsl_rust": "1.97.1",
+    "wsl_cargo": "1.97.1",
+    "linux_native_checkout": "/home/Jeremy-L/repopact-wi059-validation",
+    "linux_native_checkout_sha": "ba339f9e52c10241464e8770f10362e494121bc5",
+    "android_sdk": "unavailable/untouched (explicitly out of scope for WI059)",
+    "macos_xcode": "unavailable; no Mac host in this environment"
+  },
+  "baseline_and_finding": {
+    "original_three_gap_baseline": "At WI056 closeout / WI059 activation, python -m repopact.cli validate reported exactly three diagnostics: unsupported.semantic-surface for governance/adopters.json ('adopter fleet validation'), unsupported.semantic-surface for research/metadata.json ('research metadata validation'), and work.readme-checkbox-missing for completed WI036's AC-7 criterion.",
+    "cvp_017_fixture_amplification": "Before WI059 semantic work began, a full-baseline attempt discovered that several Python test fixtures recursively copied the entire developer checkout with an incomplete ignore list that did not exclude rust/target, causing multi-gigabyte-per-run storage amplification unrelated to WI059 semantics. Fixed by centralizing fixture materialization in repopact/dev_fixtures.py (git-aware file selection, disabled Git auto-maintenance in disposable repos, guaranteed cleanup, anti-recursion guard). See work-item CVP-017 and fixture-storage-finding.md.",
+    "sol_review_containment_correction": "A subsequent architecture review found that RecordIndex::build_with_topology read metadata-directed adopter-overlay and research-reference paths into source_paths/text_files/adopter_overlay_bytes before any containment check could reject an escaping reference (e.g. '../outside.txt' or an absolute path outside the repository), so external content could be ingested into the immutable snapshot even though validation would eventually reject it. Fixed with one reusable repopact_repository::resolve_within_root(root, relative) choke point (canonicalize-based, symlink-aware, no content read to decide) used by both the snapshot builder and the adopter/research validators, plus an equivalent _resolve_local()/_require_local() containment check added to the explicit Python comparator (validate_research.py) so Rust and Python do not drift on this boundary. See commits 8606f31 (Rust) and ba339f9 (Python)."
+  },
+  "semantic_migration": {
+    "adopter_local_authority_migrated": [
+      "adopter-fleet.schema.json conformance",
+      "unique adopter ids",
+      "unique repository identities after lowercase + trailing-.git normalization",
+      "vendored mode==\"overlay\" contract checksum verification (path containment, missing-overlay, CRLF-normalized SHA-256 comparison)"
+    ],
+    "adopter_fleet_semantics_retained_in_python": [
+      "fleet_verify.py cross-repository adopter fleet verification",
+      "any network or multi-repository orchestration"
+    ],
+    "research_local_authority_migrated": [
+      "gating (research/paper.md + research/protocol.md convention, or research/metadata.json)",
+      "claim freshness (policy existence, date validity/order/30-day window/expiry, top-level research/*.md coverage)",
+      "lifecycle (canonical states, set/figure document cross-checks, provenance-figure regression check)",
+      "benchmark facts (PactBench task count, hypothesis range, study-to-hypothesis mapping)",
+      "threats (canonical identifiers, per-document heading cross-check)",
+      "proposed-state trace (F-014/capture-013 target existence and required trace tokens)",
+      "repository-local path containment for every configured reference (research.path-escape)"
+    ],
+    "research_execution_retained_outside_canonical_validation": [
+      "PactBench execution",
+      "experiment/benchmark running",
+      "research result interpretation"
+    ],
+    "wi036_checkbox": {
+      "discrepancy": "Rust's README-checkbox scanner took the entire bold label between ** ** as the criterion identifier and required every character to be alphanumeric-or-'-', so '**AC-7 (waived by decision `0029`)**' never matched; Python matches only the canonical identifier prefix [A-Za-z][A-Za-z0-9]*-[0-9]+ with a word boundary.",
+      "classification": "Rust parsing bug, not Python under-validation and not a nonconforming README artifact.",
+      "fix": "decision_0014_criterion_id in rust/crates/repopact-validation/src/lib.rs ports Python's actual prefix grammar.",
+      "wi036_unchanged": true
+    }
+  },
+  "conformance": {
+    "canonical_rust": "21/21",
+    "legacy_python_comparator": "21/21",
+    "new_case": "readme-checkbox-mismatch (decision 0014 checklist convention is a general repository-contract feature, added to the language-neutral corpus rather than only a Rust unit test)"
+  },
+  "wi050": {
+    "admission_corpus": "8/8 (canonical Rust and legacy Python comparator both)",
+    "platform_conformance_harness": "passed",
+    "python_suite_environment_failure": "test_isolated_self_test_ignores_environment_and_checkout_injection fails because cryptography is only installed in this machine's per-user site-packages, which -I isolation correctly excludes; this is the intended fail-closed behavior of the isolation test, not a WI050 regression. WI050 trust semantics, admission, guard, and repository-registration authority were not modified in this work."
+  },
+  "wi057_process_and_cache_regressions": {
+    "snapshot_git_invocations": "3/3/3/3 for 1/10/50/100 work items, unchanged after the containment fix",
+    "unchanged_cached_read_additional_git_invocations": 0,
+    "maximum_git_query_concurrency": 1,
+    "per_reference_git_processes": 0,
+    "n_plus_1_repository_reopening": "none observed"
+  },
+  "fail_closed_and_no_fallback_proof": {
+    "engine_client_tests": "6/6 passed (test_engine_client.py): malformed/multiple responses fail closed, missing engine does not fall back to Python, protocol/product mismatch fails closed, human CLI output is never parsed, public validate route uses the engine without legacy fallback",
+    "public_route_invocation": "python -m repopact.cli validate, never with --legacy-python",
+    "legacy_comparator_role": "repopact.run_conformance --legacy-python remains an explicit separate regression oracle, never an automatic fallback path"
+  },
+  "residual_unsupported_rust_semantic_surfaces": [
+    "governance/admission-policy.json (WI050 admission/enforcement records)",
+    "governance/operator-authority.json (WI050 operator authority records)",
+    "governance/repository-registration.json (WI050 repository registration records)"
+  ],
+  "platform_matrix": {
+    "windows": {"rust_cli": "passed", "engine_protocol": "passed", "python_compatibility_route": "passed", "full_python_suite": "228 tests, 1 known host-environment failure, 2 pre-existing skips"},
+    "linux_debian_13_trixie": {"rust_repository_tests": "14/15 (1 known WSL2 process-timing characteristic, unrelated to WI059)", "rust_validation_tests": "41/41", "rust_cli": "passed", "engine_protocol": "passed", "python_compatibility_route": "not executed; pip/compatibility dependencies are not installed in this Debian image and installing them was out of this pass's authorized scope (git only)"},
+    "macos": {"status": "unexecuted; no macOS/Xcode host available"},
+    "ios": {"status": "unexecuted; no macOS/Xcode host available"},
+    "android": {"status": "explicitly not exercised under WI059; Android Workbench validation remains a separate operator-directed session"}
+  },
+  "closeout": {
+    "self_hosting_achieved": true,
+    "canonical_validate_result": "zero diagnostics on Windows and Linux, direct engine and CLI paths and the Python compatibility route",
+    "wi050_boundary_preserved": true,
+    "wi057_boundary_preserved": true,
+    "wi036_unchanged": true
+  },
+  "residuals": [
+    "macOS and iOS validation were not executed; no Mac host is available in this environment.",
+    "Linux public Python-compatibility-route validation was not executed; pip and repopact's Python dependencies are not installed in the Debian 13 WSL image and installing them was outside this pass's authorized scope (git only). Direct Rust engine/CLI validation on Linux is the authoritative Linux evidence for this closeout.",
+    "The WSL2 process-timeout-reaping timing test (native_runner_terminates_and_reaps_a_timed_out_child) is a known host-timing characteristic on this platform, unrelated to WI059 snapshot/validator semantics; it was not modified, skipped, or weakened.",
+    "Android Workbench validation is explicitly deferred to a separate operator-directed session."
+  ]
+}

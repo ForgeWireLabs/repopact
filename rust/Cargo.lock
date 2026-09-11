@@ -2950,10 +2950,12 @@ dependencies = [
 name = "repopact-validation"
 version = "0.1.0"
 dependencies = [
+ "regex",
  "repopact-repository",
  "repopact-schema",
  "repopact-types",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

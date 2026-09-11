@@ -1,3 +1,6 @@
+mod adopters;
+mod research;
+
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 #[cfg(test)]
 use std::fs;
@@ -75,6 +78,10 @@ pub struct Validator {
     work: Vec<LoadedWork>,
     evidence_ids: BTreeSet<String>,
     work_ids: BTreeSet<String>,
+    /// Deterministic "today" (`YYYY-MM-DD`) for research claim-freshness
+    /// expiry, overridable so tests are not wall-clock-dependent; `None`
+    /// means production behavior (the real current date via `today_utc()`).
+    today: Option<String>,
 }
 
 impl Validator {
@@ -109,7 +116,16 @@ impl Validator {
             work: Vec::new(),
             evidence_ids,
             work_ids: BTreeSet::new(),
+            today: None,
         }
+    }
+
+    /// Override "today" for deterministic research claim-freshness testing
+    /// (`YYYY-MM-DD`). Production validation should not call this; leaving it
+    /// unset uses the real current date.
+    pub fn with_today(mut self, today: impl Into<String>) -> Self {
+        self.today = Some(today.into());
+        self
     }
 
     pub fn validate(mut self) -> ValidationReport {
@@ -126,6 +142,8 @@ impl Validator {
         self.validate_evidence();
         self.validate_audit_registry();
         self.validate_dashboard();
+        self.validate_adopters();
+        self.validate_research();
         self.diagnostics.sort_by(|left, right| {
             (left.path.as_deref(), &left.message).cmp(&(right.path.as_deref(), &right.message))
         });
@@ -148,14 +166,6 @@ impl Validator {
             (
                 root.join("governance/repository-registration.json"),
                 "WI050 repository registration records",
-            ),
-            (
-                root.join("research/metadata.json"),
-                "research metadata validation",
-            ),
-            (
-                root.join("governance/adopters.json"),
-                "adopter fleet validation",
             ),
         ];
         for (path, surface) in unsupported {
@@ -820,15 +830,8 @@ impl Validator {
             }
             let rest = &line[marker + 2..];
             let Some(end) = rest.find("**") else { continue };
-            let id = &rest[..end];
-            if id
-                .chars()
-                .next()
-                .is_some_and(|char| char.is_ascii_alphabetic())
-                && id
-                    .chars()
-                    .all(|char| char.is_ascii_alphanumeric() || char == '-')
-            {
+            let label = &rest[..end];
+            if let Some(id) = decision_0014_criterion_id(label) {
                 boxes.insert(id.to_owned(), state);
             }
         }
@@ -1458,6 +1461,55 @@ fn parse_release_label(value: &str) -> Option<(String, String)> {
     Some((base.to_owned(), prerelease.to_owned()))
 }
 
+/// Decision 0014's canonical checklist criterion-identifier grammar:
+/// `[A-Za-z][A-Za-z0-9]*-[0-9]+` with a word boundary after the numeric run.
+/// Mirrors Python's `CHECKBOX_LINE` regex group so both implementations
+/// recognize `AC-7` inside `**AC-7 (waived by decision 0029)**` but reject
+/// `AC-7foo`, instead of requiring the whole bold label to be alphanumeric.
+fn decision_0014_criterion_id(label: &str) -> Option<&str> {
+    let mut chars = label.char_indices().peekable();
+    let (_, first) = chars.next()?;
+    if !first.is_ascii_alphabetic() {
+        return None;
+    }
+    let mut end = first.len_utf8();
+    let mut saw_dash = false;
+    while let Some(&(pos, ch)) = chars.peek() {
+        if ch == '-' {
+            end = pos + ch.len_utf8();
+            saw_dash = true;
+            chars.next();
+            break;
+        } else if ch.is_ascii_alphanumeric() {
+            end = pos + ch.len_utf8();
+            chars.next();
+        } else {
+            return None;
+        }
+    }
+    if !saw_dash {
+        return None;
+    }
+    let digits_start = end;
+    while let Some(&(pos, ch)) = chars.peek() {
+        if ch.is_ascii_digit() {
+            end = pos + ch.len_utf8();
+            chars.next();
+        } else {
+            break;
+        }
+    }
+    if end == digits_start {
+        return None;
+    }
+    if let Some(&(_, next)) = chars.peek() {
+        if next.is_ascii_alphanumeric() || next == '_' {
+            return None;
+        }
+    }
+    Some(&label[..end])
+}
+
 fn is_iso_date(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() == 10
@@ -1663,5 +1715,157 @@ mod tests {
         visit(root, root, &mut output);
         output.sort();
         output
+    }
+
+    #[test]
+    fn decision_0014_id_recognizes_plain_canonical_id() {
+        assert_eq!(decision_0014_criterion_id("AC-7"), Some("AC-7"));
+    }
+
+    #[test]
+    fn decision_0014_id_recognizes_explanatory_suffix() {
+        assert_eq!(
+            decision_0014_criterion_id("AC-7 (waived by decision 0029)"),
+            Some("AC-7")
+        );
+        assert_eq!(
+            decision_0014_criterion_id("AC-7 (waived by decision `0029`)"),
+            Some("AC-7")
+        );
+    }
+
+    #[test]
+    fn decision_0014_id_recognizes_wi036_exact_shape() {
+        assert_eq!(
+            decision_0014_criterion_id("AC-7 (waived by decision `0029`)"),
+            Some("AC-7")
+        );
+    }
+
+    #[test]
+    fn decision_0014_id_rejects_malformed_attached_suffix() {
+        assert_eq!(decision_0014_criterion_id("AC-7foo"), None);
+        assert_eq!(decision_0014_criterion_id("AC-70abc"), None);
+    }
+
+    #[test]
+    fn decision_0014_id_rejects_prose_without_convention() {
+        assert_eq!(decision_0014_criterion_id("Acceptance criteria"), None);
+        assert_eq!(decision_0014_criterion_id("just some prose"), None);
+        assert_eq!(decision_0014_criterion_id("-7"), None);
+    }
+
+    #[test]
+    fn decision_0014_id_accepts_multi_letter_prefix() {
+        assert_eq!(decision_0014_criterion_id("CVP-017"), Some("CVP-017"));
+        assert_eq!(decision_0014_criterion_id("UIT-001 done"), Some("UIT-001"));
+    }
+
+    fn work_item_with_readme(readme_body: &str, criteria: Vec<(&str, &str)>) -> PathBuf {
+        let root = temp_root("checkbox");
+        let directory = root.join("work/active/001-example");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.join("README.md"), readme_body).unwrap();
+        let acceptance_criteria: Vec<Value> = criteria
+            .iter()
+            .map(|(id, state)| serde_json::json!({"id": id, "text": "criterion", "state": state, "evidence": []}))
+            .collect();
+        fs::write(
+            directory.join("work-item.json"),
+            serde_json::to_vec_pretty(&serde_json::json!({
+                "id": "001",
+                "title": "Example",
+                "status": "active",
+                "owner_scope": "tooling",
+                "affected_scopes": [],
+                "depends_on": [],
+                "acceptance_criteria": acceptance_criteria,
+                "created": "2026-01-01",
+                "updated": "2026-01-01",
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        root
+    }
+
+    fn checkbox_codes(root: &Path) -> Vec<String> {
+        let report = validate(root);
+        let codes = report
+            .diagnostics
+            .into_iter()
+            .filter(|diagnostic| diagnostic.code.starts_with("work.readme-checkbox"))
+            .map(|diagnostic| diagnostic.code)
+            .collect();
+        fs::remove_dir_all(root).unwrap();
+        codes
+    }
+
+    #[test]
+    fn checkbox_checked_satisfied_matches() {
+        let root = work_item_with_readme(
+            "- [x] **AC-1** done\n",
+            vec![("AC-1", "satisfied")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
+    }
+
+    #[test]
+    fn checkbox_unchecked_satisfied_mismatches() {
+        let root = work_item_with_readme(
+            "- [ ] **AC-1** done\n",
+            vec![("AC-1", "satisfied")],
+        );
+        assert_eq!(checkbox_codes(&root), vec!["work.readme-checkbox-mismatch"]);
+    }
+
+    #[test]
+    fn checkbox_checked_pending_mismatches() {
+        let root = work_item_with_readme(
+            "- [x] **AC-1** done\n",
+            vec![("AC-1", "pending")],
+        );
+        assert_eq!(checkbox_codes(&root), vec!["work.readme-checkbox-mismatch"]);
+    }
+
+    #[test]
+    fn checkbox_unchecked_pending_matches() {
+        let root = work_item_with_readme(
+            "- [ ] **AC-1** done\n",
+            vec![("AC-1", "pending")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
+    }
+
+    #[test]
+    fn checkbox_waived_matches_either_state() {
+        let root = work_item_with_readme(
+            "- [x] **AC-1** done\n",
+            vec![("AC-1", "waived")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
+        let root = work_item_with_readme(
+            "- [ ] **AC-1** done\n",
+            vec![("AC-1", "waived")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
+    }
+
+    #[test]
+    fn checkbox_explanatory_suffix_still_activates_convention() {
+        let root = work_item_with_readme(
+            "- [x] **AC-7 (waived by decision `0029`)** superseded\n",
+            vec![("AC-7", "waived")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
+    }
+
+    #[test]
+    fn checkbox_prose_readme_does_not_activate_convention() {
+        let root = work_item_with_readme(
+            "This work item describes AC-1 in prose, with no checklist.\n",
+            vec![("AC-1", "satisfied")],
+        );
+        assert!(checkbox_codes(&root).is_empty());
     }
 }

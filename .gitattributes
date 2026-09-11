@@ -1,0 +1,20 @@
+# Force LF for source/text files regardless of local core.autocrlf. Some Rust
+# tests (e.g. repopact-repository's production_git_spawning_is_centralized_
+# in_the_approved_helper) include_str! their own source to self-inspect it and
+# split/compare on a literal "\n"; a Windows checkout with core.autocrlf=true
+# silently rewrites those files to CRLF and breaks that comparison without
+# git ever reporting a working-tree diff. Pinning line endings here removes
+# the local-config dependency instead of teaching every such test to tolerate
+# CRLF.
+* text=auto eol=lf
+
+*.rs text eol=lf
+*.py text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+
+*.ico binary
+*.png binary

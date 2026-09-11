@@ -6,7 +6,7 @@
     {"id": "work", "paths": ["work/**"], "owner": "work-coordinator"},
     {"id": "evidence", "paths": ["evidence/**"], "owner": "evidence-owner"},
     {"id": "tooling", "paths": ["repopact/AGENTS.md", "repopact/*.py", "repopact/_audit/**", "repopact/templates/**", "rust/**", "scripts/**", "tests/**", "conformance/**", ".github/workflows/**", "pyproject.toml", "MANIFEST.in", "requirements.txt", "CONFORMANCE.md"], "owner": "tooling-owner"},
-    {"id": "docs", "paths": ["docs/**", "launch/**", "examples/**", ".github/ISSUE_TEMPLATE/**", ".github/pull_request_template.md", ".claude/**", ".codex/**", ".agents/**", ".gitignore", "README.md", "ROADMAP.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "LICENSE"], "owner": "docs-owner"}
+    {"id": "docs", "paths": ["docs/**", "launch/**", "examples/**", ".github/ISSUE_TEMPLATE/**", ".github/pull_request_template.md", ".claude/**", ".codex/**", ".agents/**", ".gitignore", ".gitattributes", "README.md", "ROADMAP.md", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", "LICENSE"], "owner": "docs-owner"}
   ],
   "roles": [
     {

@@ -24,28 +24,53 @@ Read [`AGENTS.md`](AGENTS.md) (the contract), then
 
 ## Required checks
 
-```
+Install the development environment once, then run the repository-defined local
+CI profile:
+
+```console
 python -m pip install -e ".[dev]"
-repopact validate
-python -m unittest discover -s tests -v
-repopact dashboard
-repopact spec
+repopact verify ci
 ```
 
-The `dev` extra supplies the test and release tools (`pytest`, `build`, `twine`)
-inside the active environment. The repository's required suite uses `unittest`;
-`pytest` remains available for focused development runs.
+The profile is defined in [`governance/verification.json`](governance/verification.json),
+not in GitHub Actions. It covers the canonical validation, regression tests,
+conformance, Rust workspace checks, and derived-artifact checks registered for
+this repository. Use `repopact verify quick` for a fast development check and
+`repopact verify release` for release-readiness verification.
 
-CI is intended to run the same gates and fail if a derived artifact is stale or
-validation does not pass. While GitHub Actions is billing-locked, the local gates
-remain mandatory but do not constitute restored remote enforcement.
+The `dev` extra supplies the test and release tools (`pytest`, Maturin, `twine`)
+inside the active environment. Individual test commands remain useful for focused
+development, but they are not a second definition of the repository's CI contract.
 
-Release artifacts must come from a clean commit:
+GitHub-hosted validation is an optional adapter and is disabled by default. It runs
+only when repository variable `REPOPACT_GITHUB_CI` is exactly `true`, and when
+enabled it invokes the same local `ci` profile. A local pass is concrete local
+evidence; it does not claim that a remote merge gate is enabled or effective.
 
+## Release preparation
+
+Release verification, build, inspection, and publication are separate operations.
+Artifacts must come from a clean committed tree:
+
+```console
+repopact release verify
+repopact release build --outdir release-out
+repopact release inspect --dist release-out
 ```
-repopact release-build --root . --outdir dist
-python -m twine check dist/repopact-*
+
+Building does not publish. Local publication requires explicit operator intent:
+
+```console
+repopact release publish --dist release-out --confirm-publish
 ```
+
+Publication credentials stay outside the repository and are supplied by the
+operator's environment/keyring configuration. GitHub-hosted publication is a
+separate optional adapter, disabled unless `REPOPACT_GITHUB_CD` is exactly `true`.
+Enabling hosted CI does not enable hosted CD.
+
+See [Local-first verification and release workflow](docs/guides/local-ci-cd.md)
+for the full execution and evidence model.
 
 ## Touching the frozen surface
 

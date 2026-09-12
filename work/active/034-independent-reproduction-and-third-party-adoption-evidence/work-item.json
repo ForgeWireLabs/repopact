@@ -10,7 +10,7 @@
   "preflight": {
     "created_before_work_started": true,
     "created_at": "2026-07-18T00:00:00Z",
-    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began. Updated 2026-09-11 after a competitive-state review: external adoption remains necessary but is not sufficient by itself; closeout now also requires adversarial independent review and comparative evidence against instruction-only repository governance."
   },
   "acceptance_criteria": [
     {
@@ -36,8 +36,32 @@
       "text": "Paper threats T1 and T2 and the findings register are updated to state exactly what the independent result mitigates and what single-operator, domain, and scale limitations remain.",
       "state": "pending",
       "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "Obtain and preserve at least one independent adversarial review that actively attempts to bypass or invalidate a load-bearing RepoPact guarantee such as binding invariants, frozen surfaces, pre-execution admission, lifecycle/evidence completion, provenance typing, or repository-containment rules. The reviewer is not required to agree with the design; exploitable findings, false positives, usability failures, and rejected claims are retained with remediation or explicit non-remediation rationale.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "Demonstrate adoption in at least one repository whose existing agent/developer instruction stack was not designed around ForgeWire conventions, such as a repository using AGENTS.md, CLAUDE.md, editor/Copilot rules, CODEOWNERS, CI gates, or another ordinary OSS governance shape. The evidence must show whether RepoPact composes with those controls without replacing them and must record any migration friction or semantic mismatch.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "Publish a comparative PactBench/benchmark result that evaluates RepoPact-governed work against an instruction-only or otherwise appropriate baseline under the same pre-registered tasks, models/agents, fixtures, and scoring rules. Report effect sizes or other protocol-defined statistics where the sample supports them, retain null/negative results, and do not convert architectural plausibility into an efficacy claim when the data do not support it.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "text": "Package the independent reproduction path so a third party can install a pinned public RepoPact release, run conformance/PactBench or the selected adoption fixture, inspect generated/evidence records, and report a result without access to ForgeWireLabs private repositories or maintainer-local state. Documentation and Workbench/CLI friction discovered by this exercise is either fixed or recorded as an explicit product limitation before closeout.",
+      "state": "pending",
+      "evidence": []
     }
   ],
   "created": "2026-07-18",
-  "updated": "2026-07-18"
+  "updated": "2026-09-11"
 }

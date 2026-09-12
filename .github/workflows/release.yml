@@ -5,9 +5,9 @@ name: Publish to PyPI
 # disabled by default. Set repository variable REPOPACT_GITHUB_CD to exactly
 # "true" to allow this adapter to allocate hosted runners and publish.
 #
-# When enabled, publication uses PyPI Trusted Publishing (OIDC) with no stored
-# API token. Local publication remains a separate supported architecture under
-# Decision 0043 / WI046.
+# Release verification and artifact construction use the same local WI046
+# contract available on an operator workstation. GitHub OIDC is only the
+# optional credential transport for the final upload step.
 on:
   release:
     types: [published]
@@ -22,17 +22,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-      - name: Build sdist and wheel
-        run: |
-          python -m pip install --upgrade build
-          python -m build
+          python-version: "3.13"
+      - name: Install RepoPact release environment
+        run: python -m pip install -e ".[dev]"
+      - name: Verify and build through the canonical local release path
+        run: python -m repopact.release_local build --root . --outdir release-out
       - uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: dist/
+          path: |
+            release-out/*.whl
+            release-out/*.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-evidence
+          path: |
+            release-out/release-manifest.json
+            release-out/release-build-report.json
 
   publish:
     if: ${{ vars.REPOPACT_GITHUB_CD == 'true' }}
@@ -47,3 +57,5 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

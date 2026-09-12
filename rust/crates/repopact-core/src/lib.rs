@@ -6,8 +6,6 @@ use repopact_mutation::{apply, plan, ApplyOptions, MutationPlan, MutationRequest
 use repopact_repository::{Repository, RepositorySession, RepositorySnapshot};
 use repopact_types::{RepositoryIdentity, ValidationReport};
 
-mod verification;
-
 /// Reusable, non-Tauri RepoPact façade. Graph, analysis, mutation, and
 /// validation all start from an immutable snapshot produced by the same
 /// repository session.
@@ -47,14 +45,7 @@ impl RepoPactCore {
     }
 
     pub fn validate_snapshot(&self, snapshot: &RepositorySnapshot) -> ValidationReport {
-        let mut report = repopact_validation::validate_snapshot(snapshot);
-        report
-            .diagnostics
-            .extend(verification::validate_snapshot(snapshot));
-        report.diagnostics.sort_by(|left, right| {
-            (left.path.as_deref(), &left.message).cmp(&(right.path.as_deref(), &right.message))
-        });
-        report
+        repopact_validation::validate_snapshot(snapshot)
     }
 
     /// Fresh-snapshot convenience for isolated callers.

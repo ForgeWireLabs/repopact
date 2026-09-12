@@ -10,6 +10,7 @@
   "profiles": {
     "quick": {
       "description": "Fast local governance validation through the canonical RepoPact engine.",
+      "coverage": "host",
       "steps": [
         {
           "id": "validate",
@@ -21,6 +22,7 @@
     },
     "ci": {
       "description": "Complete local governance CI contract used by the optional hosted validation adapter.",
+      "coverage": "host",
       "steps": [
         {
           "id": "validate",
@@ -63,6 +65,7 @@
     },
     "release": {
       "description": "Local release-readiness verification. Artifact construction and publication remain separate operations.",
+      "coverage": "complete",
       "steps": [
         {
           "id": "validate",

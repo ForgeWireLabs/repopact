@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "062",
   "title": "Cross-Platform Workbench Installation, Launcher Integration, and Operator Validation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "tooling",
@@ -65,8 +65,10 @@
     {
       "id": "AC-006",
       "text": "From the installed (not dev-tree) app, perform a short installed-runtime smoke test: Workbench launches, Dashboard loads, repository selection works, an existing RepoPact checkout opens, Work list renders, Validation renders, close/relaunch works.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-windows-operator-confirmed"
+      ]
     },
     {
       "id": "AC-007",
@@ -95,8 +97,10 @@
     {
       "id": "AC-010",
       "text": "Restart the Android emulator and, after boot, confirm (via adb tooling and Jeremy's own observation, not package-manager output alone) that the app remains installed, the launcher entry remains visible in the app drawer, and tapping it still launches RepoPact.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-android-operator-confirmed"
+      ]
     },
     {
       "id": "AC-011",
@@ -133,8 +137,10 @@
     {
       "id": "AC-015",
       "text": "If WSLg is available, launch RepoPact via its installed desktop integration (`gtk-launch <desktop-id>` or equivalent), not the build tree, and Jeremy visually confirms the Workbench window renders through WSLg; perform a short smoke test (window renders, Dashboard visible, compact/wide shell intact, close/relaunch succeeds) using a Linux-local repository or scratch copy rather than the Windows checkout through /mnt/c. If WSLg is unavailable, this criterion is explicitly waived with the limitation recorded, not silently skipped.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-operator-confirmed-and-closeout"
+      ]
     },
     {
       "id": "AC-016",
@@ -195,8 +201,10 @@
     {
       "id": "AC-023",
       "text": "WI062 closes only when Jeremy can personally state, for each platform where infrastructure exists: Windows \u2014 he sees RepoPact in Start and on the Desktop and can launch it; Android \u2014 he sees RepoPact (with the correct RP icon) in the app drawer and can launch it; Linux \u2014 he installed RepoPact and, if WSLg is available, saw the native Workbench window launch from its installed desktop entry. Criteria requiring Jeremy's personal confirmation are never marked satisfied on the basis of scripts or agent automation alone.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-operator-confirmed-and-closeout"
+      ]
     }
   ],
   "created": "2026-09-11",

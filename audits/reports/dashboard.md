@@ -15,17 +15,17 @@
 | Audit findings | 3 |
 | Decision records | 42 |
 | Policy records | 2 |
-| Evidence runs | 76 |
+| Evidence runs | 77 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 6 |
-| active | 6 |
+| active | 5 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 50 |
+| completed | 51 |
 
 ## Audit freshness
 
@@ -38,5 +38,4 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
-- 062: Cross-Platform Workbench Installation, Launcher Integration, and Operator Validation (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

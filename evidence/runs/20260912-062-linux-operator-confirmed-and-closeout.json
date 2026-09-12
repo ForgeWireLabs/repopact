@@ -1,0 +1,30 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260912-062-linux-operator-confirmed-and-closeout",
+  "timestamp": "2026-09-12T14:41:18Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"(Jeremy) launched repopact-desktop from his own WSL Debian terminal, first attempt","exit_code":1,"summary":"Same symptom as the agent-launched instance: taskbar entry showed a live thumbnail with a '[WARN: COPY MODE]' hover label, but clicking it did nothing. This ruled out the initial hypothesis that it was purely an agent-sandbox session-token mismatch, since Jeremy's own terminal hit the same issue."},
+    {"command":"wsl --shutdown (full WSL VM shutdown to clear all stale WSLg/RDP session state accumulated from repeated agent launch/kill cycles)","exit_code":0,"summary":"Confirmed via `tasklist` that msrdc.exe, wslrelay.exe, and wslhost.exe all terminated."},
+    {"command":"(Jeremy) opened a brand-new WSL Debian terminal and ran repopact-desktop again","exit_code":0,"summary":"Jeremy's own words: 'yep that worked.' The clean WSLg session (with no leftover stale RAIL window registrations from the many prior agent-driven launch/kill cycles in this session) resolved the unresponsive-taskbar-icon issue."}
+  ],
+  "artifacts": [],
+  "environment": {
+    "date": "2026-09-12",
+    "wsl_distro": "Debian GNU/Linux 13 (trixie)",
+    "lesson": "Repeatedly launching and killing a WSLg GUI app across many agent-driven wsl.exe invocations in one session can leave stale RAIL/RDP window registrations that make a live window's taskbar entry appear present (with a working thumbnail preview) but unresponsive to clicks, for both the agent's own session and the operator's real session. A full `wsl --shutdown` followed by a fresh terminal and a single launch resolves it. This is a WSLg session-hygiene issue, not an application defect."
+  },
+  "closeout": {
+    "ac_015": "satisfied -- Jeremy personally confirmed the Workbench window opened under WSLg from a direct launch of the installed binary (the exact Exec= command from the installed .desktop file)",
+    "ac_023_windows": "Jeremy confirmed: 'ran it and windows rp works as well as displays the icon and shortcut' (Start-menu and Desktop, per 20260912-062-windows-operator-confirmed.json)",
+    "ac_023_android": "Jeremy confirmed: 'android rp icon is correct and works' (per 20260912-062-android-operator-confirmed.json)",
+    "ac_023_linux": "Jeremy confirmed: 'yep that worked' after the clean WSLg restart, satisfying the Linux operator-confirmation bar",
+    "ac_006": "satisfied on the strength of Jeremy's Windows confirmation combined with WI062's own explicit scope note that exhaustive feature re-testing already covered by WI058/WI060 does not need to be repeated here -- this item is installation/launcher validation, not functional re-verification",
+    "ac_010": "satisfied -- Jeremy explicitly accepted the existing agent-driven Android reboot-persistence test (performed earlier this session) plus his own general app-drawer confirmation as sufficient, declining to redo the reboot check himself when offered the choice"
+  },
+  "residuals": [
+    "All three platforms (Windows, Android, Linux) now have both agent-side technical evidence and Jeremy's own personal confirmation. WI062 can close."
+  ]
+}

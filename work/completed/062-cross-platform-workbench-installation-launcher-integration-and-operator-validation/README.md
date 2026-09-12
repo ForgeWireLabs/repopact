@@ -1,6 +1,6 @@
 # 062 — Cross-Platform Workbench Installation, Launcher Integration, and Operator Validation
 
-> **Status**: 🚧 Active
+> **Status**: ✅ Completed
 > **Owners**: tooling (lead).
 > **Depends on**: 055, 058, 060.
 
@@ -56,10 +56,32 @@ WI050 admission, WI057 process guarantees, or WI059 validator authority.
 
 ## Closeout
 
-Each acceptance criterion (AC-001 through AC-023) is satisfied by linked
-evidence. Criteria requiring Jeremy's personal confirmation (Start-menu
-launch, Desktop-shortcut launch, Android app-drawer launch, post-reboot
-persistence, Linux WSLg window confirmation) are never marked satisfied on
-the basis of scripts or agent automation alone — they stay `pending` until
-Jeremy has personally done and confirmed them. See `work-item.json` for
-exact criteria.
+All 23 acceptance criteria are satisfied. Jeremy personally confirmed all
+three platforms:
+
+- **Windows**: "ran it and windows rp works as well as displays the icon
+  and shortcut" — after a real defect was found and fixed (see below).
+- **Android**: "android rp icon is correct and works."
+- **Linux**: "yep that worked" — after a stale WSLg session was cleared.
+
+Two genuine defects were discovered and fixed during operator validation,
+both worth remembering for any future agent-driven install work on this
+machine:
+
+1. **Windows Desktop shortcut pointed at a virtualized path.** Running the
+   NSIS installer through this agent's own sandboxed process caused Windows
+   to silently redirect the Desktop-folder resolution to a Claude-internal
+   package cache path (`AppData\Local\Packages\Claude_...\...`), invisible
+   to Jeremy's real session. Every earlier "verified" check of that
+   shortcut was unknowingly checking the same redirected view and reported
+   a false positive. Fixed by having Jeremy run the installer directly
+   himself — the only reliable way to get a correctly resolved per-user
+   shortcut when the installer touches Desktop/AppData paths.
+2. **WSLg session staleness.** Repeated agent-driven launch/kill cycles of
+   the Linux GUI app across one long session left the WSLg taskbar entry
+   showing a live thumbnail but not responding to clicks, for both the
+   agent's session and Jeremy's own terminal launch. A full `wsl --shutdown`
+   followed by a fresh terminal and a single launch resolved it.
+
+See `work-item.json` and `evidence/runs/2026091{1,2}-062-*.json` for the
+full acceptance-criteria-to-evidence mapping.

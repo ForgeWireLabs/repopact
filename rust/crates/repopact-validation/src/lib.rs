@@ -1,5 +1,6 @@
 mod adopters;
 mod research;
+mod verification;
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 #[cfg(test)]
@@ -141,6 +142,7 @@ impl Validator {
         self.validate_orphan_work_dirs();
         self.validate_evidence();
         self.validate_audit_registry();
+        self.validate_verification();
         self.validate_dashboard();
         self.validate_adopters();
         self.validate_research();

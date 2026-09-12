@@ -24,10 +24,15 @@ the criterion remains pending to preserve what was checked and why it is still o
 
 ## Intent
 
-RepoPact is one pillar of a **unified ForgeWire Labs launch** (RepoPact + ForgeLink lead;
-Fabric rides along as public alpha; ForgeWire/SkillForge are teased as the larger
-system). This work item scopes **only RepoPact's part** of that launch — the paper, the
-package, the conformance claim, and the RepoPact-specific launch copy. The portfolio-level
+RepoPact is one pillar of a **unified ForgeWire Labs launch**. RepoPact + ForgeLink lead
+the public/open surface; ForgeWire and SkillForge may be described as the larger system
+where accurate. **ForgeWire Fabric is no longer part of the public/OSS launch surface:**
+current Fabric development is private and proprietary. Historical Fabric versions or
+copies previously distributed under Apache License 2.0 remain governed by the license
+that accompanied those versions; this planning change does not revoke prior grants.
+
+This work item scopes **only RepoPact's part** of that launch — the paper, the package,
+the conformance claim, and the RepoPact-specific launch copy. The portfolio-level
 strategy, funding, and cross-pillar sequencing live above this repo (ForgeWire-Overview)
 and in the private `launch/` working area; they are deliberately **not** RepoPact records
 (decision `0019`).
@@ -39,7 +44,7 @@ with durable-memory/recoverability as the secondary beat.
 
 Driven by decisions
 [`0019`](../../../decisions/0019-repopact-role-in-forgewire-labs-portfolio.md) (RepoPact's
-funnel-top role) and
+funnel-top role, amended 2026-09-11 for Fabric's private/proprietary status) and
 [`0020`](../../../decisions/0020-launch-positioning-layer-above-agents-md.md) (positioning
 above AGENTS.md).
 
@@ -50,7 +55,8 @@ above AGENTS.md).
 - Private (`launch/`, gitignored): the Show HN / X / Reddit drafts, the essay, the
   competitive battle card, funding targets, and the portfolio strategy.
 - Out of scope: the ForgeLink↔Fabric approval bridge (a ForgeLink work item — the "hero
-  demo" of the unified launch — owned in that repo) and anything Fabric/SkillForge.
+  demo" of the unified system — owned in that repo), Fabric release/licensing work, and
+  anything SkillForge.
 
 ## Acceptance criteria
 

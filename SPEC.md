@@ -43,6 +43,20 @@ operator-controlled receipt can activate implementation authority. Missing or
 tampered external state fails closed, and `--ack` remains advisory rather than
 operator proof.
 
+### Local verification contracts (WI046)
+
+A repository may declare `governance/verification.json` as its provider-neutral
+verification contract. The record names ordered profiles and the execution policy
+that governs them; it does not grant execution authority and it does not make a
+hosted provider part of repository validity. RepoPact's seeded policy is local
+primary with hosted CI and hosted CD disabled by default.
+
+A local profile invocation records what actually ran on that executor. A passing
+local invocation is evidence for that invocation only; it is not proof that a
+remote merge or admission boundary invoked the same checker or prevented bypass.
+Profiles may distinguish host coverage from complete declared coverage so a host
+cannot fabricate evidence for required platform capabilities it did not execute.
+
 ## 2. Repository layout
 
 ```
@@ -53,10 +67,11 @@ governance/charter.md          principles and invariants (prose)
 governance/invariants.json     binding invariants (required)
 governance/frozen-surface.json protected paths and symbols (required)
 governance/owners.json         scopes, roles, concurrency (required)
+governance/verification.json   optional provider-neutral verification profiles
 governance/policies/           durable operating rules
 schemas/ or repopact/schemas/  record schemas (one required; packaged source uses the latter)
 decisions/                     decision records (ADRs)
-work/{active,blocked,deferred,completed}/  work items
+work/{proposed,active,blocked,deferred,completed}/  work items
 evidence/runs/                 evidence manifests
 audits/registry.json           audit coverage and cadence (required)
 audits/findings/               audit findings
@@ -75,6 +90,7 @@ Structure is defined by the schemas; this catalog is generated from them.
 | Audit finding | `audits/findings/NNN-slug.json` | [`audit-finding.schema.json`](repopact/schemas/audit-finding.schema.json) | `id`, `scope`, `observed`, `risk`, `reconciliation`, `state`, `created` |
 | Invariants | `governance/invariants.json` | [`invariants.schema.json`](repopact/schemas/invariants.schema.json) | `version`, `invariants` |
 | Frozen surface | `governance/frozen-surface.json` | [`frozen-surface.schema.json`](repopact/schemas/frozen-surface.schema.json) | `version`, `protected` |
+| Verification contract | `governance/verification.json` | [`verification-profile.schema.json`](repopact/schemas/verification-profile.schema.json) | `$schema`, `version`, `execution_policy`, `profiles` |
 | Decision (front matter) | `decisions/NNNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `date` |
 | Policy (front matter) | `governance/policies/NNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `applies_to` |
 <!-- /generated:catalog -->
@@ -138,13 +154,23 @@ cross-record consistency.
     time passes. Exported, uncommitted, or Git-free trees retain structural ISO
     validation and skip the unavailable history comparison; legacy records
     without the opt-in basis are not rewritten to invent chronology.
+14. **Verification contract (optional).** When `governance/verification.json`
+    exists, its `default_profile` names a declared profile, step identifiers are
+    unique within each profile, step working directories are repository-relative
+    and cannot escape the repository, and command placeholders are limited to the
+    declared provider-neutral set. `execution_policy.local_primary` is true and
+    hosted CI/CD defaults are false by schema. A profile with `coverage: host`
+    reports only the checks applicable to that host; a profile with
+    `coverage: complete` is incomplete when a required declared platform or
+    capability was not executed. Verification success does not synthesize
+    operator approval or prove remote admission enforcement.
 
 ## 5. Lifecycle state machine
 
 A work item's status is the name of its lifecycle directory; the JSON `status` must
 match. States:
 
-- `proposed`: captured candidate work that is not accepted or authorized for
+- `proposed`: captured candidate work that is not yet accepted or authorized for
   implementation.
 - `active`: accepted work authorized for design or implementation.
 - `blocked`: accepted/current work that cannot proceed until a named condition changes.
@@ -172,7 +198,7 @@ review can enforce it).
 | INV-4 | Completed work is never rewritten to make history appear cleaner. | human review (escalation) |
 | INV-5 | The deepest applicable AGENTS.md refines its parents but cannot weaken them. | human review (escalation) |
 | INV-6 | Changes to the declared frozen surface require explicit human operator approval. | repopact/check_frozen_surface.py |
-| INV-7 | Derived artifacts are generated from source records, never hand-edited as if they were sources. | .github/workflows/governance.yml (dashboard diff check) |
+| INV-7 | Derived artifacts are generated from source records, never hand-edited as if they were sources. | repopact validate (dashboard integrity) + governance/verification.json via repopact verify (SPEC freshness) |
 <!-- /generated:invariants -->
 
 ## 7. Frozen surface
@@ -225,3 +251,6 @@ can pass a `{repo}` command template to target the same fixtures.
 
 Rule 12 is a relation between the repository tree and its Git index, so it is
 covered by validator unit tests rather than the metadata-free fixture corpus.
+Verification-contract rule 14 is likewise exercised by Rust/Python contract tests
+that can model host capability and path-containment semantics without claiming a
+remote execution venue.

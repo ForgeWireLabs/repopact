@@ -36,6 +36,7 @@ the dashboard unless a dashboard fixture explicitly selects `preserve` or `remov
 | `status-directory-mismatch` | Identity agreement | `status 'active' does not match directory 'completed'` |
 | `invalid-semantic-version` | Version | `must be semantic (MAJOR.MINOR.PATCH)` |
 | `schema-invalid-evidence` | Record validity | `schema result: 'unknown' is not one of` |
+| `verification-default-profile` | Verification contract | `does not name a declared verification profile` |
 | `orphan-work-directory` | Ledger visibility | `work directory holds planning content` |
 | `disjoint-active-scopes` | Optional concurrency | `active scope conflict` |
 | `missing-dashboard` | Dashboard integrity / INV-7 | `missing generated dashboard` |

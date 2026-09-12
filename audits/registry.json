@@ -5,19 +5,19 @@
       "path": ".",
       "owner": "governance-owner",
       "contract": "AGENTS.md",
-      "last_reviewed": "2026-09-10",
-      "next_review": "2026-12-09",
+      "last_reviewed": "2026-09-12",
+      "next_review": "2026-12-11",
       "alignment": "current",
-      "notes": "Repository-level governance contract, including exact tracked-path ownership and semantic-claim freshness policy coverage."
+      "notes": "Repository-level governance contract, including exact tracked-path ownership, semantic-claim freshness, and the WI046 local-first verification/release policy boundary."
     },
     {
       "path": "repopact",
       "owner": "tooling-owner",
       "contract": "repopact/AGENTS.md",
-      "last_reviewed": "2026-07-26",
-      "next_review": "2026-10-24",
+      "last_reviewed": "2026-09-12",
+      "next_review": "2026-12-11",
       "alignment": "current",
-      "notes": "Packaged validator, generators, bootstrap, record-stamping, conformance, release tooling, and expired audit/research freshness enforcement."
+      "notes": "Packaged validator, generators, bootstrap, record-stamping, conformance, release tooling, and WI046 local verification/evidence execution surfaces."
     },
     {
       "path": "docs",

@@ -28,7 +28,7 @@ from typing import Any
 from .package_version import package_version
 
 
-EXPECTED_SCHEMAS = 14
+EXPECTED_SCHEMAS = 15
 EXPECTED_TEMPLATES = 7
 _SBOM_SOURCE_PATH = re.compile(
     r"path\+file:///[^\" ]+?/(repopact-[^/\" ]+)/"

@@ -25,6 +25,10 @@ const EMBEDDED_SCHEMAS: &[(&str, &str)] = &[
         "adopter-fleet.schema.json",
         include_str!("../../../../repopact/schemas/adopter-fleet.schema.json"),
     ),
+    (
+        "verification-profile.schema.json",
+        include_str!("../../../../repopact/schemas/verification-profile.schema.json"),
+    ),
 ];
 
 #[derive(Debug, Clone)]

@@ -6,6 +6,7 @@ members = [
     "crates/repopact-schema",
     "crates/repopact-repository",
     "crates/repopact-validation",
+    "crates/repopact-semantic-validation",
     "crates/repopact-graph",
     "crates/repopact-analysis",
     "crates/repopact-mutation",
@@ -28,7 +29,10 @@ repopact-repository = { path = "crates/repopact-repository" }
 repopact-schema = { path = "crates/repopact-schema" }
 repopact-types = { path = "crates/repopact-types" }
 repopact-protocol = { path = "crates/repopact-protocol" }
-repopact-validation = { path = "crates/repopact-validation" }
+# All product callers consume the semantic facade. The original
+# repopact-validation crate remains the lower-level repository-rule engine and
+# is composed by repopact-semantic-validation.
+repopact-validation = { package = "repopact-semantic-validation", path = "crates/repopact-semantic-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 sha2 = "0.10"

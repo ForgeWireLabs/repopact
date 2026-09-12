@@ -9,6 +9,10 @@ on:
 # RepoPact CI is local-first. GitHub-hosted validation is opt-in and disabled
 # by default. Set repository variable REPOPACT_GITHUB_CI to exactly "true"
 # to allow this adapter to allocate a hosted runner.
+#
+# The workflow deliberately does not define the semantic check list. It installs
+# RepoPact and invokes the same repository-defined local profile used by an
+# operator workstation.
 jobs:
   validate:
     if: ${{ vars.REPOPACT_GITHUB_CI == 'true' }}
@@ -20,18 +24,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: python -m pip install -e .
-      - run: repopact validate
-      - run: python -m unittest discover -s tests -v
-      - run: python -m repopact.run_conformance
-      - run: repopact dashboard
-      - run: repopact spec
-      - name: Ensure derived artifacts are current
-        run: git diff --exit-code -- audits/reports/dashboard.md SPEC.md
-      # Frozen-surface backstop (INV-6). The binding gate is human operator
-      # approval, which for this repo is PR review; this step surfaces frozen
-      # changes for the reviewer rather than blocking the merge mechanically.
-      - name: Report frozen-surface changes
-        if: github.event_name == 'pull_request'
-        continue-on-error: true
-        run: repopact check-frozen --base "origin/${{ github.base_ref }}"
+      - name: Install RepoPact development environment
+        run: python -m pip install -e ".[dev]"
+      - name: Run canonical local CI profile
+        run: python -m repopact.verify_cli ci --root .

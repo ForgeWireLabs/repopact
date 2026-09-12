@@ -21,8 +21,8 @@
 
 | Status | Count |
 | --- | ---: |
-| proposed | 7 |
-| active | 5 |
+| proposed | 6 |
+| active | 6 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 51 |
@@ -37,5 +37,6 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 046: Local-First Verification, CI/CD, and Optional Hosted Adapters (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -29,7 +29,7 @@ The WI046 verification-contract rules now execute inside the shared `repopact-va
 
 This closes the earlier validity split. The installed CLI/engine path, `RepoPactCore`, the desktop/Workbench validation projection, and mutation post-apply validation all consume the same `repopact-validation::validate` / `validate_snapshot` result. No caller maintains a second WI046 diagnostic layer.
 
-The verification-contract implementation is isolated in `rust/crates/repopact-validation/src/adopters/verification_contract.rs` and is invoked from an always-executed shared validation phase. Focused Rust tests prove that the contract is checked even when `governance/adopters.json` is absent, so the integration hook does not make WI046 conditional on adopter-fleet state.
+The verification-contract implementation is isolated in `rust/crates/repopact-validation/src/verification.rs` and is invoked as a first-class always-executed shared validation phase. Focused Rust tests prove that the contract is checked even when `governance/adopters.json` is absent, so WI046 validation is independent of adopter-fleet state.
 
 ## Invariant and specification reconciliation
 

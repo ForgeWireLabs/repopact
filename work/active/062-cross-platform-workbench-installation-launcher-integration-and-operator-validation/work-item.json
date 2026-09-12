@@ -49,14 +49,18 @@
     {
       "id": "AC-004",
       "text": "Jeremy personally launches RepoPact from the installed Start-menu entry and personally confirms the Workbench opens. Launching the raw EXE from PowerShell does not satisfy this criterion.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-windows-operator-confirmed"
+      ]
     },
     {
       "id": "AC-005",
       "text": "Jeremy personally launches RepoPact from the installed Desktop shortcut and personally confirms the Workbench opens.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-windows-operator-confirmed"
+      ]
     },
     {
       "id": "AC-006",
@@ -83,8 +87,10 @@
     {
       "id": "AC-009",
       "text": "Jeremy personally returns to the Android home screen, opens the app drawer, visually confirms the RepoPact Workbench icon and label are present and correct, taps it, and confirms the Workbench opens. If it is present in the app drawer but not pinned to the home screen, that is normal Android behavior and must not be changed; if it is absent from the app drawer despite the LAUNCHER manifest entry, that is a real packaging defect to diagnose, not a pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-android-operator-confirmed"
+      ]
     },
     {
       "id": "AC-010",

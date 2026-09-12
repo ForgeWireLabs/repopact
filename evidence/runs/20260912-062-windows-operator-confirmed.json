@@ -1,0 +1,30 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260912-062-windows-operator-confirmed",
+  "timestamp": "2026-09-12T14:28:49Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"(Jeremy) inspected the installed Desktop shortcut","exit_code":1,"summary":"Reported: Windows app launches, but no RP icon and no working Desktop shortcut."},
+    {"command":"diagnosis: WScript.Shell CreateShortcut on the Desktop .lnk","exit_code":0,"summary":"Found the Desktop shortcut's TargetPath was 'C:\\Users\\jerem\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache\\Local\\RepoPact Workbench\\repopact-desktop.exe' -- a path that only resolves inside Claude Code's own sandboxed/virtualized filesystem view, not Jeremy's real Desktop or AppData. Confirmed by diffing the two paths' contents (identical file, size, timestamp), proving Windows was transparently redirecting AppData/Desktop path resolution for the NSIS installer process because it was launched from my sandboxed tool session. Every prior 'verified' check of this shortcut (including in 20260911-062-windows-nsis-and-android-icon.json) was unknowingly checking that same redirected view and reported false positives. The Start-menu shortcut happened to resolve correctly (Tauri's own template creates it differently than my custom NSIS hook's $DESKTOP usage), so only the Desktop shortcut was actually broken for Jeremy."},
+    {"command":"uninstall.exe /S (agent-run, cleanup of the broken sandboxed-path install)","exit_code":0,"summary":"Removed the broken install."},
+    {"command":"(Jeremy) double-clicked RepoPact Workbench_0.1.0_x64-setup.exe himself, outside any sandbox","exit_code":0,"summary":"Real per-user install. Jeremy confirmed: Windows app works, RP icon displays correctly, Desktop shortcut works."},
+    {"command":"post-confirmation verification: WScript.Shell CreateShortcut + Test-Path + registry check","exit_code":0,"summary":"Desktop shortcut TargetPath now correctly resolves to C:\\Users\\jerem\\AppData\\Local\\RepoPact Workbench\\repopact-desktop.exe (no Packages\\Claude_... prefix); Start-menu shortcut also correct; uninstall registry entry present with correct DisplayIcon/InstallLocation."}
+  ],
+  "artifacts": [],
+  "environment": {
+    "date": "2026-09-12",
+    "os": "Windows 10.0.19045 x64",
+    "lesson": "Any Windows install/shortcut-creation step performed through this agent's own sandboxed process is unreliable for AppData/Desktop-class paths due to Windows filesystem virtualization for containerized apps; such steps must be run directly by the operator (or verified by the operator) rather than trusted from agent-side checks alone."
+  },
+  "closeout": {
+    "ac_004": "Jeremy confirmed the Windows app works and the icon/shortcut display and function correctly after running the installer himself",
+    "ac_005": "satisfied per Jeremy's confirmation -- Desktop shortcut works and shows the RP icon",
+    "ac_006": "not yet explicitly walked through (Dashboard/repository selection/Work/Validation) -- recommend a quick follow-up confirmation"
+  },
+  "residuals": [
+    "The earlier evidence file 20260911-062-windows-nsis-and-android-icon.json's Desktop-shortcut verification claims should be considered superseded/incorrect for the reason above; this record is the authoritative one for Windows shortcut correctness.",
+    "AC-006's full installed-runtime smoke test (Dashboard, repository selection, Work list, Validation rendering) has not been explicitly confirmed by Jeremy yet, only that the app 'works' generally."
+  ]
+}

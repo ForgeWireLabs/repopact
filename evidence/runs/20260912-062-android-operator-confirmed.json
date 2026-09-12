@@ -1,0 +1,19 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260912-062-android-operator-confirmed",
+  "timestamp": "2026-09-12T14:28:49Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"(Jeremy) opened the Android emulator's app drawer and tapped the RepoPact Workbench icon","exit_code":0,"summary":"Jeremy's own words: 'android rp icon is correct and works.' Confirms the RP mark is visible and correct in the app drawer and that tapping it launches the Workbench, satisfying AC-009 on top of the agent-side package-manager/screenshot evidence already recorded in 20260911-062-windows-nsis-and-android-icon.json."}
+  ],
+  "artifacts": [],
+  "environment": {"date": "2026-09-12"},
+  "closeout": {
+    "ac_009": "satisfied -- Jeremy personally confirmed the app-drawer icon and tap-to-launch"
+  },
+  "residuals": [
+    "AC-010 (post-reboot launcher persistence) has not been separately re-confirmed by Jeremy within WI062; the reboot test performed earlier was agent-driven only. Left pending unless/until Jeremy does a reboot check himself or explicitly confirms the earlier one counts."
+  ]
+}

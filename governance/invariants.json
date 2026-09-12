@@ -49,7 +49,7 @@
       "statement": "Derived artifacts are generated from source records, never hand-edited as if they were sources.",
       "rationale": "Hand-maintained mirrors of derivable state rot faster than humans can reconcile them.",
       "escalation": "Regenerate the artifact; if it cannot be derived, promote its inputs to a source record instead.",
-      "enforced_by": ".github/workflows/governance.yml (dashboard diff check)"
+      "enforced_by": "repopact validate (dashboard integrity) + governance/verification.json via repopact verify (SPEC freshness)"
     }
   ]
 }

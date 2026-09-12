@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verification-profile.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "version", "execution_policy", "profiles"],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "version": {"const": 1},
+    "default_profile": {"type": "string", "minLength": 1},
+    "execution_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["local_primary", "hosted_ci_default", "hosted_cd_default"],
+      "properties": {
+        "local_primary": {"const": true},
+        "hosted_ci_default": {"const": false},
+        "hosted_cd_default": {"const": false}
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"pattern": "^[a-z0-9][a-z0-9._-]*$"},
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description", "steps"],
+        "properties": {
+          "description": {"type": "string", "minLength": 1},
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["id"],
+              "properties": {
+                "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+                "argv": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {"type": "string", "minLength": 1}
+                },
+                "builtin": {
+                  "enum": ["spec_freshness"]
+                },
+                "cwd": {"type": "string", "minLength": 1},
+                "required": {"type": "boolean"},
+                "platforms": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {"enum": ["windows", "linux", "macos", "android", "ios"]}
+                },
+                "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 86400},
+                "capability": {"type": "string", "minLength": 1}
+              },
+              "oneOf": [
+                {"required": ["argv"], "not": {"required": ["builtin"]}},
+                {"required": ["builtin"], "not": {"required": ["argv"]}}
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

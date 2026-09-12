@@ -1,0 +1,23 @@
+{
+  "$schema": "../schemas/verification-profile.schema.json",
+  "version": 1,
+  "default_profile": "missing",
+  "execution_policy": {
+    "local_primary": true,
+    "hosted_ci_default": false,
+    "hosted_cd_default": false
+  },
+  "profiles": {
+    "quick": {
+      "description": "Valid profile with an intentionally invalid default_profile reference.",
+      "coverage": "host",
+      "steps": [
+        {
+          "id": "validate",
+          "argv": ["{repopact}", "validate"],
+          "required": true
+        }
+      ]
+    }
+  }
+}

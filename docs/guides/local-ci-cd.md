@@ -27,7 +27,7 @@ Exit codes are:
 ```text
 0  profile passed
 1  a required verification step failed
-2  required capability unavailable, invalid configuration, or runner error
+2  required coverage/capability unavailable, invalid configuration, or runner error
 ```
 
 A local pass proves that the named local profile ran successfully on the reported host. It does not prove that a remote merge gate, branch protection rule, or hosted checkpoint is enabled or effective.
@@ -54,6 +54,59 @@ Supported exact placeholders are:
 A step may declare platform applicability and an executable capability. A repository-relative `cwd` is allowed, but it may not escape the repository.
 
 `repopact init` seeds a minimal local-first verification contract. Existing repositories without this optional record remain valid, but `repopact verify` requires a contract to run.
+
+## Choose truthful coverage semantics
+
+A profile may set one of two coverage modes:
+
+```json
+{
+  "coverage": "host"
+}
+```
+
+`host` means the profile proves the required checks applicable to the executing host. A required Windows-only step may be reported as `skipped` on Linux without fabricating Windows evidence. The report still records that not every declared step executed.
+
+```json
+{
+  "coverage": "complete"
+}
+```
+
+`complete` is stricter. Every required declared step must be executable in the current invocation. A required platform-specific step that is not applicable on the current host, or a required capability that is unavailable, makes the profile `incomplete` rather than `pass`.
+
+RepoPact's upstream `ci` profile uses host coverage. Its `release` profile uses complete coverage so release readiness cannot silently treat missing required capability/platform evidence as success.
+
+Machine-readable output includes a `coverage` object with required-step counts, declared platforms, capability states, whether coverage is satisfied, and whether every declared required step actually executed.
+
+## Record an actual local invocation as evidence
+
+Verification can write a normal immutable RepoPact evidence run for an existing work item:
+
+```console
+repopact verify ci --evidence-work-item 046
+```
+
+For deterministic scripting you may supply the record id explicitly:
+
+```console
+repopact verify ci \
+  --evidence-work-item 046 \
+  --evidence-id 20260912-wi046-local-ci \
+  --json
+```
+
+The evidence record captures the profile, executor (`local`), platform, aggregate coverage, per-step states, executed command exit codes, and best-effort candidate Git commit/tree/dirty identity. It uses concrete provenance because it describes an invocation that actually happened.
+
+Evidence recording is fail-closed:
+
+- the referenced work item must already exist;
+- an existing evidence id is never overwritten;
+- the evidence path is repository-native under `evidence/runs/`;
+- dashboard refresh is part of the write, and a refresh failure rolls the new evidence record back;
+- a recorded local pass still does not claim remote admission closure.
+
+Use evidence recording only for a run you actually intend to preserve. Ordinary exploratory `repopact verify` calls remain read-only.
 
 ## Prepare a release locally
 
@@ -128,7 +181,7 @@ When hosted CD is enabled, release verification and artifact construction use th
 
 ## Cross-platform evidence
 
-One host only proves what actually ran there. A Windows verification run is not Linux or macOS evidence, and a desktop run is not Android or iOS evidence. Profile output records the executing platform and any unavailable capability.
+One host only proves what actually ran there. A Windows verification run is not Linux or macOS evidence, and a desktop run is not Android or iOS evidence. Profile output records the executing platform, declared platform applicability, capability availability, and aggregate coverage.
 
 Release claims that require multiple platforms should aggregate concrete evidence from those actual platforms rather than treating one green profile as universal proof.
 

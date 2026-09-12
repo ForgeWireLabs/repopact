@@ -16,6 +16,12 @@ violations deterministically; a secondary violation fails the case even when the
 expected text is also present. Dashboard absence and drift cases explicitly opt out
 of canonical fixture regeneration so dashboard enforcement itself can be tested.
 
+WI046 adds the optional provider-neutral `governance/verification.json` contract to
+the canonical Rust validation surface. The conformance corpus includes a negative
+profile-reference fixture while focused Rust/Python tests cover containment,
+placeholder, capability, host/complete coverage, and execution semantics that are
+not meaningful to fabricate inside a metadata-only fixture.
+
 Canonical Rust engine run:
 
 ```powershell
@@ -23,7 +29,9 @@ python -m repopact.run_conformance
 ```
 
 Add `--legacy-python` to run the historical Python validator as an independent
-regression comparator. It is not the product authority for migrated surfaces.
+regression comparator. It is not the product authority for migrated surfaces and,
+until WI046's comparator reconciliation is complete, it does not define the new
+verification-contract semantic rule.
 
 Third-party implementation run:
 

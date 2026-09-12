@@ -57,6 +57,9 @@ intent -> scoped authority -> work item -> implementation -> evidence -> audit -
    them to `concrete` as real evidence arrives. See *2.0 changes* below.
 8. **Reconciliation** — audits and a *generated* dashboard surface drift and review
    staleness rather than hand-maintaining it.
+9. **Local verification contracts** — named repository-defined profiles in
+   `governance/verification.json` give humans, agents, and optional hosted adapters one
+   provider-neutral verification path. Hosted CI/CD is off by default.
 
 ## Install & quick start
 
@@ -67,12 +70,14 @@ cd ../your-repo
 repopact new work-item "Title of the work"   # stamps active work (incl. the preflight marker)
 repopact new work-item "Candidate idea" --status proposed
 repopact validate
+repopact verify quick
 repopact dashboard
 ```
 
 `repopact` dispatches `init`, `adopt`, `validate`, `new`, `dashboard`, `spec`,
-`check-frozen`, `import-plan`, and `doctor`; maintainers use `release-build` to
-construct reproducible, structurally checked artifacts from a clean commit.
+`check-frozen`, `import-plan`, `doctor`, `verify`, and grouped local `release`
+operations. `release-build` remains available as a compatibility command while the
+local-first release surface is completed under WI046.
 Records are validated against `schemas/*.json`
 (structure) and by the validator (cross-record semantics; decision
 [`0003`](decisions/0003-validate-records-against-json-schemas.md)). Begin with
@@ -94,10 +99,35 @@ python -m repopact.run_conformance --command "your-validator --root {repo}"
 
 See [`CONFORMANCE.md`](CONFORMANCE.md) and [`conformance/`](conformance/).
 
+## Local-first verification and release
+
+RepoPact's development direction is local-first. The repository-defined profile is the
+verification contract; GitHub Actions is only an optional executor adapter.
+
+```powershell
+repopact verify quick
+repopact verify ci
+repopact verify release
+
+repopact release verify
+repopact release build --outdir release-out
+repopact release inspect --dist release-out
+```
+
+Local build and verification do not publish. Publication is a separate explicit operator
+action and uses credentials supplied outside the repository. GitHub-hosted validation is
+disabled unless repository variable `REPOPACT_GITHUB_CI` is exactly `true`; GitHub-hosted
+publication is independently disabled unless `REPOPACT_GITHUB_CD` is exactly `true`.
+
+See [`docs/guides/local-ci-cd.md`](docs/guides/local-ci-cd.md). A local passing run is
+concrete local evidence, but it is not proof that a remote branch or merge gate is enabled
+or effective.
+
 ## Adopt an *existing* repository
 
-For a project that already has CODEOWNERS, CI workflows, and nested `AGENTS.md` contracts,
-`adopt` maps those existing signals into RepoPact records without overwriting anything:
+For a project that already has CODEOWNERS, hosted automation workflows, and nested
+`AGENTS.md` contracts, `adopt` maps those existing signals into RepoPact records without
+overwriting anything:
 
 ```powershell
 repopact adopt --target ../existing-repo --dry-run   # preview the plan, write nothing
@@ -105,11 +135,20 @@ repopact adopt --target ../existing-repo             # create records, then vali
 repopact doctor                                      # diagnose + repair drift; migrate on upgrade
 ```
 
-CODEOWNERS becomes scopes and roles; each `.github/workflows/*` becomes a binding-gate policy
-(plus invariant `INV-2` and a frozen-surface entry); every nested `AGENTS.md` is registered as
-a contract; git history seeds a first **inferred** evidence run, and the adoption record is
-recorded as **provisional** — honestly typed, not a fabricated "completed" claim. Adoption is
-idempotent.
+CODEOWNERS becomes scopes and roles. Existing `.github/workflows/*` files are recorded as
+**hosted adapter signals**, not automatically promoted to binding gates. Their presence does
+not prove hosted execution is enabled, available, invoked, effective, or attached to an
+admission boundary. Adoption seeds a separate provider-neutral local verification contract
+with hosted execution default off. Hosted workflow paths may remain frozen because an enabled
+adapter can execute privileged validation or publication actions.
+
+Every nested `AGENTS.md` is registered as a contract; git history seeds a first **inferred**
+evidence run, and the adoption record is recorded as **provisional** — honestly typed, not a
+fabricated "completed" claim. Adoption is idempotent.
+
+Historical RepoPact research and completed work items may describe the earlier workflow-as-gate
+adoption model. Those records remain historical evidence rather than being rewritten to imply
+the newer WI046 architecture existed at the time.
 
 ## 2.0: mandatory preflight + provenance-typed records
 
@@ -151,9 +190,10 @@ review deadlines under policy `002`. See policies `001` and `002`.
 
 RepoPact is developed against its own evidence, not assertion. The `research/` lab notebook
 holds a [formal model](research/formal-model.md) (the L0–L5 kernel, the typed invariant
-lattice, the adoption trilemma), the pre-registered [experiment protocol](research/protocol.md)
-and [benchmark protocol](research/benchmark-protocol.md) (hypotheses H1–H13, falsification
-criteria, [threats to validity](research/threats-to-validity.md)), a [findings
+lattice, the adoption trilemma, and governance continuity), the pre-registered
+[experiment protocol](research/protocol.md) and
+[benchmark protocol](research/benchmark-protocol.md) (through H15 / S8, with falsification
+criteria and [threats to validity](research/threats-to-validity.md)), a [findings
 register](research/findings.md), and the current [paper](research/paper.md).
 
 **PactBench** — the runnable benchmark suite (pre-registered tasks measuring whether RepoPact

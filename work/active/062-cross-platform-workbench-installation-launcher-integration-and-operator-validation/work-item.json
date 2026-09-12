@@ -103,20 +103,26 @@
     {
       "id": "AC-012",
       "text": "From a Linux-native checkout (not /mnt/c) synchronized to the same tested commit, install only the required Tauri Linux build/runtime prerequisites (WebKitGTK 4.1/GTK and standard Tauri native build deps for Debian), with any sudo password entered interactively by Jeremy and never bypassed or stored.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-deb-build-install-launch"
+      ]
     },
     {
       "id": "AC-013",
       "text": "Build a real Tauri Debian .deb package (not `cargo build` alone) and inspect its contents before installing: application binary, icon assets, .desktop launcher file, and Debian dependency metadata.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-deb-build-install-launch"
+      ]
     },
     {
       "id": "AC-014",
       "text": "Install the generated .deb normally, record its package name/version via `dpkg -l`, and validate the installed /usr/share/applications .desktop file's Name, Exec, Icon, and categories, confirming its referenced executable and icon paths actually exist on disk.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-deb-build-install-launch"
+      ]
     },
     {
       "id": "AC-015",
@@ -127,8 +133,10 @@
     {
       "id": "AC-016",
       "text": "Uninstall the .deb and verify the package, .desktop entry, installed binary, and installed icons are all removed; reinstall and confirm the application launches again, proving package lifecycle rather than a one-off build.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-deb-build-install-launch"
+      ]
     },
     {
       "id": "AC-017",
@@ -157,8 +165,10 @@
     {
       "id": "AC-020",
       "text": "Rebuild the Linux .deb (where the WI062 Linux flow is available) with the new icon set, reinstall, and verify the .desktop entry's Icon field resolves to the updated asset; if WSLg GUI confirmation is unavailable in this environment, record that limitation truthfully rather than skip the packaging/path verification.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260912-062-linux-deb-build-install-launch"
+      ]
     },
     {
       "id": "AC-021",
@@ -184,5 +194,5 @@
     }
   ],
   "created": "2026-09-11",
-  "updated": "2026-09-11"
+  "updated": "2026-09-12"
 }

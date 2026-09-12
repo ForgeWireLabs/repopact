@@ -1,0 +1,71 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260912-062-linux-deb-build-install-launch",
+  "timestamp": "2026-09-12T04:10:11Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"git -C ~/repopact-wi062 fetch origin && git merge --ff-only origin/main","exit_code":0,"summary":"Fast-forwarded the Linux-native checkout from 5ed42e0 to bf009cb (the previously recorded WI062 commit) before building."},
+    {"command":"pkg-config --modversion webkit2gtk-4.1 / javascriptcoregtk-4.1 / gtk+-3.0; which patchelf gcc pkg-config","exit_code":0,"summary":"Confirmed 2.52.6 / 2.52.6 / 3.24.49 exactly matching Jeremy's manually-installed versions; patchelf, gcc, pkg-config all present. No additional packages installed."},
+    {"command":"npm run tauri -- build --bundles deb","exit_code":0,"summary":"First build succeeded and produced RepoPact Workbench_0.1.0_amd64.deb, but inspection (dpkg-deb --contents) showed NO icon assets were bundled at all -- tauri.conf.json's bundle.icon only listed icons/icon.ico, which Linux/deb bundlers cannot derive a hicolor icon-theme PNG set from."},
+    {"command":"fix: tauri.conf.json bundle.icon now lists 32x32.png, 128x128.png, 128x128@2x.png, icon.icns, icon.ico","exit_code":0,"summary":"Corrected the shared bundle icon list (affects Windows/Linux/macOS bundlers alike) and rebuilt."},
+    {"command":"npm run tauri -- build --bundles deb (rebuild)","exit_code":0,"summary":"Rebuilt with the icon fix. dpkg-deb --contents now shows usr/share/icons/hicolor/{32x32,128x128,256x256@2}/apps/repopact-desktop.png alongside the executable and .desktop file."},
+    {"command":"dpkg-deb --info / --contents / -x (inspection before install)","exit_code":0,"summary":"Package: repo-pact-workbench, Version 0.1.0, Architecture amd64, Depends libwebkit2gtk-4.1-0 + libgtk-3-0. .desktop: Name=RepoPact Workbench, Exec=repopact-desktop, Icon=repopact-desktop, StartupWMClass=repopact-desktop -- no dev path embedded anywhere."},
+    {"command":"sudo apt install -y \"RepoPact Workbench_0.1.0_amd64.deb\" (Jeremy, interactive password)","exit_code":0,"summary":"Installed normally. dpkg -l confirms repo-pact-workbench 0.1.0 amd64. /usr/share/applications/RepoPact Workbench.desktop present; /usr/bin/repopact-desktop and all three hicolor icon sizes present and package-owned (dpkg -S)."},
+    {"command":"repopact-desktop (the exact Exec= command from the installed .desktop file)","exit_code":0,"summary":"Launched the installed binary directly (gtk-launch itself double-forks and detaches by design, so this session kept the equivalent Exec= command open to hold the window alive for verification). WSLg registered the window (confirmed in weston.log) and it rendered as a native-feeling RAIL window titled 'RepoPact Workbench (Debian)' on the Windows desktop, screenshotted showing the Dashboard/sidebar shell correctly."},
+    {"command":"close, then relaunch the installed binary a second time","exit_code":0,"summary":"First launch closed via process termination (the RAIL window's own close-button click did not visibly respond, worth noting -- not investigated further as time-boxed); second launch succeeded from a clean process, screenshotted rendering the same Dashboard shell correctly."},
+    {"command":"sha256sum /usr/share/icons/hicolor/128x128/apps/repopact-desktop.png vs the canonical src-tauri/icons/128x128.png","exit_code":0,"summary":"Identical hash (397ab6cf...fbb437) -- the installed Linux launcher icon is byte-for-byte the same RP mark used on Windows and Android, not a stale placeholder."},
+    {"command":"sudo apt remove -y repo-pact-workbench (Jeremy, interactive password)","exit_code":0,"summary":"Uninstalled. Verified absent: dpkg -l entry, /usr/bin/repopact-desktop, the .desktop file, and all three hicolor icon PNGs."},
+    {"command":"sudo apt install -y \"RepoPact Workbench_0.1.0_amd64.deb\" (Jeremy, interactive password, reinstall)","exit_code":0,"summary":"Reinstalled the same tested .deb. Verified present again: dpkg -l entry, executable, .desktop file (via directory listing; a quoting mistake in one verification command produced a false negative that was caught and corrected), and the 128x128 icon."},
+    {"command":"repopact-desktop (post-reinstall launch)","exit_code":0,"summary":"Launched again after reinstall; window rendered correctly under WSLg, screenshotted, left running for Jeremy's own visual confirmation."}
+  ],
+  "artifacts": [
+    "work/active/062-cross-platform-workbench-installation-launcher-integration-and-operator-validation/evidence/linux/wslg-window-after-reinstall.png",
+    "rust/apps/repopact-desktop/src-tauri/tauri.conf.json"
+  ],
+  "environment": {
+    "date": "2026-09-12",
+    "linux_checkout": "/home/Jeremy-L/repopact-wi062 (Linux-native ext4 filesystem, not /mnt/c)",
+    "linux_checkout_commit": "bf009cb13200c8a410bd841a8be75bd7defee459",
+    "distro": "Debian GNU/Linux 13 (trixie)",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2 x86_64",
+    "wslg": {"display": ":0", "wayland_display": "wayland-0", "wslg_mount": "populated, active weston/PulseAudio session"},
+    "dependency_versions": {"webkit2gtk_4_1": "2.52.6", "javascriptcoregtk_4_1": "2.52.6", "gtk_3_0": "3.24.49"},
+    "deb_path": "rust/target/release/bundle/deb/RepoPact Workbench_0.1.0_amd64.deb (Linux-native target dir, not synced to Windows)",
+    "deb_sha256": "59fe91c6d42d924dcd0dc722fe587e03accbe3533d3b35a9eeab9c76c17527da",
+    "deb_size_bytes": 5781046,
+    "package_name": "repo-pact-workbench",
+    "package_version": "0.1.0",
+    "package_architecture": "amd64"
+  },
+  "desktop_file": {
+    "path": "/usr/share/applications/RepoPact Workbench.desktop",
+    "Name": "RepoPact Workbench",
+    "Exec": "repopact-desktop",
+    "Icon": "repopact-desktop",
+    "StartupWMClass": "repopact-desktop",
+    "Categories": "(empty)",
+    "verdict": "Exec resolves via PATH to the package-installed /usr/bin/repopact-desktop, not a dev/build-tree path; Icon resolves via the hicolor icon theme to the package-installed RP mark; no C:/mnt/c or ~/repopact-wi062 path embedded anywhere."
+  },
+  "defect_found_and_fixed": {
+    "symptom": "The first .deb build's Linux bundle contained the executable and .desktop file but zero icon assets; the .desktop's Icon=repopact-desktop reference would have resolved to nothing on a real system with no other icon-theme fallback.",
+    "root_cause": "tauri.conf.json's shared bundle.icon array listed only icons/icon.ico (a Windows-only format); Tauri's deb/AppImage bundlers need PNG sources to populate /usr/share/icons/hicolor/<size>/apps/.",
+    "fix": "Added icons/32x32.png, icons/128x128.png, icons/128x128@2x.png, and icons/icon.icns to bundle.icon alongside icons/icon.ico, matching Tauri's own default project template shape. This is a shared config file affecting all bundlers, not a Linux-only patch.",
+    "verified": "Rebuilt .deb inspected before install and confirmed hicolor icon PNGs present at all three sizes with content matching the canonical RP source hash."
+  },
+  "closeout": {
+    "ac_012": "satisfied -- dependencies confirmed already correctly installed by Jeremy, no further apt install performed",
+    "ac_013": "satisfied -- real .deb built (twice: once revealing the icon defect, once with the fix), inspected before installing both times",
+    "ac_014": "satisfied -- installed normally, dpkg -l and .desktop file contents verified, referenced executable and icon paths confirmed to exist and be package-owned",
+    "ac_015": "programmatically satisfied -- launched via the installed .desktop's exact Exec= command under WSLg, window rendered, Dashboard visible, closed, relaunched successfully; repository-selection dialog did not visibly open under WSLg/RAIL (noted as a residual, not a hard requirement) so the Linux-local-repository portion of the smoke test was not completed. Jeremy's own visual confirmation of the WSLg window remains the outstanding piece of this criterion.",
+    "ac_016": "satisfied -- uninstall removed package/exe/.desktop/icons, reinstall restored all of them and the app launched again",
+    "ac_020": "satisfied -- the installed Linux icon's SHA-256 is identical to the canonical Windows/Android RP source PNG"
+  },
+  "residuals": [
+    "The repository-picker dialog (rfd/xdg-desktop-portal-gtk) did not visibly appear when 'Choose repository' was clicked under WSLg/RAIL, despite xdg-desktop-portal and xdg-desktop-portal-gtk both being installed and running. Not investigated further within WI062's time-box since native repository selection is explicitly optional in the directive ('if usable'); worth a follow-up look if Linux desktop usage becomes a priority.",
+    "The RAIL window's own close button did not visibly close the app on the first attempt; the app was instead closed via process termination for that step of the smoke test. Not investigated further; may be a WSLg/RAIL window-decoration quirk rather than an application defect, since the second launch/close cycle was not re-tested against the close button specifically.",
+    "Window resize was not tested via interactive drag (computer-use's desktop-shell click guard blocked dragging the window border); the maximize button click also produced no visible size change. The window was, however, observed to render correctly at two different sizes across the two launches, which is suggestive but not a substitute for an explicit resize test.",
+    "Jeremy has not yet personally confirmed the WSLg window with his own eyes; the app was left running (post-reinstall) specifically so he can look at it."
+  ]
+}

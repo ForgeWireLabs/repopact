@@ -1,0 +1,31 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260912-062-windows-icon-fix-rebuild-and-regression",
+  "timestamp": "2026-09-12T04:23:12Z",
+  "work_item": "062",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"npm run tauri -- build --bundles nsis (rebuild after the shared bundle.icon fix discovered during Linux .deb inspection)","exit_code":0,"summary":"tauri.conf.json's bundle.icon is shared across all platform bundlers; the fix that corrected the Linux .deb's missing icon assets (adding 32x32.png/128x128.png/128x128@2x.png/icon.icns alongside icon.ico) required rebuilding the Windows NSIS installer too so the currently-installed Windows app matches the committed config before Jeremy's operator confirmation."},
+    {"command":"uninstall old build, install new NSIS build","exit_code":0,"summary":"Uninstalled the previous installer's app, installed the rebuilt one. Verified: installed exe present, Start-menu .lnk present, Desktop .lnk present."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"Full Rust workspace regression passed after the tauri.conf.json change."},
+    {"command":"npm run types:check; npm run typecheck; npx vitest run; npm run build","exit_code":0,"summary":"Frontend regression passed: DTOs current, typecheck clean, 5 test files/14 tests passed, production build passed."},
+    {"command":"python -m repopact.cli dashboard; python -m repopact.cli validate; python -m repopact.cli check-frozen --base bf009cb13200c8a410bd841a8be75bd7defee459","exit_code":0,"summary":"Dashboard regenerated, canonical validation passed, no frozen-surface changes."}
+  ],
+  "artifacts": [
+    "rust/apps/repopact-desktop/src-tauri/tauri.conf.json"
+  ],
+  "environment": {
+    "date": "2026-09-12",
+    "os": "Windows 10.0.19045 x64",
+    "new_nsis_installer_sha256": "c24c33ab8b2cf6eea431308636c1af83ff860adf1756dd91d808e134a78f448b",
+    "note": "Supersedes the installer hash recorded in 20260911-062-windows-nsis-and-android-icon.json; that installer's icon config had the same missing-Linux-icon-assets defect (harmless for Windows itself, since NSIS/exe icon embedding used icon.ico regardless, but the config was inconsistent across platforms until this fix)."
+  },
+  "closeout": {
+    "windows_rebuild": "installed app now reflects the corrected, cross-platform-consistent bundle.icon config",
+    "regression": "green across Rust workspace, frontend, canonical validate, dashboard, frozen-surface"
+  },
+  "residuals": [
+    "Jeremy's personal Start-menu and Desktop-shortcut launch confirmation (AC-004/AC-005/AC-006) should now be done against this rebuilt install, not the earlier one."
+  ]
+}

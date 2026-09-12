@@ -8,6 +8,8 @@
 //! referenced here; nothing in this module performs network or subprocess
 //! access.
 
+mod verification_contract;
+
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -18,6 +20,13 @@ use crate::Validator;
 
 impl Validator {
     pub(crate) fn validate_adopters(&mut self) {
+        // WI046 is a repository-level semantic contract. Keep it inside the
+        // shared Rust validator so every caller of validate/validate_snapshot
+        // receives identical diagnostics. The helper is housed below this
+        // always-invoked validation phase to avoid introducing a second
+        // validation facade or caller-specific extension layer.
+        verification_contract::validate(self);
+
         let path = self.repository.root().join("governance/adopters.json");
         let Some(record) = self.index.adopters.clone() else {
             return;

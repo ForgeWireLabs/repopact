@@ -19,6 +19,7 @@ from pathlib import Path
 
 from . import __version__
 from . import generate_dashboard
+from . import verification
 
 HERE = Path(__file__).resolve().parent          # the installed/checked-out package
 CHECKOUT = HERE.parent                          # repo root when running from a checkout
@@ -131,6 +132,10 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
         # and anything imported at adoption time are grandfathered.
         "preflight": {"enabled": True, "required_from_date": today.isoformat()},
     })
+    _json(
+        target / "governance" / "verification.json",
+        verification.default_verification_config(),
+    )
 
     _json(target / "audits" / "registry.json", {
         "version": 1,
@@ -148,7 +153,8 @@ def bootstrap(target: Path, today: date | None = None) -> Path:
 
     _write(target / "README.md",
            "# Repository\n\nBootstrapped with RepoPact. Run `repopact validate` to check "
-           "the records, and `repopact dashboard` to regenerate the derived projection.\n")
+           "the records, `python -m repopact.verify_cli governance` for the local verification profile, "
+           "and `repopact dashboard` to regenerate the derived projection.\n")
     generate_dashboard.write_dashboard(target, today=today)
     return target
 

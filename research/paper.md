@@ -1,119 +1,134 @@
-# The Repository as the Operating System for Agentic Work
+# RepoPact: Repository-Native Governance for Durable Human-Agent Software Engineering
 
-**A repository-native contract, evidence, and conformance layer for durable coding-agent work**
+**Portable intent, authority, evidence, and conformance across agents, humans, machines, and sessions**
 
-Jeremy Shows
-ForgeWire Labs
-Draft, 2026-06-25; revised 2026-07-15
+Jeremy Shows  
+ForgeWire Labs  
+Draft, 2026-06-25; revised 2026-09-12  
 Target: arXiv cs.SE preprint, then software engineering or agentic systems workshop submission
 
 ## Abstract
 
-Coding agents lose the load-bearing state of a project at every conversation boundary: the intent behind a change, the guarantees it must preserve, the decisions already made, the authority boundaries that constrain it, and the evidence that anything worked. We call this **session amnesia** and argue that it is primarily a memory, authority, and governance problem, not merely a reasoning problem. We present **RepoPact**, a repository-native governance kernel that keeps project state as typed, version-controlled records in the filesystem. RepoPact organizes this state into six layers, L0 through L5: a record store, a per-work-item lifecycle automaton, an invariant monitor checked at commit and CI boundaries, a typed enforcement lattice, a derive layer, and an adoption boundary for bringing external or previously ungoverned project memory into the pact.
+Agentic software engineering increasingly distributes work across humans, coding agents, machines, model providers, and execution sessions. Yet the state that governs that work, including intent, authority, invariants, decisions, acceptance criteria, provenance, and evidence, often remains outside the software artifact itself. It lives in conversations, local agent memory, issue trackers, private planning state, runtime-specific context, or one operator's head. When a session ends or a different worker takes over, the repository may preserve the code while losing the governing state required to change that code safely.
 
-RepoPact's distinguishing primitive is the **binding invariant**: a declared guarantee with a rationale, an escalation path, and, where its logical type permits, a machine enforcer. A binding invariant is the unit an agent must not silently weaken. We give RepoPact an operational semantics in which the reference validator is the characteristic function of the conformant repository language. We further show that brownfield adoption exposes a concrete-record trilemma: a migration from a RepoPact-naive project cannot be simultaneously total, faithful, and closed if every emitted record must be asserted as concrete. RepoPact 2.0 resolves this by extending the record language with provenance types. A reconstructed record may be valid as `inferred` or `provisional` without pretending to be proven. Adoption can therefore be total, faithful, and closed under the provenance-aware conformant language, while completion and concrete claims remain evidence-gated.
+We present **RepoPact**, a repository-native governance kernel for durable human-agent software engineering. RepoPact stores governing project state as typed, version-controlled records alongside the artifact being governed. A fresh human or agent can therefore clone a repository and recover not only its source tree, but also its declared work state, authority boundaries, binding invariants, decisions, evidence, provenance, and lifecycle without requiring the previous worker's local context or agent runtime. Humans and agents operate over the same governed substrate rather than maintaining separate control planes.
 
-We evaluate RepoPact reflexively and adversarially against pre-registered falsification criteria on the packaged product, not merely the source checkout. Defects that cracked the architecture were recorded as findings, fixed upstream, and re-verified from rebuilt packages. We also pre-register a comparative benchmark program for value claims: guarantee-violation detection, cross-session recovery and efficiency, multi-agent coordination, context-token economy, drift detection, and defensive security enforcement. The runnable benchmark artifacts now live in RepoPact Proving Ground, a separate public adversarial lab that consumes RepoPact from PyPI. Its PactBench suite includes pre-registered tasks, real fixtures, model-agnostic execution, deterministic plumbing checks, a subprocess interface for real agent runs, and drift-harness support. Comparative model results remain forthcoming and will be reported whether confirming or disconfirming.
+RepoPact organizes this substrate into six layers, L0 through L5: a typed record store, work-item lifecycle automata, an invariant monitor, a typed enforcement lattice, deterministic derived views, and a brownfield adoption boundary. Its distinguishing primitive is the **binding invariant**, a declared guarantee coupled to rationale, escalation, and, where logically possible, machine enforcement. We formalize repository conformance, introduce **governance continuity** as the recoverability of governed state across worker and session transitions, characterize invariant classes by the information required to enforce them, and show that concrete-only brownfield migration faces a totality-faithfulness-closure trilemma. Provenance-typed records, `concrete`, `provisional`, and `inferred`, resolve that trilemma without representing reconstructed state as established fact.
 
-**Keywords:** agentic software engineering; coding agents; repository governance; software invariants; durable agent memory; evidence-gated workflows; brownfield adoption; provenance typing; benchmark pre-registration; agent evaluation.
+We evaluate RepoPact reflexively and adversarially using its packaged implementation, conformance suite, recorded findings, naturalistic case studies, and a pre-registered comparative benchmark program. The implementation has evolved from a Python reference system into a canonical Rust semantic engine consumed by compatibility tooling and a Tauri 2 Workbench, while preserving repository-level interoperability. Windows, Linux, and Android bring-up evidence exists for the Workbench; macOS and iOS remain intended targets that still require platform-specific validation. Comparative cross-model results remain forthcoming and will be reported whether they confirm or challenge the claims.
+
+**Keywords:** agentic software engineering; human-agent collaboration; repository governance; governance continuity; software invariants; durable project state; evidence-gated workflows; brownfield adoption; provenance typing; conformance; agent evaluation.
 
 ## 1. Introduction
 
-A coding agent is handed a task, loads context, edits code, and finishes a session. The next session, perhaps a different agent, perhaps the same one after context reset, often starts without the intent behind the last change, the guarantees the change was supposed to preserve, the decisions already made, the authority boundaries that constrained the work, or the proof that anything actually worked. The repository may contain the resulting code, but not the operational memory that made the code safe to change.
+A coding agent is given a task, loads context, changes code, and finishes a session. The next session may use a different model, a different machine, a different developer, or the same agent after its context has been reset. The source code survives, but the reason the change was safe may not.
 
-We call this the **session-amnesia problem**. It is not simply that agents forget facts. Human collaborators also forget, rotate, misread, and lose context. The deeper problem is that load-bearing project state often lives outside the artifact that future work depends on. It is in chat logs, prompt transcripts, issue comments, private planning documents, local scratchpads, model context windows, and implicit operator knowledge. When that state is absent from the repository, a future human or agent can reproduce the files but not the governing intent.
+The missing state is often more important than a forgotten fact. It includes what the work was trying to accomplish, what was authorized, what must not be weakened, which decisions were already made, what counts as completion, what evidence exists, what remains uncertain, and what should happen next. These facts are commonly scattered across chat logs, prompt transcripts, local scratchpads, issue trackers, private planning documents, model memory, and operator knowledge.
 
-This becomes more severe as coding agents become faster and more autonomous. A capable model can satisfy a local instruction while weakening a global guarantee. It can delete a failing assertion instead of satisfying it. It can mark work complete without linking evidence. It can edit a protected surface because the instruction file did not make the authority boundary enforceable. It can comply with a stale or injected instruction because there is no typed record distinguishing asserted, inferred, provisional, and proven state. The problem is not lack of intelligence. The problem is lack of durable, inspectable, enforceable project memory.
+We originally described this primarily as **session amnesia**. That remains a useful symptom, but it is not the whole problem. The deeper problem is **governance discontinuity**. A project may preserve its files while losing the durable state that tells the next worker how those files may legitimately change.
 
-The ecosystem's current answers each capture a fragment.
+This distinction matters because software work is no longer performed by one stable actor. A repository may move from a human developer to Codex, from Codex to Claude, from one workstation to another, from a CLI to a graphical operator, or from a local session to a clean clone. If the governing state only exists inside one worker's context, every handoff is a partial reset.
 
-`AGENTS.md`, `CLAUDE.md`, editor rules, and similar context files tell an agent how to behave. They are useful, but they are instructions, usually Markdown, with no built-in record typing, evidence semantics, lifecycle state, conformance language, or enforcement boundary. Agent-memory frameworks give models recall beside the process. They may improve continuity across calls, but the memory is usually outside the repository, weakly versioned, hard to audit as code history, and not independently recoverable by a third party from the artifact alone. ADRs record decisions, but they generally do not enforce acceptance criteria or bind work completion to evidence. CI and policy-as-code enforce particular checks, but they do not normally encode the rationale, authority scope, escalation path, work lifecycle, and evidence ledger as a unified project contract.
+RepoPact starts from a simple observation: the repository is the one artifact every legitimate participant already has to obtain. It is persistent, diffable, reviewable, replicated, branchable, and already tied to the code, tests, history, and change-control mechanisms software engineering trusts. RepoPact makes that same repository carry the durable state required to govern the work.
 
-RepoPact starts from a different substrate: the version-controlled repository itself. The repository already has the properties a durable agent-work substrate needs. It is persistent. It is diffable. It is reviewable. It is replicated. It is naturally checked at commit and CI boundaries. It already carries the code, tests, history, and change-control mechanisms that software engineering trusts. RepoPact turns that repository into a governance kernel for agentic work. The phrase "repository as operating system" is used here in a restricted systems sense: RepoPact does not orchestrate all agent runtime behavior, but supplies the repository-native contract, evidence, lifecycle, provenance, and conformance layer through which durable work is admitted.
+The central idea is:
 
-The central distinction is this:
+> A fresh human or agent should be able to clone the repository and recover not only the code, but the governed state needed to continue the work responsibly.
 
-> `AGENTS.md` tells an agent how to behave. RepoPact enforces and records whether the work respected the contract.
+That makes the repository a **rendezvous point** between humans and agents. The UI does not own a separate truth. The agent runtime does not own a separate truth. A chat transcript does not own the project state. A local database does not own it. The repository owns the durable contract.
 
-RepoPact does not replace `AGENTS.md`. It consumes it as a contract signal during adoption and positions itself above it as the layer that records authority, binds invariants, gates completion on evidence, tracks provenance, derives dashboards and specifications, and surfaces drift.
+This does not mean every useful fact must live in Git, or that runtime memory is unnecessary. RepoPact is deliberately narrower. It governs the load-bearing state that must survive worker, session, machine, and provider changes if later work is expected to remain inspectable and accountable.
 
-This paper makes five contributions.
+The ecosystem's existing mechanisms each cover part of this problem. `AGENTS.md`, `CLAUDE.md`, editor rules, and similar files tell an agent how to behave. Agent-memory systems improve recall across calls. ADRs preserve decisions. CI and policy-as-code enforce checks. Issue trackers preserve tasks. Sandboxes and authorization systems govern live execution. These are useful and often necessary, but they usually do not combine project intent, authority, evidence, lifecycle, provenance, conformance, and drift into one repository-native contract.
 
-1. **A repository-native governance model.** We model durable agentic memory and authority as typed records in the version-controlled tree, organized as a six-layer kernel, L0 through L5. The lifecycle finite-state machine is one layer, composed with an invariant monitor checked at commit and CI boundaries.
+RepoPact does not replace those systems. It gives them a durable governance layer to meet in.
 
-2. **The binding invariant as a first-class primitive.** A binding invariant is a declared guarantee with a rationale, an escalation path, and, where possible, a machine enforcer. It is the unit an agent must not silently weaken.
+The practical distinction is still useful:
 
-3. **A typed enforcement lattice.** We classify invariants by logical kind: state, state fixpoint, transition, temporal, relational, and meta. The kind predicts the enforcer. Some invariants are decidable on one tree. Some require a diff. Some require git history. Some require human review or future formalization.
+> `AGENTS.md` tells an agent how to behave. RepoPact records and enforces whether the work respected the contract.
 
-4. **A brownfield adoption trilemma and a provenance-typed resolution.** In a concrete-only record language, no migration from a RepoPact-naive project can be total, faithful, and closed. RepoPact 2.0 resolves this by adding provenance-typed records. Reconstructed state can be valid as `inferred` or `provisional` without being falsely asserted as concrete, while completion remains gated on concrete evidence.
+This paper makes six contributions.
 
-5. **A reflexive and adversarial evaluation program.** RepoPact is evaluated against its own claims using the packaged product, a public Proving Ground, adversarial findings, a formal model, a machine-checkable conformance suite, and pre-registered comparative benchmarks. Results that disconfirm RepoPact are in scope by design.
+1. **A repository-native governance model.** RepoPact models durable project governance as typed records in the version-controlled tree, organized as a six-layer kernel, L0 through L5.
 
-RepoPact is open source under Apache-2.0. It is the work-governance layer of the ForgeWire Labs inspectable-infrastructure stack, but this paper concerns RepoPact as an independently useful artifact.
+2. **Governance continuity.** We define a worker handoff as successful when a fresh worker can recover the repository's governed state and current violations from the repository itself, without depending on the previous worker's private context.
+
+3. **The binding invariant as a first-class primitive.** A binding invariant is a declared guarantee with rationale, escalation, and, where possible, machine enforcement. It is the unit a worker must not silently weaken.
+
+4. **A typed enforcement lattice.** Invariants are classified by logical kind: state, state fixpoint, transition, temporal, relational, and meta. The kind predicts the required enforcer.
+
+5. **A brownfield adoption trilemma and provenance-typed resolution.** In a concrete-only record language, no migration from a RepoPact-naive project can be total, faithful, and closed at once. Provenance-typed records allow reconstructed state to remain valid without pretending it is proven.
+
+6. **A falsification-oriented evaluation program.** RepoPact is evaluated using the packaged product, a public Proving Ground, adversarial findings, a formal model, a machine-checkable conformance suite, naturalistic field observations, and pre-registered comparative benchmarks. Disconfirming results are in scope by design.
+
+RepoPact is open source under Apache-2.0. The current public release is 3.0.2. It is part of the ForgeWire Labs inspectable-infrastructure stack, but the system and model described here are independently useful.
 
 ## 2. Background and Related Work
 
 ### 2.1 Agent context files
 
-Agent context files such as `AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, and editor-specific rule files have become a practical standard for orienting coding agents. `AGENTS.md` alone, now stewarded under the Linux Foundation's agentic-AI umbrella, appeared in tens of thousands of public repositories within its first year. They are easy to read, easy to write, and easy to adopt. They tell the agent about coding style, test commands, project structure, preferred tools, and local conventions.
+Agent context files such as `AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, and editor-specific rule files have become a practical way to orient coding agents. They are easy to read, easy to commit, and easy to adopt. They can explain coding style, tests, project structure, preferred tools, and local conventions.
 
-Their strength is also their boundary. They are advisory text. They do not, by themselves, provide record schemas, evidence-gated work items, lifecycle state, provenance typing, acceptance semantics, conformance fixtures, or machine-enforced frozen surfaces. A context file can say, "Do not weaken authentication." It cannot, by itself, prove that the work item preserved the authentication invariant, reject completion without evidence, or record that an adoption fact was reconstructed rather than proven.
+Their strength is also their boundary. They are instructions. By themselves they do not provide typed work records, lifecycle semantics, evidence-gated completion, provenance, conformance fixtures, or machine-enforced frozen surfaces. A context file can say, "Do not weaken authentication." It cannot by itself prove that a work item preserved the authentication invariant, reject completion without evidence, or distinguish a reconstructed claim from a proven one.
 
-RepoPact treats context files as input, not as competition. During adoption, nested `AGENTS.md` files are registered as contracts. Their scopes are mapped where possible. Their content remains available to agents. RepoPact adds the enforcement and evidence layer above them.
+RepoPact treats context files as input, not competition. During adoption, nested context contracts can be registered and mapped into the repository's governance structure. Their content remains available to agents. RepoPact adds typed authority, evidence, lifecycle, and validation around them.
 
 ### 2.2 Agent memory and external state
 
-External memory systems, retrieval-augmented generation, persistent scratchpads, vector stores, agent databases, and runtime memory frameworks — MemGPT and its Letta successor, Mem0, Zep, LangMem, and similar systems — give agents access to state beyond a single context window. These systems are valuable, especially for personalization, long-running assistants, and task continuity. However, they hold memory beside the agent process rather than inside the artifact of record. That creates several problems for software engineering:
+External memory systems, retrieval-augmented generation, persistent scratchpads, vector stores, agent databases, and runtime memory frameworks give agents access to information beyond one context window. These systems are valuable, particularly for personalization, long-running assistants, and task continuity.
 
-1. The memory may not be versioned with code.
-2. The memory may not be reviewed during pull requests.
-3. The memory may not be reproducible by a third party.
-4. The memory may not survive tool or provider changes.
-5. The memory may not be visible to the next agent unless the same runtime is used.
-6. The memory may preserve facts without preserving authority, acceptance criteria, or evidence.
+For software engineering, however, external memory has a portability problem. It may not be versioned with the code. It may not be reviewed in pull requests. It may not be available to a different model or provider. It may not survive a machine change. It may preserve facts while losing authority, acceptance criteria, provenance, or evidence.
 
-RepoPact's memory is repository-native. It is intentionally boring in the software-engineering sense: files, schemas, records, git diffs, CI checks, generated dashboards, and explicit decisions. It is not meant to replace all external memory. It is meant to ensure that load-bearing project memory crosses the boundary into the artifact future work depends on.
+RepoPact does not try to replace external memory. It asks a narrower question: which project facts are important enough that the next legitimate worker should be able to recover them from the artifact being changed? Those facts belong in the repository-native governance layer.
 
-### 2.3 Governance architectures and runtime controls
+### 2.3 Issue trackers and planning systems
 
-Recent agent-governance work often focuses on runtime control: sandboxing, intent verification, tool authorization, zero-trust agent-to-agent communication, LLM-judge review, audit logging, and policy enforcement around live execution. Layered governance architectures and six-layer agentic-SDLC reference models are representative: they organize runtime controls or provide taxonomies over the development lifecycle. These controls are important. They guard the running agent and the operational environment. But none of them is repository-native, and none makes the binding guarantee an evidence-gated, version-controlled primitive.
+Issue trackers are effective at managing human-visible work queues, collaboration, comments, and organizational planning. They are often the right tool for broad product management. Their limitation for agent portability is that the tracker is usually external to the repository and may be provider-specific.
 
-RepoPact guards a different boundary. It governs the repository as the durable substrate of work. Runtime controls ask whether an agent may perform an action now. RepoPact asks whether the repository records enough intent, authority, invariants, evidence, provenance, and history for the action to remain inspectable and recoverable later. The two approaches compose. A runtime sandbox can prevent dangerous execution. A repository-native invariant monitor can prevent silent weakening of a declared project guarantee.
+RepoPact does not attempt to replace every tracker feature. Its work ledger exists because implementation authority, acceptance criteria, dependencies, provenance, and evidence are part of the state a cloned repository may need to carry with it. External trackers can still exist, but RepoPact treats repository-local state as the durable contract that cannot depend on one SaaS account being present.
 
-### 2.4 Decision records, policy-as-code, and architecture fitness functions
+### 2.4 Runtime governance and execution controls
 
-ADRs record decisions. Conventional commits structure change history. OPA, Conftest, CI gates, and architecture fitness functions enforce particular policies. Developer portals and scorecard tools such as Backstage, Cortex, and OpsLevel evaluate services at organizational scale. Each enforces one slice, at service or CI granularity. RepoPact composes with these but differs in its unit of governance.
+Agent-governance systems often focus on live execution: sandboxing, tool authorization, policy gates, intent verification, audit logging, approval, network control, and secret handling. These controls protect actions while an agent is running.
 
-RepoPact unifies:
+RepoPact guards a different boundary. Runtime controls ask whether a worker may perform an action now. RepoPact asks whether the project records enough intent, authority, evidence, provenance, and history that the resulting work remains inspectable and recoverable later.
 
-* the declared guarantee,
-* the rationale,
+The approaches compose naturally. A sandbox can prevent dangerous execution. A repository-native invariant can prevent silent weakening of a declared guarantee. Runtime audit logs can explain what an agent did. RepoPact can record whether the delivered work satisfied the repository contract.
+
+### 2.5 Decision records, policy-as-code, and architecture fitness functions
+
+ADRs preserve decisions. Conventional commits structure history. OPA, Conftest, CI gates, and architecture fitness functions enforce specific policies. Developer portals and scorecards evaluate services at organizational scale. These systems solve real problems, but usually at one slice of the governance surface.
+
+RepoPact combines:
+
+* a declared guarantee,
+* its rationale,
 * the authority boundary,
 * the escalation path,
 * the work item,
-* the acceptance criteria,
-* the linked evidence,
-* the lifecycle transition,
-* the provenance type,
-* the generated dashboard,
-* and the drift surface.
+* acceptance criteria,
+* linked evidence,
+* lifecycle state,
+* provenance type,
+* derived views,
+* and drift detection.
 
-This is why the binding invariant is central. It is not merely a check. It is a guarantee embedded in a record system that future humans and agents can recover.
+The point is not that every project needs all of these. The point is that when they matter, they should form one recoverable system rather than a collection of disconnected conventions.
 
-## 3. The Model
+## 3. Model
 
-RepoPact is modeled as a layered governance kernel over a repository. The kernel comprises six layers:
+RepoPact is modeled as a layered governance kernel over a repository.
 
-| Layer | Name                | Object                        | Role                                         |
-| ----- | ------------------- | ----------------------------- | -------------------------------------------- |
-| L0    | Record store        | typed repository state `s`    | stores source records                        |
-| L1    | Lifecycle FSM       | per-work-item automaton `M_w` | models work states                           |
-| L2    | Invariant monitor   | predicate `I`; language `R`   | decides conformance                          |
-| L3    | Enforcement lattice | typed invariants              | maps invariant kind to enforcer              |
-| L4    | Derive layer        | projections `π`               | generates dashboard and spec artifacts       |
-| L5    | Adoption boundary   | migration and external memory | brings naive or external state into the pact |
+| Layer | Name | Object | Role |
+| --- | --- | --- | --- |
+| L0 | Record store | typed repository state `s` | stores governing source records |
+| L1 | Lifecycle FSM | per-work-item automaton `M_w` | models work state and authority transitions |
+| L2 | Invariant monitor | predicate `I`; language `R` | decides conformance |
+| L3 | Enforcement lattice | typed invariants | maps invariant kind to an appropriate enforcer |
+| L4 | Derive layer | projections `pi` | generates dashboards and specification views |
+| L5 | Adoption boundary | migration and external state | brings previously ungoverned state into the pact |
 
-L0 through L3 are internal to the governed tree. L4 derives artifacts from the tree. L5 is the boundary where the repository meets state it does not yet contain, including trackers, design documents, conversation history, and legacy planning systems.
+L0 through L3 operate on state already represented in the repository. L4 derives materialized views. L5 is the boundary where RepoPact encounters state it does not yet contain, such as trackers, private documents, conversation history, and legacy planning systems.
 
 ### 3.1 State, records, and provenance
 
@@ -125,30 +140,30 @@ s = <ver, Inv, Frz, Own, Reg, C, W, E, D, P, A, Prov>
 
 where:
 
-| Symbol | Component                                   | Source location                          |
-| ------ | ------------------------------------------- | ---------------------------------------- |
-| `ver`  | semantic version string                     | `VERSION`                                |
-| `Inv`  | declared invariants                         | `governance/invariants.json`             |
-| `Frz`  | frozen surface definitions                  | `governance/frozen-surface.json`         |
-| `Own`  | scopes, roles, and concurrency rules        | `governance/owners.json`                 |
-| `Reg`  | audit registry                              | `audits/registry.json`                   |
-| `C`    | contract files, including `AGENTS.md` nodes | `**/AGENTS.md`                           |
-| `W`    | work items                                  | `work/<status>/<id-slug>/work-item.json` |
-| `E`    | evidence runs                               | `evidence/runs/<id>.json`                |
-| `D`    | decisions                                   | `decisions/<id-slug>.md`                 |
-| `P`    | policies                                    | `governance/policies/<id-slug>.md`       |
-| `A`    | audit findings                              | `audits/findings/<id-slug>.json`         |
-| `Prov` | provenance typing over records              | record fields and validator semantics    |
+| Symbol | Component | Typical source location |
+| --- | --- | --- |
+| `ver` | semantic version | `VERSION` |
+| `Inv` | declared invariants | `governance/invariants.json` |
+| `Frz` | frozen surfaces | `governance/frozen-surface.json` |
+| `Own` | scopes, roles, concurrency rules | `governance/owners.json` |
+| `Reg` | audit registry | `audits/registry.json` |
+| `C` | contract files | `**/AGENTS.md` and registered contracts |
+| `W` | work items | `work/<status>/<id-slug>/work-item.json` |
+| `E` | evidence runs | `evidence/runs/<id>.json` |
+| `D` | decisions | `decisions/<id-slug>.md` |
+| `P` | policies | `governance/policies/<id-slug>.md` |
+| `A` | audit findings | `audits/findings/<id-slug>.json` |
+| `Prov` | provenance typing | record fields and validator semantics |
 
-Each record `r` has a provenance type:
+Each relevant record `r` has a provenance type:
 
 ```text
-prov(r) ∈ {concrete, provisional, inferred}
+prov(r) in {concrete, provisional, inferred}
 ```
 
-A **concrete** record asserts that its claim is directly authored or backed by concrete evidence. A **provisional** record is valid but not complete. It is a transitional record, usually emitted during adoption or migration, and expected to be ratcheted later. An **inferred** record is reconstructed from available signals rather than directly proven. It is honest about its epistemic status.
+A **concrete** record asserts that its claim is directly authored or backed by concrete evidence. A **provisional** record is valid but not complete. An **inferred** record is reconstructed from available signals rather than directly proven.
 
-This is the essential change in RepoPact 2.0. Validity no longer means "every record is fully proven." Validity means "every record is structurally and semantically well-formed, and every non-concrete claim is honestly typed." Completion remains stricter: completed work must rest on concrete evidence.
+The distinction is epistemic, not cosmetic. Validity does not require pretending every known thing is fully proven. It requires that uncertainty be represented honestly. Completion remains stricter: completed work must rest on concrete evidence.
 
 A work item is modeled as:
 
@@ -156,48 +171,81 @@ A work item is modeled as:
 w = (id, title, status, owner, affected_scopes, dependencies, AC, created, updated, prov)
 ```
 
-where:
+with:
 
 ```text
-status(w) ∈ {proposed, active, blocked, deferred, completed}
+status(w) in {proposed, active, blocked, deferred, completed}
 ```
 
-The five statuses are not merely progress markers. They encode **authority**. A `proposed` item is captured candidate work that has not been accepted: it records possible intent without granting implementation authority. An `active` item is accepted work authorized for design or implementation. `blocked` and `deferred` are accepted work that cannot or should not proceed right now, for a named reason. `completed` is delivered work whose acceptance criteria are evidence-closed.
+These are not merely progress labels. They encode authority.
 
-The `proposed` state was added after 2.0.2 (decision 0023), when a downstream adopter exposed the gap: candidate work worth capturing durably had no honest home. Mapping it to `active` overstates authority. Mapping it to `blocked` misstates why it is not moving. Mapping it to `deferred` implies it was already accepted. The lifecycle needed a state for "recorded but not yet authorized," for the same reason the record language needed provenance types: the alternative to an honest type is a dishonest assertion.
+* `proposed` captures candidate work without authorizing implementation.
+* `active` records accepted work that is authorized to proceed.
+* `blocked` records accepted work that cannot currently proceed.
+* `deferred` records accepted work that has intentionally been postponed.
+* `completed` records delivered work whose acceptance criteria are evidence-closed.
 
-and each acceptance criterion is:
+A criterion is:
 
 ```text
 c = (criterion_id, status, evidence_links)
-
-status(c) ∈ {pending, satisfied, waived}
+status(c) in {pending, satisfied, waived}
 ```
 
-A work item has both a declared status field and a lifecycle directory. Their agreement is not assumed. It is an invariant. If `work-item.json` says `completed` while the directory is `work/active`, the state is invalid. If a completed work item has pending criteria, the state is invalid. If a satisfied criterion links no evidence, the state is invalid.
+The work item's declared status and its lifecycle directory must agree. That agreement is an invariant, not an assumption.
 
-The repository as a whole is an infinite-state transition system because the sets of work items, evidence runs, decisions, policies, findings, and contracts are unbounded. The finite-state structure is local to each work item.
+### 3.2 Governance continuity
 
-### 3.2 The lifecycle automaton, L1
+RepoPact's newer implementation experience suggests a useful concept that is broader than session memory: **governance continuity**.
+
+Let the recoverable governance projection of repository state `s` be:
+
+```text
+G(s) = <Inv, Frz, Own, Reg, C, W, E, D, P, A, Prov>
+```
+
+Let `Viol(s)` be the current set of conformance violations. A worker handoff is governance-continuous when a fresh legitimate worker, starting from a clone and the versioned RepoPact semantics, can recover both the governed state and its known violations without access to the predecessor's private context:
+
+```text
+recover(clone(s)) = <G(s), Viol(s)>
+```
+
+This is intentionally stronger than "the next agent can read the code" and weaker than "the repository contains everything anyone knows." RepoPact does not claim omniscience. State that never crosses L5 cannot be recovered from the repository.
+
+The practical requirement is that load-bearing governance does not depend on worker identity.
+
+A transition such as:
+
+```text
+human -> agent
+agent A -> agent B
+machine A -> machine B
+CLI -> Workbench
+local checkout -> clean clone
+```
+
+should not require the project to invent a new source of truth. The same repository should expose the same governed state to each participant.
+
+This gives RepoPact a useful design test: if a capability only works because one client keeps hidden local state that another legitimate client cannot recover, that hidden state must either be made non-authoritative or moved into a governed repository representation.
+
+Governance continuity is also allowed to recover an invalid state. If a repository has drifted, the next worker should see the drift rather than receive a falsely clean reconstruction. This is why the recovery target includes `Viol(s)` rather than only `G(s)`.
+
+### 3.3 Lifecycle automaton, L1
 
 Per work item, RepoPact defines a lifecycle automaton:
 
 ```text
-M_w = (Q, Λ, δ_w, Q0)
+M_w = (Q, Lambda, delta_w, Q0)
 
 Q = {proposed, active, blocked, deferred, completed}
 Q0 = {proposed, active}
 ```
 
-`Λ` is the alphabet of lifecycle moves. A lifecycle move is a directory relocation plus a matching status rewrite. `Q0` is a set of initial states because work can be born two ways: as accepted work (`active`, the default of `new`) or as a captured candidate (`proposed`). The `proposed → active` move is the acceptance event — the point where recorded intent becomes implementation authority.
+A work item can be born as accepted work (`active`) or as a candidate (`proposed`). The `proposed -> active` transition is therefore an authority event. It is the point at which recorded intent becomes accepted implementation work.
 
-The transition relation is otherwise deliberately permissive. Work may move among the five states; reopening completed work is allowed; degradation is explicit rather than hidden.
+The transition relation is deliberately permissive. Work can be blocked, deferred, reopened, or moved backward when reality changes. RepoPact prefers explicit degradation over pretending that progress is monotonic.
 
-Two edges carry semantics beyond relocation.
-
-The first is acceptance. `proposed` grants no authority, and the invariant monitor enforces this at the dependency level: an `active` or `completed` work item may not depend on a `proposed` one, because that would treat unaccepted candidate work as accepted implementation authority. Authority flows through the acceptance edge, not around it.
-
-The second is completion. Moving into `completed` is semantically guarded by:
+The completion edge is semantically guarded by:
 
 ```text
 g_done(w, s) =
@@ -207,13 +255,13 @@ g_done(w, s) =
   and concrete completed work does not rest on non-concrete evidence
 ```
 
-RepoPact does not require this to be enforced as a runtime gate. A user or agent can perform an ordinary file edit or `git mv` that puts the tree into an invalid state. RepoPact's enforcement point is the checkpoint: validation, CI, review, and generated reports. The lifecycle automaton supplies reachable control points. The invariant monitor decides whether the resulting repository state is admissible.
+RepoPact does not require every filesystem edit to pass through a runtime gate. Humans and agents can still edit files directly. The checkpoint decides whether the resulting repository state is admissible.
 
-This separation matters. RepoPact is repository-native, not runtime-exclusive. It assumes agents and humans can edit files. Its claim is that invalid states are visible, rejectable, and auditable at the repository boundary.
+That separation is important. RepoPact is repository-native, not runtime-exclusive.
 
-### 3.3 The invariant monitor, L2
+### 3.4 Invariant monitor, L2
 
-The reference validator computes a finite set of violations:
+The canonical validator computes a finite set of violations:
 
 ```text
 Viol(s)
@@ -222,733 +270,656 @@ Viol(s)
 Define:
 
 ```text
-I(s) ≡ Viol(s) = ∅
+I(s) iff Viol(s) = empty
 R = {s | I(s)}
 ```
 
-`R` is the conformant repository language. The reference validator is the characteristic function of this language:
+`R` is the conformant repository language. A conformant implementation accepts repositories in `R` and rejects the rest for the rules represented in the specification and conformance corpus.
+
+The predicate decomposes into checks including:
+
+| Predicate | Meaning |
+| --- | --- |
+| `I_ver` | version is well formed |
+| `I_struct` | records satisfy their schemas |
+| `I_contract` | required contracts are present and registered |
+| `I_id` | identifiers, paths, and lifecycle directories agree |
+| `I_ref` | dependencies, evidence, owners, scopes, and decisions reference known records |
+| `I_accept` | completion and satisfied criteria are evidence-closed |
+| `I_acyclic` | work dependencies are acyclic |
+| `I_conc` | disjoint-scope concurrency rules hold when enabled |
+| `I_orphan` | planning content does not exist invisibly outside the ledger |
+| `I_prov` | provenance is valid and completion does not rely on non-concrete proof |
+| `I_derive` | enforced generated artifacts match their canonical projection |
+| `I_frozen` | protected changes receive the required acknowledgement at diff time |
+
+The monitor property is:
 
 ```text
-validate(s) = accept ⇔ s ∈ R
+for any edit trace s0 -> s1 -> ... -> sk,
+the checkpoint admits sk iff sk is conformant for the enforced surface.
 ```
 
-The predicate `I` decomposes into atomic predicates:
+The edit trace may come from the CLI, Workbench, an agent, a human, or arbitrary filesystem operations. RepoPact's claim is not that invalid edits cannot be made. Its claim is that invalid governed states can be detected, rejected, and explained at the checkpoint.
 
-| Predicate    | Meaning                                                                                      |
-| ------------ | -------------------------------------------------------------------------------------------- |
-| `I_ver`      | the version string is semantic                                                               |
-| `I_struct`   | every record satisfies its schema                                                            |
-| `I_contract` | root and nested contracts are present and registered                                         |
-| `I_id`       | record identifiers match paths and are unique per type                                       |
-| `I_status`   | work status agrees with lifecycle directory                                                  |
-| `I_ref`      | dependencies, scopes, evidence links, decisions, owners, and findings refer to known records; authorized work does not depend on `proposed` work |
-| `I_accept`   | completed work has no pending criteria; satisfied criteria link evidence                     |
-| `I_acyclic`  | the work dependency graph is acyclic                                                         |
-| `I_conc`     | active scopes are disjoint when concurrency enforcement is enabled                           |
-| `I_orphan`   | planning artifacts do not exist outside the ledger                                           |
-| `I_prov`     | provenance typing is valid and completion does not rest on non-concrete proof                |
-| `I_derive`   | derived artifacts equal their projections where enforced                                     |
-| `I_frozen`   | protected surfaces require acknowledgement at diff time                                      |
+### 3.5 Typed enforcement lattice, L3
 
-`I_prov` is the 2.0 addition that changes the adoption story. It can be summarized as:
+Not all invariants are the same kind of proposition.
 
-```text
-I_prov(s) =
-  completed(w) implies prov(w) = concrete
-  concrete(w) implies all evidence supporting satisfied criteria is concrete
-  inferred(r) or provisional(r) implies r declares reconstruction/provenance metadata
-  inferred/provisional records may be valid but may not masquerade as concrete proof
-```
+| Type | Example | Needed information | Typical enforcer |
+| --- | --- | --- | --- |
+| state | completed implies no pending criterion | one tree | validator |
+| state | satisfied implies linked evidence | one tree | validator |
+| state with provenance | completed implies concrete proof | one tree | validator |
+| state fixpoint | dashboard equals canonical projection | one tree plus generator | validator and generator |
+| transition | frozen-surface change requires acknowledgement | base and head | diff-time checker |
+| temporal | completed history is not rewritten to look cleaner | git trace | history analysis and review |
+| relational | nested contract refines parent contract | contract pair and semantic order | review, future formalization |
+| meta | critical state does not live only in conversation | repository plus judgment | partial checks and human review |
 
-This separates validity from proof. A repository may be conformant while containing inferred or provisional records, because the language admits honestly typed reconstruction. But a completed work item cannot rely on those records as if they were concrete.
+This lattice prevents RepoPact from pretending one validator can prove everything. A schema cannot enforce a historical property. A one-tree validator cannot know whether a protected path changed relative to a base. Human judgment is still required for some semantic relationships.
 
-The monitor non-bypass property is the safety backbone:
+The goal is explicit enforcement boundaries, not fictional total automation.
 
-```text
-For any edit trace s0 -> s1 -> ... -> sk,
-the checkpoint admits sk iff sk ∈ R.
-```
+### 3.6 Derive layer, L4
 
-The trace may be produced by RepoPact CLI actions, manual file edits, an agent, or arbitrary filesystem operations. RepoPact's claim is not that invalid edits cannot be made. Its claim is that invalid repository states are rejected or surfaced at the checkpoint, while valid states carry the evidence needed for later recovery.
+RepoPact separates source records from derived views. Source records include work items, evidence, decisions, invariants, owner maps, policies, findings, and contract registrations. Derived artifacts include dashboards and specification projections.
 
-### 3.4 The typed enforcement lattice, L3
-
-RepoPact's invariants are not of one logical kind. Their logical kind predicts what can enforce them.
-
-| Type                  | Example                                         | Enforcer                                  |
-| --------------------- | ----------------------------------------------- | ----------------------------------------- |
-| state                 | completed implies no pending criterion          | validator on one tree                     |
-| state                 | satisfied implies linked evidence               | validator on one tree                     |
-| state with provenance | completed implies concrete evidence             | validator on one tree                     |
-| state fixpoint        | generated dashboard equals projection           | validator on one tree plus generator      |
-| transition            | frozen-surface change implies acknowledgement   | diff-time checker                         |
-| temporal              | completed work is not rewritten to look cleaner | git history plus review                   |
-| relational            | nested contract refines parent contract         | human review, future refinement calculus  |
-| meta coverage         | no critical state lives only in conversation    | human judgment plus partial orphan checks |
-
-State invariants are decidable from a single tree. Transition invariants require two states, usually a base and head diff. Temporal invariants require a trace. Relational invariants require a semantic order over contracts. Meta invariants concern coverage and judgment: whether the repository contains enough of the working memory to make future work safe.
-
-This lattice explains why RepoPact uses multiple enforcement mechanisms. A single JSON Schema cannot enforce a frozen-surface diff. A single validator pass cannot prove no history rewrite. A human review cannot scale to every referential-integrity check. RepoPact assigns enforcement according to logical type.
-
-### 3.5 The derive layer, L4
-
-RepoPact distinguishes source records from derived artifacts. Source records include invariants, policies, work items, evidence, decisions, owner maps, audit findings, and contract registrations. Derived artifacts include dashboards, generated specification blocks, and audit views.
-
-The derive principle is:
+The principle is:
 
 ```text
 derive over declare
 ```
 
-Anything computable from source records should be generated, not hand-maintained. This prevents a common drift class: a dashboard or status page that becomes a second, manually edited source of truth. In the model, derive functions are projections:
+Anything computable from source records should be generated rather than hand-maintained.
+
+For example:
 
 ```text
-π_dashboard(s) -> audits/reports/dashboard.md
-π_spec(s) -> SPEC.md derived blocks
+pi_dashboard(s) -> audits/reports/dashboard.md
+pi_spec(s) -> SPEC.md derived blocks
 ```
 
-A derived artifact is valid only when it matches its projection from the source records. Where enforced, this is a state-fixpoint invariant. RepoPact 2.2.0 makes the dashboard instance explicit in the recognizer:
+Where enforced, a generated artifact is valid only when it matches its canonical projection. This prevents a status page from quietly becoming a second source of truth.
 
-```text
-I_derive_dash(s) = exists(dashboard) and read(dashboard) = π_dashboard(s)
-```
+A generated dashboard still does not prove that every human-authored record describes external reality. It proves that the materialized view matches its source records. Semantic truth remains a separate responsibility.
 
-This separates two questions that an earlier validator conflated: the source ledger
-can be structurally valid while its checked-in materialized view is stale. A missing
-or byte-different dashboard now rejects the repository at any validator checkpoint;
-canonical regeneration is the deterministic repair. CI remains a useful independent
-execution venue, but is no longer the only mechanism capable of detecting dashboard
-drift.
+### 3.7 Adoption boundary, L5, and the concrete-record trilemma
 
-### 3.6 The adoption boundary, L5, and the concrete-record trilemma
+Brownfield projects already have history, issue trackers, planning docs, nested context files, CI workflows, CODEOWNERS, roadmaps, and implicit knowledge. Some state can be reconstructed from the repository. Some cannot.
 
-L5 is where RepoPact meets state it does not yet contain. Brownfield projects already have history, conventions, issue trackers, planning docs, nested context files, CI workflows, CODEOWNERS, roadmap files, and implicit team knowledge. Some of that state can be read from the repository. Some cannot.
+A migration faces three goals:
 
-A migration from a RepoPact-naive project faces three requirements:
+1. **Totality.** It should operate on arbitrary input trees.
+2. **Faithfulness.** It should preserve observed signals without inventing proof or discarding load-bearing information.
+3. **Closure.** Its output should lie in the conformant language.
 
-1. **Totality.** The migration should be defined on arbitrary input trees.
-2. **Faithfulness.** The migration should map existing signals without fabricating proof or discarding load-bearing state.
-3. **Closure.** The migration output should lie in the conformant language.
+In a concrete-only record language, those goals cannot always hold together.
 
-In a concrete-only record language, no migration can satisfy all three.
-
-The reason is structural. Input trees can contain facts that RepoPact would reject if asserted as concrete records. A roadmap may claim work is done but contain no evidence. A nested `AGENTS.md` may name a scope that no owner map establishes. A tracker import may contain cyclic dependencies. A legacy planning file may contain decisions with missing dates, missing rationale, or unknown authority. Forcing such input into a concrete conformant state requires either inventing missing proof, which breaks faithfulness, or discarding the offending signal, which also breaks faithfulness. If the migration keeps the signal faithfully and does not fabricate proof, the output is not closed under a concrete-only language.
+A legacy roadmap may say a task is complete but contain no evidence. A nested contract may name a scope with no owner record. A planning import may contain cyclic dependencies. A historical decision may have missing dates or unknown authority. If migration forces every reconstructed fact to be concrete, it must either invent missing proof or throw away the signal. Both break faithfulness.
 
 This is the **concrete-record adoption trilemma**:
 
 ```text
-total + faithful + closed cannot all hold when every emitted record is concrete
+total + faithful + closed cannot always hold when every emitted record is concrete
 ```
 
-RepoPact 2.0 resolves this by changing the language. It introduces provenance-typed records. A migration can emit records that are valid as `inferred` or `provisional`, not falsely concrete. Such records can preserve what was observed while truthfully labeling the epistemic status of the reconstruction.
+RepoPact resolves the problem by changing the record language. Reconstructed facts can be valid as `inferred` or `provisional`. The migration can preserve what it observed while being honest about what it did not prove.
 
-Under the provenance-aware conformant language `R_p`, adoption can satisfy:
+Under the provenance-aware language, adoption can remain total, faithful, and closed while completion still requires concrete proof.
 
-1. **Totality**, because it can operate on arbitrary input trees.
-2. **Faithfulness**, because it need not discard or fabricate signals.
-3. **Closure**, because reconstructed facts are admitted as reconstructed, not asserted as proven.
+The type system therefore gives the repository a legitimate way to say, "we know this because we reconstructed it," rather than forcing a choice between silence and fabrication.
 
-This does not mean adoption magically knows the true project state. It means the record language can distinguish "known," "reconstructed," "provisional," and "not yet proven." The trilemma is not denied. It is resolved by adding the missing type distinction.
+### 3.8 Action taxonomy
 
-We therefore distinguish two languages:
+RepoPact actions differ in how they interact with conformance.
 
-```text
-R_c = concrete-only conformant language
-R_p = provenance-aware conformant language
-```
+| Class | Examples | Intended property |
+| --- | --- | --- |
+| constructor | `init` | creates a valid governed repository from a clean target |
+| record creation | `new` | creates a valid preflight work item |
+| derive/read | `validate`, `dashboard`, `spec`, `check-frozen` | reads or regenerates projections without silently changing source intent |
+| lifecycle mutation | create, edit, transition | valid when the post-state satisfies the governing invariants |
+| repair | `doctor --fix` | conservative repair toward conformance |
+| migration | `adopt`, `import-plan` | crosses L5 and may emit concrete, inferred, or provisional records |
+| diff-time enforcement | `check-frozen --base` | evaluates two-state protected-surface rules |
 
-In `R_c`, adoption is not closed if it remains total and faithful. In `R_p`, adoption can be closed because inferred and provisional records are valid members of the language, provided they are honestly typed and completion still requires concrete evidence.
-
-This is the central 2.0 model change.
-
-### 3.7 Action taxonomy
-
-RepoPact actions partition by their relationship to conformance.
-
-| Class                 | Actions                                         | Property                                                                                   |
-| --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Constructor           | `init`                                          | creates a valid governed repository from an empty target                                   |
-| Record creation       | `new`                                           | creates a valid preflight work item                                                        |
-| Derive/read           | `validate`, `dashboard`, `spec`, `check-frozen` | reads or regenerates projections without changing source records, except generated outputs |
-| Lifecycle move        | status and directory transition                 | valid when post-state satisfies `I`                                                        |
-| Repair                | `doctor --fix`                                  | conservative repair toward conformance                                                     |
-| Migration             | `adopt`, `import-plan`                          | crosses L5; emits concrete, inferred, or provisional records                               |
-| Diff-time enforcement | `check-frozen --base`                           | checks two-state frozen-surface invariants                                                 |
-
-`doctor` is a repair and ratchet operator. It diagnoses drift and may fix safe classes of invalid state. In 2.0, it also ratchets provisional records to concrete when all required proof is concrete. The intended algebra is conservative and monotone:
-
-```text
-Viol(doctor(s)) ⊆ Viol(s)
-doctor(s) = s if s is already healthy
-doctor does not overwrite differing local source records as if they were disposable
-```
-
-This matters because repair can become fabrication if it silently replaces local intent. RepoPact's repair principle is to make safe additive fixes, remove known-invalid derived or stale registry entries where appropriate, and surface the rest as a worklist.
+`doctor` is intended as a conservative repair and ratchet operator. It should reduce known violations, leave a healthy repository unchanged, and avoid overwriting differing source records as if local intent were disposable.
 
 ## 4. Reference Implementation
 
-RepoPact's reference implementation consists of a CLI, schemas, templates, validator, dashboard generator, frozen-surface checker, adoption/import tools, doctor repair tool, conformance fixtures, and research records.
+The current RepoPact release line is no longer accurately described as only a Python CLI. The architecture has evolved while preserving one important rule: there should be **one semantic authority** for the governance model.
 
-The validator defines the reference semantics. In the reference implementation, `R` is the validator's accept set. For an alternative implementation, recognizer soundness and completeness become testable claims against the conformance suite.
+The current public release is 3.0.2. The implementation includes a canonical Rust semantic engine, a compatibility-oriented Python command surface, a Tauri 2 Workbench, schemas, templates, a conformance suite, migration tools, evidence records, and the research corpus.
 
-### 4.1 CLI surface
+### 4.1 Canonical Rust semantic engine
 
-The public CLI includes:
+RepoPact's recent implementation work moved proven semantic surfaces into a reusable Rust core rather than creating separate implementations for every client.
 
-| Command        | Purpose                                               |
-| -------------- | ----------------------------------------------------- |
-| `init`         | seed a valid RepoPact into a new repository           |
-| `adopt`        | map existing repository signals into RepoPact records |
-| `import-plan`  | import legacy planning or tracker-like material       |
-| `new`          | create preflight work items from templates, as accepted (`active`) or candidate (`--status proposed`) work |
-| `validate`     | validate schema and cross-record semantics            |
-| `dashboard`    | generate dashboard views from source records          |
-| `spec`         | generate or check specification projections           |
-| `check-frozen` | enforce frozen-surface changes against a base         |
-| `doctor`       | diagnose, repair, and migrate drift                   |
+The canonical Rust surfaces include repository discovery and modeling, schema-backed validation, structured diagnostics, dashboard rendering, relationship graphs, deterministic analysis, typed work-item creation, typed work-item editing for proven fields, lifecycle transition, and content-addressed mutation planning and recovery.
 
-RepoPact 2.0 makes preflight mandatory. A work item must exist before implementation begins. Existing repositories are grandfathered through a preflight epoch and `doctor` migration path. This makes the "intent before execution" property visible in the tree.
+The design goal is not "all code must be Rust." It is "one semantic engine." Historical or migration-oriented operations may still live in Python when they have not been moved or proven in Rust, but final repository-validity decisions should converge on the canonical semantic authority rather than allow two implementations to drift silently.
 
-### 4.2 Validation layers
+For compatibility, Python can act as a local client to the Rust engine using a versioned process protocol. Native clients such as the Tauri Workbench can call the same Rust crates directly.
 
-Validation has two layers.
+Conceptually:
 
-First, JSON Schema validates individual record structure. This catches malformed fields, invalid statuses, missing required properties, and type errors.
-
-Second, the semantic validator checks cross-record constraints. This includes referential integrity, status-directory agreement, dependency cycles, evidence links, scope validity, concurrency rules, provenance rules, orphan work directories, and other non-local constraints.
-
-This two-layer design keeps the standard implementable. Schema validation handles local form. Semantic validation handles the language.
-
-### 4.3 Conformance
-
-A standard without conformance is a convention. RepoPact therefore publishes a versioned conformance surface in the repository itself: `CONFORMANCE.md`, the fixture corpus under `conformance/`, the suite manifest at `conformance/manifest.json`, and the runner `repopact/run_conformance.py`.
-
-The suite is organized around a minimal valid RepoPact repository plus invalid overlays. Each case declares the rule or invariant it exercises, the expected accept or reject outcome, and the diagnostic text or rule identity required for rejection. Lifecycle and authority semantics are part of the surface, not just record shape: when the `proposed` state was added, the suite gained both a valid fixture containing a proposed item and a rejection overlay in which active work depends on proposed work. A conformant implementation must reproduce the authority semantics, not merely parse the records. The reference implementation is checked with:
-
-```powershell
-python -m repopact.run_conformance
+```text
+human / agent / automation
+          |
+          +-------------------------+
+          |                         |
+          v                         v
+Python compatibility CLI       Tauri Workbench
+          |                         |
+          v                         |
+versioned local protocol            |
+          |                         |
+          +------------+------------+
+                       v
+              canonical Rust engine
+                       |
+                       v
+repository model, validation, graph,
+analysis, mutation, projection
 ```
 
-Alternative implementations are checked by passing a validator command template to the same runner. The runner materializes each fixture repository and invokes the supplied command against it.
+This architecture matters for governance continuity. The UI and the agent-facing tooling are different interaction surfaces over the same governed state, not separate products with different semantics.
 
-This separates four claims that are easy to collapse in prose:
+### 4.2 CLI surface
+
+The public command surface includes operations such as:
+
+| Command | Purpose |
+| --- | --- |
+| `init` | seed a valid RepoPact into a new repository |
+| `adopt` | map existing repository signals into RepoPact records |
+| `import-plan` | import legacy planning material |
+| `new` | create preflight work items |
+| `validate` | check structural and semantic conformance |
+| `dashboard` | generate dashboard views from source records |
+| `spec` | generate or check specification projections |
+| `check-frozen` | enforce frozen-surface changes against a base |
+| `doctor` | diagnose, repair, and migrate drift |
+
+Mandatory preflight makes intent visible before implementation begins. Existing repositories use migration and grandfathering semantics rather than pretending historical work was preflighted when it was not.
+
+### 4.3 Human operator surface
+
+RepoPact Workbench is a Tauri 2 application that exposes repository governance to a human operator without creating a second source of truth.
+
+The Workbench is not a generic Markdown editor. It is a typed client of the canonical engine. It presents repository state, validation, work lifecycle, decisions, evidence, relationships, analysis, session state, and governed mutations through user-facing views.
+
+This is important because inspectability is not complete if only agents have practical access to the governance controls. Human operators must be able to inspect the same state and exercise the same core authority without needing to ask an agent to mutate repository records on their behalf.
+
+The release standard for the Workbench is therefore **operator control parity for core governance**, not pixel-perfect identity with the CLI. A human should be able to inspect, create, edit, and transition governed work using the same semantic engine that an agent or automation path uses. Remaining UI gaps are treated as release hardening, not as permission for a hidden second implementation.
+
+The current information architecture is adaptive and task-oriented. Work is separated into Proposed, Active, Deferred, and Complete views, with blocked work surfaced explicitly rather than relabeled. Decisions, evidence, validation, graph relationships, analysis, and settings use bounded views rather than long mixed scroll surfaces.
+
+### 4.4 Cross-platform posture
+
+The Workbench shares one Tauri 2 application architecture across desktop and mobile targets.
+
+Current evidence includes:
+
+* Windows installer and application work,
+* Linux `.deb` build, install, launcher integration, and launch validation,
+* Android project initialization, build, installation, and launch on a real target.
+
+macOS and iOS remain intended targets and already share application and asset foundations, but they should not be described as validated until native platform evidence exists.
+
+The cross-platform point is not a marketing checkbox. Governance continuity is more credible when the durable project state can be inspected from different environments without moving authority into one machine-specific local database.
+
+### 4.5 Validation and conformance
+
+Validation has two broad layers.
+
+First, JSON Schema validates individual record structure.
+
+Second, semantic validation checks cross-record rules such as referential integrity, status-directory agreement, dependency cycles, evidence links, scope validity, concurrency rules, provenance, orphan planning content, and derived-artifact consistency.
+
+A standard without conformance is only a convention. RepoPact therefore publishes a versioned conformance surface including `CONFORMANCE.md`, fixture repositories under `conformance/`, the suite manifest, and the conformance runner.
+
+A third-party implementation does not need to copy RepoPact's internal code to claim compatibility. It needs to reproduce the specified accept/reject behavior for the versioned conformance surface.
+
+This separates four claims that are easy to blur:
 
 1. the paper's formal model,
 2. the repository contract,
 3. the machine-checkable conformance corpus,
-4. and the evidence produced by concrete runs.
+4. the evidence produced by concrete runs.
 
-A third-party implementation need not copy the Python validator to claim RepoPact compatibility, but it must accept the conformant fixtures and reject the invalid overlays for the named RepoPact version.
+### 4.6 Proving Ground split
 
-### 4.4 Proving Ground split
+RepoPact defines the governance model, validator semantics, conformance expectations, and research protocols. Runnable adversarial experiments live separately in **RepoPact Proving Ground**.
 
-RepoPact defines the contract language, validator semantics, conformance expectations, and research protocols. The runnable adversarial lab lives separately in **RepoPact Proving Ground**.
-
-The split is deliberate.
-
-RepoPact should not become a benchmark repository that grades itself in-place. It should define what must be measured and how results must be recorded. RepoPact Proving Ground hosts the runnable tasks, fixtures, harnesses, captures, and drift experiments. It consumes RepoPact from PyPI, which means it tests what an adopter receives rather than a local source checkout.
-
-The ecosystem relation is:
+The split is deliberate:
 
 ```text
 RepoPact defines the pact.
-RepoPact Proving Ground tests whether the pact holds under agent pressure.
+RepoPact Proving Ground tests whether the pact holds under pressure.
 ```
+
+The Proving Ground consumes released RepoPact artifacts rather than depending only on the author's source checkout. That distinction matters because a user receives a packaged product, not the development tree.
 
 ## 5. Evaluation Method
 
 The evaluation has two parts.
 
-The first is reflexive and adversarial. It asks whether RepoPact catches the failures it claims to catch on a governed subject. This part is complete for the current reflexive findings register, though it remains open-ended as new falsification cases are added.
+The first is reflexive and adversarial. It asks whether RepoPact catches the failure classes it claims to catch and whether real adoption exposes contradictions in the model.
 
-The second is comparative. It asks whether governing a repository with RepoPact changes agent behavior compared with a fair baseline. This part is pre-registered, and the runnable benchmark infrastructure now exists for key studies, but real cross-model results remain forthcoming.
+The second is comparative. It asks whether RepoPact changes outcomes relative to a fair baseline when model, task, source, and harness are held constant.
 
 ### 5.1 Reflexive adversarial falsification
 
-The reflexive protocol sets hypotheses H1 through H7 and explicit falsification criteria before the runs. The subject under test is RepoPact as distributed: the packaged wheel installed into a clean environment. Testing only the source checkout would test the author's working tree, not the product an adopter receives.
+The reflexive protocol defines hypotheses H1 through H7 and falsification criteria before the relevant runs. The subject under test is the packaged product, not merely the local source tree.
 
-The subject repository is a small but genuinely working project. It adopts RepoPact from the packaged product, creates real work items, links evidence, validates, transitions work, and records decisions. It is then attacked through adversarial cases that attempt to falsify the architecture.
+| Hypothesis | Claim |
+| --- | --- |
+| H1 | an adopter can install the package and reach a valid governed repository |
+| H2 | advertised commands are closed over the initialized repository surface |
+| H3 | completion is evidence-gated |
+| H4 | frozen-surface and invariant authority are binding |
+| H5 | state-integrity violations are rejected |
+| H6 | a reader can recover project state from the tree alone |
+| H7 | brownfield adoption is non-destructive, sound, and honestly typed |
 
-The hypotheses are:
-
-| Hypothesis | Claim                                                                  |
-| ---------- | ---------------------------------------------------------------------- |
-| H1         | an adopter can install the package and reach a valid governed repo     |
-| H2         | advertised commands are closed over the initialized repository surface |
-| H3         | completion is evidence-gated                                           |
-| H4         | frozen-surface and invariant authority are binding                     |
-| H5         | state integrity violations are rejected                                |
-| H6         | a reader can recover project state from the tree alone                 |
-| H7         | brownfield adoption is non-destructive, sound, and honestly typed      |
-
-The falsification criteria are intentionally direct. The architecture is disproven in whole or part if the package cannot bootstrap, a documented command crashes, the validator accepts unproven completion, a protected surface can be changed without acknowledgement, status-directory mismatch is accepted, recovery requires chat history, or brownfield adoption can only work by fabricating or discarding state.
+The falsification criteria are intentionally direct. A documented command crashing, a validator accepting unproven completion, a protected surface changing without the required acknowledgement, status-directory mismatch passing validation, or project recovery requiring missing chat history are not dismissed as cosmetic implementation bugs. They are evidence against the relevant claim.
 
 Every defect is fed back through RepoPact's own machinery: finding, work item, decision, evidence, and validation. This is itself a test of recoverability.
 
-### 5.2 Comparative benchmarks
+### 5.2 Comparative benchmark program
 
-Reflexive falsification shows whether the architecture catches what it claims on one governed subject. It does not show whether RepoPact changes agent behavior relative to an ungoverned or convention-governed repository. The comparative protocol therefore introduces a held-constant design:
+The comparative program uses:
 
 ```text
-condition ∈ {baseline, repopact}
+condition in {baseline, repopact}
 ```
 
-Source, task, model, and harness are held constant. The governance layer varies.
+Source, task, model, and harness are held constant. The governance layer changes.
 
-The pre-registered studies are:
+| Study | Hypothesis | Construct | Primary outputs | Status |
+| --- | --- | --- | --- | --- |
+| S1 | H8 | guarantee-violation detection, PactBench | catch/escalate rate, false-stop rate, confusion matrix | runnable infrastructure present; real results pending |
+| S2 | H9 | cross-session recovery and efficiency | resolution rate, recovery score, tokens, interventions | protocol defined |
+| S3 | H10 | multi-agent coordination | conflict rate, duplicated work, joint success | protocol defined |
+| S4 | H11 | context-token economy | cost-success frontier, scaling curve | protocol defined |
+| S5 | H12 | drift detection and staleness | detection rate, latency, silent-staleness rate | drift harness present; comparative results pending |
+| S6 | H13 | defensive security and injection resistance | defensive catch rate, injected-context-followed rate | tasks scoped; real results pending |
+| S7 | H14 | enforcement closure and longitudinal drift | checkpoint coverage, invocation, effectiveness, nonconformant admission | pre-registered; not yet completed |
 
-| Study | Hypothesis | Construct                                     | Primary outputs                                              | Current status                                                                     |
-| ----- | ---------- | --------------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| S1    | H8         | guarantee-violation detection, PactBench      | confusion matrix, catch/escalate rate, false-stop rate       | protocol defined; runnable artifacts in Proving Ground; real model results pending |
-| S2    | H9         | cross-session recovery and efficiency         | resolution rate, recovery score, tokens, interventions       | protocol defined; results pending                                                  |
-| S3    | H10        | multi-agent coordination                      | conflict rate, duplicated work, joint success                | protocol defined; results pending                                                  |
-| S4    | H11        | context-token economy                         | cost-success Pareto frontier, scaling curve                  | protocol defined; results pending                                                  |
-| S5    | H12        | drift detection and staleness                 | detection rate, latency, silent-staleness rate               | runnable drift harness in Proving Ground; comparative results pending              |
-| S6    | H13        | security enforcement and injection resistance | security catch rate, injection-followed rate, detection rate | tasks included in PactBench scope; real model results pending                      |
-| S7    | H14        | enforcement closure and longitudinal drift    | coverage/invocation/effective-block rates, nonconformant-admission rate, confirmed-discrepancy vs. false-positive counts (kept separate) | pre-registered 2026-08-21 (§6.6); not implemented; no runs performed |
+The current benchmark maturity should be described precisely. The program is pre-registered and partially implemented. Deterministic mock runs validate plumbing, not agent behavior. Cross-model findings should not be claimed until real runs are complete.
 
-The current benchmark maturity states are:
+### 5.3 PactBench
 
-| State             | Meaning                                                                          |
-| ----------------- | -------------------------------------------------------------------------------- |
-| pre-registered    | hypothesis, construct, metrics, and falsification criteria are fixed before runs |
-| implemented       | task files, fixtures, harnesses, or scorers exist                                |
-| selftested        | deterministic plumbing runs validate the harness shape                           |
-| operator-gated    | real model runs require keys, model access, or agent command wiring              |
-| results available | model outputs and scored result bundles exist                                    |
+PactBench measures whether agents silently weaken declared guarantees less often when RepoPact governance is present.
 
-As of this draft, the benchmark program should be described as pre-registered, partially implemented, and operator-gated for real cross-model results. Deterministic mock outputs are plumbing checks, not findings.
+The core task shape is:
 
-### 5.3 PactBench and Proving Ground
-
-PactBench is the first named benchmark suite inside RepoPact Proving Ground. It measures whether agents silently weaken declared guarantees less often when RepoPact governance is present.
-
-The core task pattern is:
-
-1. A repository contains a guarantee.
+1. A repository contains a declared guarantee.
 2. A task creates pressure to take a shortcut.
 3. The shortcut would violate the guarantee.
-4. The correct behavior is to preserve, refuse, escalate, or produce valid evidence.
-5. The scorer records whether the agent silently weakened the guarantee, blocked the weakening, escalated correctly, or false-stopped a legitimate task.
+4. Correct behavior is to preserve, refuse, escalate, or provide valid evidence.
+5. The scorer records silent weakening, correct preservation, escalation, or false stopping.
 
-The current Proving Ground includes:
+The suite includes correctness and security classes, evidence-fabrication pressure, context-injection cases, real fixtures, a model-agnostic harness, deterministic pipeline selftests, a subprocess interface for real agents, and drift experiments.
 
-* pre-registered PactBench tasks,
-* security and correctness classes,
-* adversarial evidence-fabrication and context-injection cases,
-* real fixtures rather than only mocks,
-* a model-agnostic harness,
-* a deterministic mock runner for pipeline selftests,
-* a subprocess real-runner interface for actual agents,
-* an S5 drift harness,
-* and result-bundle expectations.
+## 6. Results to Date
 
-The Proving Ground's role is not to claim results before they exist. Its role is to make the benchmark executable and inspectable before model runs are performed.
+The reflexive findings register currently contains fourteen entries. Severity reflects impact on an adopter rather than implementation effort. "Holds" means one defined adversarial case behaved as intended; it does not mean the system is proven globally safe.
 
-## 6. Results
+| ID | Hypothesis | Severity | Finding | Resolution |
+| --- | --- | --- | --- | --- |
+| F-001 | H2 | major | `spec` crashed on an `init`-fresh repository | fixed and re-verified |
+| F-002 | H4 | minor | `check-frozen` was blind to working-tree edits | fixed and re-verified |
+| F-003 | H3 | holds | satisfied criterion without evidence rejected | n/a |
+| F-004 | H5 | holds | status-directory mismatch rejected | n/a |
+| F-005 | H4 | holds | protected committed change required acknowledgement | n/a |
+| F-006 | H1, H6 | holds | full work item recovered from tree alone | n/a |
+| F-007 | H7 | holds* | real progenitor brownfield adoption was non-destructive | confirmatory only |
+| F-008 | H7 | major | adopter `.gitignore` swallowed governance evidence | fixed with warning and repair guidance |
+| F-009 | H7 | holds | clean-room adoption of an unrelated OSS repository reached conformance | n/a |
+| F-010 | H7 | major | adoption left the real planning ledger outside RepoPact | fixed with `import-plan` |
+| F-011 | H7 | major | an older adopter drifted invalid as the standard evolved | fixed with `doctor` path |
+| F-012 | H7 | holds | full lifecycle worked on a different-domain application | shipped |
+| F-013 | H7 | holds | governance-folder planning migrated without data loss | shipped |
+| F-014 | H6, H7 | holds | downstream adoption exposed a missing authority state and the full resolution trace remained recoverable | shipped |
 
-The reflexive findings register currently holds fourteen entries. Each cites a raw capture; severity reflects impact on an adopter, not effort to fix. "Holds" records an adversarial case the architecture correctly caught, kept as evidence *for* the design rather than discarded as a non-event.
+### 6.1 Failures that changed the design
 
-| ID    | Hypothesis | Severity | Finding                                                                             | Resolution                          |
-| ----- | ---------- | -------- | ----------------------------------------------------------------------------------- | ----------------------------------- |
-| F-001 | H2         | major    | `spec` crashes on an `init`-fresh repository                                        | fixed, re-verified from rebuilt wheel |
-| F-002 | H4         | minor    | `check-frozen` blind to working-tree edits                                          | fixed, re-verified from rebuilt wheel |
-| F-003 | H3         | holds    | satisfied criterion without evidence rejected                                       | n/a                                  |
-| F-004 | H5         | holds    | status–directory mismatch rejected                                                  | n/a                                  |
-| F-005 | H4         | holds    | committed change to protected path requires acknowledgement                         | n/a                                  |
-| F-006 | H1, H6     | holds    | full work item recovered from the tree alone, no chat history                       | n/a                                  |
-| F-007 | H7         | holds*   | brownfield adoption of a real 4569-commit repository, non-destructive               | shipped (*confirmatory only)         |
-| F-008 | H7         | major    | adopter's `.gitignore` silently un-tracks governance records                        | fixed: `adopt` warns                 |
-| F-009 | H7         | holds    | clean-room adoption of an independent OSS repository (pallets/flask)                | n/a                                  |
-| F-010 | H7         | major    | adoption left the work ledger hollow beside the team's real plan tree               | fixed: `import-plan`                 |
-| F-011 | H7         | major    | older adopter drifted invalid as the standard evolved, undetected                   | fixed: `doctor`                      |
-| F-012 | H7         | holds    | full lifecycle on an independent different-domain application                       | shipped                              |
-| F-013 | H7         | holds    | governance-folder planning migrated and legacy tree retired without data loss       | shipped                              |
-| F-014 | H6, H7     | holds    | downstream adoption exposed a missing authority state; full resolution trace recovered | shipped in 2.1.0                   |
+Several defects were useful because they broke assumptions rather than merely breaking code.
 
-### 6.1 What cracked
+**F-001, surface closure.** A documented command crashed on an `init`-fresh repository because it expected a specification file bootstrap had not created. This contradicted H2. The command was corrected and the behavior re-verified from a rebuilt package.
 
-Two early defects partially falsified hypotheses and were fixed.
+**F-002, working-tree protection gap.** The frozen-surface checker originally evaluated committed ranges but could miss an uncommitted local edit. That weakened the practical meaning of local preflight. The checker was changed so protected working-tree edits are visible before commit.
 
-**F-001, surface closure.** A documented command crashed on an `init`-fresh repository because it expected a specification file that bootstrap did not seed. This violated H2: the advertised surface was not closed over the tool's own initialized output. The fix made the command fail cleanly with guidance, and the decision was recorded.
+**F-008, the swallowed record.** A brownfield repository's existing `.gitignore` rule matched `evidence/runs/`. The repository could validate on the author's disk while a clean clone lost the ignored evidence. This is exactly the kind of failure repository-native governance is supposed to make hard to hide. Adoption now checks whether generated records are ignored and surfaces actionable warnings.
 
-**F-002, frozen-surface working-tree gap.** The frozen-surface checker originally diffed only committed ranges. A working-tree edit to a protected file could therefore produce a false "all clear" before commit. This violated the spirit of H4 for local preflight. The fix unioned committed ranges with uncommitted changes, so local edits are caught while CI still evaluates the branch's commits.
+**F-010, the hollow ledger.** Adoption could produce a structurally valid RepoPact tree while the team's real planning still lived in a legacy plan directory. The result was formally governed but practically misleading. This motivated `import-plan`, which brings legacy planning into the governed work ledger without inventing evidence.
 
-Three further majors emerged only under real brownfield adoption, which is why the evaluation insists on real repositories rather than synthetic fixtures alone.
+**F-011, longitudinal drift.** An older adopter fell out of conformance as the standard evolved. Validation could detect the problem when invoked, but the adopter had no guided repair path. This motivated `doctor` as an upgrade and repair mechanism.
 
-**F-008, the swallowed record.** An adopter's pre-existing `.gitignore` rule (`runs/`, intended for runtime data) silently matched RepoPact's `evidence/runs/*.json`. The repository validated on the author's disk and would have failed on any fresh clone or in CI, where the ignored evidence is absent. This is the most dangerous failure shape: green locally, broken for everyone else. `adopt` now runs `git check-ignore` on every record it writes and warns with suggested negations.
-
-**F-010, the hollow ledger.** Adoption produced a valid governed repository whose `work/` held one bootstrap item while the team's roughly seventy-five real plan items stayed in a legacy `todos/` tree. Nothing was invalid, but the ledger did not reflect the project, splitting planning across two trees. This motivated `import-plan`: legacy plan directories and checklist files import into `work/` by lifecycle, non-destructively and idempotently, with completed items marked `waived` rather than backed by fabricated evidence.
-
-**F-011, longitudinal upgrade drift.** An older adopter drifted invalid as the standard evolved — stale registry paths, a missing root contract — and nothing detected or guided the upgrade. Validation catches drift when it runs, but an adopter who has no reason to re-run it gets no signal. This motivated `doctor` as a diagnose, repair, and migrate path, proven against the drifted repository itself.
-
-These failures are important because they demonstrate that the evaluation was capable of cracking the architecture, and that some failure classes are only reachable through real adoption. None was hidden as implementation noise. Each was recorded as a finding, repaired, and re-verified.
+These failures matter because they show that the evaluation can change the architecture. They were not edited out of the story once fixed.
 
 ### 6.2 What held
 
-Several adversarial cases were correctly caught.
+Several adversarial cases behaved as intended.
 
-A criterion marked satisfied without evidence was rejected. A work item whose declared status disagreed with its directory was rejected. A committed change to a protected path required explicit acknowledgement. A reader was able to reconstruct a work item, its intent, decision context, and proof from the tree alone without chat history.
+A satisfied criterion without evidence was rejected. Status-directory mismatch was rejected. Protected changes required acknowledgement. A reader could reconstruct work intent, decision context, and proof from the tree without relying on chat history.
 
-These are not proofs of global soundness. They are evidence that the stated mechanisms work for the tested classes. RepoPact treats "holds" as absence of failure under a defined adversarial case, not as proof that no bypass exists.
+These are bounded results. They support the tested mechanisms for the tested cases. They do not prove there is no bypass.
 
-### 6.3 Brownfield adoption and the 2.0 shift
+### 6.3 Brownfield adoption and provenance
 
-Brownfield adoption converted real projects into RepoPact-governed repositories non-destructively, mapping nested contracts, CODEOWNERS scopes, CI workflows, work ledgers, decisions, and existing planning signals where available.
+Brownfield adoption has been exercised against projects with different levels of independence and complexity. The progenitor repository is useful but confirmatory because RepoPact was distilled from the practices it already used. An unrelated open-source repository provided a cleaner sparse-signal adoption case. Different-domain applications exercised adoption, planning import, repair, and lifecycle behavior.
 
-The adoption evidence spans four subjects of increasing independence. The progenitor repository — 4569 commits, nineteen nested `AGENTS.md` contracts, seven CODEOWNERS-derived scopes, four CI workflows mapped to binding gates — adopted conformantly and non-destructively, but is confirmatory only: RepoPact was distilled from its practices, so it cannot witness generality (F-007, and threat T1). A clean-room open-source repository with no RepoPact lineage (pallets/flask) reached a conformant state through the sparse-signals path, the first independent datum (F-009). An independent application in a different domain and stack exercised the full lifecycle — adopt, plan import, doctor — end to end (F-012). And a governance-folder planning tree was migrated into the ledger with the legacy method retired by `takeover` without losing un-captured data (F-013).
+The main theoretical shift came from realizing that brownfield reconstruction should not force uncertain state to masquerade as fact. Provenance typing allows the repository to preserve useful reconstructed state while keeping completion strict.
 
-As of the RepoPact 2.2.0 rollout, every inventoried public adopter default branch is
-current: ForgeLink, SkillForge Academy, ForgeWire, RepoPact Proving Ground, and the
-vendored-tooling Moto One Hyper ROM Lab. Each regenerated its dashboard and passed its
-repository-native governance gate; the rollout record preserves the differing package
-and vendored consumption models rather than treating them as identical.
+This distinction is also useful for agents. A system that accepts only "known" or "missing" invites fabrication under pressure. A system with explicit `inferred` and `provisional` types gives a worker an honest third option.
 
-The early adoption framing treated the concrete-record trilemma as a hard boundary. If a legacy project contained a done item with no evidence, adoption could preserve faithfulness only by relaxing closure and reporting the residue as a worklist. That was the correct model before provenance typing.
+### 6.4 Authority typing under adoption pressure
 
-RepoPact 2.0 changes the model. Adoption can now emit provisional and inferred records. This allows the migration to remain honest without forcing false concrete proof. A reconstructed adoption work item can be valid as provisional. Inferred evidence can state that it was reconstructed from a scan rather than directly proven. `doctor` can later ratchet records to concrete when the required evidence exists.
+The `proposed` lifecycle state was introduced because real usage exposed a missing authority type. Candidate work deserved durable capture but was not yet accepted for implementation.
 
-This is not cosmetic. It turns the adoption result from "valid only after residue is resolved" into "valid with epistemic status preserved," where completion and concrete claims remain strict.
+Without `proposed`, every available mapping was dishonest in a different way. `active` granted authority too early. `blocked` implied an external impediment. `deferred` implied prior acceptance.
 
-A prior adopter also revealed longitudinal upgrade drift: the standard evolved and the older adopted repository drifted invalid without automatic guidance. This became a finding and motivated `doctor` as an upgrade and repair path. The limitation remains important. RepoPact detects many drift classes at validation or CI boundaries, but not every longitudinal drift class is auto-detected before a check is run.
+The system grew a type rather than tolerating ambiguity.
 
-### 6.4 Standard evolution under adoption pressure
+This mirrors the provenance lesson. Provenance types prevent a record from claiming more certainty than it has. The `proposed` state prevents a work item from claiming more authority than it has.
 
-The `proposed` lifecycle state is itself a result, not merely a feature (F-014,
-capture 013). A downstream public adopter surfaced candidate work that deserved durable
-capture but had not been accepted or authorized. The four-state lifecycle offered no
-honest mapping: every available state either overstated authority or misstated intent.
-The gap was resolved the way the pact requires — decision 0023, work item 025, a schema
-change, CLI support, semantic validation, and conformance fixtures for both the valid and
-forbidden configurations — and released in 2.1.0 under decision 0024. The dependency rule
-(authorized work may not depend on proposed work) entered the invariant monitor rather
-than remaining prose.
+### 6.5 Enforcement closure field case
 
-This matters for two reasons. First, it is external pressure: the defect was found by an adopter that is not the progenitor, in ordinary use rather than in a designed adversarial case. Second, it exercises the meta-claim. RepoPact argues that governance state must evolve through typed, recorded, machine-checked channels; the standard's own evolution followed exactly that channel, and a reader can recover the entire episode — motivation, decision, semantics, enforcement — from the tree.
+A naturalistic field observation in ForgeWire exposed another important boundary. RepoPact validation had accumulated a substantial reported error count while the project's ordinary tests stayed green because the governance validator was not consistently invoked in the workflow path that mattered.
 
-### 6.5 Benchmark infrastructure status
+The raw count was not itself a clean measure of governance drift. Investigation showed that a significant portion came from a version-specific validator defect involving local worktree scanning, while the remainder were confirmed governance discrepancies. The two classes are preserved separately in the findings rather than combined into one dramatic number.
 
-Comparative model results are forthcoming. The benchmark suite is no longer merely a plan, however. The ecosystem now separates protocol from execution.
+The case supports several narrower conclusions.
 
-RepoPact's `research/` directory defines the protocol, hypotheses, metrics, falsification criteria, and threats to validity. RepoPact Proving Ground hosts runnable benchmark artifacts. PactBench, the guarantee-violation suite, is implemented there with pre-registered tasks, fixtures, harnesses, and a real-runner interface. The S5 drift harness is also implemented there. Deterministic selftests validate pipeline structure but do not constitute agent-behavior findings.
+First, when invoked, RepoPact detected governance discrepancies that ordinary project tests did not reveal.
 
-The paper will be updated with:
+Second, adoption plus a correct validator does not guarantee that the validator is exercised at the boundaries where admission happens.
 
-* S1 PactBench confusion matrices,
-* S5 drift detection and staleness results,
-* S6 security and injection-resistance results,
-* S4 token-economy scaling curves,
-* S2 recovery and efficiency numbers,
-* and S3 multi-agent coordination measurements,
+Third, deployment needs three distinct properties:
 
-only after real runs are complete across the stated model families.
+* **checkpoint coverage**, whether an admission path routes through the checker;
+* **checkpoint invocation**, whether the checker actually runs for a candidate;
+* **checkpoint effectiveness**, whether a rejecting result prevents promotion.
 
-### 6.6 A naturalistic longitudinal field case: enforcement closure
-
-Distinct from both the reflexive falsification protocol (§5.1) and the
-pre-registered comparative program (§5.2, §6.5), one further evidentiary
-source is reported here: an **endogenous longitudinal naturalistic field
-case**, not a controlled experiment and not offered as causal proof. Over
-an extended period of ordinary, real engineering work on ForgeWire —
-RepoPact's progenitor repository (§6.3's confirmatory-not-independent
-caveat applies in full here too) — `repopact validate` accumulated a
-reported repository-level error count in the hundreds while the project's
-own test suite stayed green throughout, because no checkpoint in ForgeWire's
-ordinary commit/CI loop invoked the validator. A deliberate, self-motivated
-intervention, designed only after this state was observed (not
-pre-registered, not blind, not causally isolated from the observation that
-prompted it), reconciled the reported count to zero and wired a canonical
-local runner into the project's ordinary workflow. Independently, RepoPact's
-own repository — also ForgeWireLabs-controlled — was found, during the same
-period, to exhibit a structurally related but mechanistically distinct gap:
-its `main` branch has no required merge gate and its own governance-
-validation workflow has been failing on every push due to an account-level
-CI billing lock (work item 032, decision 0031, both open as of this
-writing). Full evidence, method, and a maintainer review pass are recorded
-in `research/case-studies/2026-08-forgewire-wi230-wi237-enforcement-closure/`.
-
-**What is and is not claimed.** The reported error count itself is not a
-clean "governance drift" figure: independent investigation traced roughly
-two-thirds of it to a version-specific validator defect (a raw filesystem
-walk scanning local scratch `git worktree` checkouts as governed content),
-already fixed upstream before the incident but unreceived because the
-adopter's package pin had not been updated — not a confirmed discrepancy in
-any governed record. The remainder were confirmed, individually repaired
-governance discrepancies. Both figures are reported in `findings.md` (F-015,
-F-016) and the case study rather than a single undifferentiated number.
-
-The conclusions this case supports, stated at the precision the evidence
-warrants:
-
-**A.** When invoked, RepoPact's validator detected real governance
-discrepancies that the project's own automated test suite did not reveal
-and gave no signal about — direct evidence for the value of the mechanism
-when exercised.
-
-**B.** Adoption together with an executable, correct validator does not, by
-itself, establish that the validator is exercised at the boundaries that
-matter. A repository can be fully RepoPact-governed in the L0 sense (§3.1)
-and still accumulate unreconciled reported drift for an extended period if
-nothing in its ordinary workflow invokes the checkpoint.
-
-**C.** The case motivates separating three properties of a governed
-admission boundary that this paper's model had not previously distinguished:
-**checkpoint coverage** (an admission path routes through the checker at
-all), **checkpoint invocation** (the checker executes for a given
-candidate), and **checkpoint effectiveness** (a rejecting result actually
-prevents the promotion). Formalized in `formal-model.md` §7 as **enforcement
-closure**, `EC(A) = ∀τ∈A. Cov(τ)∧Inv(τ)∧Eff(τ)`, and clarified there as a
-deployment precondition that T5 (monitor non-bypass) presupposes rather than
-establishes — T5 itself is unchanged and not falsified by this observation.
-
-**D.** The current H12/S5 drift-detection program measures *detection
-efficacy conditional on invocation* — how well a validator that does run
-catches a given mutation — substantially better than it measures invocation
-absence or accumulated divergence under an extended zero-invocation window.
-This is a scoping clarification, recorded as a dated protocol amendment
-(`protocol.md`, `benchmark-protocol.md`), not a retraction: H12's original
-falsification criteria and F-011's honest disclosure of RepoPact's own
-longitudinal-drift blind spot stand as originally stated.
-
-**E.** This naturalistic case motivates a new, prospective, falsifiable
-hypothesis — **H14, enforcement closure** — and a corresponding
-pre-registered comparative study, **S7** (§5.2, Appendix C). It does **not**
-itself confirm H14. Treating a naturalistic, post-hoc observation as
-confirmation of the hypothesis it motivated would be exactly the kind of
-retroactive validation this paper's own evaluation discipline (§5, T1, T5)
-is designed to prevent. H14 remains untested pending S7.
-
-**F.** The one derive-layer invariant already moved fully into the one-tree
-validator — `I_derive_dash`, the dashboard fixpoint introduced in 2.2.0
-(§3.5) — received strong positive field evidence in this same case: every
-dashboard-staleness check exercised, local and CI-independent, caught
-staleness correctly. This is reported as direct support for that specific
-design choice, not for the architecture's coverage in general.
+These properties motivate **enforcement closure** and H14. The field observation motivated the hypothesis. It does not confirm it. S7 remains the prospective test.
 
 ## 7. Discussion
 
-### 7.1 Why repository-native governance
+### 7.1 The repository as the common governed substrate
 
-RepoPact's wager is that the repository is the correct substrate for load-bearing agent work state. The repository is not the only memory a project has, but it is the memory that future work must be able to inspect. It is already shared, replicated, reviewed, diffed, branched, and checked. It already carries authority through pull requests, branch protection, CI, owners, and history.
+RepoPact's strongest practical property is not that it stores more files. It is that the same durable state is available to different legitimate workers.
 
-Putting governance state in the repository creates ceremony. The claim is not that ceremony is free or always worth it. The claim is that ceremony is justified when guarantees are load-bearing and work is delegated to fast, literal, forgetful agents. If a failure would be cheap, local, and reversible, an instruction file may be enough. If a failure would silently weaken an invariant future work relies on, a stronger contract is warranted.
+A human can inspect a work item in the Workbench. An agent can inspect the same work item from the tree. Automation can validate the same acceptance criteria. A clean clone can reconstruct the same decision and evidence links. None of those clients should need a private hidden database to understand what the project believes is true.
 
-### 7.2 Enforcement without pretending total automation
+That is the core of governance continuity.
 
-RepoPact does not claim every invariant can be fully machine-enforced. The typed enforcement lattice is a restraint mechanism. It distinguishes what is decidable from one tree, what requires a diff, what requires history, and what still requires human judgment.
+The repository becomes the meeting point between humans and agents because it survives both sides. Humans change jobs, machines fail, models change, subscriptions change, sessions expire, and context windows reset. The repository remains.
 
-This matters for credibility. A governance system that claims total automation over semantic project intent is likely overstating. RepoPact instead says:
+This does not make Git magical. It simply uses a substrate software engineering already knows how to replicate, review, diff, and audit.
 
-* some invariants are machine-checkable now,
-* some are diff-time properties,
-* some are human-reviewed,
-* some are open proof obligations,
-* and the record should say which is which.
+### 7.2 Human operator control is part of inspectability
 
-The benefit is not perfect enforcement. The benefit is explicit enforcement boundaries.
+A governance system is incomplete if humans can technically inspect the files but must ask an agent to perform ordinary governance actions for them.
 
-### 7.3 The provenance lesson
+RepoPact Workbench is therefore not just presentation polish. It is the human operator surface of the same semantic system. Creating, editing, transitioning, validating, and understanding governed work must be available to humans without weakening the model or creating a separate UI-owned truth.
 
-The adoption trilemma is one of RepoPact's strongest theoretical contributions because it explains a real brownfield problem. Legacy projects contain useful but messy signals. Treating every migrated statement as concrete proof is dishonest. Refusing to migrate until everything is proven blocks adoption. Dropping uncertain facts loses memory.
+This is why UI parity is a release concern. A missing button is not always cosmetic if the missing action forces the human operator to leave the governed interaction model or delegate authority merely to compensate for an incomplete client.
 
-Provenance typing is the middle path. It lets the repository hold reconstructed state without lying about it. A provisional record can be useful. An inferred record can be valid. A concrete completion claim still requires proof.
+At the same time, parity should be defined semantically. The Workbench does not need to reproduce every CLI command literally. It needs to expose the core governance capabilities a human operator requires while preserving the same underlying authority and validation rules.
 
-This is directly relevant to agent systems. Agents often operate over partial context. A durable governance kernel should not force them to choose between silence and fabrication. It should give them a type for uncertainty.
+### 7.3 Why repository-native governance
 
-The `proposed` lifecycle state is the same lesson applied to authority rather than proof. Before it existed, candidate work had to be either omitted from the ledger or asserted as accepted. Provenance typing says: do not force a record to claim more proof than it has. The proposed state says: do not force a record to claim more authority than it has. In both cases the kernel grew a type instead of tolerating a lie, and in both cases the pressure came from real adoption rather than from theory.
+Repository-native governance creates ceremony. The claim is not that ceremony is free or appropriate everywhere.
 
-### 7.4 The L5 boundary remains real
+It is most justified when:
 
-RepoPact governs what crosses into the repository. It cannot govern what remains outside. Much of a project's real memory may still live in issue trackers, external documents, private chats, model transcripts, or human heads. Adoption can only reconstruct from reachable signals.
-
-RepoPact 2.0 resolves the concrete-record trilemma for migrated records, but it does not solve omniscience. External ingestion remains future work. A tracker export, design document, or external roadmap must become a first-class evidence-bearing record before RepoPact can govern it directly. Until then, the correct behavior is to state the gap, not fabricate closure.
-
-### 7.5 How RepoPact composes with runtime governance
-
-RepoPact is not a sandbox, not an authorization server, not an LLM firewall, and not a runtime agent orchestrator. It composes with those systems. Runtime controls protect live actions. RepoPact protects durable project state.
-
-A secure agentic development stack likely needs both. Runtime controls can stop dangerous tool use. RepoPact can stop or surface silent weakening of repository guarantees. Runtime audit logs can show what an agent did. RepoPact records whether the resulting work respected the contract.
-
-### 7.6 When RepoPact is not the right tool
-
-RepoPact is overkill for throwaway experiments, one-off scripts, private scratch work, or low-risk projects where the cost of governance exceeds the cost of repair. It is most appropriate when:
-
-* multiple sessions or agents will touch the same work,
+* multiple humans or agents will touch the same work,
 * project guarantees must survive context loss,
 * authority boundaries matter,
-* work completion must be evidence-backed,
-* adoption or migration must be honest about uncertainty,
-* and a future human or agent must reconstruct state from the repository alone.
+* completion must be evidence-backed,
+* uncertainty must be represented honestly,
+* and future workers must be able to recover state from the repository alone.
 
-When those conditions do not hold, an instruction file and tests may be enough.
+For a throwaway script or low-risk experiment, this may be unnecessary. For long-lived agentic engineering, the cost-benefit calculation changes because high-speed workers can also create high-speed drift.
+
+### 7.4 Enforcement without pretending total automation
+
+RepoPact does not claim every invariant can be fully automated. The typed enforcement lattice is partly a restraint mechanism.
+
+Some rules are decidable from one tree. Some require a diff. Some require history. Some still require human judgment. The system should say which category a guarantee belongs to rather than imply that a JSON schema somehow proves semantic intent.
+
+The benefit is not perfect automation. It is explicit enforcement boundaries and durable evidence about what was actually checked.
+
+### 7.5 Provenance and authority are both type problems
+
+Two of RepoPact's most useful changes came from refusing to force messy reality into dishonest binary states.
+
+Provenance typing says a reconstructed fact can be useful without being concrete proof.
+
+The proposed lifecycle state says captured work can be useful without being implementation authority.
+
+Both changes follow the same rule: when the system repeatedly has to lie to fit reality into the schema, the schema is missing a type.
+
+### 7.6 The L5 boundary remains real
+
+RepoPact only governs what crosses into the repository. It cannot recover a decision that was never written down, a private conversation it never received, or intent that exists only in someone's head.
+
+This limitation should remain explicit. Governance continuity is a property of represented state, not omniscience.
+
+Future integrations with trackers, design systems, and external planning sources should therefore preserve provenance and authority rather than pretending ingestion turns every external statement into fact.
+
+### 7.7 Relationship to runtime governance
+
+RepoPact is not a sandbox, authorization server, agent firewall, or distributed execution system.
+
+A secure agentic engineering stack likely needs both runtime and repository governance. Runtime controls limit what can happen now. Repository governance limits what can be accepted as durable project state later.
+
+The distinction is useful because the two failure modes are different. A runtime may safely execute a command that still produces a governance-invalid change. A repository may remain perfectly conformant while a live tool call violates a runtime security boundary. One system should not pretend to replace the other.
 
 ## 8. Threats to Validity
 
 ### T1: Reflexivity
 
-RepoPact was distilled from real practices in the author's agentic development workflow. That is a strength for relevance but a threat to generality. A project adopting the system that it helped inspire is confirmatory, not independent. Mitigation requires unrelated repositories, different domains, and third-party reproduction. The enforcement-closure field observation (§6.6) is a second instance of the same threat, not a mitigation of it: it was found in ForgeWire (the progenitor) and independently in RepoPact's own repository — both ForgeWireLabs-controlled. It is reported as motivating evidence for a new prospective hypothesis (H14), not as independent confirmation.
+RepoPact was distilled from the author's own agentic engineering practices. That gives it practical relevance but threatens generality. ForgeWire, the progenitor adopter, is confirmatory rather than independent. RepoPact's own repository is also ForgeWire Labs controlled.
+
+Unrelated repositories, different domains, outside operators, and third-party reproduction are necessary before broad generality claims are warranted.
 
 ### T2: Single evaluator and operator effects
 
-Early evidence comes from one operator and a small number of agent workflows. The process may reflect the operator's habits, model choices, and tolerance for ceremony. Raw captures, exact commands, and public artifacts reduce but do not remove this threat.
+Much of the early evidence comes from one primary human operator working with several AI systems. The process may reflect that operator's habits, technical judgment, model choices, and tolerance for governance ceremony.
+
+Exact commands, public artifacts, evidence records, and falsification criteria improve inspectability but do not remove this threat.
 
 ### T3: Scale and domain narrowness
 
-The greenfield proving subject is intentionally small. Some brownfield subjects are larger, but the evaluation is not yet representative of large organizations, monorepos, regulated environments, or many-agent teams. The comparative studies are designed to broaden this, but results remain pending.
+Current evidence is not representative of every enterprise, regulated environment, monorepo, or many-agent team. Some adoption subjects are substantial, but organization-scale claims require broader evidence.
 
 ### T4: Holds are not proofs
 
-A caught adversarial case shows that one attack was caught. It does not prove all variants are caught. RepoPact's evidence should be read as falsification-oriented engineering evidence, not mathematical proof of comprehensive safety.
+Catching one adversarial case proves only that the tested case was caught under the tested conditions. It does not establish universal safety.
 
 ### T5: Benchmark curation
 
-PactBench and related suites could overfit to RepoPact's strengths. Pre-registration mitigates this by fixing task ids and expected outcomes before real runs. Fair baselines and disconfirming-result reporting are required.
+PactBench could overfit to RepoPact's strengths. Pre-registration, fair baselines, frozen task identities, and publication of disconfirming results are necessary mitigations.
 
 ### T6: Baseline fairness
 
-A weak baseline would exaggerate RepoPact's value. The baseline must include reasonable convention files and, where appropriate, convention-plus-RAG regimes. Ceremony cost must count against RepoPact.
+A deliberately weak baseline would exaggerate RepoPact's value. Comparative studies should include realistic convention files and, where appropriate, external-memory or retrieval support. Governance ceremony must count as cost.
 
 ### T7: Token and cost measurement
 
-Token-economy claims are sensitive to tokenizer, model, provider pricing, caching, retrieval setup, and prompt construction. The S4 study must report raw tokens, cache-adjusted tokens, context tokens versus task tokens, requests per task, and cost per resolved task.
+Token-economy claims depend on model, tokenizer, provider pricing, caching, prompt construction, and retrieval behavior. Raw and adjusted measurements should be reported rather than reduced to one headline number.
 
 ### T8: Drift and security realism
 
-Synthetic drift and security tasks may not reflect real projects. Security tasks must remain defensive and sandboxed, with no live targets or exploit development. RepoPact's own records must be evaluated as an attack surface. The claim is improved integrity, not immunity.
+Synthetic drift and defensive-security tasks may not reflect real projects. Security work must remain benign and sandboxed. RepoPact's own records must also be treated as an attack surface.
 
 ### T9: Provenance misuse
 
-Provenance typing can be misunderstood. If users treat inferred or provisional records as equivalent to concrete proof, the type system loses its value. RepoPact must enforce completion restrictions and make non-concrete status visible in dashboards and review flows.
+If users treat `inferred` or `provisional` records as equivalent to concrete proof, provenance typing loses its value. Completion restrictions and UI visibility are therefore part of the model, not merely presentation.
 
-### T10: Standard versus implementation coupling
+### T10: Standard and implementation coupling
 
-The reference validator defines RepoPact's current semantics. This is practical but risks coupling the standard too tightly to one implementation. The conformance suite mitigates this by giving alternative implementations a runnable target.
+The canonical implementation currently defines a large part of the operational semantics. The conformance suite mitigates this by giving alternate implementations an observable target, but the standard must continue to resist accidental dependence on private implementation details.
+
+### T11: Workbench maturity
+
+The existence of a polished-looking UI can create a false impression that every governance capability has reached operator parity. UI claims must distinguish between implemented, wired, validated, and merely planned controls. Missing operator controls should remain visible as release work rather than being hidden by overall visual quality.
 
 ## 9. Conclusion and Future Work
 
-The session-amnesia and silent-weakening problems are memory and authority problems. Coding agents do not merely need more context. They need a durable contract that records what matters, who has authority, what evidence proves completion, what invariants must not be weakened, and what uncertainty remains.
+Agentic software engineering does not only have a context problem. It has a continuity problem.
 
-RepoPact turns the version-controlled repository into that contract. It models agentic work as a six-layer governance kernel over typed records, lifecycle state, invariant monitoring, enforcement tiers, derived artifacts, and adoption boundaries. Its central primitive is the binding invariant, the guarantee an agent must not silently weaken.
+Code can survive a session while the governing state around that code disappears. The next worker may receive the files but not the intent, authority, evidence, decisions, provenance, or invariants that made the previous work legitimate.
 
-The formal model shows why enforcement cannot be treated as one mechanism. State invariants, transition invariants, temporal invariants, relational invariants, and meta-coverage claims require different enforcers. It also shows why brownfield adoption is difficult. In a concrete-only record language, total, faithful, and closed migration cannot all hold. RepoPact 2.0 resolves that by adding provenance-typed records. Reconstructed state can be valid without pretending to be proven, while completed work still requires concrete evidence.
+RepoPact addresses that problem by making the version-controlled repository carry a typed governance layer. A fresh human or agent can clone the project and recover not only source code, but the governed state needed to understand what work exists, what is authorized, what must not be weakened, what has been proven, and what remains uncertain.
 
-The evaluation so far is reflexive, adversarial, and honest about defects. Some failures cracked the architecture and were fixed. Some adversarial cases held. Comparative value claims remain forthcoming, but the benchmark infrastructure has moved from plan to runnable public artifacts in RepoPact Proving Ground. A naturalistic longitudinal field case (§6.6) additionally surfaced that adoption plus an executable, correct validator does not by itself establish that the validator is exercised where it matters — motivating a new admission-boundary property, enforcement closure (`formal-model.md` §7), and a prospective hypothesis (H14) this paper does not claim is yet confirmed.
+This paper calls that property **governance continuity**.
+
+RepoPact models the repository as a six-layer governance kernel with typed records, lifecycle authority, invariant monitoring, a typed enforcement lattice, derived views, and an adoption boundary. Its central primitive is the binding invariant. Its provenance types let reconstructed state remain useful without pretending to be proven. Its lifecycle types let candidate work remain visible without pretending to be authorized.
+
+The implementation has also moved toward the architectural implication of the model: one semantic authority, multiple legitimate interaction surfaces. The canonical Rust engine supports agent, CLI, automation, and Tauri Workbench clients without requiring each client to invent its own governance semantics. Human operator control and agent interoperability therefore become two views of the same repository state rather than separate systems.
+
+The evaluation so far is intentionally incomplete. Real failures have changed the design. Real cases have held. Comparative model results are still pending. The enforcement-closure field observation motivated a new hypothesis rather than being retroactively treated as proof.
 
 Future work includes:
 
-1. running PactBench across multiple model families,
-2. completing S5 drift and S6 security comparative results,
-3. measuring S4 context-token economy against realistic baselines,
-4. testing S2 recovery on long-horizon software evolution tasks,
-5. testing S3 multi-agent coordination,
-6. mechanizing temporal invariants over git history,
-7. developing a refinement order for nested contracts,
-8. expanding external ingestion across trackers and design documents,
-9. hardening provenance review and ratcheting flows,
-10. inviting third-party conformance implementations,
-11. and running S7 to test H14 (enforcement closure) under controlled, pre-registered conditions — including, per T1, at least one deployment outside ForgeWireLabs' own repositories.
+1. completing real PactBench runs across multiple model families;
+2. completing comparative drift, recovery, coordination, security, and token-economy studies;
+3. running the pre-registered enforcement-closure study outside ForgeWire Labs controlled repositories;
+4. obtaining genuine third-party reproduction and adoption evidence;
+5. finishing human operator control parity across the Workbench's core governance lifecycle;
+6. validating macOS and iOS platform behavior before claiming support;
+7. expanding external ingestion while preserving provenance and authority;
+8. mechanizing more temporal and relational invariants;
+9. hardening repair and provenance-ratcheting semantics;
+10. encouraging independent conformance implementations.
 
-The repository is already the substrate software engineering trusts. RepoPact's claim is that it can also be the operating system for durable agentic work.
+The repository is already the artifact software engineering expects every worker to share. RepoPact's claim is that the same artifact can also carry the durable governance needed for humans and agents to continue each other's work without starting over.
 
 ## Ethics and Responsible Disclosure
 
-The security components of the evaluation are defensive and benign by construction. Tasks are sandboxed and synthetic. They involve no live targets, no credential theft, no exploit deployment, and no instructions for real-world compromise. Security-invariant tasks focus on whether agents preserve or weaken defensive controls such as authorization checks, secret handling, input validation, and protected surfaces.
+The security portions of the evaluation are defensive and benign by design. Tasks are synthetic or sandboxed. They involve no live targets, credential theft, exploit deployment, or instructions for real-world compromise.
 
-Injection tasks treat both convention files and RepoPact records as trusted text surfaces. RepoPact makes no immunity claim. Its defense is integrity structure: frozen surfaces, evidence validation, provenance typing, escalation paths, and reviewable records. Unsafe or disconfirming behavior is part of the evaluation and should be reported as such.
+Security-invariant tasks focus on whether agents preserve defensive controls such as authorization checks, secret handling, input validation, evidence integrity, and protected surfaces.
 
-Defects found in RepoPact are recorded openly as findings rather than quietly patched. The evaluation involves no human subjects. Agent runs should respect model-provider terms and should preserve raw captures without exposing secrets.
+Injection tasks treat both convention files and RepoPact records as potentially hostile text surfaces. RepoPact makes no immunity claim. Its defenses are structural: provenance, frozen surfaces, evidence validation, explicit escalation, and reviewable records.
+
+Defects should be recorded openly rather than quietly patched out of the evaluation history. Agent runs should respect model-provider terms and preserve raw captures without exposing secrets.
 
 ## Data and Artifact Availability
 
-RepoPact is open source under Apache-2.0. The formal model, experiment protocol, comparative benchmark protocol, threats register, findings register, current paper, and related research records live in RepoPact's public `research/` directory.
+RepoPact is open source under Apache-2.0. The formal model, experiment protocol, benchmark protocol, threats register, findings register, current paper, conformance suite, and related research records live in the public RepoPact repository.
 
-The runnable benchmark artifacts live in RepoPact Proving Ground. This includes PactBench task sets, fixtures, harnesses, deterministic mock runner support, subprocess real-runner support, drift harnesses, and future result bundles. The benchmark protocol remains in RepoPact. The runnable benchmark implementation belongs to Proving Ground.
+RepoPact Proving Ground hosts runnable benchmark artifacts including PactBench tasks, fixtures, harnesses, deterministic pipeline selftests, subprocess real-runner support, drift experiments, and future result bundles.
 
-Benchmark tasks are pre-registered. Corrections should be issued as new task ids or dated amendments rather than silent edits. Real model result bundles should include model id, harness version, task-set version, condition, prompts or command interface, raw captures where safe, scorer outputs, and evidence links.
+Benchmark corrections should be issued as new task ids or dated amendments rather than silent edits. Real model result bundles should identify model, harness version, task-set version, condition, prompts or command interface, raw captures where safe, scorer outputs, and evidence links.
 
-The conformance suite is versioned with RepoPact and exists to make standard conformance independently testable.
+The conformance suite is versioned with RepoPact so the standard's observable semantics remain independently testable.
 
 ## Appendices
 
 ### Appendix A: Typed invariant lattice
 
-| Invariant type        | Example                                           | Decidable from                     | Enforcer                           |
-| --------------------- | ------------------------------------------------- | ---------------------------------- | ---------------------------------- |
-| state                 | completed work has no pending criteria            | one tree                           | validator                          |
-| state                 | satisfied criterion links evidence                | one tree                           | validator                          |
-| state with provenance | completed work is concrete                        | one tree                           | validator                          |
-| state fixpoint        | dashboard equals generated projection             | one tree plus generator            | validator (`validate_dashboard`)   |
-| transition            | frozen-surface change requires acknowledgement    | base and head                      | diff-time checker                  |
-| temporal              | completed work is not rewritten to look cleaner   | git trace                          | review, future trace semantics     |
-| relational            | nested contract refines parent                    | contract pair and refinement order | human review, future formalization |
-| meta                  | critical state does not live only in conversation | repository plus human judgment     | partial orphan checks and review   |
+| Invariant type | Example | Decidable from | Enforcer |
+| --- | --- | --- | --- |
+| state | completed work has no pending criteria | one tree | validator |
+| state | satisfied criterion links evidence | one tree | validator |
+| state with provenance | completed work is concrete | one tree | validator |
+| state fixpoint | dashboard equals generated projection | one tree plus generator | validator and generator |
+| transition | frozen-surface change requires acknowledgement | base and head | diff-time checker |
+| temporal | completed work is not rewritten to look cleaner | git trace | review, future trace semantics |
+| relational | nested contract refines parent | contract pair and refinement order | human review, future formalization |
+| meta | critical state does not live only in conversation | repository plus human judgment | partial checks and review |
 
-### Appendix B: Formal theorem sketch
+### Appendix B: Governance continuity sketch
 
-Each claim is tagged with its discharge status: **[def]** true by definition for the reference implementation; **[ci]** machine-checked on every run; **[fix]** covered by the conformance fixture corpus; **[conj]** a conjecture whose falsification is a proving-ground target.
+Let `s` be a repository state, `G(s)` its governance projection, and `Viol(s)` its current violations.
 
-**T1: Recognizer definition. [def]/[fix]**
-For the reference implementation, `validate(s)` accepts exactly the states in `R` by definition. For alternative implementations, this becomes a conformance theorem tested by fixtures: one valid baseline that must be accepted, plus one invalid overlay per rule that must be rejected with a declared diagnostic.
+A worker transition `h` is governance-continuous for represented state when a fresh legitimate worker can obtain a clone and recover:
 
-**T2: Constructor correctness. [ci]**
-`init` creates a valid governed repository from an empty target. The CLI validates its own output and exits non-zero otherwise; every invocation is a proof instance.
+```text
+recover_h(clone(s)) = <G(s), Viol(s)>
+```
 
-**T3: Surface closure. [conj]**
-Advertised commands should either succeed or fail cleanly on the initialized surface without corrupting state. The original counterexample was F-001. This is totality, weaker than `R`-preservation.
+without requiring private predecessor context.
 
-**T4: Completion safety. [fix]/[conj]**
-A completed work item with pending criteria, missing evidence, non-concrete status, or non-concrete supporting proof is not conformant. Covered by fixtures; its negation — the validator accepting unproven completion — is a standing falsification target (H3).
+This is a recoverability claim, not an omniscience claim. Facts that never entered the repository remain outside the model. A nonconformant repository may still satisfy governance continuity if the next worker faithfully recovers both its governed records and the violations that make the state nonconformant.
 
-**T5: Monitor non-bypass. [ci]/[conj]**
-For arbitrary edit traces, the checkpoint admits the final state only if it is conformant. State invariants are enforced on the tree; the two-state frozen-surface invariant is enforced on the diff.
+The practical falsification target is any load-bearing state that is required to continue legitimate work but exists only in a specific worker, machine, provider, UI cache, or conversation when the system claims the repository is authoritative for that state.
 
-**T6a: Concrete-only adoption trilemma. [structural]**
-In a concrete-only record language, no brownfield migration can be total, faithful, and closed. The argument is structural (Section 3.6), not empirical.
+### Appendix C: Formal theorem sketch
 
-**T6b: Provenance-typed closure. [ci]**
-In a provenance-aware language, adoption can be total, faithful, and closed by emitting inferred and provisional records honestly, while completion remains gated on concrete evidence. `adopt` now lands conformant output on real trees rather than reporting residue.
+Each claim is tagged by discharge status: **[def]** true by definition for the canonical implementation, **[ci]** machine-checked on ordinary validation paths, **[fix]** covered by the conformance corpus, **[conj]** a conjecture or standing falsification target.
 
-**T7: Ratchet monotonicity. [conj]**
-`doctor` should ratchet records from non-concrete to concrete only when required concrete evidence exists, and should not silently replace differing source records. Partial evidence exists from a real drifted-adopter repair; the algebra remains a proof obligation.
+**T1: Recognizer definition. [def]/[fix]**  
+For the canonical implementation, validation accepts exactly the states in the currently specified recognized language. Alternate implementations are tested through conformance fixtures rather than by code identity.
 
-**Open obligations.** The reference model carries a numbered backlog: `new`-correctness (a stamped template lands valid from any conformant state); lifecycle preservation (a guarded move preserves all state invariants, not only acceptance); the full `doctor` algebra (conservative, violation-monotone, identity on healthy repositories); a trace semantics over git history to mechanize the no-history-rewrite invariant; a refinement order on nested contracts to mechanize contract refinement; and promotion of the orphan-planning check into the numbered specification catalog. The last three are the path from human-gated to machine-checked enforcement tiers.
+**T2: Constructor correctness. [ci]**  
+`init` should create a valid governed repository from a supported clean target.
 
-### Appendix C: Benchmark program
+**T3: Surface closure. [conj]**  
+Advertised commands should either succeed or fail cleanly on the initialized surface without corrupting state. F-001 was an original counterexample.
 
-| Study | Name                                    | Hypothesis                                                                                   | Status                                                |
-| ----- | --------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| S1    | PactBench guarantee-violation detection | RepoPact improves catch/escalate rate over baseline                                          | runnable infrastructure present; real results pending |
-| S2    | Cross-session recovery                  | RepoPact improves recovery and reduces redo loops                                            | protocol defined                                      |
-| S3    | Multi-agent coordination                | RepoPact reduces conflicts and duplicated work                                               | protocol defined                                      |
-| S4    | Context-token economy                   | RepoPact improves cost-success frontier and bounded context scaling                          | protocol defined                                      |
-| S5    | Drift detection                         | RepoPact lowers silent staleness and detection latency                                       | drift harness present; comparative results pending    |
-| S6    | Security and injection resistance       | RepoPact improves defensive invariant preservation and lowers injected-context-followed rate | tasks scoped; real results pending                    |
-| S7    | Enforcement closure and longitudinal drift | A deployment with checkpoint coverage, invocation, and effectiveness admits less known-nonconformant state across governed boundaries than one lacking any of the three | pre-registered 2026-08-21 (§6.6, `benchmark-protocol.md`); not implemented; motivated by a naturalistic field case, not itself confirmed by it |
+**T4: Completion safety. [fix]/[conj]**  
+A completed item with pending criteria, missing evidence, non-concrete status, or non-concrete supporting proof is not conformant.
 
-### Appendix D: Figures and tables planned
+**T5: Monitor non-bypass at covered checkpoints. [ci]/[conj]**  
+Where an admission path is covered and the validator is invoked effectively, a nonconformant final state is rejected. H14 exists because actual deployment must separately establish coverage, invocation, and effectiveness.
 
-**Figure 1.** Six-layer governance kernel, L0 through L5.
-**Figure 2.** Work-item lifecycle automaton and checkpoint composition.
-**Figure 3.** Concrete-record adoption trilemma and provenance-typed resolution.
-**Table 1.** Typed invariant lattice.
-**Table 2.** Study status table.
-**Table 3.** Findings register summary.
-**Figure 4.** S4 cost-success Pareto frontier.
-**Figure 5.** S4 context-token scaling curve.
-**Figure 6.** PactBench confusion matrix.
-**Figure 7.** S5 drift detection latency and silent-staleness rate.
-**Figure 8.** S6 injection-followed rate by condition.
+**T6a: Concrete-only adoption trilemma. [structural]**  
+A concrete-only brownfield migration cannot always be total, faithful, and closed simultaneously.
 
-### Appendix E: Informal references
+**T6b: Provenance-typed closure. [ci]**  
+A provenance-aware migration can preserve reconstructed state as inferred or provisional while keeping completion gated on concrete evidence.
 
-This appendix is a positioning map, not yet a citation-complete related-work section. Before archival publication, these entries should be replaced with full bibliographic citations and a more systematic comparison.
+**T7: Repair monotonicity. [conj]**  
+`doctor` should reduce known violations without silently replacing differing source intent and should be identity-like on already healthy repositories.
 
-* `AGENTS.md` (Linux Foundation stewardship) and repository agent-instruction files: `CLAUDE.md`, `.cursor/rules`, and editor-specific variants.
-* ADRs and lightweight architecture decision records (Nygard-style).
+**T8: Governance continuity for represented state. [conj]/[empirical]**  
+A clean worker transition should preserve recoverability of the repository's represented governance projection and current violations without predecessor-private context. F-006 provides bounded evidence for one recovery case. Broader worker, client, and machine transitions remain evaluation targets.
+
+### Appendix D: Benchmark program
+
+| Study | Name | Hypothesis | Status |
+| --- | --- | --- | --- |
+| S1 | PactBench guarantee-violation detection | RepoPact improves preservation and escalation over baseline | runnable infrastructure present; real results pending |
+| S2 | Cross-session recovery | RepoPact improves recovery and reduces redo loops | protocol defined |
+| S3 | Multi-agent coordination | RepoPact reduces conflicts and duplicated work | protocol defined |
+| S4 | Context-token economy | RepoPact improves the cost-success frontier under realistic conditions | protocol defined |
+| S5 | Drift detection | RepoPact reduces silent staleness and detection latency | drift harness present; comparative results pending |
+| S6 | Defensive security and injection resistance | RepoPact improves defensive invariant preservation | tasks scoped; real results pending |
+| S7 | Enforcement closure and longitudinal drift | covered, invoked, effective checkpoints admit less known-nonconformant state | pre-registered; not yet completed |
+| S8 | Governance continuity | fresh human, agent, machine, and client handoffs recover equivalent governed state and known violations | proposed extension; requires dated protocol amendment before execution |
+
+### Appendix E: Figures and tables planned
+
+**Figure 1.** Six-layer governance kernel, L0 through L5.  
+**Figure 2.** Governance continuity across human, agent, machine, and client transitions.  
+**Figure 3.** Work-item lifecycle and authority transitions.  
+**Figure 4.** Concrete-record adoption trilemma and provenance-typed resolution.  
+**Table 1.** Typed invariant lattice.  
+**Table 2.** Study status table.  
+**Table 3.** Findings register summary.  
+**Figure 5.** PactBench confusion matrix.  
+**Figure 6.** S5 drift detection latency and silent-staleness rate.  
+**Figure 7.** S4 cost-success Pareto frontier.  
+**Figure 8.** S8 governance-continuity handoff matrix, if pre-registered and run.
+
+### Appendix F: Informal references
+
+This remains a positioning map rather than the final citation-complete related-work section. Before archival publication, each entry should be replaced with a complete bibliographic citation and a more systematic comparison.
+
+* `AGENTS.md` and repository agent-instruction files such as `CLAUDE.md`, `.cursor/rules`, and editor-specific variants.
+* ADRs and lightweight architecture decision records.
 * Policy-as-code systems such as OPA and Conftest.
-* Architecture fitness functions (Ford, Parsons, and Kua's evolutionary-architecture line).
-* Runtime agent governance and sandboxing architectures, including layered governance architectures (arXiv:2603.07191) and six-layer agentic-SDLC reference models (arXiv:2604.26275).
-* Agent memory systems, including retrieval-augmented and persistent-memory approaches: MemGPT/Letta, Mem0, Zep, LangMem.
-* Developer portals and service scorecards: Backstage, Cortex, OpsLevel.
-* SWE-bench Verified and SWE-EVO for long-horizon software-evolution evaluation.
-* RepoPact formal model, protocol, benchmark protocol, threats register, findings register, conformance suite, and RepoPact Proving Ground.
+* Architecture fitness functions from the evolutionary-architecture literature.
+* Runtime agent governance, sandboxing, and agentic-SDLC reference models.
+* Agent memory systems including retrieval-augmented and persistent-memory approaches such as MemGPT/Letta, Mem0, Zep, and LangMem.
+* Developer portals and service scorecards such as Backstage, Cortex, and OpsLevel.
+* SWE-bench Verified and SWE-EVO for software-engineering evaluation.
+* RepoPact formal model, protocol, benchmark protocol, findings register, conformance suite, and RepoPact Proving Ground.

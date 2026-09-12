@@ -288,6 +288,7 @@ impl RecordIndex {
             "README.md",
             "VERSION",
             "RELEASE_LABEL",
+            "governance/verification.json",
             "scripts/REPOPACT_VERSION",
             "templates/work-item.README.md",
             "templates/work-item.json",

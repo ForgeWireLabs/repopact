@@ -29,7 +29,14 @@ The WI046 verification-contract rules now execute inside the shared `repopact-va
 
 This closes the earlier validity split. The installed CLI/engine path, `RepoPactCore`, the desktop/Workbench validation projection, and mutation post-apply validation all consume the same `repopact-validation::validate` / `validate_snapshot` result. No caller maintains a second WI046 diagnostic layer.
 
-The verification-contract implementation is isolated in `rust/crates/repopact-validation/src/verification.rs` and is invoked as a first-class always-executed shared validation phase. Focused Rust tests prove that the contract is checked even when `governance/adopters.json` is absent, so WI046 validation is independent of adopter-fleet state.
+The verification-contract implementation is isolated in `rust/crates/repopact-validation/src/verification.rs` and is invoked as a first-class always-executed shared validation phase. Focused Rust tests cover valid, malformed, missing-default, duplicate-step, cwd-escape, and unknown-placeholder behavior without requiring adopter-fleet state.
+
+Two consumer-boundary regression tests also pin the parity architecture:
+
+- `rust/crates/repopact-desktop-api/tests/verification_validation_parity.rs` requires the Workbench overview to expose a shared WI046 diagnostic from an invalid contract.
+- `rust/crates/repopact-mutation/tests/verification_post_validation.rs` requires mutation post-apply validation to reject that same invalid contract.
+
+These tests are staged but have not yet been executed in this record.
 
 ## Invariant and specification reconciliation
 
@@ -41,7 +48,7 @@ The conformance inventory includes `SPEC-4-verification-contract` and a negative
 
 ## Integration status
 
-The previously recorded Workbench/mutation integration gap is structurally closed. There is now one Rust validity notion for WI046 across the known product callers.
+The previously recorded Workbench/mutation integration gap is structurally closed. There is now one Rust validity notion for WI046 across the known product callers, with direct consumer-boundary regression coverage staged to guard that architecture.
 
 This is an implementation conclusion, not an execution claim. It still needs checkout-level proof that the workspace compiles, the new tests run, the Workbench path reports the expected diagnostic, mutation post-validation rejects the same invalid contract, and the conformance fixture passes through the canonical engine.
 
@@ -50,11 +57,11 @@ This is an implementation conclusion, not an execution claim. It still needs che
 No test or release-readiness result is claimed by this record. Closeout still requires execution from an actual checkout, including at minimum:
 
 1. Python WI046 verification/release tests;
-2. Rust workspace tests including the shared verification-contract tests;
+2. Rust workspace tests including the shared verification-contract and cross-caller parity tests;
 3. canonical RepoPact validation;
 4. conformance;
 5. SPEC/dashboard freshness checks;
-6. direct parity proof that CLI/engine, Workbench, and mutation post-validation observe the same invalid verification contract;
+6. executed parity proof that CLI/engine, Workbench, and mutation post-validation observe the same invalid verification contract;
 7. the `ci` profile with repository-native WI046 evidence recording;
 8. the `release` profile and local release preparation without publication;
 9. negative hosted-switch/publication/enforcement cases required by the work item;

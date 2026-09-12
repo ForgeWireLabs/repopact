@@ -1,560 +1,536 @@
 # A formal model of RepoPact
 
-*Companion to [`paper-outline.md`](paper-outline.md) §3 ("The model"). This document
-gives RepoPact an operational semantics, stated to remain faithful to the reference
-implementation ([`repopact/validate_repo.py`](../repopact/validate_repo.py)) and SPEC
-§3–§7. Where this prose and the reference implementation disagree, the discrepancy is a
-defect, resolved by an audit finding rather than by silent divergence (SPEC §1).*
+*Companion to [`paper.md`](paper.md) and [`paper-outline.md`](paper-outline.md). This
+document gives RepoPact an operational model intended to remain faithful to the
+versioned specification, conformance corpus, and canonical implementation. If this prose,
+the specification, the conformance fixtures, and the implementation disagree, the
+disagreement is a defect to record and reconcile rather than a reason to silently choose
+one description after the fact.*
 
-> **Thesis.** RepoPact's kernel is a layered governance system for repository-level
-> memory: the durable, shared record of intent, authority, evidence, and history through
-> which independent agents and humans coordinate. The kernel comprises six layers (§0).
-> One of them — the work-item lifecycle (L1) — is a finite-state machine. The others are
-> a record store (L0), an invariant monitor over states checked at commit/CI boundaries
-> (L2), a typed enforcement lattice (L3), a derive layer (L4), and an adoption boundary
-> between the repository and the external systems it does not yet contain (L5). The
-> sections below give each layer an operational semantics.
+> **Thesis.** RepoPact is a repository-native governance kernel. It keeps the durable,
+> shared state of intent, authority, evidence, provenance, decisions, invariants, and
+> lifecycle in the same version-controlled artifact that humans and agents must obtain to
+> work on the project. The kernel has six layers, L0 through L5. Governance continuity
+> is a cross-cutting recoverability property over those layers, not a seventh layer.
 
----
+## 0. Kernel layers
 
-## 0. The kernel in layers
-
-RepoPact's kernel comprises six layers. The work-item lifecycle (L1) is a finite-state
-machine; the remaining layers constitute the governance substrate. Each has a formal
-home below.
-
-| Layer | Name | Object | Formal home |
+| Layer | Name | Object | Role |
 | --- | --- | --- | --- |
-| **L0** | Record store | the typed tree `s` (state algebra) | §1 |
-| **L1** | Lifecycle FSM | per-work-item automaton `M_w` | §3 |
-| **L2** | Invariant monitor | the predicate `I`; `R` = recognized language | §2 |
-| **L3** | Enforcement lattice | invariants typed state / transition / temporal / relational → tiered enforcers | §5 |
-| **L4** | Derive layer | projections `π` (dashboard, SPEC); derive-over-declare | §1, §4 |
-| **L5** | Adoption boundary | migration of naive/external reality → the pact; the trilemma; provenance | §4, §8 |
+| **L0** | Record store | typed repository state `s` | stores governing source records |
+| **L1** | Lifecycle FSM | per-work-item automaton `M_w` | models work state and authority transitions |
+| **L2** | Invariant monitor | predicate `I`; language `R` | decides repository conformance |
+| **L3** | Enforcement lattice | typed invariants | maps invariant kind to an appropriate enforcer |
+| **L4** | Derive layer | projections `pi` | generates deterministic materialized views |
+| **L5** | Adoption boundary | migration and external state | brings previously ungoverned state into the pact |
 
-The layers are ordered by how much of the repository's environment they touch. L0–L3 are
-internal: everything they govern already lives in the tree. L4 derives artifacts from the
-tree. L5 is the boundary at which the repository meets state it does not contain —
-external trackers, design documents, and intent or history that were never committed. The
-limits of RepoPact in its current version (§8) are L5 limits. §7 treats a distinct,
-cross-cutting concern — enforcement closure at the admission boundary — orthogonal to L5.
+L0 through L3 operate on state already represented in the tree. L4 derives views from that
+state. L5 is the boundary where the repository meets state it does not yet contain, such as
+trackers, design documents, conversation history, and implicit human knowledge.
+
+Two cross-cutting properties sit over these layers:
+
+1. **Enforcement closure**, defined in §7, asks whether a configured admission boundary
+   actually invokes and binds the applicable checker.
+2. **Governance continuity**, defined in §8, asks whether the represented governed state
+   remains recoverable when the worker, machine, or legitimate client changes.
+
+Neither property creates a new source of truth.
 
 ## 1. State
 
-A repository state `s` is a finite typed record store. We write it as the tuple
+A repository state is a finite typed record store. Write:
 
-```
-s = ⟨ ver, Inv, Frz, Own, Reg, C, W, E, D, P, A ⟩
+```text
+s = <ver, Inv, Frz, Own, Reg, C, W, E, D, P, A, Prov>
 ```
 
-| Symbol | Component | Source location |
+| Symbol | Component | Typical source location |
 | --- | --- | --- |
-| `ver` | semantic version string | `VERSION` |
-| `Inv` | declared invariants | `governance/invariants.json` |
-| `Frz` | frozen surface (globs, symbols, reasons) | `governance/frozen-surface.json` |
-| `Own` | scopes `Σ`, roles, concurrency flag `δ` | `governance/owners.json` |
-| `Reg` | audit registry (scope→contract, review dates) | `audits/registry.json` |
-| `C` | set of contracts (`AGENTS.md` nodes) | `**/AGENTS.md` (minus `IGNORED_PARTS`) |
-| `W` | set of work items | `work/<status>/NNN-slug/work-item.json` |
-| `E` | set of evidence runs | `evidence/runs/<id>.json` |
-| `D` | set of decisions | `decisions/NNNN-slug.md` |
-| `P` | set of policies | `governance/policies/NNN-slug.md` |
-| `A` | set of audit findings | `audits/findings/NNN-slug.json` |
+| `ver` | semantic version | `VERSION` |
+| `Inv` | binding invariants | `governance/invariants.json` |
+| `Frz` | frozen surfaces | `governance/frozen-surface.json` |
+| `Own` | scopes, roles, concurrency rules | `governance/owners.json` |
+| `Reg` | audit and contract registry | `audits/registry.json` |
+| `C` | registered contracts | root and nested contract files |
+| `W` | work items | `work/<status>/<id-slug>/work-item.json` |
+| `E` | evidence runs | `evidence/runs/<id>.json` |
+| `D` | decisions | `decisions/<id-slug>.md` |
+| `P` | policies | `governance/policies/<id-slug>.md` |
+| `A` | audit findings | `audits/findings/<id-slug>.json` |
+| `Prov` | provenance typing | record fields plus semantic rules |
 
-Let `Σ = scopes(Own)` be the scope identifiers and `δ = Own.concurrency.enforce_disjoint_active_scopes ∈ {⊥,⊤}`.
+`Prov` can be treated as a function over record claims rather than an independent file set:
 
-A **work item** is
-
-```
-w = (id, title, σ, owner, aff, dep, AC, created, updated)
-```
-
-with status `σ(w) ∈ Q = {proposed, active, blocked, deferred, completed}`, `owner ∈` (intended) `Σ`,
-`aff ⊆ Σ`, `dep ⊆` (intended) `Ids(W)`, and acceptance set `AC(w)` of criteria
-
-```
-c = (cid, st, ev),   st ∈ {pending, satisfied, waived},   ev ⊆ Ids(E).
+```text
+prov(r) in {concrete, provisional, inferred}
 ```
 
-Write `dir(w)` for the name of `w`'s lifecycle directory (`work/<dir(w)>/…`). The
-distinction between `σ(w)` (the JSON field) and `dir(w)` (the filesystem) is deliberate:
-their *agreement* is an invariant (§2, `I_ID`), not an assumption.
+A **concrete** claim is directly authored or backed by concrete evidence. A
+**provisional** claim is valid but intentionally unfinished. An **inferred** claim is
+reconstructed from available signals rather than directly proven.
 
-`S` is the set of all such states. `S` is infinite: `|W|`, `|E|`, and the other record
-sets are unbounded. The repository as a whole is therefore modeled as an infinite-state
-transition system (§4); finite-state structure is confined to the per-item lifecycle (§3).
+The distinction is epistemic. It lets RepoPact represent uncertainty without turning
+uncertainty into either silence or fabricated certainty.
 
-The **derive projections** are total functions `S → Artifact`:
+### 1.1 Work items and authority
 
-```
-π_dash(s)  = generate_dashboard.generate(s)      → audits/reports/dashboard.md
-π_spec(s)  = generate_spec.render(…, s)          → SPEC.md derived blocks
-```
+A work item is:
 
-These are functions of `s` rather than transitions of governed state: the formal content
-of *derive over declare* (charter principle 8, policy 001).
-
----
-
-## 2. The well-formedness predicate `I` (what the validator decides)
-
-The reference validator computes a finite set `Viol(s)` of atomic violations
-([`validate`](../repopact/validate_repo.py)). Define
-
-```
-I(s)  ≡  Viol(s) = ∅           accept(s) ≡ I(s)           R = { s ∈ S : I(s) }.
+```text
+w = (id, title, status, owner, affected_scopes, dependencies, AC, created, updated, prov)
 ```
 
-`R` is the set of **conformant** repositories. By SPEC §1, RepoPact is defined as the
-recognizer of `R`: a conformant implementation "accepts exactly the repositories that
-satisfy every rule in §3–§7 and rejects the rest." `validate_repo.py` is therefore the
-**characteristic function `χ_R`**, and `R` is the language RepoPact recognizes.
+with:
 
-`I` decomposes as a conjunction of atomic predicates, each tied to a SPEC §4 rule and a
-code site:
-
-| Predicate | Statement | SPEC | Enforcer (`validate_repo.py`) |
-| --- | --- | --- | --- |
-| `I_ver` | `ver` matches `MAJOR.MINOR.PATCH` | §4.7 | `validate_version` |
-| `I_struct` | every record satisfies its JSON Schema | §3 | `check_schema` (Draft 2020-12) |
-| `I_contract` | root `AGENTS.md` exists; every nested contract is registered; `_audit/` companions complete | §4.1 | `validate_contracts` |
-| `I_ID` | `id(r) = prefix(path(r))` ∀ record; `σ(w) = dir(w)`; ids unique per type | §4.2 | `validate_work`, `_validate_records`, `validate_*` |
-| `I_ref` | `dep ⊆ Ids(W)`, `c.ev ⊆ Ids(E)`, `e.work_item ∈ Ids(W)`, `finding.scope ∈ Σ`, `role.scopes ⊆ Σ`, `decision.supersedes ⊆ Ids(D)`, `owner/aff ⊆ Σ`; and σ(w) ∈ {active, completed} ⟹ ∀d ∈ dep(w): σ(d) ≠ proposed (authorized work may not depend on unauthorized candidates) | §4.3 | `validate_work`, `validate_evidence`, `validate_findings`, `validate_owners`, `validate_decisions` |
-| `I_accept` | ∀`c`: `c.st=satisfied ⟹ c.ev≠∅`; and `σ(w)=completed ⟹ ∄c∈AC(w): c.st=pending` | §4.4 | `validate_work` |
-| `I_acyclic` | the `dep` digraph `G(s)=(Ids(W), dep)` is a DAG | §4.5 | `detect_dependency_cycles` (DFS 3-color) |
-| `I_conc` | `δ ⟹ ∀` distinct non-terminal `w,w'`: `scopes(w) ∩ scopes(w') = ∅` | §4.6 | `validate_disjoint_scopes` |
-| `I_orphan` | no dir under `work/` carries planning content (`README`/`AGENTS`/`_audit`) without a `work-item.json` | — | `validate_orphan_work_dirs` |
-
-`I_orphan` carries no §4 number because it operationalizes INV-1: a planning artifact
-invisible to the ledger is critical state held outside any tracked record. It connects a
-governance invariant to a machine-checkable state predicate, and is a candidate for an
-explicit SPEC §4 entry (proof obligation O-7).
-
-`I_accept` comprises `{INV-2, INV-3}`: the two machine-enforced governance invariants are
-exactly the two clauses of the acceptance predicate (§4).
-
----
-
-## 3. The work-item lifecycle (L1): a guarded automaton
-
-Per work item, the lifecycle is a finite automaton
-
-```
-M_w = (Q, Λ, δ_w, Q₀),   Q = {proposed, active, blocked, deferred, completed},   Q₀ = {proposed, active}.
+```text
+status(w) in {proposed, active, blocked, deferred, completed}
 ```
 
-`Q₀` is a *set* of initial states because `new` may create an item either as accepted
-work (`active`, the default) or as a captured-but-unauthorized candidate (`proposed`,
-via `--status proposed`; decision 0023). `proposed` records possible intent without
-granting implementation authority; acceptance is the `proposed → active` move.
+The status carries authority semantics:
 
-`Λ` is the alphabet of lifecycle moves (a directory relocation + a `σ` rewrite). `δ_w` is
-**total** — any state may move to any state — with one guard, on edges into `completed`:
+- `proposed`: candidate work is recorded but not authorized for implementation.
+- `active`: work is accepted and authorized to proceed.
+- `blocked`: accepted work cannot currently proceed for a recorded reason.
+- `deferred`: accepted work is intentionally postponed.
+- `completed`: delivered work is evidence-closed under the applicable completion rules.
 
-```
-g_done(w, s) ≡ (∀ c ∈ AC(w): c.st ≠ pending)
-             ∧ (∀ c ∈ AC(w): c.st = satisfied ⟹ c.ev ≠ ∅ ∧ c.ev ⊆ Ids(E)).
-```
+A criterion is:
 
-```
-        ┌──────────────── any ⇄ any (degradation is explicit: charter P7) ──────────────┐
-        │                                                                                │
-   proposed  ──►  active  ⇄  blocked  ⇄  deferred                                       │
-  [no authority]     │          │           │                                            │
-                     └──────────┴───────────┴──────►  completed  [edge guarded by g_done]│
-                                       completed ────────────────────────────────────────┘
-                                       (reopen is allowed; evidence is never dropped — INV-4)
+```text
+c = (criterion_id, status, evidence_links)
+status(c) in {pending, satisfied, waived}
 ```
 
-**Composition with the invariant monitor (L2).** The lifecycle automaton is the control
-structure of a single work item; it delegates two concerns to the invariant monitor (L2).
+A work item's declared status and its lifecycle directory are two independently observable
+facts. Their equality is an invariant, not an assumption.
 
-1. **Acceptance.** Every `q ∈ Q` is legitimate: `blocked` and `deferred` are first-class
-   states (charter principle 7, "degradation is explicit"). The automaton therefore has no
-   rejecting states. Correctness is not reachability of an accepting final state
-   (`◇accept`) but an invariant held across all states (`□I`), and that invariant resides
-   in L2. L1 supplies the reachable control points; L2 determines which configurations of
-   the whole tree are well-formed.
-2. **Data constraints.** `g_done` quantifies over `AC(w)` and `Ids(E)`, which are
-   unbounded. L1 is thus an *extended* (guarded) automaton whose guard is the L2 predicate
-   `I_accept` evaluated on the post-state.
+### 1.2 Derived projections
 
-Composition is checkpoint-based rather than precondition-based. RepoPact does not evaluate
-`g_done` as a runtime gate: a work item may be moved into `work/completed/` with pending
-criteria by an ordinary `git mv`. The resulting state `s'` satisfies `validate(s') ≠ ∅`,
-so `s' ∉ R`, and the CI checkpoint rejects the commit. L1 transitions freely; L2 decides
-admissibility at the commit boundary. The lifecycle automaton models one coordinate of
-`s`; the semantics of the whole repository is the transition system of §4 composed with
-the monitor over all of `s`.
+The derive layer produces materialized artifacts from source records:
 
----
-
-## 4. The repository as a transition system
-
-```
-T = (S, Init, Act, →)
+```text
+pi_dashboard(s) -> audits/reports/dashboard.md
+pi_spec(s)      -> SPEC.md derived blocks
 ```
 
-- `Init ⊆ S`: the bootstrap images (output of `repopact init`).
-- `Act`: the parameterized CLI actions.
-- `→ ⊆ S × Act × S`: `s --a--> s'` iff `s' = effect_a(s)` (no runtime guards; see §3).
+The principle is **derive over declare**. A view that can be computed from source records
+should not become a second manually maintained authority.
 
-Actions partition by their relationship to `R`:
+## 2. The well-formedness predicate
 
-| Class | Actions | Property w.r.t. `R` |
+Let the canonical validator compute a finite set of violations:
+
+```text
+Viol(s)
+```
+
+Define:
+
+```text
+I(s) iff Viol(s) = empty
+R = { s | I(s) }
+```
+
+`R` is the recognized conformant repository language for a given RepoPact version.
+Conformance is behavioral, not an implementation-language identity. The current release
+line uses a canonical Rust semantic engine for the proven validation surface. The historical
+Python validator can remain useful as an independent regression comparator, but it is not a
+second canonical authority for surfaces already cut over to Rust.
+
+A conforming alternate implementation must reproduce the versioned observable behavior
+encoded by the specification and conformance corpus. It does not need to copy RepoPact's
+internal code.
+
+The predicate `I` includes at least the following classes:
+
+| Predicate | Statement |
+| --- | --- |
+| `I_ver` | the version is well formed |
+| `I_struct` | each record satisfies the applicable schema |
+| `I_contract` | required contracts are present and registered |
+| `I_id` | identifiers, record paths, and lifecycle directories agree |
+| `I_ref` | dependencies, scopes, evidence, decisions, owners, and findings reference known records |
+| `I_accept` | completed work has no pending criteria; satisfied criteria have evidence |
+| `I_acyclic` | the work dependency graph is acyclic |
+| `I_conc` | disjoint active-scope rules hold when configured |
+| `I_orphan` | planning content does not silently exist outside the ledger where the rule applies |
+| `I_prov` | provenance is valid and completion does not treat non-concrete proof as concrete |
+| `I_derive` | enforced materialized views equal their canonical projections |
+| `I_frozen` | protected changes receive required acknowledgement at diff time |
+
+Some of these are one-tree predicates. `I_frozen` is shorthand for a transition property
+that requires a base and head. This distinction is made explicit in §5.
+
+## 3. Lifecycle automaton, L1
+
+Per work item:
+
+```text
+M_w = (Q, Lambda, delta_w, Q0)
+
+Q  = {proposed, active, blocked, deferred, completed}
+Q0 = {proposed, active}
+```
+
+A work item can be born as a candidate or as accepted work. The transition:
+
+```text
+proposed -> active
+```
+
+is therefore an authority event. It changes recorded intent into accepted implementation
+work.
+
+RepoPact intentionally permits non-monotonic lifecycle motion. Work can become blocked,
+deferred, reopened, or moved backward when reality changes. Degradation should be explicit
+rather than hidden.
+
+The completion edge is semantically guarded by a predicate such as:
+
+```text
+g_done(w, s) =
+  every acceptance criterion is not pending
+  and every satisfied criterion links evidence that exists
+  and completed work is concrete
+  and concrete completed work does not rest on non-concrete evidence
+```
+
+RepoPact is repository-native, not runtime-exclusive. A human or agent can still edit files
+directly and temporarily create an invalid tree. The invariant monitor decides whether the
+resulting state is admissible at an applicable checkpoint.
+
+That means L1 supplies possible lifecycle transitions while L2 determines whether the
+whole repository configuration after a transition belongs to `R`.
+
+## 4. Repository transitions, adoption, and provenance
+
+Model repository evolution as:
+
+```text
+T = (S, Init, Act, ->)
+```
+
+where `S` is the set of representable repository states, `Init` is the set of supported
+bootstrap states, and `Act` contains governed operations plus arbitrary filesystem edits
+that may occur outside RepoPact's clients.
+
+Useful action classes are:
+
+| Class | Examples | Intended property |
 | --- | --- | --- |
-| **Constructor** | `init` | `effect(⊥) ∈ R` (lands valid) |
-| **Invariant-preserving** | `new`, lifecycle move *with* `g_done`, `doctor --fix` | `s ∈ R ⟹ effect(s) ∈ R` (claimed; O-2/O-3/O-5) |
-| **Migration (best-effort)** | `adopt`, `import-plan` | `effect(s)` **may leave `R`**; residual `Viol` is *reported*, not prevented |
-| **Derive / read (no governed effect)** | `validate`, `dashboard`, `spec`, `check-frozen` | governed projection unchanged; may rewrite `π(s)` |
+| constructor | `init` | creates a conformant governed repository from a supported clean target |
+| typed mutation | create/edit/transition | plans and applies bounded semantic changes |
+| derive/read | `validate`, `dashboard`, analysis | observes state or regenerates derived views |
+| repair | `doctor --fix` | conservative movement toward conformance |
+| migration | `adopt`, `import-plan`, takeover flows | crosses L5 and reconstructs previously ungoverned state |
+| diff-time enforcement | frozen-surface check | evaluates a transition against a base state |
 
-`adopt` and `import-plan` are not invariant-preserving. On a RepoPact-naive tree they emit
-records mapping the existing signals and then report residual violations: the CLI prints
-*"produced N validation error(s) to resolve"* and exits non-zero
-([`cli.py`](../repopact/cli.py)). Their guarantee is verdict soundness —
-the result never passes the validator while violating a rule (which would falsify
-H3/H4) — together with the reported worklist.
+### 4.1 The concrete-record adoption trilemma
 
-`doctor --fix` is the dual: a **repair / retraction** operator `ρ`. Intended algebra
-(O-5): `ρ` is conservative (never overwrites a *differing* source record — capture 010's
-ForgeLink schema lesson), violation-monotone (`Viol(ρ(s)) ⊆ Viol(s)`), and a retraction
-onto `R` (`ρ|_R = id`: healthy repos are fixed points). `adopt`/`import` map naive trees
-*toward* `R`; `ρ` returns *drifted* trees *to* `R`.
+A brownfield migration often encounters facts that are reachable but not fully proven. A
+legacy roadmap may say a task is complete without evidence. A historical plan may indicate
+ownership without a current authoritative owner record. A decision may be reconstructable
+from history but lack a direct contemporaneous declaration.
 
-### Adoption cannot preserve `R`: a trilemma
+For this **epistemic reconstruction problem**, consider three goals:
 
-That `adopt` and `import-plan` may leave `R` is structural, not an implementation
-limitation. A migration over a RepoPact-naive (or partially external) project is subject
-to three requirements:
+1. **Totality:** migration can process the reachable input signal.
+2. **Faithfulness:** migration preserves what was observed without fabricating proof.
+3. **Closure:** the emitted record is valid in the target language.
 
-- **Total** — defined on any input tree.
-- **Faithful** — maps existing signals to records without fabricating records or
-  discarding signals (the non-destructive guarantee; decision 0008).
-- **Closed** — every output lies in `R`.
+If every emitted claim must be concrete, those goals cannot always hold together. A
+migration must either manufacture certainty, discard the signal, or emit an invalid claim.
 
-No migration satisfies all three. Input trees contain configurations `R` forbids: a nested
-`AGENTS.md` naming a team that no `CODEOWNERS` entry establishes as a scope (violating
-`I_ref`); a roadmap with cyclic *blocked-by* edges (`I_acyclic`); a checklist item marked
-done with no corresponding evidence (`I_accept`). Forcing such a tree into `R` requires
-either inventing the missing record — for instance synthesizing an evidence run to satisfy
-a criterion, which both breaks faithfulness and manufactures false proof in violation of
-INV-3 — or discarding the offending signal, which breaks the non-destructive guarantee.
-RepoPact relaxes *closed*, retains *total* and *faithful*, and reports the residue as a
-validator-generated worklist, yielding a fresh pact rather than a false acceptance. This
-is the guarantee formalized as T6 (§6).
+This is the **concrete-record adoption trilemma**:
 
-The taxonomy above follows from each action's domain:
+```text
+total + faithful + closed cannot always hold
+when every reconstructed claim must be concrete
+```
 
-| Action | Domain | Closed under `R`? | Why |
+Provenance typing changes the target language. A reconstructed claim may be admitted as
+`inferred` or `provisional`, allowing the migration to preserve the observation without
+pretending it is proof.
+
+Let `R_p` be the provenance-aware recognized language. For uncertainty whose only conflict
+is epistemic status, provenance typing permits:
+
+```text
+reachable signal -> inferred/provisional record in R_p
+```
+
+while completion remains stricter and requires the appropriate concrete proof.
+
+### 4.2 What provenance does not solve
+
+Provenance typing does **not** make every arbitrary legacy tree conformant.
+
+A source project may contain structural contradictions that remain contradictions after the
+facts are honestly typed: cyclic dependencies, impossible identifiers, conflicting
+relationships, unsupported record shapes, or references that cannot be mapped without
+changing their meaning. Those cases can still leave `Viol(s)` non-empty after migration.
+
+This distinction is important. RepoPact resolves the concrete-record trilemma for
+**epistemic reconstruction**. It does not claim a theorem that every arbitrary source tree
+can be mapped losslessly into a conformant target with no residue.
+
+A sound migration therefore has two responsibilities:
+
+1. represent reconstructable uncertainty with honest provenance rather than fabricated
+   certainty;
+2. report structural residue it cannot faithfully map instead of hiding it.
+
+This is the bounded claim the paper should make.
+
+### 4.3 Repair and ratcheting
+
+Let `rho` denote the repair behavior of `doctor --fix`. Its intended algebra is:
+
+```text
+Viol(rho(s)) subseteq Viol(s)
+rho(s) = s for already healthy supported states
+```
+
+and repair should not silently overwrite differing source intent merely to obtain a green
+validator result.
+
+Provenance ratcheting is a related but distinct operation. An inferred or provisional
+record may become concrete when the required concrete evidence arrives. The reverse should
+not occur silently.
+
+## 5. Typed invariant lattice, L3
+
+RepoPact invariants are not one logical kind. Their type predicts what information an
+enforcer needs.
+
+| Type | Example | Needed information | Enforcer class |
 | --- | --- | --- | --- |
-| `init` | `{⊥}` (fresh target) | **yes, trivially** | authors the *entire* output; no prior input to remain faithful to |
-| `new`, guarded move, `doctor --fix` | `R` (already-valid trees) | **yes (claimed)** | bounded deltas applied within `R` |
-| `adopt`, `import-plan` | **arbitrary trees** | **no** | the trilemma |
+| state | completed implies no pending criterion | one tree | validator |
+| state | satisfied implies linked evidence | one tree | validator |
+| state with provenance | completed proof is concrete | one tree | validator |
+| state fixpoint | dashboard equals canonical projection | one tree plus generator | validator/generator |
+| transition | frozen-surface change requires acknowledgement | base and head | diff-time checker |
+| temporal | completed history is not rewritten to look cleaner | git trace | history analysis and review |
+| relational | nested contract refines parent | contract pair and semantic order | review, future formalization |
+| meta coverage | critical state does not live only outside the pact | repository plus external judgment | partial checks and review |
 
-`init` is closed under `R` because its domain is a single empty target and it authors the
-entire output. `new`, guarded moves, and `doctor --fix` are closed because their domain is
-`R` and they apply bounded deltas within it. `adopt` and `import-plan` operate on arbitrary
-trees and are bound by the trilemma. These are the actions that cross the L5 boundary, and
-they are central to real-world adoption (H7).
+A single JSON Schema cannot decide a temporal property. A single-tree validator cannot
+know whether a protected file changed relative to a base. Human review cannot efficiently
+replace deterministic referential-integrity checks.
 
-**Provenance typing (implemented in 2.0; decision 0021).** The trilemma
-`{total, faithful, closed}` admits two members only while *faithful* requires every record
-to be concrete — to assert a fact. A provenance type on records —
-`concrete` versus `inferred`/`provisional` — lets a migration emit inferred/provisional
-records that declare themselves reconstructed rather than proven. Such a record remains
-faithful (it labels itself as not-yet-proof rather than fabricating proof) *and* lies in
-`R` (it is a valid state, admitted by L2 rule P1). `adopt` now emits a **provisional** work
-item backed by **inferred** evidence, so the migration is **both Closed and Faithful** — the
-trilemma is resolved in the implementation, not merely relaxed. The L2 monitor enforces P2
-(a `completed` item must be concrete) and P3 (a `concrete` item may not rest on non-concrete
-evidence); `doctor` ratchets `provisional → concrete` (conservative, monotone) once concrete
-evidence is attached. §8 develops the still-open direction (external project memory).
-
----
-
-## 5. The invariant lattice is typed, and the type predicts the enforcer
-
-RepoPact's seven invariants are not of a single logical kind, and the kind determines both
-whether a machine can enforce an invariant and which mechanism does. A predicate over one
-tree is decidable by the validator; a property of a change requires a diff; a property of
-history requires the trace.
-
-| INV | Statement (SPEC §6) | Logical type | Form | Enforcer |
-| --- | --- | --- | --- | --- |
-| INV-2 | completed ⟹ no pending criterion | **state** | `□ I_accept(s)` | `validate_repo.py` |
-| INV-3 | satisfied ⟹ linked evidence | **state** | `□ I_accept(s)` | `validate_repo.py` |
-| INV-7 | derived artifacts are generated, not hand-edited | **state (fixpoint)** | `□ (dash(s)=π_dash(s) ∧ spec(s)=π_spec(s))` | `validate_repo.py` for `dash`; generator/CI check for `spec` |
-| INV-6 | frozen-surface change ⟹ operator approval | **transition (2-state)** | `□ (touch(Δ, Frz) ⟹ ack)` over diff `Δ=(s,s')` | `check_frozen_surface --base` |
-| INV-4 | completed work is never rewritten to look cleaner | **temporal / historical** | `□ ¬rewrite(history)` over the git trace | human review + git |
-| INV-5 | deepest `AGENTS.md` refines parents, never weakens | **relational / refinement** | `∀ c≺c': ⟦c⟧ ⊆ ⟦c'⟧` | human review |
-| INV-1 | no critical state lives only in conversation | **meta (coverage)** | every load-bearing fact ∈ some tracked record | human + `I_orphan` (partial) |
-
-As the logical type ascends from state to two-state to temporal to relational and meta, the
-enforcer moves from the validator to a diff-time checker to human review. The progression
-reflects what is decidable on a single tree. INV-6 takes a `--base` argument because a
-change to the frozen surface is a two-state property not present in a single snapshot.
-INV-4 is human-gated because it quantifies over history, which a single tree does not
-contain. Since RepoPact 2.2.0, dashboard equality is decided directly by the one-tree
-validator: a missing dashboard or byte inequality with `π_dash(s)` is a violation.
-This makes CI a redundant execution venue for the dashboard fixpoint rather than its
-only enforcer. Specification projection equality remains generator/CI-checked.
-Mechanizing INV-4 and INV-5 would require, respectively, a trace semantics over
-git history and a refinement order `≺` on contracts (O-4, O-6).
-
----
+The lattice is therefore partly a restraint mechanism. RepoPact should make enforcement
+boundaries explicit rather than claim total automation over semantic project intent.
 
 ## 6. Theorems and proof obligations
 
-Each is tagged with its discharge status. `[def]` true by definition for the reference
-implementation; `[ci]` machine-checked on every run; `[fix]` covered by the fixture corpus
-`tests/fixtures/`; `[conj]` a conjecture whose falsification is a proving-ground target
-(mapped to the protocol hypotheses H1–H7).
+The labels below separate definitions, machine-checked properties, fixture-backed claims,
+structural arguments, and empirical conjectures.
 
-- **T1 — Recognizer soundness & completeness.** `validate(s)=∅ ⟺ s ⊨ I`.
-  `[def]` for the reference impl (SPEC §1 defines `R` as its accept set). For an
-  *alternative* implementation it is a theorem, tested against the corpus: one valid
-  baseline that must be accepted and one invalid overlay per §4 rule that must be rejected
-  with a declared message. `[fix]` via `tests/test_conformance.py` (SPEC §9, conformance).
+- **T1: Recognizer definition. `[def]/[fix]`**  
+  For a given version, the canonical validator recognizes `R`. Alternative implementations
+  are tested against the versioned conformance corpus rather than by code identity.
 
-- **T2 — Constructor correctness (H1).** `effect_init(⊥) ∈ R`.
-  `[ci]` — `repopact init` validates its own output and exits non-zero otherwise
-  ([`cli.py`](../repopact/cli.py)); every invocation is a proof instance.
-  Capture 001.
+- **T2: Constructor correctness. `[ci]`**  
+  `init` should land a supported clean target in `R` and should fail explicitly if it
+  cannot.
 
-- **T3 — Surface closure (H2).** For every advertised action `a` and every `s ∈ Init`,
-  `a(s)` is defined (terminates without crash or corruption): the tool's output is closed
-  under the tool's own surface. `[conj]` — the original counterexample was F-001 (a
-  documented command absent from the dispatcher). This is totality, weaker than
-  `R`-preservation.
+- **T3: Surface closure. `[conj]`**  
+  Advertised operations should either succeed or fail cleanly on the initialized surface
+  without corrupting governed state. F-001 is the historical counterexample that made
+  this a standing obligation.
 
-- **T4 — Completion safety (H3).** For a lifecycle move into `completed`:
-  `s ∈ R ∧ g_done(w,s) ⟹ effect(s) ⊨ I_accept`. Equivalently, since the move is unguarded
-  at runtime: `s' with σ(w)=completed ∧ (∃c: c.st=pending) ⟹ s' ∉ R`. This is the formal
-  statement of "completion requires proof." `[fix]` (the `completed`-with-pending overlay),
-  `[conj]` adversarially (¬H3 = the validator accepting unproven completion).
+- **T4: Completion safety. `[fix]/[conj]`**  
+  A completed work item with pending criteria, missing evidence, non-concrete status, or
+  non-concrete proof where concrete proof is required is not conformant.
 
-- **T5 — Monitor non-bypass (H4/H5).** For *any* edit trace `s₀ → s₁ → … → s_k` (arbitrary
-  filesystem edits, not just `Act`), the CI checkpoint admits the commit producing `s_k`
-  iff `s_k ∈ R`. No invalid state is admitted past a checkpoint. The state invariants
-  (INV-2/3/7, all of §4) are enforced this way; the two-state invariant INV-6 is enforced
-  on the diff `(s_{k-1}, s_k)` by `check_frozen_surface`. `[ci]`/`[conj]` (¬H4 = a
-  frozen/invariant change passing unacknowledged; ¬H5 = a status/dir mismatch, cycle, or
-  scope clash accepted).
+- **T5: Checkpoint decision correctness. `[ci]/[conj]`**  
+  When the applicable checkpoint actually executes on a candidate state, it should admit
+  the state exactly when the enforced conformance rules are satisfied. §7 separates this
+  decision correctness from deployment coverage, invocation, and effectiveness.
 
-- **T6 — Migration is not invariant-preserving.** `adopt` and `import-plan` are not
-  `R`-preserving: `∃ s. effect_adopt(s) ∉ R`. The result is structural — the adoption
-  trilemma (§4) shows no total, faithful migration is closed under `R` — not a defect.
-  Their guarantee is verdict soundness (T1 holds on the result) together with a reported
-  worklist; they establish a fresh pact and do not fabricate conformance. `[ci]` — the CLI
-  reports residual violations and exits non-zero.
+- **T6a: Concrete-record adoption trilemma. `[structural]`**  
+  For reachable legacy claims whose uncertainty is epistemic, a migration that requires
+  every emitted claim to be concrete cannot always be total, faithful, and closed at once.
 
-- **O-1 … O-7 — Open obligations.**
-  - **O-2** `new`-correctness: `s ∈ R ⟹ new(s) ∈ R` (a stamped template lands valid). `[conj]`
-  - **O-3** lifecycle preservation: a *guarded* move preserves all *state* invariants, not only `I_accept`. `[conj]`
-  - **O-5** `doctor` algebra: conservative ∧ violation-monotone ∧ `ρ|_R = id`. `[conj]`, partial evidence in capture 010.
-  - **O-4** trace semantics for INV-4 (mechanize "no history rewrite" over git). *open / unmechanized.*
-  - **O-6** a refinement order `≺` on contracts to mechanize INV-5. *open / unmechanized.*
-  - **O-7** give `I_orphan` a SPEC §4 number (it is enforced but uncatalogued).
+- **T6b: Provenance-typed epistemic closure. `[ci]/[conj]`**  
+  Where the only obstacle is epistemic status, a provenance-aware migration can emit an
+  inferred or provisional record that remains faithful and valid while preserving stricter
+  concrete completion rules. This does not imply closure for arbitrary structural
+  contradictions.
 
----
+- **T7: Repair monotonicity. `[conj]`**  
+  Repair should not increase known violations, should preserve differing source intent,
+  and should behave like identity on already healthy supported states.
 
-## 7. Enforcement closure: an admission-boundary property
+- **T8: Governance continuity for represented state. `[conj]/[empirical]`**  
+  A clean worker or supported-client transition should preserve recoverability of the
+  repository's represented governance projection and current known violations without
+  predecessor-private state. §8 defines this more precisely; H15/S8 is the prospective
+  empirical test.
 
-*Added 2026-08-21, work item 039, motivated by a naturalistic field
-observation — see [`findings.md`](findings.md)'s "Field-study synthesis:
-enforcement closure" and the accepted case study it cites. This section adds
-a property to the model; it does not amend or replace T5 (§6), which is
-clarified in a dated note at the end of this section.*
+Open proof obligations continue to include stronger `new` preservation, lifecycle
+preservation over all state invariants, trace semantics for historical invariants, a
+refinement order for nested contracts, repair algebra, and explicit cataloging of every
+implemented semantic predicate in the public specification.
 
-§3 established that L1 (the lifecycle automaton) is checkpoint-based, not
-precondition-based: an edit trace `s0 → s1 → … → s_k` may pass through
-arbitrary, even non-conformant, intermediate states, and L2 decides
-admissibility only *at* a checkpoint. §6's T5 (monitor non-bypass) states
-that such a checkpoint, when it runs, admits `s_k` iff `s_k ∈ R`. Neither §3
-nor §6 models what guarantees a checkpoint exists on a given admission path,
-executes for a given candidate state, or binds its decision to the actual
-promotion. This section names and formalizes that gap as a cross-cutting
-property of the admission boundary — deliberately not a seventh kernel
-layer: `A` is a distinguished subset of the transition relation `T` already
-defined in §4, and `Cov`/`Inv`/`Eff`/`EC` are predicates over it, not new
-governed state, a new record type, or a new derive projection. L0–L5 are
-unchanged.
+## 7. Enforcement closure
 
-### 7.1 Governed admission transitions
+RepoPact's repository checkpoint model leaves a deployment question outside the one-tree
+recognizer. A validator can be correct and still be operationally irrelevant if the path
+that admits state never calls it or ignores its result.
 
-Let `A ⊆ →` be the subset of the transition relation (§4) whose target state
-`s'` is promoted across a **governed admission boundary** — a distinguished
-class of transitions the deployment treats as consequential: a branch merge
-onto a protected ref, a release publication, a work item's move into
-`completed`, or an equivalent promotion a deployment designates. `A` is a
-deployment-supplied subset of `→`, not a fixed set the kernel derives; L0–L6
-place no constraint on which transitions a deployment designates as
-admission boundaries, only on what happens at one once designated. This is
-deliberately narrower than "every edit": intermediate working-tree states
-and non-admission-boundary transitions remain unconstrained exactly as §3
-describes, and this section does not turn RepoPact into a runtime or
-pre-edit gate.
+Let `A` be the deployment-designated set of consequential admission transitions, such as
+merge to a protected branch, release publication, or another promotion the deployment
+chooses to govern.
 
-For `τ = (s, a, s') ∈ A`, define three predicates:
+For `tau in A`, define:
 
-```
-Cov(τ)   checkpoint coverage:        the admission path producing τ routes
-                                      through the applicable checker at all
-Inv(τ)   checkpoint invocation:      the checker actually executes for τ,
-                                      given Cov(τ)
-Eff(τ)   checkpoint effectiveness:   a rejecting result (χ_R(s') = reject)
-                                      prevents τ's promotion from completing
+```text
+Cov(tau)   = the admission path routes through the applicable checker
+Inv(tau)   = the checker actually executes for this candidate
+Eff(tau)   = a rejecting result prevents the promotion
 ```
 
-**Enforcement closure** over `A`:
+Then **enforcement closure** over `A` is:
 
-```
-EC(A) := ∀τ ∈ A. Cov(τ) ∧ Inv(τ) ∧ Eff(τ)
-```
-
-Equivalently, in prose: *enforcement closure is the property that every
-transition promoting repository state across a governed admission boundary
-is necessarily evaluated by the applicable checkpoint, and a nonconformant
-state cannot cross that boundary merely because the checkpoint was absent,
-unavailable, ignored, or misconfigured.*
-
-The three conjuncts are logically independent, and the case study motivating
-this section documents both failing separately in the field: an admission
-path can lack `Cov` entirely (a CI pipeline that runs but never calls the
-validator — no checker is wired to that path at all), or possess `Cov` while
-lacking `Inv` (a checker is wired in but does not execute — e.g. the
-execution environment refuses to start the job) or `Eff` (the checker
-executes and correctly rejects, but nothing requires its result to gate the
-promotion — e.g. no required-status-check equivalent on the target ref).
-
-**Availability.** Whether the infrastructure a checkpoint depends on (a CI
-provider, a runner, network access) is reachable at all is not modeled as a
-fourth independent conjunct. It is treated as one possible *cause* of
-`Inv(τ) = false` — unavailability prevents execution — kept distinct from
-`Cov` and `Eff` because both of those can fail independently of
-availability: `Cov` can fail with perfect availability (nothing calls the
-checker), and `Eff` can fail with perfect availability and successful
-invocation (the checker runs and rejects, but nothing binds that result to
-the promotion).
-
-**Substrate neutrality.** `EC(A)` names a property of the admission boundary,
-not a mechanism. A required GitHub status check on a protected branch is one
-possible way to supply `Eff`; a repository-local canonical runner that
-developers and agents are disciplined (or required by tooling) to invoke
-before every promotion, a self-hosted CI system, a release-gate script that
-refuses to publish on a failing check, or a future distributed-runner
-admission check ahead of a control-plane merge could each supply `Cov`,
-`Inv`, or `Eff` through a different substrate. The model does not privilege
-any one mechanism.
-
-### 7.2 Relationship to T5 — a clarification, not an amendment
-
-T5 (§6) states: for an edit trace `s0 → … → s_k`, "the CI checkpoint admits
-the commit producing `s_k` iff `s_k ∈ R`." Read precisely, T5 is a claim
-about the **correctness of the checkpoint's decision function** — that it
-correctly recognizes `R` (extending T1's one-tree recognizer correctness to
-a trace) — stated in a context that presupposes the checkpoint exists on the
-relevant path and executes for the candidate state. Formally, using this
-section's predicates: **T5 establishes, for `τ ∈ A` with `Cov(τ) ∧ Inv(τ)`,
-that the checkpoint's decision on `τ` correctly equals `s' ∈ R`.** T5 does
-not itself establish `Cov(τ)`, `Inv(τ)`, or `Eff(τ)` for any particular
-`τ` — it is silent on whether a checkpoint exists on a given path, whether
-it runs, and whether its correct decision is actually binding. This is not
-a defect in T5: nothing in its statement or the `[ci]` discharge tag claims
-otherwise once read at this precision. It is, however, a common and natural
-over-reading — the informal prose around T5 ("no invalid state is admitted
-past a checkpoint") is easy to read as already including `Cov`/`Inv`/`Eff`,
-when in fact:
-
-```
-monitor non-bypass (operational sense) = T5's decision-correctness ∧ EC(A)
+```text
+EC(A) := for all tau in A:
+         Cov(tau) and Inv(tau) and Eff(tau)
 ```
 
-`T5` is unchanged and not falsified by this clarification — its literal
-quantified statement (a checkpoint that executes decides correctly) is
-sound and remains `[ci]`/`[conj]` exactly as before. What changes is that
-the *operational* guarantee a reader infers from "monitor non-bypass" —
-that invalid states cannot reach an admitted repository state in
-practice — additionally requires `EC(A)` as a **deployment precondition**
-this document did not previously separate out. RepoPact's reference
-implementation supplies the mechanism for `T1`/`T5`'s decision correctness
-(the validator); it does not supply, guarantee, or check `EC(A)` for a given
-deployment's admission set `A` — that remains the deployment's
-responsibility, exactly as `Init`, `Act`'s wiring into a CI system, and
-branch-protection-equivalent configuration are deployment facts outside the
-kernel's own `S`.
+The three predicates are independent. A path can lack coverage even when infrastructure is
+healthy. A covered path can fail invocation because the runner or CI environment never
+starts. A checker can invoke and reject correctly while an unprotected promotion ignores
+that result.
 
----
+Availability is therefore a possible cause of failed invocation, not a fourth logical
+property.
 
-## 8. Contributions and limits
+`EC(A)` is substrate-neutral. GitHub required checks, self-hosted CI, a local promotion
+runner, a release gate, or another mechanism can establish the property. The model does
+not privilege one vendor.
 
-**Contributions.** (1) A precise definition of the validator's decision (T1) and a
-conformance target for alternative implementations. (2) The action taxonomy of §4 and T6.
-(3) The typed invariant lattice (§5), which accounts for the three enforcement mechanisms
-and identifies what a fourth would require. (4) A backlog of open obligations: O-4 and O-6
-are the path to mechanizing INV-4 and INV-5.
+### 7.1 Relationship to T5
 
-**Faithfulness.** The model's value depends on its correspondence to the implementation. If
-`I` here and `Viol` in the code diverge, this document becomes a second hand-maintained
-mirror of derivable state — the failure mode policy 001 prevents. The clause table of §2 is
-kept row-aligned to the validator's functions, and any discrepancy between this prose and
-the code is treated as an audit finding (SPEC §1). INV-4, INV-5, and INV-1 lie outside the
-validator by their logical type (§5); the model marks that boundary explicitly. The
-lifecycle automaton (§3) models a single coordinate of the state; the semantics of the
-whole repository is the transition system of §4.
+T5 concerns the correctness of a checkpoint's decision when the checker executes. It does
+not prove that the deployment provides `Cov`, `Inv`, or `Eff`.
 
-**The L5 boundary: brownfield adoption.** RepoPact governs only what is in the repository.
-The memory that makes coordinated agentic work possible — plans with real-time updates,
-design intent, prior results, the history of *why* — frequently does not live in the repo.
-It lives in external systems: trackers (Jira, Trello, Linear), engineering documents,
-company-trajectory documents, and conversations that were never committed. `adopt` reads
-CODEOWNERS, workflows, nested contracts, and git history, and from them builds the best
-sound starting point obtainable at the moment of adoption — a fresh pact. It cannot read
-what is not present. The gap between the pact and the project's true state is real adoption
-drift, and it is not fabricable: the correct response is to state the gap, not to close it
-with invented records (which would violate INV-3).
+A stronger operational non-bypass statement therefore needs both:
 
-This is the central design tension for an agentic operating system at the kernel level.
-Coordinated multi-agent work degrades without shared, current memory in the same way that
-distributed teams without communication do: agents given partial views of the problem
-produce fractured systems — conflicting schemas, incompatible stacks, and duplicated or
-contradictory implementations. The repository-as-memory is the coordination substrate, and
-the value of the pact is proportional to how much of the working memory it holds. Two
-directions follow, both at L5:
+```text
+checkpoint decision correctness + EC(A)
+```
 
-1. **External ingestion.** Bring external sources across the boundary as first-class,
-   evidence-bearing records (a tracker export → work items + provenance; a design document
-   → a decision or contract). This widens what `adopt` can faithfully capture and shrinks
-   the unfabricable gap.
-2. **Provenance-typed, evolvable records.** Adoption emits `inferred`/`provisional` records
-   (the trilemma escape, §4) that are explicitly reconstructed rather than asserted, and
-   designed to be completed by a human- or agent-led pass — including the tiered
-   `AGENTS.md` contracts, which adoption scaffolds as deterministically as possible while
-   leaving completion hooks where determinism runs out. The kernel remains governing and
-   transitional rather than immutable: records ratchet from `inferred` to `concrete` as
-   evidence arrives.
+The naturalistic field case that motivated H14 showed why this distinction matters. It did
+not confirm H14. S7 is the prospective comparative test.
 
-Of these, **provenance-typed records are implemented in 2.0** (decision 0021): adoption
-emits provisional/inferred records and `doctor` ratchets them, resolving the trilemma in the
-implementation. **External ingestion remains future work.** Hypothesis H7 is correspondingly
-bounded: adoption is non-destructive and sound at the time it is performed, and now
-*honestly typed* (provisional, not falsely concrete), but completeness is still limited by
-how much of the project's memory is reachable from within the repository.
+## 8. Governance continuity
 
----
+Governance continuity is the recoverability property that connects the repository-native
+model to human-agent handoff.
 
-## 9. Map to the paper
+Define the represented governance projection:
 
-This document is the formal spine of [`paper-outline.md`](paper-outline.md) §3 (the model)
-and §4 (the validator as reference semantics). In its vocabulary, §5–§6 of the outline (the
-evaluation) become: the proving ground attempts to falsify T3–T5 and O-2/O-3/O-5, and each
-falsification is a `findings.md` entry citing a capture.
+```text
+G(s) = <Inv, Frz, Own, Reg, C, W, E, D, P, A, Prov>
+```
 
-The contributions beyond the SPEC are the kernel-layer model (§0), which presents the
-architecture with the lifecycle automaton as L1; the adoption trilemma and provenance
-typing (§4); the typed invariant lattice (§5); the enforcement-closure admission-boundary
-property (§7, added 2026-08-21, motivated by a naturalistic field case rather than the
-reflexive proving-ground protocol); and the L5 boundary (§8), which states the
-repository-as-kernel thesis precisely together with its present limits. In each, the
-architecture's enforcement tiers and adoption guarantees follow from the logic rather than
-from convenience.
+and retain `Viol(s)` as the current known conformance violations.
+
+Let `clone_v(s)` mean a clean clone of the versioned repository state together with the
+RepoPact version needed to interpret it. A handoff `h` to a fresh legitimate worker or
+supported client is governance-continuous for represented state when:
+
+```text
+recover_h(clone_v(s)) = <G(s), Viol(s)>
+```
+
+up to presentation-equivalent ordering and formatting.
+
+This equality is semantic, not byte-for-byte UI identity. Two clients may render the same
+work differently while agreeing on its id, authority state, dependencies, provenance,
+evidence, scopes, and current violations.
+
+### 8.1 Worker independence
+
+For state RepoPact claims is repository authoritative, recovery should not require:
+
+- the predecessor's chat transcript;
+- a predecessor-only local database;
+- a hidden UI cache;
+- provider memory;
+- one workstation's uncommitted index;
+- an undocumented summary generated during a prior session.
+
+A local cache or index is allowed as an acceleration artifact only if it is non-authoritative
+and can be rebuilt from the repository without loss of governed meaning.
+
+This distinction is directly relevant to future repository orientation work. A durable
+repository graph may accelerate recovery, but it should not become a hidden second source
+of truth. If committed, it should be a deterministic or provenance-bearing derived
+projection. If local, it must be rebuildable.
+
+### 8.2 Invalid-state continuity
+
+Continuity does not mean a clean handoff must produce a green repository.
+
+If `Viol(s)` is non-empty, a faithful handoff should preserve visibility of that fact. A
+worker transition that silently turns known invalid state into a healthy report is a
+continuity failure even when all source records were copied successfully.
+
+This is why the recovery target includes both `G(s)` and `Viol(s)`.
+
+### 8.3 Boundary of the claim
+
+Governance continuity is not omniscience. State that never crossed L5 cannot be recovered
+from the tree. The property is scoped to **represented, repository-authoritative state**.
+
+It is also not an efficiency claim. A system could be perfectly recoverable yet require
+painful repository-wide search every session. H15 states the structural property; S8
+measures correctness and separately records orientation cost, including tokens, file reads,
+tool calls, and repository-wide search operations.
+
+This separation lets future orientation mechanisms be evaluated honestly. They may improve
+cost without being allowed to redefine what counts as continuity.
+
+## 9. Contributions and limits
+
+The formal contributions are:
+
+1. a recognized repository language and conformance target;
+2. a lifecycle model in which status carries authority semantics;
+3. a typed invariant lattice that explains why different rules need different enforcers;
+4. the concrete-record adoption trilemma and provenance-typed epistemic resolution;
+5. enforcement closure as a deployment property separate from validator correctness;
+6. governance continuity as a clean-handoff recoverability property over represented state.
+
+The model remains intentionally bounded.
+
+RepoPact cannot govern facts it never receives. External ingestion can widen L5, but every
+source needs provenance rather than automatic promotion to concrete truth. RepoPact also
+does not replace runtime authorization, sandboxing, or execution control. Repository
+conformance and runtime safety are different boundaries.
+
+Finally, the model must not outpace the implementation. The canonical Rust engine is the
+semantic authority only for surfaces actually cut over and proven. Migration-oriented or
+historical commands that remain outside that surface should be named honestly. Likewise,
+macOS and iOS targets are not treated as validated merely because the shared Tauri code can
+target them.
+
+## 10. Map to the paper and research protocol
+
+This document is the formal spine for [`paper.md`](paper.md).
+
+The key mappings are:
+
+- §§0-5 map to the paper's repository-native governance kernel and typed enforcement model.
+- §4 maps to the brownfield adoption and provenance discussion, with the structural-residue
+  caveat that prevents overclaiming.
+- §7 maps to H14 / S7, enforcement closure.
+- §8 maps to H15 / S8, governance continuity.
+- the conformance model supports the claim that multiple legitimate clients can share one
+  semantic authority without requiring identical implementations.
+
+The proving-ground program attempts to falsify the empirical claims. The formal model does
+not turn a preregistered hypothesis into a theorem merely because the notation is clean.

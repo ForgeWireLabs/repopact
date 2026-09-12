@@ -1,0 +1,269 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "063",
+  "title": "Durable Repository Orientation Graph and Incremental Semantic Index",
+  "status": "proposed",
+  "owner_scope": "work",
+  "affected_scopes": [
+    "work",
+    "tooling",
+    "governance",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "054",
+    "056",
+    "058"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-12T17:50:00Z",
+    "note": "Created after the Repository Orientation Graph concept was discussed and after H15/S8 orientation-cost metrics were pre-registered, but before any ROG implementation, durable graph format, language adapter, adoption integration, cache, Workbench extension, or graph-enabled benchmark run begins. The work item follows a Sol High architecture review of the live WI054/WI056 Rust graph and engine boundaries."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "ROG-001",
+      "text": "Record a durable architecture decision before implementation makes a persistent graph format canonical. The decision defines the graph's repository path, schema/version contract, sharding/canonical serialization, source-projection fingerprint, enablement semantics, local-cache boundary, migration/backfill behavior, and the fact that the graph is derived rather than a new source of truth.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-002",
+      "text": "Extend the canonical WI054 Rust graph/query authority instead of creating a second competing graph implementation. Existing governance nodes and relationships remain canonical for governance, while repository-orientation layers add physical, semantic, build/test/operational relationships and deterministic cross-layer links.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-003",
+      "text": "Define a typed multilayer node model covering at minimum repository, directory, file, workspace/package/crate/module, configuration/build/test/runtime surfaces, selected language symbols, and the existing RepoPact governance node classes. Node identity is deterministic and repository-relative; line numbers alone are not primary symbol identity.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-004",
+      "text": "Define an explicit edge taxonomy for physical containment, definitions/imports/exports, dependencies/reverse dependencies, selected references/calls/implementation relations where supported, build/package/test/runtime relations, and governance applicability. Unsupported or low-certainty relationships are not presented as exact facts.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-005",
+      "text": "Every durable graph relationship carries enough explanation metadata to identify its relation kind, source path/location where available, derivation mechanism, provenance/certainty class, and graph schema/generator context. Clients can explain why an edge exists without relying on an opaque model score.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-006",
+      "text": "Define and enforce derivation classes that distinguish canonical RepoPact-record relationships, deterministic parser relationships, manifest/build-system relationships, and any future heuristic/inferred relationships. LLM or heuristic output is never silently promoted to concrete graph authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-007",
+      "text": "Implement a deterministic portable durable graph representation suitable for Git versioning, clean-clone loading, corruption detection, and canonical rebuild. The representation includes a manifest plus stable partitioning/sharding of graph data so unrelated source changes do not rewrite the entire graph unnecessarily.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-008",
+      "text": "Do not make a committed SQLite, sled, RocksDB, or other opaque binary database the sole durable graph representation. A local acceleration database is permitted only as a disposable, reconstructable cache whose deletion loses no repository-authoritative state.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-009",
+      "text": "Define a canonical source projection and fingerprint that excludes the graph's own derived files and explicitly excluded cache/generated paths, avoids circular self-hashing, and uses stable path/content or Git object identities where available. Graph freshness can be verified without blindly reparsing every source file.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-010",
+      "text": "Expose explicit graph freshness/capability states including at least fresh, working-overlay or dirty-aware, partial, stale, unsupported, and corrupt (exact naming may differ). No supported client may silently present stale or partial graph output as a current complete repository map.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-011",
+      "text": "Canonical full graph rebuilds from the same source projection and graph-schema version are deterministic and byte-equivalent after documented normalization across repeated runs and supported platforms. Nondeterministic timestamps or traversal order may not poison the fixpoint.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-012",
+      "text": "Incremental graph update is proven equivalent to a clean full rebuild for every supported change class: after canonical normalization, G_incremental(s0->s1) equals G_full(s1). Tests cover additions, edits, deletes, renames/moves where supported, manifest changes, relationship changes, and parser-failure recovery.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-013",
+      "text": "Integrate with RepositorySession/snapshot and the existing watcher model so uncommitted working-tree changes can invalidate or update a local graph overlay without rewriting the durable baseline on every keystroke. Query results disclose when dirty working-tree state contributes to the answer.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-014",
+      "text": "Integrate graph bootstrap with brownfield adoption after governance discovery/import: repository discovery -> governance adoption -> orientation discovery -> graph build -> graph validation/materialization -> orientation summary -> final validation. Graph generation does not fabricate governance facts to make adoption pass.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-015",
+      "text": "Provide an explicit deterministic backfill path for already-governed repositories, such as `repopact graph build` plus status/verify operations and, only if separately justified, doctor migration. Existing adopters are not silently forced to accept a large persistent artifact without a versioned capability contract.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-016",
+      "text": "Prove the clean-clone success path: a fresh client can clone a graph-enabled repository, verify graph schema/fingerprint, load the durable graph or rebuild a local acceleration cache, and answer bounded orientation queries without first performing a full repository text search or reparsing the entire repository.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-017",
+      "text": "Define a language-neutral adapter interface for semantic extraction. Evaluate Tree-sitter or an equivalent incremental parser substrate and record the selected approach based on determinism, incremental behavior, portability, parse safety, language coverage, packaging cost, and integration with the Rust core.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-018",
+      "text": "Initial semantic coverage is sufficient to orient RepoPact itself and includes at least Rust, Python, and TypeScript/JavaScript source structure plus relevant JSON/TOML/YAML/Markdown and manifest metadata. Coverage is reported per language and relation; support for a language does not falsely imply a complete call graph.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-019",
+      "text": "Add deterministic build/package/test/operational adapters where repository metadata supports them, including at least Cargo workspace/dependency metadata, Python package/project metadata, JavaScript/TypeScript package and tsconfig/workspace metadata, CI workflow references, test targets/fixtures, generated boundaries, installer/package surfaces, and runtime/application entry points used by RepoPact.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-020",
+      "text": "Coverage gaps are first-class graph output. Unsupported languages, parser failures, excluded trees, and relationships unavailable at the chosen extraction tier are reported explicitly. Partial coverage is never represented as complete repository understanding.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-021",
+      "text": "Implement safe repository-boundary and exclusion behavior: do not follow symlinks outside the repository by default, do not index `.git` internals as source, honor RepoPact/graph exclusions, classify submodules or nested repos, bound vendor/generated/dependency trees, avoid common build/cache/venv/node_modules/target outputs by default, and do not ingest ignored secret files merely because they exist locally.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-022",
+      "text": "Language adapters are resource-bounded and failure-isolated for malformed or adversarial repository content. Define and test file-size/binary/minified/generated policies, cancellation or timeout behavior, recursion/depth bounds where applicable, malformed syntax handling, path normalization, parser memory behavior, and recovery after a failed region parse.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-023",
+      "text": "Expose a typed agent/query API from the canonical Rust engine covering graph status, target resolution, context/orientation, neighbors, path, dependencies, reverse dependencies, impact, tests, governance, and other narrowly justified operations. Results include stable IDs, relation kinds, source references, freshness, and provenance/derivation metadata.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-024",
+      "text": "Implement a bounded orientation query for a work item, path, package, module, type, or symbol that can return identity, containment, direct dependencies/dependents, relevant tests, build/runtime/package surfaces, applicable RepoPact governance, coverage/freshness warnings, and a small source-backed list of files or nodes to inspect first. Facts are distinguished from heuristic recommendations.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-025",
+      "text": "Graph query outputs support explicit bounds such as maximum nodes/edges, depth, relation filters, pagination/cursors, output byte/token budget, and source-reference-only modes. Truncation is explicit and resumable rather than silently dropping graph neighborhoods.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-026",
+      "text": "Add practical public CLI and versioned engine-protocol operations for graph build/status/verify plus orientation/context/impact/tests/governance queries. Python compatibility clients, Workbench, agents, and future clients use typed protocol results rather than scraping presentation strings.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-027",
+      "text": "Extend the Workbench's existing graph surface into an operator-oriented repository map with node resolution/search, layer/relation filters, bounded neighborhood drill-in, source navigation, impact/test/governance views, freshness/coverage state, and authorized rebuild/verify controls. A force-directed visual canvas is optional and is not the primary acceptance criterion.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-028",
+      "text": "Workbench graph behavior remains usable across wide and compact form factors without making essential operations depend on hover or right-click. Durable graph semantics are path-normalized and portable across Windows/Linux/macOS; mobile capability handling composes with WI061 rather than assuming unrestricted filesystem or system-Git access.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-029",
+      "text": "Define branch/merge/conflict behavior for derived graph files. Source merge resolution remains authoritative; graph conflicts can be repaired by deterministic regeneration; the sharding strategy minimizes unrelated churn; no workflow requires humans to hand-merge graph semantics that can be rederived from source.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-030",
+      "text": "Version the durable graph schema and define compatibility/migration behavior. Unknown major graph versions fail or report unsupported rather than being interpreted optimistically. Graph format evolution is separable from unrelated RepoPact spec changes where practical.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-031",
+      "text": "Add graph validation/conformance coverage for manifest/shard schema, hashes, duplicate node IDs, dangling edges, canonical sort/serialization, source-fingerprint match, self-exclusion, deterministic rebuild, incremental/full equivalence, clean clone, corruption, staleness, partial coverage, unsupported language behavior, path normalization, symlink/nested-repo boundaries, and graph-disabled compatibility.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-032",
+      "text": "Produce performance and storage evidence on RepoPact plus documented larger fixtures: full build time, incremental update time by change class, peak memory, durable graph size, local-cache size, node/edge counts, clean-clone verification/load time, representative query latency, parser coverage, graph/source size ratio, and branch/merge rebuild cost. Any product limit is justified by measurements rather than intuition.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-033",
+      "text": "Before any graph-enabled comparative result is collected, append a dated amendment to `research/benchmark-protocol.md` defining the S8 R1 graph-enabled condition without rewriting existing B0/R0 conditions, tasks, or metrics. The amendment is committed before exploratory R1 runs that could influence the evaluation contract.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-034",
+      "text": "Evaluate R1 against the already-registered S8 correctness and orientation-cost measures, including governance/violation recovery, false-clean rate, authority-state error, orientation time, tokens, tool calls, file reads, repository-wide grep/search operations, bytes read, and human interventions. Reduced search with degraded correctness is not accepted as a win.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-035",
+      "text": "Document adoption, enable/disable, rebuild, verification, freshness, graph-query, unsupported-language, privacy/exclusion, cache, and troubleshooting workflows for both human operators and agents. Documentation distinguishes durable graph facts from heuristics and from authoritative source/governance records.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-036",
+      "text": "The deterministic ROG core requires no LLM, embedding/vector database, cloud indexing service, or external provider. Any future assisted semantic enrichment is proposal/inferred only, is clearly provenance-typed, and cannot silently become governance or mutation authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-037",
+      "text": "Graph queries and Workbench views do not bypass WI054 typed mutation plan/apply, frozen-surface approval, WI050 admission/enforcement, Tauri IPC/capability boundaries, evidence/provenance rules, or repository path restrictions. Graph impact data may inform a mutation plan but never authorizes it.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-038",
+      "text": "Closeout evidence enumerates the exact durable format, paths, schema, fingerprint, node/edge classes, language/relation coverage, query surface, cache behavior, Workbench surface, unsupported capabilities, parser/resource limits, cross-platform normalization, performance/storage results, security/adversarial tests, and remaining future work, with links to executable evidence rather than prose-only claims.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-039",
+      "text": "Define a backward-compatible capability contract: repositories without the ROG or with it explicitly disabled remain valid RepoPact repositories unless a later governed version decision changes that rule; when the ROG capability is declared enabled, its durable manifest/freshness/validation requirements become binding and may not silently degrade to an absent graph.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "ROG-040",
+      "text": "Prove by API design and tests that graph data itself cannot grant ownership, approval, lifecycle authority, criterion waiver, frozen-surface acknowledgement, invariant mutation, or evidence truth. Those authorities continue to derive from their existing RepoPact source records and governed mutation/admission paths.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-12",
+  "updated": "2026-09-12"
+}

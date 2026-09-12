@@ -27,8 +27,6 @@ RECORDS = [
      "Binding guarantees with rationale and escalation."),
     ("frozen-surface.schema.json", "Frozen surface", "governance/frozen-surface.json",
      "Protected paths and symbols requiring operator approval."),
-    ("verification-profile.schema.json", "Verification contract", "governance/verification.json",
-     "Provider-neutral local verification profiles and hosted-adapter defaults."),
 ]
 
 

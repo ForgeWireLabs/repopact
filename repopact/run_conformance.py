@@ -18,9 +18,9 @@ from pathlib import Path
 
 import jsonschema
 
-from . import generate_dashboard
 from . import engine_client
-from . import validate_repo
+from . import generate_dashboard
+from . import legacy_validate
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -109,7 +109,12 @@ def evaluate_case(case: dict, command: str, fixtures_root: Path) -> CaseResult:
     case_id = str(case["id"])
     with tempfile.TemporaryDirectory(prefix=f"repopact-conformance-{case_id}-") as tmp:
         repo = materialize_case(Path(tmp), fixtures_root, case)
-        reference_problems = validate_repo.validate(repo)
+        # The fixture oracle is the explicit Python compatibility surface, not
+        # the historical pre-cutover validator alone. This keeps fixture
+        # isolation independent of the Rust implementation while allowing new
+        # migrated semantic rules (such as WI046 verification contracts) to be
+        # represented without pretending the old module is still complete.
+        reference_problems = legacy_validate.validate(repo)
         proc = run_command(command, repo)
     output = "\n".join(part for part in (proc.stdout, proc.stderr) if part)
     expect = case.get("expect")
@@ -158,7 +163,7 @@ def main() -> int:
     parser.add_argument(
         "--legacy-python",
         action="store_true",
-        help="Also run the independent legacy Python validator comparator.",
+        help="Also run the independent Python compatibility validator comparator.",
     )
     args = parser.parse_args()
 
@@ -174,14 +179,14 @@ def main() -> int:
         print(f"{status} {result.case_id}: {result.detail}")
     print(f"\nCanonical Rust conformance: {len(results) - len(failed)}/{len(results)} cases passed.")
     if args.legacy_python:
-        legacy_command = f'"{sys.executable}" -m repopact.validate_repo --root "{{repo}}"'
+        legacy_command = f'"{sys.executable}" -m repopact.legacy_validate --root "{{repo}}"'
         legacy_results = run_suite(legacy_command, args.manifest.resolve())
         legacy_failed = [result for result in legacy_results if not result.passed]
         for result in legacy_results:
             status = "PASS" if result.passed else "FAIL"
             print(f"{status} legacy-python {result.case_id}: {result.detail}")
         print(
-            f"\nLegacy Python comparator: "
+            f"\nPython compatibility comparator: "
             f"{len(legacy_results) - len(legacy_failed)}/{len(legacy_results)} cases passed."
         )
     from .admission_conformance import run_admission_corpus

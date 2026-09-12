@@ -28,6 +28,7 @@
         "required": ["description", "steps"],
         "properties": {
           "description": {"type": "string", "minLength": 1},
+          "coverage": {"enum": ["host", "complete"]},
           "steps": {
             "type": "array",
             "minItems": 1,

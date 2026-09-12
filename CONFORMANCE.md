@@ -28,10 +28,10 @@ Canonical Rust engine run:
 python -m repopact.run_conformance
 ```
 
-Add `--legacy-python` to run the historical Python validator as an independent
-regression comparator. It is not the product authority for migrated surfaces and,
-until WI046's comparator reconciliation is complete, it does not define the new
-verification-contract semantic rule.
+Add `--legacy-python` to run the independent Python compatibility comparator. The
+comparator composes the historical Python validator with small explicit compatibility
+validators for semantic surfaces migrated after the Rust cutover, including WI046.
+It remains regression evidence rather than product authority.
 
 Third-party implementation run:
 

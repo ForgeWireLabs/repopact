@@ -5,10 +5,15 @@ project's governance signals and generates RepoPact records *around* them, witho
 overwriting a single existing file:
 
 * ``CODEOWNERS``            -> scopes and roles in ``governance/owners.json``
-* ``.github/workflows/*``   -> binding-gate policies + a CI invariant + frozen surface
+* ``.github/workflows/*``   -> candidate hosted-adapter policy records + frozen surface
+* local verification       -> ``governance/verification.json`` with hosted execution off
 * nested ``AGENTS.md``      -> registered contracts in ``audits/registry.json``
   (with a stub ``_audit`` triplet created only where an ``_audit`` dir already exists)
 * git history              -> the first evidence run and a completed adoption work item
+
+Workflow presence is not treated as proof that a hosted checkpoint is enabled,
+available, invoked, effective, or bound to admission.  The provider-neutral local
+verification contract is seeded independently (Decision 0043 / WI046).
 
 Everything it writes is created only if absent. Run with ``--dry-run`` to see the
 plan without touching the tree. The result is validated before it returns.
@@ -26,6 +31,7 @@ from pathlib import Path
 
 from . import generate_dashboard
 from . import init_repo  # reuse _seed_dir, _json/_write semantics, LIFECYCLE
+from . import verification
 
 
 # --- non-destructive primitives --------------------------------------------
@@ -231,14 +237,6 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
         "escalation": "If a task would leave load-bearing state only in chat, record it as a file first.",
         "enforced_by": None,
     }]
-    if workflows:
-        invariants.append({
-            "id": "INV-2",
-            "statement": "Declared CI workflows are binding gates; removing or weakening one requires operator approval.",
-            "rationale": "CI is the enforcement substrate that the project's correctness claims rest on.",
-            "escalation": "Flag any change that deletes or disables a workflow and confirm with the operator.",
-            "enforced_by": ".github/workflows",
-        })
     rep.json(target / "governance" / "invariants.json",
              {"$schema": "../schemas/invariants.schema.json", "version": 1, "invariants": invariants}, target)
 
@@ -246,22 +244,30 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
                   "reason": "Invariants are the pact; weakening requires operator approval.", "symbols": []}]
     if workflows:
         protected.append({"glob": ".github/workflows/**",
-                          "reason": "CI is the enforcement substrate; changes need human review.", "symbols": []})
+                          "reason": "Hosted automation adapters can execute privileged validation or publication when enabled; changes need human review.", "symbols": []})
     if codeowners:
         protected.append({"glob": "CODEOWNERS",
                           "reason": "Ownership mapping; changing who can approve what needs review.", "symbols": []})
     rep.json(target / "governance" / "frozen-surface.json",
              {"$schema": "../schemas/frozen-surface.schema.json", "version": 1, "protected": protected}, target)
 
-    # One policy per detected workflow: the existing gate, recorded as an operating rule.
+    # The provider-neutral local contract exists independently of any discovered hosted workflow.
+    rep.json(
+        target / "governance" / "verification.json",
+        verification.default_verification_config(schema_ref="../schemas/verification-profile.schema.json"),
+        target,
+    )
+
+    # One policy per detected workflow records an adapter signal, not an enforcement claim.
     for i, wf in enumerate(workflows, start=1):
         name = workflow_name(wf)
         rel = str(wf.relative_to(target)).replace("\\", "/")
         pid = f"{i:03d}"
-        rep.write(target / "governance" / "policies" / f"{pid}-ci-{_slug(name)}.md",
-                  f"---\nid: {pid}\ntitle: 'CI gate: {name}'\nstatus: active\napplies_to: '{rel}'\n---\n\n"
-                  f"# {pid}: CI gate — {name}\n\nThe workflow [`{rel}`]({rel}) is a binding gate adopted into the\n"
-                  f"pact. It must pass before merge; disabling or weakening it requires operator approval (INV-2).\n", target)
+        rep.write(target / "governance" / "policies" / f"{pid}-hosted-adapter-{_slug(name)}.md",
+                  f"---\nid: {pid}\ntitle: 'Hosted automation adapter: {name}'\nstatus: active\napplies_to: '{rel}'\n---\n\n"
+                  f"# {pid}: Hosted automation adapter — {name}\n\nThe workflow [`{rel}`]({rel}) existed when RepoPact was adopted.\n"
+                  "Its presence is an adapter signal only. It does **not** prove that hosted execution is enabled, available, invoked, effective, or bound to a merge/admission boundary. "
+                  "The provider-neutral local verification contract is recorded separately in `governance/verification.json`.\n", target)
 
     # audits/registry.json: root contract + every nested AGENTS.md, with _audit triplets stubbed.
     registry_scopes = [{"path": ".", "owner": "governance-owner", "contract": "AGENTS.md",
@@ -288,11 +294,11 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
         for empty in ("evidence/runs", "decisions", "governance/policies", "audits/findings", "audits/reports"):
             (target / empty).mkdir(parents=True, exist_ok=True)
 
-    # The adoption itself: a completed work item proven by an evidence run over the scan.
+    # The adoption itself: a work item backed by inferred evidence over the scan.
     ts = datetime.now()
     ev_id = f"{ts.strftime('%Y%m%d-%H%M%S')}-adopt"
     summary = (f"Adopted RepoPact into an existing repository: {stats.get('commits')} commits, "
-               f"{len(workflows)} CI workflow(s), {len(codeowners)} CODEOWNERS handle(s), "
+               f"{len(workflows)} hosted automation workflow(s), {len(codeowners)} CODEOWNERS handle(s), "
                f"{len(contracts)} nested contract(s).")
     rep.json(target / "evidence" / "runs" / f"{ev_id}.json", {
         "$schema": "../../schemas/evidence-run.schema.json",
@@ -303,7 +309,7 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
             {"command": "repopact adopt", "exit_code": 0, "summary": summary},
         ],
         "artifacts": [str(w.relative_to(target)).replace("\\", "/") for w in workflows],
-        "environment": {"platform": sys.platform},
+        "environment": {"platform": sys.platform, "hosted_workflow_count": len(workflows), "hosted_enforcement_claimed": False},
     }, target)
 
     # The adoption is a PROVISIONAL record backed by INFERRED evidence (decision 0021):
@@ -318,9 +324,9 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
         "provenance": "provisional",
         "depends_on": [],
         "acceptance_criteria": [
-            {"id": "AC-1", "text": "Existing CODEOWNERS, CI workflows, and nested contracts are represented as RepoPact records.",
+            {"id": "AC-1", "text": "Existing CODEOWNERS, hosted workflow adapters, and nested contracts are represented as RepoPact records without fabricating hosted enforcement state.",
              "state": "satisfied", "evidence": [ev_id]},
-            {"id": "AC-2", "text": "The repository validates as a conformant RepoPact.",
+            {"id": "AC-2", "text": "The repository has a provider-neutral local verification contract and validates as a conformant RepoPact.",
              "state": "satisfied", "evidence": [ev_id]},
         ],
         "created": today.isoformat(), "updated": today.isoformat(),
@@ -329,19 +335,18 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
               "# 000 — Adopt RepoPact into the existing repository\n\n"
               "> **Status**: 🟡 Provisional (reconstructed on adoption; ratchet to concrete after verification)\n\n## Intent\n\n"
               "Bring an existing project under RepoPact governance by mapping its already-present\n"
-              "ownership (CODEOWNERS), enforcement (CI workflows), and contracts (nested `AGENTS.md`)\n"
-              "into RepoPact records.\n\n## Provenance\n\n"
+              "ownership (CODEOWNERS), hosted automation adapters, and contracts (nested `AGENTS.md`)\n"
+              "into RepoPact records while seeding a separate local-first verification contract.\n\n## Provenance\n\n"
               f"This record is **provisional**, backed by **inferred** evidence run `{ev_id}` reconstructed\n"
-              "from the repository scan rather than proven by a run. Attach real verification evidence and\n"
+              "from the repository scan rather than proven by a run. Workflow presence was recorded only as an adapter signal and is not evidence of hosted enforcement. Attach real verification evidence and\n"
               "run `repopact doctor` to ratchet it to concrete, then complete it. " + summary + "\n", target)
 
     rep.write(target / "decisions" / "0001-adopt-repopact.md",
               "---\nid: 0001\ntitle: Adopt RepoPact\nstatus: accepted\n"
               f"date: {today.isoformat()}\nsupersedes: []\n---\n\n# 0001: Adopt RepoPact\n\n## Context\n\n"
-              "The project already had ad-hoc governance (CODEOWNERS, CI gates, AGENTS.md). RepoPact\n"
-              "makes those bindings explicit and machine-checkable.\n\n## Decision\n\n"
-              "Adopt RepoPact; existing workflows become binding gates (INV-2) and ownership becomes\n"
-              "scopes/roles. Existing files were preserved; RepoPact records were added around them.\n", target)
+              "The project already had ad-hoc governance signals such as CODEOWNERS, hosted automation workflows, and AGENTS.md. RepoPact\n"
+              "makes durable governance explicit without treating provider configuration as proof of effective enforcement.\n\n## Decision\n\n"
+              "Adopt RepoPact. Ownership becomes scopes/roles; existing hosted workflows are recorded as candidate executor adapters only; and a provider-neutral local verification contract is seeded with hosted execution disabled by default. Existing files are preserved and RepoPact records are added around them.\n", target)
 
     # The dashboard is derived, but adoption remains non-destructive: create the
     # canonical projection only when the reserved path is absent. An existing file

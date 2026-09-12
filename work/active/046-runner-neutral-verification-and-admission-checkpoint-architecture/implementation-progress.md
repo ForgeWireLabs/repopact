@@ -18,16 +18,18 @@ This record captures implementation state only. It is not closeout evidence and 
 
 ## Canonical Rust integration
 
-`governance/verification.json` now participates in the immutable Rust repository snapshot/read set. Changes to the contract therefore change the snapshot token used by the canonical engine path.
+`governance/verification.json` participates in the immutable Rust repository snapshot/read set. Changes to the contract therefore change the snapshot token used by every snapshot-backed product surface.
 
-`RepoPactCore::validate_snapshot` validates the optional verification record from that same snapshot against the embedded `verification-profile.schema.json` and adds semantic checks for:
+The WI046 verification-contract rules now execute inside the shared `repopact-validation` semantic boundary rather than being layered only in `RepoPactCore`. The shared validator checks the optional record against the embedded `verification-profile.schema.json` and adds semantic checks for:
 
 - `default_profile` referring to a declared profile;
 - unique step ids within a profile;
 - repository-contained relative working directories, including existing symlink/reparse containment through the repository resolver;
 - the closed provider-neutral placeholder set.
 
-The installed Rust CLI and compatibility-engine `validate` operation traverse `RepoPactCore`, so these WI046 semantics are part of the normal canonical command path.
+This closes the earlier validity split. The installed CLI/engine path, `RepoPactCore`, the desktop/Workbench validation projection, and mutation post-apply validation all consume the same `repopact-validation::validate` / `validate_snapshot` result. No caller maintains a second WI046 diagnostic layer.
+
+The verification-contract implementation is isolated in `rust/crates/repopact-validation/src/adopters/verification_contract.rs` and is invoked from an always-executed shared validation phase. Focused Rust tests prove that the contract is checked even when `governance/adopters.json` is absent, so the integration hook does not make WI046 conditional on adopter-fleet state.
 
 ## Invariant and specification reconciliation
 
@@ -35,26 +37,27 @@ INV-7's machine-enforcement pointer no longer names GitHub Actions. It now ident
 
 The generated SPEC catalog includes the verification contract and rule 14 defines its semantic boundary. The specification explicitly distinguishes local verification evidence from remote admission enforcement.
 
-## Known integration gap
+The conformance inventory includes `SPEC-4-verification-contract` and a negative fixture. The independent Python comparator has a WI046 compatibility validator so fixture isolation remains meaningful after the Rust cutover without restoring Python as product authority.
 
-The desktop API still constructs its validation view by calling the lower-level `repopact-validation` crate directly instead of `RepoPactCore::validate_snapshot`. That pre-existing bypass means the installed CLI/engine path sees WI046 verification-contract diagnostics while the current Workbench validation view does not yet include this additional core-layer diagnostic set.
+## Integration status
 
-This must be reconciled before WI046 can claim one semantic validation surface across CLI and Workbench. The correction should route the desktop view through `RepoPactCore` or move the new verification-contract validator to a lower shared semantic layer without duplicating rules.
+The previously recorded Workbench/mutation integration gap is structurally closed. There is now one Rust validity notion for WI046 across the known product callers.
 
-The mutation crate also performs its internal post-apply repository validation through `repopact-validation`. That existing lower-level boundary must be reviewed in the same reconciliation so WI046 does not create divergent validity notions.
+This is an implementation conclusion, not an execution claim. It still needs checkout-level proof that the workspace compiles, the new tests run, the Workbench path reports the expected diagnostic, mutation post-validation rejects the same invalid contract, and the conformance fixture passes through the canonical engine.
 
 ## Evidence still required
 
 No test or release-readiness result is claimed by this record. Closeout still requires execution from an actual checkout, including at minimum:
 
 1. Python WI046 verification/release tests;
-2. Rust workspace tests including the new snapshot-backed contract tests;
+2. Rust workspace tests including the shared verification-contract tests;
 3. canonical RepoPact validation;
 4. conformance;
 5. SPEC/dashboard freshness checks;
-6. the `ci` profile with repository-native WI046 evidence recording;
-7. the `release` profile and local release preparation without publication;
-8. negative hosted-switch/publication/enforcement cases required by the work item;
-9. truthful platform/capability evidence for any release claim whose coverage exceeds one host.
+6. direct parity proof that CLI/engine, Workbench, and mutation post-validation observe the same invalid verification contract;
+7. the `ci` profile with repository-native WI046 evidence recording;
+8. the `release` profile and local release preparation without publication;
+9. negative hosted-switch/publication/enforcement cases required by the work item;
+10. truthful platform/capability evidence for any release claim whose coverage exceeds one host.
 
 Until those runs exist and are linked, WI046 remains active.

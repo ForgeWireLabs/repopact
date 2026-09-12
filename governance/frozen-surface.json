@@ -19,7 +19,7 @@
     },
     {
       "glob": ".github/workflows/**",
-      "reason": "CI is the enforcement substrate; changes need human review.",
+      "reason": "GitHub Actions workflows are optional hosted CI/CD adapters. They are disabled by default, but when enabled they can execute validation or publication actions, so changes require human review.",
       "symbols": []
     }
   ]

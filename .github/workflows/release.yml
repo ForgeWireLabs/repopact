@@ -1,10 +1,13 @@
 name: Publish to PyPI
 
-# Publishes the repopact distribution to PyPI via Trusted Publishing (OIDC) — no
-# stored API token. Fires when a GitHub release is published, and can be run manually.
-# Requires a PyPI trusted publisher (or pending publisher) configured for this repo:
-#   project: repopact | owner: ForgeWireLabs | repo: repopact
-#   workflow: release.yml | environment: pypi
+# OPTIONAL HOSTED ADAPTER.
+# RepoPact CD is local-first. GitHub-hosted build/publish is opt-in and
+# disabled by default. Set repository variable REPOPACT_GITHUB_CD to exactly
+# "true" to allow this adapter to allocate hosted runners and publish.
+#
+# When enabled, publication uses PyPI Trusted Publishing (OIDC) with no stored
+# API token. Local publication remains a separate supported architecture under
+# Decision 0043 / WI046.
 on:
   release:
     types: [published]
@@ -13,14 +16,9 @@ on:
 permissions:
   contents: read
 
-# TEMPORARY LOCAL-ONLY MODE (operator directive, 2026-09-01):
-# GitHub-hosted execution is intentionally suspended while the account is
-# payment-locked. The workflow remains checked in as the hosted publication
-# adapter/reference, but no hosted build/publish runner may be allocated until
-# the operator explicitly lifts the stop.
 jobs:
   build:
-    if: ${{ false }}
+    if: ${{ vars.REPOPACT_GITHUB_CD == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,12 +35,12 @@ jobs:
           path: dist/
 
   publish:
-    if: ${{ false }}
+    if: ${{ vars.REPOPACT_GITHUB_CD == 'true' }}
     needs: build
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
-      id-token: write   # required for Trusted Publishing (OIDC)
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:

@@ -1,131 +1,345 @@
-# 046 — Runner-Neutral Verification and Admission Checkpoint Architecture
+# 046: Local-First Verification, CI/CD, and Optional Hosted Adapters
 
-> **Status**: Proposed
-> **Owners**: governance-owner (lead); tooling-owner, evidence-owner, docs-owner, and work-coordinator affected.
-> **Depends on**: WI039 (completed enforcement-closure field study).
+> **Status**: Proposed  
+> **Owners**: governance-owner (lead); tooling-owner, evidence-owner, docs-owner, and work-coordinator affected.  
+> **Depends on**: WI039 (completed enforcement-closure field study).  
+> **Architecture decision**: Decision 0043, accepted 2026-09-12.
 
 ## Intent
 
-Make verification and admission checkpoints a first-class RepoPact architectural concept without turning RepoPact into a CI hosting or remote execution service.
+Make RepoPact verification and release execution **local-first and locally complete**, while keeping hosted CI/CD systems as optional adapters that are disabled by default.
 
-RepoPact already models durable authority, work, evidence, drift, and enforcement closure. It also adopts existing `.github/workflows/*` files as binding-gate policies. What it does not yet own independently is the logical verification contract that those provider-specific workflows execute.
+RepoPact must remain able to validate, test, check conformance, refresh/check derived artifacts, build release artifacts, perform release verification, and record evidence from an operator-controlled machine when GitHub Actions or another hosted provider is unavailable. Hosted execution may mirror or enforce the same contracts when explicitly enabled, but provider YAML is not the source of truth.
 
-That omission becomes visible when execution venue and verification contract are conflated. A repository can have the right checks but lose GitHub-hosted execution because of an account/provider failure; it can also have healthy hosted CI that never invokes RepoPact at all. Those are different failures and should not require different definitions of what the repository considers a valid checkpoint.
-
-The target architecture is therefore runner-neutral:
+The target architecture is:
 
 ```text
-RepoPact verification / admission contract
-                |
-        replaceable executors
-     /          |          \
- local      hosted CI    operator-owned / Fabric-style
+                  repository-defined contracts
+                            |
+             +--------------+--------------+
+             |                             |
+             v                             v
+      canonical local runner        optional adapters
+             |                    /       |        \
+             |              GitHub    self-hosted   Fabric/other
+             |                    
+             v
+  validation / tests / conformance /
+  packaging / release verification /
+  evidence / optional publication
 ```
 
-The same logical checkpoint should be executable on a maintainer workstation, GitHub Actions, another hosted provider, a self-hosted runner, or an operator-controlled ForgeWire/Fabric execution path. Provider YAML is an adapter, not the source of truth.
+Local execution is the primary implementation. Hosted adapters must eventually reduce to thin invocations of the same local contracts.
 
-## Field trigger
+## Why this changed
 
-This work is motivated by two already-recorded failure classes:
+The previous wording treated local, hosted, self-hosted, and remote execution as peers under a runner-neutral model. That was directionally correct, but it left open the possibility that the product would still depend operationally on hosted CI for ordinary release readiness.
 
-1. ForgeWire previously had hosted CI that ran but did not invoke RepoPact, a checkpoint-coverage failure promoted into RepoPact by WI039.
-2. On 2026-09-01 ForgeWire moved to local-only validation after GitHub-hosted execution became unavailable at the account level. The verification commands remained executable locally, but the hosted venue could not be treated as authoritative or available.
+The operator has now fixed a stronger policy:
 
-WI039 already established the cross-cutting enforcement-closure vocabulary of checkpoint **coverage**, **invocation**, and **effectiveness**. WI046 must build on that model rather than invent a second overlapping theory.
+1. RepoPact CI/CD must be fully usable locally.
+2. GitHub-hosted CI/CD is optional.
+3. GitHub-hosted CI/CD is off by default.
+4. Hosted CI and hosted CD are independently opt-in.
+5. A provider outage or account restriction must not prevent local verification or release preparation.
 
-## Architectural boundary
+Decision 0043 records this as architecture rather than a temporary workaround.
 
-RepoPact should own:
+## Current repository state
 
-- the durable definition of what must be verified;
-- the admission boundary to which that verification applies;
-- required capabilities/platform semantics;
-- fail/pass/degraded/unavailable truthfulness;
-- evidence requirements and provenance;
-- representation of coverage, invocation, effectiveness, and closure;
-- operator policy governing acceptable executor classes.
+RepoPact currently has two GitHub Actions workflows:
 
-RepoPact should **not** own:
+- `.github/workflows/governance.yml`
+- `.github/workflows/release.yml`
 
-- hosted runner fleets;
-- container scheduling;
-- VM lifecycle;
-- provider billing APIs;
-- remote worker provisioning;
-- cluster scheduling;
-- generic job orchestration.
-
-Those remain responsibilities of GitHub/GitLab/AppVeyor/Jenkins/self-hosted infrastructure/ForgeWire Fabric or equivalent execution substrates.
-
-## Design questions to resolve before implementation
-
-1. What is the canonical record placement for the verification/checkpoint definition?
-2. Should evidence-run records gain additive checkpoint/executor fields, reference a companion record, or remain unchanged behind another record type?
-3. How are admission boundaries named without forcing GitHub terminology into the standard?
-4. What is the reference local CLI surface (`verify`, `checkpoint`, profiles, or another design)?
-5. How does RepoPact represent a provider outage without implying that local proof restores remote merge enforcement?
-6. How does operator-declared `local-only` or hosted-disabled policy interact with frozen surfaces and escalation?
-7. How should `adopt` infer checkpoint contracts from existing CI without fabricating semantics the workflow does not actually prove?
-8. How should `doctor` migrate current binding-gate policies non-destructively?
-9. Which checkpoint state is source-authored and which dashboard/closure views are derived?
-10. What compatibility/versioning treatment is required now that the RepoPact 3.x record surface is stable?
-
-## Intended execution shape
-
-The motivating shape is conceptually:
+Before Decision 0043 they were hard-disabled using `if: ${{ false }}` as a temporary local-only measure. They are now retained as optional hosted adapters guarded by repository variables:
 
 ```text
-repopact verify <named-contract>
+REPOPACT_GITHUB_CI=true
+REPOPACT_GITHUB_CD=true
 ```
 
-where the named contract determines checks and evidence semantics, while the executor is replaceable.
+If those variables are absent or not exactly `true`, the hosted jobs remain disabled.
 
-A future GitHub workflow should therefore be able to reduce to a thin invocation of the same RepoPact verification contract used locally. A ForgeWire/Fabric runner should be able to consume the same contract without RepoPact importing or depending on Fabric.
+This is an immediate default-off switch, not the final local-CI architecture. The larger goal of WI046 is to remove semantic duplication between local execution and provider YAML.
 
-The exact command names and record schema are deliberately **not** decided by this proposed work item.
+## Architectural rules
+
+### 1. Local is canonical
+
+The complete required verification path must run locally from the repository without GitHub Actions.
+
+At minimum the local contract must cover the checks that are part of release or governance readiness, including where applicable:
+
+- canonical RepoPact validation;
+- Python tests that remain part of the supported surface;
+- Rust workspace tests and targeted crate/application tests;
+- conformance suite;
+- governance/admission regression suites;
+- generated dashboard/spec freshness;
+- frozen-surface reporting/checking when a base is available;
+- package/build verification;
+- wheel/sdist/native artifact inspection;
+- installer or platform packaging checks where supported;
+- artifact hashing and release manifests;
+- evidence recording;
+- release-readiness summary.
+
+The exact profile decomposition is implementation work, but the local path may not be a weaker subset of the hosted path.
+
+### 2. Verification, build, and publication are separate phases
+
+A local operator must be able to:
+
+```text
+verify without building
+build without publishing
+verify built artifacts without publishing
+publish only after explicit operator intent
+```
+
+Publication is never an accidental side effect of validation.
+
+### 3. Hosted CI and hosted CD are separate switches
+
+The repository uses two explicit opt-ins:
+
+```text
+REPOPACT_GITHUB_CI=true
+REPOPACT_GITHUB_CD=true
+```
+
+They are separate because validation and publication have different authority and credential requirements.
+
+An unset variable means off. A workflow file, release event, token, environment, or trusted-publisher configuration does not enable anything by itself.
+
+### 4. Hosted YAML becomes an adapter
+
+GitHub Actions should not permanently contain an independent hand-maintained copy of the semantic verification pipeline.
+
+The desired end state is conceptually:
+
+```yaml
+- run: repopact verify release
+```
+
+rather than a long provider-specific list of commands that can drift from the local implementation.
+
+The same applies to hosted release preparation and publication. GitHub YAML selects a venue and supplies venue-specific credentials/capabilities. It does not redefine what a RepoPact release means.
+
+### 5. Local success is not remote enforcement closure
+
+A local passing run is valid evidence for a local invocation. It is not evidence that GitHub branch protection, a hosted merge gate, or another remote boundary is effective.
+
+RepoPact must keep these facts separate:
+
+```text
+contract declared
+execution venue available
+checkpoint invoked
+checkpoint passed/failed
+admission result bound to promotion
+```
+
+This preserves WI039's Cov/Inv/Eff model.
+
+### 6. Release credentials stay outside the repository
+
+A local publication path may use an operator-provided PyPI token, keyring, credential helper, environment injection, or another documented secure mechanism. The repository must not require committed secrets.
+
+GitHub OIDC/Trusted Publishing can remain an optional hosted adapter, but it is not the canonical publication architecture.
+
+### 7. Cross-platform local profiles
+
+Local verification must account for platform-specific work without forcing one machine to impersonate every platform.
+
+The architecture should support profiles/capabilities such as:
+
+```text
+core
+windows
+linux
+macos
+android
+ios
+release
+full
+```
+
+or an equivalent model.
+
+A profile records what actually ran and what could not run in the current environment. Missing platform capability is reported honestly, not silently treated as success.
+
+### 8. Local evidence is repository-native
+
+Checkpoint evidence must identify at least:
+
+- verification/release profile;
+- RepoPact/product version;
+- repository identity and candidate tree/commit where available;
+- executor class, with local as a first-class value;
+- platform/capabilities;
+- commands or semantic checks executed;
+- result;
+- relevant artifacts and hashes;
+- timestamps/duration where useful;
+- provenance.
+
+The evidence model must not privilege GitHub run IDs as the primary identity.
+
+### 9. No billing/provider API coupling
+
+RepoPact does not need to know why GitHub Actions is unavailable. Billing lock, outage, quota exhaustion, organization policy, operator preference, or disabled workflow are all execution-venue facts.
+
+The repository only needs to represent that the hosted venue is disabled/unavailable/not invoked while local execution remains available.
+
+## Intended local command surface
+
+Exact names remain subject to the architecture decision made during implementation, but the product should converge on a small local contract such as:
+
+```text
+repopact verify <profile>
+repopact verify --changed <base>
+repopact release verify
+repopact release build
+repopact release inspect
+repopact release publish
+```
+
+The implementation may choose different names if the semantics are clearer, but the following properties are binding:
+
+- commands are provider-neutral;
+- commands are scriptable and return stable exit semantics;
+- machine-readable output is available;
+- human-readable output remains useful;
+- evidence generation is integrated rather than reconstructed from terminal logs after the fact;
+- publication always requires explicit intent.
+
+## CI semantics
+
+A CI profile should be able to answer:
+
+```text
+What must be checked?
+What changed?
+Which checks apply?
+Which capabilities are required?
+Which checks ran?
+Which checks passed, failed, skipped, or were unavailable?
+What evidence was produced?
+Is this enough to claim the relevant admission boundary is closed?
+```
+
+The local runner should be able to use Git diff information for change-aware selection where safe, but a full profile must remain available and should be used for release readiness.
+
+Change-aware optimization must not become an authority loophole. If applicability cannot be proven, the conservative profile runs.
+
+## CD semantics
+
+The local CD path should be able to prepare a complete release without hosted runners.
+
+At minimum, where relevant to the release:
+
+1. verify source state;
+2. verify version/release labels;
+3. build artifacts for the current supported platform/capability set;
+4. inspect artifact contents and embedded engine versions;
+5. run package/install smoke tests where available;
+6. generate hashes/manifests;
+7. record evidence;
+8. produce a release-readiness summary;
+9. stop before publication unless the operator explicitly requests publish.
+
+Cross-platform artifacts that cannot be built on the current host remain separate capability evidence, not fabricated successes.
 
 ## Relationship to WI032
 
-WI032 remains a separate blocked operational work item about restoring a usable **remote, public, cross-platform enforcement checkpoint** for RepoPact's own repository.
+WI032 remains about a **remote/public cross-platform admission checkpoint**. It is not required for RepoPact to have a complete local CI/CD path.
 
-WI046 does not declare WI032 obsolete and does not pretend local validation creates remote admission effectiveness. Instead, WI046 should make the distinction explicit:
+After Decision 0043:
 
-- logical verification contract;
-- available execution venues;
-- evidence from an actual invocation;
-- admission effectiveness at a specific boundary.
+- WI046 owns local-first verification/release architecture and optional adapter semantics;
+- WI032 may later prove remote enforcement closure when a suitable remote execution venue is available;
+- failure or absence of WI032 must not make local RepoPact development/release verification impossible;
+- a remote gate can strengthen admission assurance but is not the canonical definition of CI/CD.
 
-When both items are eventually complete, RepoPact should no longer need provider-specific workflow files to serve as the conceptual definition of CI, while WI032 can still prove that a real remote admission boundary is closed.
+## Relationship to WI050
 
-## Acceptance criteria
+WI050 admission/security authority remains separate. A local verification runner does not gain permission to bypass WI050 approvals or protected-operation rules.
 
-The machine-readable acceptance criteria live in `work-item.json`. In summary, this work must:
+Where a checkpoint intersects a protected surface, the local runner reports and enforces the applicable RepoPact rules through existing authority boundaries. CI orchestration is not operator approval.
 
-- capture and classify the real field failures that motivated it;
-- reconcile with WI039's Cov/Inv/Eff model;
-- decide the kernel/executor boundary before schema implementation;
-- evaluate record-placement alternatives rather than jumping directly to a new file type;
-- define runner-neutral verification and admission semantics;
-- make local execution first-class without overstating remote enforcement;
-- support explicit operator execution-venue policy such as local-only mode;
-- produce venue-neutral repository evidence;
-- distinguish passing verification from effective admission enforcement;
-- migrate/adapt current workflow-based adoption semantics honestly;
-- demonstrate thin local and hosted adapters plus an operator-owned/Fabric-shaped executor path;
-- expose checkpoint state through derived views without collapsing distinct failure modes;
-- add conformance and negative enforcement coverage;
-- validate against ForgeWire and an adopter-neutral fixture;
-- decide compatibility/versioning before implementation;
-- update all required RepoPact surfaces only after the architecture is accepted.
+## Adoption and doctor
+
+Existing repositories may already have GitHub Actions, GitLab, Jenkins, or another CI system.
+
+Adoption should treat these as candidate executor adapters. It may infer a verification contract only to the extent supported by observable configuration and must use provisional/inferred provenance when semantics are uncertain.
+
+`doctor` should be able to migrate older RepoPact assumptions that treated `.github/workflows/**` as the conceptual gate. Migration must preserve historical evidence and must not imply that a disabled hosted adapter is effective enforcement.
+
+## Derived views
+
+Dashboard/spec/reporting should eventually show separate dimensions such as:
+
+- local verification contract present;
+- last local invocation/evidence;
+- hosted CI adapter enabled/disabled;
+- hosted CD adapter enabled/disabled;
+- hosted executor availability where known from actual invocation evidence;
+- admission coverage;
+- invocation;
+- effectiveness;
+- enforcement closure;
+- release readiness.
+
+A green local run must not automatically render a hosted admission boundary green.
+
+## Immediate GitHub adapter policy
+
+The checked-in workflows remain because they are useful optional adapters and documentation of the hosted path.
+
+They are frozen surfaces and require human review.
+
+Their default behavior is intentionally inert:
+
+```text
+vars.REPOPACT_GITHUB_CI != "true" -> validation job skipped
+vars.REPOPACT_GITHUB_CD != "true" -> build/publish jobs skipped
+```
+
+An operator can later opt in through repository variables without rewriting the workflow files.
+
+## Acceptance and closeout
+
+The machine-readable acceptance criteria in `work-item.json` are binding. Closeout must prove more than a local shell script exists.
+
+Evidence must demonstrate:
+
+- one canonical local verification contract;
+- no required semantic checks existing only in GitHub YAML;
+- a complete local release-preparation path;
+- explicit publication separation;
+- venue-neutral evidence;
+- GitHub CI default-off and opt-in behavior;
+- GitHub CD default-off and opt-in behavior;
+- no accidental enablement from credentials/events;
+- hosted adapters invoking the same local contract;
+- truthful unavailable/degraded states;
+- negative enforcement cases;
+- cross-platform profile/capability behavior;
+- adopter migration/conformance;
+- documentation for operators and agents.
 
 ## Non-goals
 
-- Replacing GitHub Actions, Jenkins, AppVeyor, GitLab CI, or Fabric.
-- Building a generalized DAG scheduler.
-- Managing CI provider accounts, billing, or credentials.
-- Making every verification continuous or runtime-resident; RepoPact remains admission/checkpoint oriented.
-- Claiming a local passing run is equivalent to a protected remote merge gate.
+- Building a hosted CI service.
+- Building a generalized distributed job scheduler.
+- Managing provider billing, quotas, or account health.
+- Replacing Fabric or another remote execution substrate.
+- Pretending one workstation can provide evidence for platforms it did not execute.
+- Treating a local pass as proof of a remote branch-protection gate.
+- Automatically publishing on every successful local verification.
 
-## Closeout
+## Closeout posture
 
-This item begins as proposed architecture/reconciliation work. It should move to active only when implementation is explicitly accepted. Every satisfied criterion requires linked concrete evidence, and completion requires negative cases demonstrating that absent, unavailable, or ineffective checkpoints are not mislabeled as enforcement closure.
+WI046 remains proposed until implementation is explicitly prioritized. Decision 0043 is already accepted and fixes the architecture/default policy now. The current GitHub workflows are optional and default off immediately; the complete local CI/CD contract remains implementation work under this item.

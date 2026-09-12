@@ -5,13 +5,13 @@ on:
   push:
     branches: [main]
 
-# TEMPORARY LOCAL-ONLY MODE (operator directive, 2026-09-01):
-# GitHub-hosted execution is intentionally suspended while the account is
-# payment-locked. Preserve this workflow as the hosted adapter/reference, but
-# do not allocate a hosted runner until the operator explicitly lifts the stop.
+# OPTIONAL HOSTED ADAPTER.
+# RepoPact CI is local-first. GitHub-hosted validation is opt-in and disabled
+# by default. Set repository variable REPOPACT_GITHUB_CI to exactly "true"
+# to allow this adapter to allocate a hosted runner.
 jobs:
   validate:
-    if: ${{ false }}
+    if: ${{ vars.REPOPACT_GITHUB_CI == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

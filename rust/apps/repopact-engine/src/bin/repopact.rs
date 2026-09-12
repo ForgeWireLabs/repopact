@@ -2,8 +2,8 @@
 //!
 //! Maturin's `bin` mode intentionally does not accept PEP 621 `project.scripts`
 //! alongside native binaries. This launcher preserves the established
-//! `repopact` command while dispatching to the installed environment's Python
-//! compatibility client. It owns no semantic or filesystem authority.
+//! `repopact` command while dispatching to installed Python command modules.
+//! It owns no semantic or filesystem authority.
 
 use std::env;
 use std::path::PathBuf;
@@ -43,13 +43,21 @@ fn main() {
         eprintln!("repopact launcher could not find Python beside its installed scripts");
         std::process::exit(1);
     });
+
+    let args = env::args().skip(1).collect::<Vec<_>>();
+    let (module, forwarded) = match args.first().map(String::as_str) {
+        Some("verify") => ("repopact.verify_cli", args.iter().skip(1).cloned().collect::<Vec<_>>()),
+        Some("release") => ("repopact.release_local", args.iter().skip(1).cloned().collect::<Vec<_>>()),
+        _ => ("repopact.cli", args),
+    };
+
     let status = Command::new(python)
         .arg("-m")
-        .arg("repopact.cli")
-        .args(env::args().skip(1))
+        .arg(module)
+        .args(forwarded)
         .status()
         .unwrap_or_else(|error| {
-            eprintln!("repopact launcher could not start the compatibility CLI: {error}");
+            eprintln!("repopact launcher could not start the compatibility command: {error}");
             std::process::exit(1);
         });
     std::process::exit(status.code().unwrap_or(1));

@@ -1,0 +1,108 @@
+{
+  "$schema": "../repopact/schemas/verification-profile.schema.json",
+  "version": 1,
+  "default_profile": "quick",
+  "execution_policy": {
+    "local_primary": true,
+    "hosted_ci_default": false,
+    "hosted_cd_default": false
+  },
+  "profiles": {
+    "quick": {
+      "description": "Fast local governance validation through the canonical RepoPact engine.",
+      "steps": [
+        {
+          "id": "validate",
+          "argv": ["{repopact}", "validate", "--root", "{root}"],
+          "required": true,
+          "timeout_seconds": 300
+        }
+      ]
+    },
+    "ci": {
+      "description": "Complete local governance CI contract used by the optional hosted validation adapter.",
+      "steps": [
+        {
+          "id": "validate",
+          "argv": ["{repopact}", "validate", "--root", "{root}"],
+          "required": true,
+          "timeout_seconds": 300
+        },
+        {
+          "id": "python-tests",
+          "argv": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
+          "required": true,
+          "timeout_seconds": 1800
+        },
+        {
+          "id": "conformance",
+          "argv": ["{python}", "-m", "repopact.run_conformance"],
+          "required": true,
+          "timeout_seconds": 900
+        },
+        {
+          "id": "rust-workspace",
+          "argv": ["cargo", "test", "--workspace", "--locked", "--manifest-path", "rust/Cargo.toml"],
+          "capability": "cargo",
+          "required": true,
+          "timeout_seconds": 3600
+        },
+        {
+          "id": "spec-freshness",
+          "builtin": "spec_freshness",
+          "required": true,
+          "timeout_seconds": 120
+        },
+        {
+          "id": "frozen-surface-report",
+          "argv": ["{repopact}", "check-frozen", "--root", "{root}", "--base", "origin/main"],
+          "required": false,
+          "timeout_seconds": 120
+        }
+      ]
+    },
+    "release": {
+      "description": "Local release-readiness verification. Artifact construction and publication remain separate operations.",
+      "steps": [
+        {
+          "id": "validate",
+          "argv": ["{repopact}", "validate", "--root", "{root}"],
+          "required": true,
+          "timeout_seconds": 300
+        },
+        {
+          "id": "python-tests",
+          "argv": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
+          "required": true,
+          "timeout_seconds": 1800
+        },
+        {
+          "id": "conformance",
+          "argv": ["{python}", "-m", "repopact.run_conformance"],
+          "required": true,
+          "timeout_seconds": 900
+        },
+        {
+          "id": "rust-workspace",
+          "argv": ["cargo", "test", "--workspace", "--locked", "--manifest-path", "rust/Cargo.toml"],
+          "capability": "cargo",
+          "required": true,
+          "timeout_seconds": 3600
+        },
+        {
+          "id": "cargo-metadata",
+          "argv": ["cargo", "metadata", "--format-version", "1", "--locked", "--manifest-path", "rust/Cargo.toml"],
+          "capability": "cargo",
+          "required": true,
+          "timeout_seconds": 300
+        },
+        {
+          "id": "spec-freshness",
+          "builtin": "spec_freshness",
+          "required": true,
+          "timeout_seconds": 120
+        }
+      ]
+    }
+  }
+}

@@ -89,6 +89,12 @@
       "description": "The canonical derived dashboard exists and matches its source records."
     },
     {
+      "id": "SPEC-4-verification-contract",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact-core::verification",
+      "description": "When present, the provider-neutral verification contract has valid profile references, unique step ids, repository-contained working directories, and only declared placeholders."
+    },
+    {
       "id": "SPEC-5-lifecycle-proposed",
       "source": "SPEC.md#5-lifecycle-state-machine",
       "enforced_by": "repopact/validate_repo.py:validate_work",
@@ -285,6 +291,17 @@
         "SPEC-4-record-validity"
       ],
       "description": "A structurally invalid evidence record is rejected by its schema."
+    },
+    {
+      "id": "verification-default-profile",
+      "path": "invalid/verification-default-profile",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "does not name a declared verification profile",
+      "rules": [
+        "SPEC-4-verification-contract"
+      ],
+      "description": "A verification contract cannot name a default profile that is not declared."
     },
     {
       "id": "orphan-work-directory",

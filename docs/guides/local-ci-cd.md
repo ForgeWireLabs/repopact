@@ -1,5 +1,7 @@
 # Local-first verification and release workflow
 
+> **Diataxis mode:** How-to guide.
+
 RepoPact does not require GitHub Actions to verify or prepare a release. The repository owns the verification contract in `governance/verification.json`; the local runner is the reference execution path. Hosted CI/CD systems are optional adapters.
 
 ## Run local verification

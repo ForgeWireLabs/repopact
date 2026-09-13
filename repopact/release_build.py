@@ -312,10 +312,23 @@ def _build_once(root: Path, revision: str, destination: Path) -> dict[str, Any]:
     env = os.environ.copy()
     env["SOURCE_DATE_EPOCH"] = epoch
     env["PYTHONHASHSEED"] = "0"
+    # Each independent build below exports to its own fresh temporary
+    # directory (see `_export`), so without normalization cargo/rustc would
+    # embed that ephemeral, build-to-build-varying absolute path into
+    # debuginfo and into `file!()`-based panic/location strings compiled into
+    # the native engine binary -- making the two builds byte-different even
+    # though their source content is identical. --remap-path-prefix pins the
+    # embedded path to a fixed value; -C debuginfo=0 additionally drops debug
+    # info outright, which also otherwise carries build-path-dependent
+    # timestamps/identifiers.
+    remap = f"--remap-path-prefix={source}=/repopact-release-src"
     if sys.platform == "win32":
-        # cargo/rustc otherwise leaves PE timestamps and CodeView identifiers
-        # dependent on the individual source-export build directory.
-        env["RUSTFLAGS"] = "-C debuginfo=0 -C link-arg=/DEBUG:NONE -C link-arg=/Brepro"
+        # cargo/rustc otherwise also leaves PE timestamps and CodeView
+        # identifiers dependent on the individual source-export build
+        # directory.
+        env["RUSTFLAGS"] = f"-C debuginfo=0 -C link-arg=/DEBUG:NONE -C link-arg=/Brepro {remap}"
+    else:
+        env["RUSTFLAGS"] = f"-C debuginfo=0 {remap}"
     _run(
         [
             "cargo",

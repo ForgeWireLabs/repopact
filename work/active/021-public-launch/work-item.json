@@ -15,7 +15,7 @@
   "acceptance_criteria": [
     {
       "id": "AC-1",
-      "text": "RepoPact launch assets drafted and operator-approved: README hero (the 'agent-proof your guarantees' wedge + adopt->dashboard demo), the 'AGENTS.md is not a contract' essay, and the RepoPact portion of the Show HN / X / Reddit copy. Drafts live in the private launch/ area; framing follows decision 0020.",
+      "text": "RepoPact launch assets drafted and operator-approved: a README hero that leads with governance discontinuity and durable shared engineering state, explains the repository as the rendezvous point for humans and agents, keeps the AGENTS.md comparison as a subordinate differentiator, uses real product screenshots/visuals rather than generic AI imagery, and is consistent with the 'AGENTS.md is not a contract' essay plus RepoPact launch/social copy. The public README must distinguish stable-release features from active main-development surfaces.",
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation"
@@ -47,5 +47,5 @@
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-07-26"
+  "updated": "2026-09-13"
 }

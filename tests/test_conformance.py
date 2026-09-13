@@ -19,7 +19,7 @@ import jsonschema
 
 ROOT = Path(__file__).resolve().parents[1]
 
-from repopact.validate_repo import validate  # noqa: E402
+from repopact.legacy_validate import validate  # noqa: E402
 from repopact import generate_dashboard, run_conformance  # noqa: E402
 
 MANIFEST = ROOT / "conformance" / "manifest.json"

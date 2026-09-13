@@ -53,6 +53,24 @@ fn validate_semantics(validator: &Validator, value: &Value, path: &Path) -> Vec<
     }
 
     for (profile_name, profile) in profiles {
+        if profile.get("coverage").and_then(Value::as_str) == Some("complete") {
+            let required_platforms = profile
+                .get("required_platforms")
+                .and_then(Value::as_array)
+                .filter(|platforms| !platforms.is_empty());
+            if required_platforms.is_none() {
+                diagnostics.push(validator.at(
+                    "verification.complete-coverage-missing-required-platforms",
+                    format!(
+                        "profile {profile_name:?} declares coverage 'complete' but does not declare \
+                         required_platforms; a complete profile must state which platforms are \
+                         required for the contract to be honestly satisfied"
+                    ),
+                    path,
+                ));
+            }
+        }
+
         let Some(steps) = profile.get("steps").and_then(Value::as_array) else {
             continue;
         };
@@ -194,6 +212,43 @@ mod tests {
         assert!(codes.iter().any(|code| code == "verification.step-duplicate"));
         assert!(codes.iter().any(|code| code == "verification.cwd-escape"));
         assert!(codes.iter().any(|code| code == "verification.placeholder-unknown"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn complete_coverage_without_required_platforms_is_rejected() {
+        let root = temp_root("complete-no-platforms");
+        write_contract(
+            &root,
+            r#"{
+              "$schema":"../schemas/verification-profile.schema.json",
+              "version":1,
+              "default_profile":"release",
+              "execution_policy":{"local_primary":true,"hosted_ci_default":false,"hosted_cd_default":false},
+              "profiles":{"release":{"description":"release","coverage":"complete","steps":[{"id":"validate","argv":["{repopact}","validate"]}]}}
+            }"#,
+        );
+        let codes = verification_codes(&root);
+        assert!(codes
+            .iter()
+            .any(|code| code == "verification.complete-coverage-missing-required-platforms"));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn complete_coverage_with_required_platforms_is_silent() {
+        let root = temp_root("complete-with-platforms");
+        write_contract(
+            &root,
+            r#"{
+              "$schema":"../schemas/verification-profile.schema.json",
+              "version":1,
+              "default_profile":"release",
+              "execution_policy":{"local_primary":true,"hosted_ci_default":false,"hosted_cd_default":false},
+              "profiles":{"release":{"description":"release","coverage":"complete","required_platforms":["windows","linux","macos"],"steps":[{"id":"validate","argv":["{repopact}","validate"]}]}}
+            }"#,
+        );
+        assert!(verification_codes(&root).is_empty());
         fs::remove_dir_all(root).unwrap();
     }
 

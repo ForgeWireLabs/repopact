@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,13 +22,21 @@ class VerificationRunnerTests(unittest.TestCase):
         )
         return root
 
-    def config(self, steps: list[dict], *, coverage: str | None = None) -> dict:
+    def config(
+        self,
+        steps: list[dict],
+        *,
+        coverage: str | None = None,
+        required_platforms: list[str] | None = None,
+    ) -> dict:
         profile = {
             "description": "test profile",
             "steps": steps,
         }
         if coverage is not None:
             profile["coverage"] = coverage
+        if required_platforms is not None:
+            profile["required_platforms"] = required_platforms
         return {
             "$schema": "../schemas/verification-profile.schema.json",
             "version": 1,
@@ -189,12 +198,76 @@ class VerificationRunnerTests(unittest.TestCase):
                     }
                 ],
                 coverage="complete",
+                required_platforms=[current, other],
             )
         )
         report = verification.run_profile(root, "test")
         self.assertEqual("incomplete", report.status)
         self.assertFalse(report.coverage.satisfied)
         self.assertEqual((other,), report.coverage.declared_platforms)
+        self.assertEqual((other,), report.coverage.missing_platforms)
+
+    def test_complete_coverage_without_required_platforms_declaration_is_rejected(self):
+        # This is the architecture-review regression case: a `complete` profile
+        # whose steps declare no platforms at all must not be able to silently
+        # report satisfied=true on a single host merely because there was
+        # nothing to mark not-applicable. The contract itself must be rejected
+        # as unusable rather than letting `_coverage()` default to a false pass.
+        root = self.make_root(
+            self.config(
+                [
+                    {
+                        "id": "probe",
+                        "argv": ["{python}", "-c", "print('ok')"],
+                        "required": True,
+                    }
+                ],
+                coverage="complete",
+            )
+        )
+        with self.assertRaises(verification.VerificationConfigError):
+            verification.run_profile(root, "test")
+
+    def test_complete_coverage_with_only_current_platform_required_is_satisfied(self):
+        current = verification.current_platform()
+        root = self.make_root(
+            self.config(
+                [
+                    {
+                        "id": "probe",
+                        "argv": ["{python}", "-c", "print('ok')"],
+                        "required": True,
+                    }
+                ],
+                coverage="complete",
+                required_platforms=[current],
+            )
+        )
+        report = verification.run_profile(root, "test")
+        self.assertEqual("pass", report.status)
+        self.assertTrue(report.coverage.satisfied)
+        self.assertEqual((), report.coverage.missing_platforms)
+
+    def test_complete_coverage_with_multi_platform_requirement_never_fabricates_pass_on_one_host(self):
+        current = verification.current_platform()
+        other = next(platform for platform in sorted(verification.KNOWN_PLATFORMS) if platform != current)
+        root = self.make_root(
+            self.config(
+                [
+                    {
+                        "id": "probe",
+                        "argv": ["{python}", "-c", "print('ok')"],
+                        "required": True,
+                    }
+                ],
+                coverage="complete",
+                required_platforms=[current, other],
+            )
+        )
+        report = verification.run_profile(root, "test")
+        self.assertEqual("incomplete", report.status)
+        self.assertFalse(report.coverage.satisfied)
+        self.assertEqual((other,), report.coverage.missing_platforms)
 
     def test_repository_escape_cwd_is_rejected(self):
         root = self.make_root(
@@ -312,6 +385,30 @@ class VerificationRunnerTests(unittest.TestCase):
                 evidence_id="20260912-local-profile",
                 refresh_dashboard=False,
             )
+
+    def test_dashboard_refresh_failure_rolls_back_new_evidence(self):
+        root = self.make_root(
+            self.config([{"id": "probe", "argv": ["{python}", "-c", "pass"]}])
+        )
+        self.add_work_item(root)
+        dashboard = root / "audits" / "reports" / "dashboard.md"
+        dashboard.parent.mkdir(parents=True, exist_ok=True)
+        dashboard.write_bytes(b"prior dashboard content\n")
+        report = verification.run_profile(root)
+        with unittest.mock.patch(
+            "repopact.generate_dashboard.write_dashboard",
+            side_effect=RuntimeError("simulated dashboard failure"),
+        ):
+            with self.assertRaises(verification.VerificationConfigError):
+                verification.record_evidence(
+                    root,
+                    report,
+                    "046",
+                    evidence_id="20260912-rollback-case",
+                    refresh_dashboard=True,
+                )
+        self.assertFalse((root / "evidence" / "runs" / "20260912-rollback-case.json").exists())
+        self.assertEqual(b"prior dashboard content\n", dashboard.read_bytes())
 
 
 if __name__ == "__main__":

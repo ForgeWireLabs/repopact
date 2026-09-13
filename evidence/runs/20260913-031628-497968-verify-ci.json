@@ -1,0 +1,137 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-031628-497968-verify-ci",
+  "timestamp": "2026-09-13T03:16:28Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "046",
+  "result": "failed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "'C:\\Program Files\\Python312\\python.exe' -m repopact.cli validate --root 'C:\\Projects\\repopact'",
+      "exit_code": 1,
+      "summary": "validate: failed - command exited 1"
+    },
+    {
+      "command": "'C:\\Program Files\\Python312\\python.exe' -m unittest discover -s tests -v",
+      "exit_code": 1,
+      "summary": "python-tests: failed - command exited 1"
+    },
+    {
+      "command": "'C:\\Program Files\\Python312\\python.exe' -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "conformance: passed - command passed"
+    },
+    {
+      "command": "cargo test --workspace --locked --manifest-path rust/Cargo.toml",
+      "exit_code": 0,
+      "summary": "rust-workspace: passed - command passed"
+    },
+    {
+      "command": "builtin:spec_freshness",
+      "exit_code": 0,
+      "summary": "spec-freshness: passed - SPEC.md derived blocks are current"
+    },
+    {
+      "command": "'C:\\Program Files\\Python312\\python.exe' -m repopact.cli check-frozen --root 'C:\\Projects\\repopact' --base origin/main",
+      "exit_code": 1,
+      "summary": "frozen-surface-report: failed - command exited 1"
+    }
+  ],
+  "artifacts": [],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "candidate": {
+      "commit": "d1d26e5688c4d5ec61b2c78ea07c8143d339ff26",
+      "tree": "d7334326a8bbab9f6d1b3929f3d83ac12d9aa406",
+      "dirty": true
+    },
+    "verification": {
+      "profile": "ci",
+      "status": "fail",
+      "exit_code": 1,
+      "duration_seconds": 757.375,
+      "coverage": {
+        "mode": "host",
+        "satisfied": true,
+        "all_declared_executed": true,
+        "required_total": 5,
+        "required_executed": 5,
+        "required_passed": 3,
+        "required_failed": 2,
+        "required_errors": 0,
+        "required_unavailable": 0,
+        "required_not_applicable": 0,
+        "declared_platforms": [],
+        "required_platforms": [],
+        "missing_platforms": [],
+        "capabilities": {
+          "cargo": "available"
+        }
+      },
+      "steps": [
+        {
+          "id": "validate",
+          "status": "failed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 1,
+          "summary": "command exited 1"
+        },
+        {
+          "id": "python-tests",
+          "status": "failed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 1,
+          "summary": "command exited 1"
+        },
+        {
+          "id": "conformance",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "rust-workspace",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": "cargo",
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "spec-freshness",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "SPEC.md derived blocks are current"
+        },
+        {
+          "id": "frozen-surface-report",
+          "status": "failed",
+          "required": false,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 1,
+          "summary": "command exited 1"
+        }
+      ]
+    }
+  }
+}

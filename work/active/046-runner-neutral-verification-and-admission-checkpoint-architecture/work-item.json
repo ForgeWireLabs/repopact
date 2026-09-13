@@ -4,8 +4,16 @@
   "title": "Local-First Verification, CI/CD, and Optional Hosted Adapters",
   "status": "active",
   "owner_scope": "governance",
-  "affected_scopes": ["governance", "tooling", "evidence", "docs", "work"],
-  "depends_on": ["039"],
+  "affected_scopes": [
+    "governance",
+    "tooling",
+    "evidence",
+    "docs",
+    "work"
+  ],
+  "depends_on": [
+    "039"
+  ],
   "provenance": "concrete",
   "preflight": {
     "created_before_work_started": true,
@@ -16,32 +24,42 @@
     {
       "id": "AC-1",
       "text": "A durable field-evidence capture characterizes distinct enforcement-closure failures already observed in the ForgeWire Labs ecosystem, including a governed CI path that existed but did not invoke RepoPact and a hosted checkpoint that could not execute while equivalent local verification remained possible. The capture separates checkpoint definition, execution venue, invocation, effectiveness, and admission enforcement rather than treating CI as one boolean property.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-2",
       "text": "The verification/checkpoint abstraction is formally reconciled with WI039 and the existing enforcement-closure model (Cov, Inv, Eff). The work preserves the admission-boundary definition and does not rewrite completed field evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-3",
       "text": "Decision 0043 is implemented as a binding architecture boundary: RepoPact owns repository-defined verification/release contracts, local execution is the canonical product path, and hosted systems are optional executor adapters. RepoPact does not become a hosted CI service, runner fleet manager, provider billing client, or remote execution fabric.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-4",
       "text": "Before schema implementation, candidate record placements for checkpoint definitions, execution policy, and evidence are evaluated and the chosen design explains source-of-truth, lifecycle, reference semantics, derivation boundaries, migration behavior, and how local-first defaults are represented without hard-coding one provider.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-5",
       "text": "Define provider-neutral named verification/release profiles or an equivalent contract that specifies what is checked, required capabilities/platforms, failure semantics, evidence expectations, and any governed admission boundary independently of where execution occurs. Hosted YAML may select an executor but may not redefine the semantic pipeline.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-6",
@@ -58,56 +76,74 @@
     {
       "id": "AC-8",
       "text": "Publication is a separate explicit operation from verification and build. Local publication has a documented secure credential path that does not require committed secrets or GitHub OIDC. GitHub Trusted Publishing/OIDC may remain an optional hosted adapter but is not the only supported publication architecture.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-9",
       "text": "GitHub-hosted validation is disabled by default and guarded by repository variable `REPOPACT_GITHUB_CI == true`; GitHub-hosted publication is disabled by default and guarded independently by `REPOPACT_GITHUB_CD == true`. Missing, empty, or other values remain off. Credentials, environments, release events, or workflow-file presence do not enable either path implicitly.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-10",
       "text": "The final GitHub Actions adapters are thin and mechanically checkable. Once the local contract exists, workflow YAML invokes the same local provider-neutral verification/release entry points rather than maintaining a drifting second list of semantic commands.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-11",
       "text": "Evidence produced by checkpoint execution is repository-native and venue-neutral. It records enough identity to establish profile/checkpoint, candidate tree or commit where available, executor class, platform/capabilities, semantic checks, result, artifacts/hashes, and provenance without making GitHub run IDs the primary evidence identity.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-12",
       "text": "The work represents admission enforcement separately from successful verification. It distinguishes at minimum a passing local run with no remote merge gate, a disabled/unavailable hosted adapter, a checker whose failure is ignored, and a closed admission boundary where every governed path invokes the applicable checker and failure prevents promotion.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-13",
       "text": "Cross-platform local profiles/capability semantics are defined. A machine records which platform-specific checks actually ran and which were unavailable; one local host may not fabricate Windows/Linux/macOS/Android/iOS evidence for environments it did not execute. Full/release profiles conservatively report incomplete capability coverage.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-14",
       "text": "Local execution has stable scriptable exit semantics and machine-readable results in addition to human-readable output. Cancellation, failure, partial capability, and unavailable toolchain states are explicit rather than collapsed into a generic pass/fail string.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-15",
       "text": "Change-aware local verification may use Git/diff information for optimization, but applicability must fail conservative: when RepoPact cannot prove a narrower safe subset, the broader registered profile runs. A changed-files optimization may not become an authority bypass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-16",
       "text": "RepoPact adopt/doctor behavior is reconciled with the local-first model. Existing `.github/workflows` discovery no longer implies GitHub is the universal gate model; hosted workflows are candidate adapters, and migration preserves historical evidence while representing enabled/disabled/unavailable/effective state honestly.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-17",
@@ -118,26 +154,34 @@
     {
       "id": "AC-18",
       "text": "Conformance/regression coverage includes positive and negative cases for: local full verification; local release preparation without publication; explicit local publication boundary; GitHub CI unset/off/on; GitHub CD unset/off/on; release event while CD is off; secret/environment presence while CD is off; hosted adapter unavailable while local succeeds; hosted failure ignored; and a genuinely effective closed admission gate.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-19",
       "text": "WI032 is reconciled as an optional remote/public enforcement concern rather than a prerequisite for RepoPact's local CI/CD completeness. Closeout documentation clearly separates local verification evidence from any later remote branch-protection/enforcement evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-20",
       "text": "WI050 authority boundaries remain intact. CI/CD orchestration, graph/query output, or a passing verification profile cannot synthesize operator approval, bypass protected operations, weaken frozen-surface rules, or convert verification success into authorization.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-21",
       "text": "Documentation gives human operators and agents one canonical local workflow for development verification and one canonical local workflow for release preparation/publication, plus explicit instructions for opting GitHub CI and GitHub CD in or out. Default-off behavior is stated prominently.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-046-architecture-review-validation-pass"
+      ]
     },
     {
       "id": "AC-22",
@@ -147,5 +191,5 @@
     }
   ],
   "created": "2026-09-01",
-  "updated": "2026-09-12"
+  "updated": "2026-09-13"
 }

@@ -162,6 +162,20 @@ def main(argv: list[str] | None = None) -> int:
     p_release.add_argument("--outdir", type=Path, required=True)
     p_release.add_argument("--revision", default="HEAD")
 
+    p_verify = sub.add_parser(
+        "verify",
+        help="Run a repository-defined local verification profile (WI046)",
+        add_help=False,
+    )
+    p_verify.add_argument("verify_args", nargs=argparse.REMAINDER)
+
+    p_release_group = sub.add_parser(
+        "release",
+        help="Local-first release verify/build/inspect/publish operations (WI046)",
+        add_help=False,
+    )
+    p_release_group.add_argument("release_args", nargs=argparse.REMAINDER)
+
     p_adm = sub.add_parser("admission", help="Manage opt-in pre-execution admission")
     adm_sub = p_adm.add_subparsers(dest="admission_command", required=True)
     p_setup = adm_sub.add_parser("setup", help="Explicitly register this repository")
@@ -360,6 +374,16 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception as exc: print(f"Cannot write canonical receipt: {exc}", file=sys.stderr); return 1
                 print(f"Wrote {canonical}"); return 0
             except Exception as exc: print(f"Approval failed: {exc}", file=sys.stderr); return 1
+
+    if args.command == "verify":
+        from . import verify_cli
+
+        return verify_cli.main(args.verify_args)
+
+    if args.command == "release":
+        from . import release_local
+
+        return release_local.main(args.release_args)
 
     root = args.root.resolve()
 

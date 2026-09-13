@@ -2838,8 +2838,11 @@ dependencies = [
  "repopact-graph",
  "repopact-mutation",
  "repopact-repository",
+ "repopact-schema",
  "repopact-types",
  "repopact-validation",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

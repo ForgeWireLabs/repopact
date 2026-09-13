@@ -69,15 +69,16 @@ A profile may set one of two coverage modes:
 
 ```json
 {
-  "coverage": "complete"
+  "coverage": "complete",
+  "required_platforms": ["windows", "linux", "macos"]
 }
 ```
 
-`complete` is stricter. Every required declared step must be executable in the current invocation. A required platform-specific step that is not applicable on the current host, or a required capability that is unavailable, makes the profile `incomplete` rather than `pass`.
+`complete` is stricter and must declare a non-empty `required_platforms` list naming exactly the platforms that constitute a complete run — RepoPact rejects a `complete` profile with no `required_platforms` rather than letting it silently default to whatever happened to run on one host. A single local invocation only ever proves the host it actually ran on: `satisfied` is only true when this run's platform covers the *entire* declared `required_platforms` set (in practice, when the set names exactly this host). Any other declared platform is reported as a `missing_platforms` entry rather than assumed to have run elsewhere, so `coverage.satisfied` cannot become true merely because a step happened not to declare any per-step `platforms` at all. A required platform-specific step that is not applicable on the current host, or a required capability that is unavailable, also makes the profile `incomplete` rather than `pass`.
 
-RepoPact's upstream `ci` profile uses host coverage. Its `release` profile uses complete coverage so release readiness cannot silently treat missing required capability/platform evidence as success.
+RepoPact's upstream `ci` profile uses host coverage. Its `release` profile uses complete coverage with `required_platforms: ["windows", "linux", "macos"]` (RepoPact's current desktop wheel targets; Android/iOS are not required merely because they are known platform names) so release readiness cannot silently treat missing required capability/platform evidence as success. In practice this means a single-host `release` run is expected to report `incomplete`, not `pass`, until each required platform's own run contributes its evidence — that is the intended, honest result, not a defect.
 
-Machine-readable output includes a `coverage` object with required-step counts, declared platforms, capability states, whether coverage is satisfied, and whether every declared required step actually executed.
+Machine-readable output includes a `coverage` object with required-step counts, declared platforms, the profile's `required_platforms`, any `missing_platforms`, capability states, whether coverage is satisfied, and whether every declared required step actually executed.
 
 ## Record an actual local invocation as evidence
 

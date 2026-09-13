@@ -66,6 +66,7 @@
     "release": {
       "description": "Local release-readiness verification. Artifact construction and publication remain separate operations.",
       "coverage": "complete",
+      "required_platforms": ["windows", "linux", "macos"],
       "steps": [
         {
           "id": "validate",

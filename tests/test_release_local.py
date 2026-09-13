@@ -55,6 +55,37 @@ class LocalReleaseTests(unittest.TestCase):
         with self.assertRaises(release_local.LocalReleaseError):
             release_local.verify_manifest(dist)
 
+    def test_manifest_missing_fails_closed(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        dist = Path(temp.name).resolve()
+        with self.assertRaises(release_local.LocalReleaseError):
+            release_local.verify_manifest(dist)
+
+    def test_manifest_missing_artifact_file_fails_closed(self):
+        dist = self.make_dist()
+        (dist / "repopact-test.whl").unlink()
+        with self.assertRaises(release_local.LocalReleaseError):
+            release_local.verify_manifest(dist)
+
+    def test_manifest_rejects_duplicate_artifact_record(self):
+        dist = self.make_dist()
+        path = dist / release_local.MANIFEST_NAME
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["artifacts"].append(dict(manifest["artifacts"][0]))
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaises(release_local.LocalReleaseError):
+            release_local.verify_manifest(dist)
+
+    def test_manifest_rejects_unsupported_format(self):
+        dist = self.make_dist()
+        path = dist / release_local.MANIFEST_NAME
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["format"] = "some-other-format-v2"
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+        with self.assertRaises(release_local.LocalReleaseError):
+            release_local.verify_manifest(dist)
+
     def test_publish_requires_explicit_confirmation(self):
         dist = self.make_dist()
         with self.assertRaises(release_local.LocalReleaseError):

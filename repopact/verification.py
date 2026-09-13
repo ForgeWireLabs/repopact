@@ -67,6 +67,8 @@ class CoverageSummary:
     required_unavailable: int
     required_not_applicable: int
     declared_platforms: tuple[str, ...]
+    required_platforms: tuple[str, ...]
+    missing_platforms: tuple[str, ...]
     capabilities: dict[str, str]
 
 
@@ -186,6 +188,19 @@ def _validate_semantics(root: Path, value: dict[str, Any]) -> None:
             f"default_profile {default_profile!r} does not name a declared verification profile"
         )
     for profile_name, profile in profiles.items():
+        if profile.get("coverage") == "complete":
+            required_platforms = profile.get("required_platforms")
+            if not required_platforms:
+                raise VerificationConfigError(
+                    f"profile {profile_name!r} declares coverage 'complete' but does not declare "
+                    "required_platforms; a complete profile must state which platforms are "
+                    "required for the contract to be honestly satisfied"
+                )
+            for platform in required_platforms:
+                if platform not in KNOWN_PLATFORMS:
+                    raise VerificationConfigError(
+                        f"profile {profile_name!r} required_platforms names unsupported platform {platform!r}"
+                    )
         seen: set[str] = set()
         for step in profile.get("steps", []):
             step_id = step.get("id", "")
@@ -461,7 +476,7 @@ def _builtin_step(root: Path, step: dict[str, Any], platform: str) -> StepResult
     )
 
 
-def _coverage(profile: dict[str, Any], results: list[StepResult]) -> CoverageSummary:
+def _coverage(profile: dict[str, Any], results: list[StepResult], platform: str) -> CoverageSummary:
     mode = str(profile.get("coverage", "host"))
     required = [step for step in results if step.required]
     required_executed = [
@@ -486,12 +501,26 @@ def _coverage(profile: dict[str, Any], results: list[StepResult]) -> CoverageSum
         if state == "unavailable" or previous is None or previous == "not-applicable":
             capabilities[step.capability] = state
     all_declared_executed = not required_unavailable and not required_not_applicable
-    satisfied = not required_unavailable and (
-        mode == "host" or not required_not_applicable
-    )
     declared_platforms = tuple(
-        sorted({platform for step in required for platform in step.platforms})
+        sorted({platform_name for step in required for platform_name in step.platforms})
     )
+    required_platforms = tuple(sorted(profile.get("required_platforms") or ()))
+    if mode == "complete":
+        # A single local invocation can only ever attest to the host it ran on.
+        # "complete" is honestly satisfied only when this run's platform covers
+        # the *entire* declared required-platform set; any other required
+        # platform is reported as missing rather than assumed executed
+        # elsewhere. Aggregating separate hosts' evidence into one complete
+        # verdict is a deliberately separate, not-yet-built concern.
+        missing_platforms = tuple(sorted(set(required_platforms) - {platform}))
+        satisfied = (
+            not required_unavailable
+            and not required_not_applicable
+            and not missing_platforms
+        )
+    else:
+        missing_platforms = ()
+        satisfied = not required_unavailable
     return CoverageSummary(
         mode=mode,
         satisfied=satisfied,
@@ -504,6 +533,8 @@ def _coverage(profile: dict[str, Any], results: list[StepResult]) -> CoverageSum
         required_unavailable=len(required_unavailable),
         required_not_applicable=len(required_not_applicable),
         declared_platforms=declared_platforms,
+        required_platforms=required_platforms,
+        missing_platforms=missing_platforms,
         capabilities=capabilities,
     )
 
@@ -528,7 +559,7 @@ def run_profile(root: Path, profile_name: str | None = None) -> VerificationRepo
             results.append(_builtin_step(root, step, platform))
 
     required = [step for step in results if step.required]
-    coverage = _coverage(profile, results)
+    coverage = _coverage(profile, results, platform)
     if any(step.status == "error" for step in required):
         status = "error"
     elif any(step.status == "failed" for step in required):
@@ -757,6 +788,13 @@ def render_human(report: VerificationReport) -> str:
     if report.coverage.required_not_applicable:
         lines.append(
             f"coverage note: {report.coverage.required_not_applicable} required step(s) were not applicable on this host"
+        )
+    if report.coverage.mode == "complete" and report.coverage.missing_platforms:
+        lines.append(
+            "coverage note: required_platforms "
+            f"{', '.join(report.coverage.required_platforms)} declared complete; "
+            f"this host ({report.platform}) did not execute or represent: "
+            f"{', '.join(report.coverage.missing_platforms)}"
         )
     lines.append(f"result: {report.status.upper()} ({report.duration_seconds:.2f}s)")
     if report.evidence_path:

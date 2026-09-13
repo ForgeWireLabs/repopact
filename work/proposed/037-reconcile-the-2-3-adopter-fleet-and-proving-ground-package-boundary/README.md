@@ -1,4 +1,4 @@
-# 037 — Reconcile the 2.3 adopter fleet and Proving Ground package boundary
+# 037 — Reconcile the adopter fleet to the RepoPact 3.x package boundary and repair Proving Ground
 
 > **Status**: Proposed — recorded by WI-033 reconciliation; not yet authorized
 > for cross-repository implementation.
@@ -32,6 +32,24 @@ RepoPact itself, not adopter-fleet reconciliation, and this item's scope —
 migrating the remaining stale adopters and repairing Proving Ground — is
 unchanged and not taken over.
 
+## Scope refresh — 2026-09-13
+
+WI037 was originally created for the 2.3 adopter-fleet reconciliation described
+above. RepoPact has since shipped the breaking 3.x package boundary and the
+current public release is `3.0.2`. ForgeWire independently moved to
+`repopact==3.0.0`; that historical migration is not retroactively counted as
+WI037 work.
+
+Decision `0029` makes the old assumption that adopters carry or invoke vendored
+flat RepoPact modules obsolete. The supported contract is one installed
+`repopact` package, the `repopact ...` console surface, and
+`python -m repopact.cli ...` when explicit interpreter binding is useful.
+
+The underlying obligation remains: restore coherent supported RepoPact
+consumption across the declared public adopter fleet, preserve every genuine
+Moto-local safety rule as a local extension, and repair Proving Ground's S5
+path without resurrecting 2.x shims or vendored core tooling.
+
 ## Decisions
 
 Package publication and ecosystem rollout remain separate phases (WI-029).
@@ -43,17 +61,30 @@ restoration.
 
 - Update only stale adopters and preserve unrelated downstream changes.
 - Repair Proving Ground's supported package imports and cross-repository links.
+- Migrate Moto from vendored RepoPact core to the installed package plus a
+  separately owned local validation extension without dropping safety rules.
+- Update the canonical fleet manifest only after adopter default branches
+  represent their new consumption contracts.
 - Re-run each adopter's native gates and the upstream fleet verifier.
-- Preserve Moto's stronger overlay/checksum parity proof.
+- Verify against immutable remote default-branch heads.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — all five public default branches declare the intended release.
-- [ ] **AC-2** — Proving Ground's links and package boundary are repaired and its
-  benchmark checks pass.
-- [ ] **AC-3** — deterministic fleet verification passes, including Moto parity.
-- [ ] **AC-4** — per-repository evidence is complete and CI restoration is not
-  overstated.
+- [ ] **AC-1** — Fleet consumption: all declared public adopters use the
+  intended current supported RepoPact release/boundary on their public default
+  branch; normal consumers use the exact supported PyPI package pin and legacy
+  vendored-core consumption is removed rather than falsely declared current.
+- [ ] **AC-2** — Proving Ground: supported `repopact.*`/CLI interfaces,
+  authoritative cross-repository research links, and passing governance,
+  benchmark, fixture, PactBench, and S5 drift checks from its declared
+  dependency environment.
+- [ ] **AC-3** — Deterministic fleet verification: the canonical adopter
+  manifest and verifier pass against immutable public default-branch heads and
+  accurately describe each repository's real consumption architecture; no
+  contract points at upstream files that no longer exist.
+- [ ] **AC-4** — Evidence: every modified adopter has repository-native
+  validation and dated evidence, with no overstatement of hosted CI or
+  cross-platform execution.
 
 ## Closeout
 

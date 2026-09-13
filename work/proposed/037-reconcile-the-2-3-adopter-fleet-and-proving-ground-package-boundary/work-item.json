@@ -1,16 +1,18 @@
 {
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "037",
-  "title": "Reconcile the 2.3 adopter fleet and Proving Ground package boundary",
+  "title": "Reconcile the adopter fleet to the RepoPact 3.x package boundary and repair Proving Ground",
   "status": "proposed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "governance",
-    "evidence"
+    "evidence",
+    "tooling"
   ],
   "depends_on": [
     "029",
-    "036"
+    "036",
+    "038"
   ],
   "provenance": "concrete",
   "preflight": {
@@ -21,25 +23,25 @@
   "acceptance_criteria": [
     {
       "id": "AC-1",
-      "text": "ForgeLink, ForgeWire, SkillForge, Moto One Hyper, and RepoPact Proving Ground each declare the intended current RepoPact release on their public default branch, with exact PyPI pins or checksum-backed vendored parity as appropriate.",
+      "text": "All declared public adopters use the intended current supported RepoPact release/boundary on their public default branch. Normal consumers use the exact supported PyPI package pin, and legacy vendored-core consumption is removed rather than falsely declared current.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-2",
-      "text": "RepoPact Proving Ground uses the supported package import and CLI boundary, links back to RepoPact's public research protocol instead of nonexistent local research paths, and its governance, PactBench, fixture, and S5 drift checks pass from its declared dependency environment.",
+      "text": "Proving Ground uses supported repopact.* and CLI interfaces, authoritative cross-repository research links, and passes governance, benchmark, fixture, PactBench, and S5 drift checks from its declared dependency environment.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-3",
-      "text": "The deterministic fleet verifier passes against immutable remote default-branch heads; Moto parity is proven through its declared overlay/checksum contract rather than a version marker alone.",
+      "text": "The canonical adopter manifest and deterministic verifier pass against immutable public default-branch heads and accurately describe each repository's real consumption architecture; no contract points at upstream files that no longer exist.",
       "state": "pending",
       "evidence": []
     },
     {
       "id": "AC-4",
-      "text": "Each adopter change has repository-native validation and dated evidence, unrelated downstream work remains unstaged, and no evidence claims GitHub Actions or cross-platform CI has been restored.",
+      "text": "Every modified adopter has repository-native validation and dated evidence. No evidence overstates hosted CI or cross-platform execution.",
       "state": "pending",
       "evidence": []
     }

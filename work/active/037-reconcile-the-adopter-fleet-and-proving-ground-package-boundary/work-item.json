@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "037",
   "title": "Reconcile the adopter fleet to the RepoPact 3.x package boundary and repair Proving Ground",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "tooling",
   "affected_scopes": [
     "governance",
@@ -47,5 +47,5 @@
     }
   ],
   "created": "2026-07-26",
-  "updated": "2026-07-26"
+  "updated": "2026-09-13"
 }

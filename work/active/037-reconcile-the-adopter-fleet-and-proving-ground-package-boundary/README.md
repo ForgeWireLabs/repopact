@@ -1,9 +1,9 @@
 # 037 — Reconcile the adopter fleet to the RepoPact 3.x package boundary and repair Proving Ground
 
-> **Status**: Proposed — recorded by WI-033 reconciliation; not yet authorized
-> for cross-repository implementation.
+> **Status**: Active — refreshed and activated 2026-09-13 for cross-repository
+> implementation.
 > **Owners**: tooling-owner (lead); governance-owner and evidence-owner affected.
-> **Depends on**: `029`, `036`.
+> **Depends on**: `029`, `036`, `038`.
 
 ## Intent
 

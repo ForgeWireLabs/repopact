@@ -687,3 +687,37 @@ decision; the concrete criteria above were.
 **Verdict:** Tree-sitter selected, with the version pin, MSRV finding, and
 spike results recorded in Decision 0045 and
 `implementation-progress.md`.
+
+## 2026-09-13 incremental-equivalence refresh
+
+- **Actual starting SHA for this phase:**
+  `2b8e193985837691a7cca1d4d63050038c715a08` (WI037
+  reconciliation on top of the prior WI022 evidence commits; no WI063 file
+  was touched between the semantic-adapter checkpoint's push and this
+  phase starting).
+- **Semantic-adapter checkpoint accepted as oracle.** Everything Decision
+  0045 bound (Tree-sitter selection, schema v2, adapter API, symbol/
+  relation taxonomy, resource/cancellation policy) is treated as settled
+  and load-bearing for this phase; nothing in that checkpoint is
+  reopened, and no new semantic scope (exports/public detection, JS
+  test-framework recognition, resolved imports, call graph, `implements`/
+  `extends`/`uses_type`) is added here.
+- **The full semantic build remains the correctness oracle.** This phase
+  adds `graph.update` as an optimization on top of
+  `RepositoryGraph::build_with_fingerprint`, never a second, independently
+  trusted extraction path -- see Decision 0046 section 1.
+- **Watcher/dirty overlay remains deferred.** ROG-013 and
+  `Freshness::WorkingOverlay` are untouched; `graph.update` operates on an
+  explicit `RepositorySnapshot`, exactly like `graph.build`, with no
+  filesystem-watcher integration and no per-keystroke durable write.
+- **Incremental work begins only now,** scoped exactly to ROG-012: prove
+  `canonical(G_incremental(s0->s1)) == canonical(G_full(s1))` for every
+  required change class, using the architecture bound in Decision 0046
+  (governance + physical rebuilt globally every call; only semantic
+  extraction is contribution-incremental, via one shared per-file
+  contribution primitive consumed by both the full build and the
+  incremental path).
+
+See Decision 0046 and `implementation-progress.md`'s
+incremental-equivalence-checkpoint section for the full architecture,
+test matrix, and evidence.

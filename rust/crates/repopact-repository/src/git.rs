@@ -374,17 +374,22 @@ mod tests {
                 "timeout-test",
             )
         } else {
-            runner.run_program_for_test("sh", Path::new("."), &["-c", "sleep 1"], "timeout-test")
+            // Must be materially longer than the wall-clock bound below, or a
+            // runner that failed to kill/reap and simply let the child finish
+            // naturally would still satisfy the assertion -- proving nothing.
+            runner.run_program_for_test("sh", Path::new("."), &["-c", "sleep 20"], "timeout-test")
         };
         let error = result.expect_err("the test child should exceed the finite timeout");
         assert!(error.timed_out);
-        // The runner's own timeout is 50ms; this bound only needs to prove the
-        // child was killed well before its natural 1-second sleep would have
-        // completed on its own, not that termination+reap is instantaneous.
-        // Virtualized schedulers (observed under WSL2) can add real latency to
-        // process kill/reap, so a tight sub-1-second wall-clock bound is
-        // fragile rather than more correct; 5 seconds still clearly fails if
-        // the child were never killed and ran to completion or hung.
+        // The runner's own timeout is 50ms; the test child (20s sleep / `ping
+        // -n 20`, both far longer than the 5s bound below) is intentionally
+        // constructed to run much longer than this bound. Completing within
+        // the bound therefore demonstrates the timeout path actually
+        // terminated and reaped the child, rather than merely waiting for its
+        // natural completion -- a runner that failed to kill/reap would blow
+        // well past 5 seconds. The bound is loose enough to tolerate real
+        // kill/reap latency added by virtualized schedulers (observed under
+        // WSL2), without being loose enough to pass on natural completion.
         assert!(started.elapsed() < Duration::from_secs(5));
     }
 

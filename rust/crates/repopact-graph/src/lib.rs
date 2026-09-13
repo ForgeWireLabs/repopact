@@ -8,6 +8,7 @@ use serde_json::Value;
 
 pub mod durable;
 pub mod incremental;
+pub mod overlay;
 pub mod physical;
 pub mod projection;
 pub mod semantic;

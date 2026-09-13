@@ -361,6 +361,33 @@ pub fn read_edge_shard(
     read_shard(&rog_root(repository_root).join("edges").join(shard_file))
 }
 
+/// Reconstruct a full [`RepositoryGraph`] directly from a durable
+/// manifest's already-validated shards -- no source file is read and no
+/// adapter runs (WI063 ROG-013, Decision 0047 section 7). Callers must
+/// already know `manifest` is structurally sound (e.g. via
+/// [`crate::validate::validate_structure`] returning no diagnostics)
+/// before relying on this as a faithful reconstruction; this function
+/// itself only propagates shard read/parse errors, it does not
+/// re-validate hashes or ordering.
+pub fn load_graph(
+    repository_root: &Path,
+    manifest: &Manifest,
+) -> Result<RepositoryGraph, DurableError> {
+    let mut nodes = std::collections::BTreeMap::new();
+    for shard in &manifest.node_shards {
+        for node in read_node_shard(repository_root, &shard.shard)? {
+            nodes.insert(node.id.clone(), node);
+        }
+    }
+    let mut edges = Vec::new();
+    for shard in &manifest.edge_shards {
+        edges.extend(read_edge_shard(repository_root, &shard.shard)?);
+    }
+    edges.sort();
+    edges.dedup();
+    Ok(RepositoryGraph { nodes, edges })
+}
+
 fn read_shard<T: for<'de> Deserialize<'de>>(path: &Path) -> Result<Vec<T>, DurableError> {
     let text = fs::read_to_string(path).map_err(|error| {
         DurableError::new(

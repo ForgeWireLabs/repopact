@@ -302,13 +302,11 @@ fn incremental_update(
     baseline_fingerprint: Option<String>,
     previous_manifest: durable::Manifest,
 ) -> Result<UpdateResult, DurableError> {
-    let repository = snapshot.repository();
-    let root = repository.root();
+    let root = snapshot.repository().root();
     let previous_coverage = previous_manifest
         .semantic_coverage
         .clone()
         .unwrap_or_default();
-    let delta = compute_delta(&previous_coverage.per_file, projection);
 
     // Load the previous durable graph's semantic nodes/edges, grouped by
     // owning file. Ownership is read directly from the existing
@@ -319,122 +317,20 @@ fn incremental_update(
     // construction (WI063 incremental-equivalence checkpoint, step 6).
     let previous_semantic = read_semantic_contributions_by_file(root, &previous_manifest)?;
 
-    let mut graph =
-        RepositoryGraph::build_governance_and_physical_with_projection(snapshot, projection);
-
-    let policy = ResourcePolicy::default();
-    let mut per_file = Vec::with_capacity(projection.files.len());
-    let mut files_added = 0usize;
-    let mut files_modified = 0usize;
-    let mut files_unchanged = 0usize;
-    let mut semantic_reparsed = 0usize;
-    let mut semantic_reused = 0usize;
-
-    for file in &projection.files {
-        match delta.get(file.relative_path.as_str()) {
-            Some(FileDelta::Unchanged) => {
-                files_unchanged += 1;
-                semantic_reused += 1;
-                if let Some((entry, nodes, edges)) = previous_semantic.get(&file.relative_path) {
-                    for node in nodes {
-                        graph.node(node.clone());
-                    }
-                    for edge in edges {
-                        graph.edge(edge.clone());
-                    }
-                    per_file.push(entry.clone());
-                } else {
-                    // The previous manifest recorded this file but it
-                    // carried no semantic node/edge presence (e.g.
-                    // unsupported language/skipped/failed with nothing
-                    // emitted) -- recover its coverage entry from the
-                    // previous per-file record directly rather than
-                    // reparsing, since the digest is unchanged and there
-                    // is nothing to reuse besides the entry itself.
-                    if let Some(previous_entry) = previous_coverage
-                        .per_file
-                        .iter()
-                        .find(|entry| entry.relative_path == file.relative_path)
-                    {
-                        per_file.push(previous_entry.clone());
-                    } else {
-                        // Should not happen (delta is computed from this
-                        // same previous inventory), but never fabricate a
-                        // reused entry -- reparse rather than guess.
-                        let contribution = semantic::build_file_contribution(
-                            repository,
-                            &file.relative_path,
-                            &file.digest,
-                            &policy,
-                        );
-                        for node in contribution.nodes {
-                            graph.node(node);
-                        }
-                        for edge in contribution.edges {
-                            graph.edge(edge);
-                        }
-                        per_file.push(contribution.entry);
-                        semantic_reused -= 1;
-                        semantic_reparsed += 1;
-                    }
-                }
-            }
-            Some(FileDelta::Added) => {
-                files_added += 1;
-                semantic_reparsed += 1;
-                let contribution = semantic::build_file_contribution(
-                    repository,
-                    &file.relative_path,
-                    &file.digest,
-                    &policy,
-                );
-                for node in contribution.nodes {
-                    graph.node(node);
-                }
-                for edge in contribution.edges {
-                    graph.edge(edge);
-                }
-                per_file.push(contribution.entry);
-            }
-            Some(FileDelta::Modified) => {
-                files_modified += 1;
-                semantic_reparsed += 1;
-                // Old contribution for this path is simply never read
-                // back in (dropped), never merged with the new one.
-                let contribution = semantic::build_file_contribution(
-                    repository,
-                    &file.relative_path,
-                    &file.digest,
-                    &policy,
-                );
-                for node in contribution.nodes {
-                    graph.node(node);
-                }
-                for edge in contribution.edges {
-                    graph.edge(edge);
-                }
-                per_file.push(contribution.entry);
-            }
-            Some(FileDelta::Deleted) | None => {
-                // `None` cannot occur for a file in `projection.files`
-                // (delta covers every current file); defensive only.
-            }
-        }
-    }
-    let files_deleted = delta.values().filter(|d| **d == FileDelta::Deleted).count();
-
-    graph.edges.sort();
-    graph.edges.dedup();
-
-    let semantic_coverage = semantic::aggregate_coverage(per_file);
-    let semantic_skipped = semantic_coverage.files_skipped_unsupported_language
-        + semantic_coverage.files_skipped_policy;
+    let plan = plan_reconciliation(
+        snapshot,
+        projection,
+        &previous_coverage.per_file,
+        &previous_semantic,
+    );
+    let semantic_skipped = plan.semantic_coverage.files_skipped_unsupported_language
+        + plan.semantic_coverage.files_skipped_policy;
 
     let manifest = durable::write(
         root,
-        &graph,
+        &plan.graph,
         &current_fingerprint,
-        semantic_coverage,
+        plan.semantic_coverage,
         current_semantic_compatibility(),
     )?;
     let freshness = if status::has_semantic_coverage_gap(&manifest) {
@@ -447,12 +343,12 @@ fn incremental_update(
         mode: UpdateMode::Incremental,
         baseline_fingerprint,
         current_fingerprint,
-        files_added,
-        files_modified,
-        files_deleted,
-        files_unchanged,
-        semantic_reparsed,
-        semantic_reused,
+        files_added: plan.counts.files_added,
+        files_modified: plan.counts.files_modified,
+        files_deleted: plan.counts.files_deleted,
+        files_unchanged: plan.counts.files_unchanged,
+        semantic_reparsed: plan.counts.semantic_reparsed,
+        semantic_reused: plan.counts.semantic_reused,
         semantic_skipped,
         fallback_reason: None,
         final_node_count: manifest.node_count,
@@ -461,18 +357,184 @@ fn incremental_update(
     })
 }
 
-type SemanticContribution = (
+pub(crate) type SemanticContribution = (
     FileCoverageEntry,
     Vec<crate::GraphNode>,
     Vec<crate::GraphEdge>,
 );
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ReconciliationCounts {
+    pub files_added: usize,
+    pub files_modified: usize,
+    pub files_deleted: usize,
+    pub files_unchanged: usize,
+    pub semantic_reparsed: usize,
+    pub semantic_reused: usize,
+}
+
+pub(crate) struct ReconciliationPlan {
+    pub graph: RepositoryGraph,
+    pub semantic_coverage: semantic::SemanticCoverage,
+    pub counts: ReconciliationCounts,
+    /// Every file's contribution, keyed by relative path -- the same
+    /// shape [`crate::overlay::SessionGraphState`] caches between watcher
+    /// events, so a caller that needs to keep reconciling incrementally
+    /// (rather than write-and-forget like the durable path) does not need
+    /// to re-derive it from `graph`.
+    pub semantic_by_file: BTreeMap<String, SemanticContribution>,
+}
+
+/// Reconcile `projection` against a known previous per-file inventory
+/// (`known_per_file`) and previously-produced semantic contributions
+/// (`known_semantic_by_file`), entirely in memory -- no durable write.
+/// This is the single delta-reconciliation algorithm shared by the
+/// durable `graph.update` path above (which additionally writes the
+/// result via `durable::write`) and the session working-tree overlay
+/// (`crate::overlay`, Decision 0047, ROG-013), which keeps the result in
+/// memory only. Neither path duplicates this algorithm independently.
+pub(crate) fn plan_reconciliation(
+    snapshot: &RepositorySnapshot,
+    projection: &SourceProjection,
+    known_per_file: &[FileCoverageEntry],
+    known_semantic_by_file: &BTreeMap<String, SemanticContribution>,
+) -> ReconciliationPlan {
+    let repository = snapshot.repository();
+    let delta = compute_delta(known_per_file, projection);
+    let mut graph =
+        RepositoryGraph::build_governance_and_physical_with_projection(snapshot, projection);
+
+    let policy = ResourcePolicy::default();
+    let mut per_file = Vec::with_capacity(projection.files.len());
+    let mut semantic_by_file = BTreeMap::new();
+    let mut counts = ReconciliationCounts::default();
+
+    for file in &projection.files {
+        match delta.get(file.relative_path.as_str()) {
+            Some(FileDelta::Unchanged) => {
+                counts.files_unchanged += 1;
+                counts.semantic_reused += 1;
+                if let Some(contribution) = known_semantic_by_file.get(&file.relative_path) {
+                    let (entry, nodes, edges) = contribution;
+                    for node in nodes {
+                        graph.node(node.clone());
+                    }
+                    for edge in edges {
+                        graph.edge(edge.clone());
+                    }
+                    per_file.push(entry.clone());
+                    semantic_by_file.insert(file.relative_path.clone(), contribution.clone());
+                } else if let Some(previous_entry) = known_per_file
+                    .iter()
+                    .find(|entry| entry.relative_path == file.relative_path)
+                {
+                    // The known inventory recorded this file but it
+                    // carried no semantic node/edge presence (e.g.
+                    // unsupported language/skipped/failed with nothing
+                    // emitted) -- recover its coverage entry directly
+                    // rather than reparsing, since the digest is
+                    // unchanged and there is nothing to reuse besides
+                    // the entry itself.
+                    per_file.push(previous_entry.clone());
+                    semantic_by_file.insert(
+                        file.relative_path.clone(),
+                        (previous_entry.clone(), Vec::new(), Vec::new()),
+                    );
+                } else {
+                    // Should not happen (delta is computed from this
+                    // same known inventory), but never fabricate a
+                    // reused entry -- reparse rather than guess.
+                    let contribution = semantic::build_file_contribution(
+                        repository,
+                        &file.relative_path,
+                        &file.digest,
+                        &policy,
+                    );
+                    for node in &contribution.nodes {
+                        graph.node(node.clone());
+                    }
+                    for edge in &contribution.edges {
+                        graph.edge(edge.clone());
+                    }
+                    per_file.push(contribution.entry.clone());
+                    semantic_by_file.insert(
+                        file.relative_path.clone(),
+                        (contribution.entry, contribution.nodes, contribution.edges),
+                    );
+                    counts.semantic_reused -= 1;
+                    counts.semantic_reparsed += 1;
+                }
+            }
+            Some(FileDelta::Added) => {
+                counts.files_added += 1;
+                counts.semantic_reparsed += 1;
+                let contribution = semantic::build_file_contribution(
+                    repository,
+                    &file.relative_path,
+                    &file.digest,
+                    &policy,
+                );
+                for node in &contribution.nodes {
+                    graph.node(node.clone());
+                }
+                for edge in &contribution.edges {
+                    graph.edge(edge.clone());
+                }
+                per_file.push(contribution.entry.clone());
+                semantic_by_file.insert(
+                    file.relative_path.clone(),
+                    (contribution.entry, contribution.nodes, contribution.edges),
+                );
+            }
+            Some(FileDelta::Modified) => {
+                counts.files_modified += 1;
+                counts.semantic_reparsed += 1;
+                // Old contribution for this path is simply never read
+                // back in (dropped), never merged with the new one.
+                let contribution = semantic::build_file_contribution(
+                    repository,
+                    &file.relative_path,
+                    &file.digest,
+                    &policy,
+                );
+                for node in &contribution.nodes {
+                    graph.node(node.clone());
+                }
+                for edge in &contribution.edges {
+                    graph.edge(edge.clone());
+                }
+                per_file.push(contribution.entry.clone());
+                semantic_by_file.insert(
+                    file.relative_path.clone(),
+                    (contribution.entry, contribution.nodes, contribution.edges),
+                );
+            }
+            Some(FileDelta::Deleted) | None => {
+                // `None` cannot occur for a file in `projection.files`
+                // (delta covers every current file); defensive only.
+            }
+        }
+    }
+    counts.files_deleted = delta.values().filter(|d| **d == FileDelta::Deleted).count();
+
+    graph.edges.sort();
+    graph.edges.dedup();
+    let semantic_coverage = semantic::aggregate_coverage(per_file);
+
+    ReconciliationPlan {
+        graph,
+        semantic_coverage,
+        counts,
+        semantic_by_file,
+    }
+}
 
 /// Read every semantic node/edge out of the previous durable graph's
 /// shards, grouped by the repository-relative file each one is attributed
 /// to via its existing `source.path`. This is a durable-graph read, not a
 /// repository walk or Git call -- it costs disk I/O proportional to the
 /// previous graph's size, not to the number of files being updated.
-fn read_semantic_contributions_by_file(
+pub(crate) fn read_semantic_contributions_by_file(
     root: &std::path::Path,
     manifest: &durable::Manifest,
 ) -> Result<BTreeMap<String, SemanticContribution>, DurableError> {

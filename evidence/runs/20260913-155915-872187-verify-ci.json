@@ -1,0 +1,138 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-155915-872187-verify-ci",
+  "timestamp": "2026-09-13T15:59:15Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "046",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "/usr/bin/python3 -m repopact.cli validate --root /home/Jeremy-L/repopact-linux",
+      "exit_code": 0,
+      "summary": "validate: passed - command passed"
+    },
+    {
+      "command": "/usr/bin/python3 -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "python-tests: passed - command passed"
+    },
+    {
+      "command": "/usr/bin/python3 -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "conformance: passed - command passed"
+    },
+    {
+      "command": "cargo test --workspace --locked --manifest-path rust/Cargo.toml",
+      "exit_code": 0,
+      "summary": "rust-workspace: passed - command passed"
+    },
+    {
+      "command": "builtin:spec_freshness",
+      "exit_code": 0,
+      "summary": "spec-freshness: passed - SPEC.md derived blocks are current"
+    },
+    {
+      "command": "/usr/bin/python3 -m repopact.cli check-frozen --root /home/Jeremy-L/repopact-linux --base origin/main",
+      "exit_code": 0,
+      "summary": "frozen-surface-report: passed - command passed"
+    }
+  ],
+  "artifacts": [],
+  "environment": {
+    "platform": "linux",
+    "executor": "local",
+    "candidate": {
+      "commit": "37dad3e7ca4eae52f7988367149c6ee1cdb004e8",
+      "tree": "7f5e529cbb160db5c2350cff2c4db2ba20c72827",
+      "dirty": false
+    },
+    "verification": {
+      "profile": "ci",
+      "status": "pass",
+      "exit_code": 0,
+      "duration_seconds": 136.420254,
+      "coverage": {
+        "mode": "host",
+        "satisfied": true,
+        "host_ready": true,
+        "all_declared_executed": true,
+        "required_total": 5,
+        "required_executed": 5,
+        "required_passed": 5,
+        "required_failed": 0,
+        "required_errors": 0,
+        "required_unavailable": 0,
+        "required_not_applicable": 0,
+        "declared_platforms": [],
+        "required_platforms": [],
+        "missing_platforms": [],
+        "capabilities": {
+          "cargo": "available"
+        }
+      },
+      "steps": [
+        {
+          "id": "validate",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "python-tests",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "conformance",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "rust-workspace",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": "cargo",
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        },
+        {
+          "id": "spec-freshness",
+          "status": "passed",
+          "required": true,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "SPEC.md derived blocks are current"
+        },
+        {
+          "id": "frozen-surface-report",
+          "status": "passed",
+          "required": false,
+          "applicable": true,
+          "capability": null,
+          "platforms": [],
+          "exit_code": 0,
+          "summary": "command passed"
+        }
+      ]
+    }
+  }
+}

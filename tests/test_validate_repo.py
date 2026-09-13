@@ -961,8 +961,10 @@ class RepositoryValidationTests(unittest.TestCase):
         scope_ids = {s["id"] for s in owners["scopes"]}
         self.assertIn("backend-team", scope_ids)
         self.assertIn("docs-team", scope_ids)
-        # the workflow becomes a binding-gate policy and a frozen path
-        policies = list((repo / "governance" / "policies").glob("*-ci-*.md"))
+        # the workflow becomes a candidate hosted-adapter policy record (not an
+        # enforcement claim -- see adopt_repo.py's WI046 workflow-neutral adoption)
+        # and its path is frozen
+        policies = list((repo / "governance" / "policies").glob("*-hosted-adapter-*.md"))
         self.assertEqual(1, len(policies))
         frozen = json.loads((repo / "governance" / "frozen-surface.json").read_text(encoding="utf-8"))
         self.assertIn(".github/workflows/**", [p["glob"] for p in frozen["protected"]])

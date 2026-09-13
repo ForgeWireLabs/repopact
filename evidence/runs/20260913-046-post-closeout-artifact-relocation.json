@@ -1,0 +1,31 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-046-post-closeout-artifact-relocation",
+  "timestamp": "2026-09-13T18:30:00Z",
+  "work_item": "046",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"git status; git fetch origin; git rev-parse HEAD; git rev-parse origin/main","exit_code":0,"summary":"Confirmed HEAD and origin/main both at 5616db5fb4079ca6b674217b919e1924fa5280c8 with a clean worktree before making any change."},
+    {"command":"inspect evidence/runs/20260913-046-final-closeout.json artifacts list","exit_code":0,"summary":"Confirmed this immutable closeout record references three release-evidence artifacts using their pre-relocation path: work/active/046-runner-neutral-verification-and-admission-checkpoint-architecture/evidence/linux-release-out-1/{release-manifest.json,release-build-report.json,release-readiness.json}. These paths were correct at the moment the closeout evidence was authored, before the WI046 directory's active->completed lifecycle move was fully finalized in the same session. This record is not rewritten to update those references; per RepoPact's evidence-immutability discipline, this supplemental record instead documents the relocation."},
+    {"command":"confirm no stale tracked work/active/046-... directory","exit_code":0,"summary":"git ls-files work/active/ | grep 046 returned no results. WI046 exists only under work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/, status=completed, all 22 acceptance criteria remain state=satisfied -- unchanged by this record."},
+    {"command":"confirm the three artifacts exist at their canonical completed-path location and compute sha256","exit_code":0,"summary":"All three files exist at work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/evidence/linux-release-out-1/. sha256: release-manifest.json=fbf8aff3484a21acecce674620729609a84be03073680f8ba1221f208dec04cc, release-build-report.json=375289ad47bc3e7fdd5996b74119e25210e54be9243860b42c691dabc2ba9bde, release-readiness.json=82fe361954013845994512594a6b8112d8856574175f8dbd2e1dc4c6610eef02. These are the same files originally written during the WI046 Linux release build, preserved byte-for-byte through the work-item directory's active->completed move (a plain filesystem move plus git add/rm, not a re-write of content)."},
+    {"command":"inspect release-manifest.json to confirm recorded release-artifact hashes are unchanged","exit_code":0,"summary":"release-manifest.json still records wheel sha256=cab43e1d42bb2ff47fbb3d8881e3ffdd4b3285795e3c62712aafd1b873f225c8 and sdist sha256=eb52d8ee333a8c34f505eb070bd28f4d83e09a7fd1e4af141a1ff684a671cc18 -- identical to the values recorded in the original closeout evidence (20260913-046-final-closeout). No release artifact was rebuilt or regenerated for this record; this is relocation evidence only."},
+    {"command":"repopact validate --root . (REPOPACT_ENGINE=rust/target/debug/repopact-engine.exe)","exit_code":0,"summary":"Canonical Rust-backed validation passed after adding this record and regenerating the dashboard."}
+  ],
+  "artifacts": [
+    "work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/evidence/linux-release-out-1/release-manifest.json",
+    "work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/evidence/linux-release-out-1/release-build-report.json",
+    "work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/evidence/linux-release-out-1/release-readiness.json"
+  ],
+  "environment": {
+    "date": "2026-09-13",
+    "note": "Path-only relocation record; no build, verification, or test execution occurred in producing this evidence."
+  },
+  "closeout": {
+    "purpose": "Supplements evidence/runs/20260913-046-final-closeout.json, which is treated as immutable historical evidence and is not modified by this record.",
+    "relocation": "WI046's work-item directory moved from work/active/046-runner-neutral-verification-and-admission-checkpoint-architecture/ to work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/ as part of WI046's closeout (commit ba6095a). The final closeout evidence's artifacts list retains three references under the pre-relocation work/active/... path.",
+    "identity_preserved": "The three referenced artifact files were preserved byte-for-byte through that move; their canonical current locations are the three paths listed above, with sha256 hashes as recorded in this record's commands.",
+    "no_semantic_change": "No acceptance criterion, implementation result, release-artifact hash, release-readiness conclusion, or lifecycle status changed as a result of this record. WI046 remains completed with all 22 acceptance criteria satisfied. WI064 was not touched. WI063 was not activated. WI061 was not begun."
+  }
+}

@@ -27,19 +27,25 @@
       "id": "ROG-001",
       "text": "Record a durable architecture decision before implementation makes a persistent graph format canonical. The decision defines the graph's repository path, schema/version contract, sharding/canonical serialization, source-projection fingerprint, enablement semantics, local-cache boundary, migration/backfill behavior, and the fact that the graph is derived rather than a new source of truth.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-002",
       "text": "Extend the canonical WI054 Rust graph/query authority instead of creating a second competing graph implementation. Existing governance nodes and relationships remain canonical for governance, while repository-orientation layers add physical, semantic, build/test/operational relationships and deterministic cross-layer links.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-003",
       "text": "Define a typed multilayer node model covering at minimum repository, directory, file, workspace/package/crate/module, configuration/build/test/runtime surfaces, selected language symbols, and the existing RepoPact governance node classes. Node identity is deterministic and repository-relative; line numbers alone are not primary symbol identity.",
       "state": "satisfied",
-      "evidence": ["20260913-063-semantic-checkpoint"]
+      "evidence": [
+        "20260913-063-semantic-checkpoint"
+      ]
     },
     {
       "id": "ROG-004",
@@ -51,31 +57,41 @@
       "id": "ROG-005",
       "text": "Every durable graph relationship carries enough explanation metadata to identify its relation kind, source path/location where available, derivation mechanism, provenance/certainty class, and graph schema/generator context. Clients can explain why an edge exists without relying on an opaque model score.",
       "state": "satisfied",
-      "evidence": ["20260913-063-semantic-checkpoint"]
+      "evidence": [
+        "20260913-063-semantic-checkpoint"
+      ]
     },
     {
       "id": "ROG-006",
       "text": "Define and enforce derivation classes that distinguish canonical RepoPact-record relationships, deterministic parser relationships, manifest/build-system relationships, and any future heuristic/inferred relationships. LLM or heuristic output is never silently promoted to concrete graph authority.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-007",
       "text": "Implement a deterministic portable durable graph representation suitable for Git versioning, clean-clone loading, corruption detection, and canonical rebuild. The representation includes a manifest plus stable partitioning/sharding of graph data so unrelated source changes do not rewrite the entire graph unnecessarily.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-008",
       "text": "Do not make a committed SQLite, sled, RocksDB, or other opaque binary database the sole durable graph representation. A local acceleration database is permitted only as a disposable, reconstructable cache whose deletion loses no repository-authoritative state.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-009",
       "text": "Define a canonical source projection and fingerprint that excludes the graph's own derived files and explicitly excluded cache/generated paths, avoids circular self-hashing, and uses stable path/content or Git object identities where available. Graph freshness can be verified without blindly reparsing every source file.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-010",
@@ -87,13 +103,17 @@
       "id": "ROG-011",
       "text": "Canonical full graph rebuilds from the same source projection and graph-schema version are deterministic and byte-equivalent after documented normalization across repeated runs and supported platforms. Nondeterministic timestamps or traversal order may not poison the fixpoint.",
       "state": "satisfied",
-      "evidence": ["20260913-063-foundation-checkpoint"]
+      "evidence": [
+        "20260913-063-foundation-checkpoint"
+      ]
     },
     {
       "id": "ROG-012",
       "text": "Incremental graph update is proven equivalent to a clean full rebuild for every supported change class: after canonical normalization, G_incremental(s0->s1) equals G_full(s1). Tests cover additions, edits, deletes, renames/moves where supported, manifest changes, relationship changes, and parser-failure recovery.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-063-incremental-equivalence-checkpoint"
+      ]
     },
     {
       "id": "ROG-013",
@@ -141,7 +161,9 @@
       "id": "ROG-020",
       "text": "Coverage gaps are first-class graph output. Unsupported languages, parser failures, excluded trees, and relationships unavailable at the chosen extraction tier are reported explicitly. Partial coverage is never represented as complete repository understanding.",
       "state": "satisfied",
-      "evidence": ["20260913-063-semantic-checkpoint"]
+      "evidence": [
+        "20260913-063-semantic-checkpoint"
+      ]
     },
     {
       "id": "ROG-021",
@@ -200,8 +222,10 @@
     {
       "id": "ROG-030",
       "text": "Version the durable graph schema and define compatibility/migration behavior. Unknown major graph versions fail or report unsupported rather than being interpreted optimistically. Graph format evolution is separable from unrelated RepoPact spec changes where practical.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-063-incremental-equivalence-checkpoint"
+      ]
     },
     {
       "id": "ROG-031",

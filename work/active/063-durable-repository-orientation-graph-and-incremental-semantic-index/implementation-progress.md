@@ -460,3 +460,282 @@ now cross-platform-proven full-build oracle, per the architecture
 review's own phase ordering. A fresh architecture review should decide
 between the two rather than this session assuming either.
 
+---
+
+# WI063 Implementation Progress -- Incremental-Equivalence Checkpoint (2026-09-13)
+
+## Scope
+
+Building directly on the accepted semantic-adapter checkpoint (Decision
+0045), this checkpoint implements and proves ROG-012: an incremental
+graph.update whose output, after canonical normalization, is exactly
+equal to a clean full rebuild of the same final repository state, for
+every change class the AC names. Decision 0046 binds the architecture.
+Explicitly not attempted: incremental governance/physical topology
+tracking, a persistent Tree-sitter syntax-tree cache, the ROG-013
+watcher/working-tree overlay, any query surface beyond status/build/
+verify/update, and any broadening of semantic scope beyond what the
+semantic-adapter checkpoint already covers.
+
+## Architecture
+
+```text
+current RepositorySnapshot
+       |
+       +--> governance rebuild globally
+       |
+       +--> physical rebuild globally
+       |
+       +--> semantic contribution delta
+                |
+                +--> unchanged -> reuse
+                +--> modified  -> reparse
+                +--> added     -> parse
+                +--> deleted   -> remove
+       |
+       v
+candidate graph
+       |
+       v
+canonical durable serialization
+```
+
+Governance and physical topology are cheap and already fully
+deterministic from repository state, so they are rebuilt globally on
+every graph.update call rather than incrementally tracked -- this
+checkpoint does not attempt fine-grained incremental governance or
+physical topology. Only semantic extraction, the genuinely expensive
+per-file parsing step, is contribution-incremental.
+
+The full build remains the correctness oracle. graph.update is an
+optimization layered on RepositoryGraph::build_with_fingerprint, never
+a second, independently-trusted extraction path. Every equivalence test
+proves an incremental result against a clean full build of the same
+final state.
+
+## The single contribution-generation primitive
+
+semantic::build_file_contribution(repository, relative_path, digest,
+policy) is the one function that turns one file's approved input into a
+coverage entry plus nodes/edges. A full build (semantic::extend) calls
+it once per projected file, unconditionally. An incremental update
+(incremental::update) calls it only for files classified added or
+modified; for unchanged files it instead reuses the prior contribution's
+nodes/edges, read back from the previous durable graph's shards and
+grouped by each item's own existing source.path (already sufficient:
+every adapter attributes every node/edge it emits to exactly the file it
+parsed, and current semantic relations -- defines, imports -- are
+file-local, so no separate contribution-owner field was needed). There
+is exactly one semantic extraction implementation; full build and
+incremental update differ only in which files invoke it this call.
+
+semantic::aggregate_coverage(per_file) recomputes the aggregate coverage
+counters deterministically from whatever final per-file inventory either
+path assembles, rather than incrementing/decrementing counters as files
+are added, changed, or removed. Both paths call this same function, so
+their coverage output is provably equal by construction, not by parallel
+bookkeeping staying in sync.
+
+## Correctness authorities (Decision 0046 section 3)
+
+Reuse decisions rest only on: canonical repository-relative path, the
+SourceProjection content digest for that path, and an explicit semantic-
+compatibility identity (graph_schema_major + pipeline_version +
+adapter_versions + resource_policy_version). Git diff, mtime, watcher
+events, and parser caches are never consulted for correctness anywhere in
+this checkpoint's code.
+
+## Schema-v2 additive fields (no schema-major bump)
+
+- FileCoverageEntry.source_digest: Option<String> -- the projection
+  digest a coverage entry was computed against.
+- Manifest.semantic_compatibility: Option<SemanticCompatibility> -- the
+  pipeline/adapter/resource-policy identity a durable graph was written
+  under.
+
+Both are serde-default, skip-if-none. A schema-v2 graph from the
+semantic-adapter checkpoint (before this decision) deserializes cleanly
+under this implementation with both fields None, and is correctly
+treated as "predates incremental support" -- incremental::update falls
+back to a full rebuild (fallback_reason "incremental_metadata_absent")
+rather than guessing.
+
+## Required update behavior (all six states tested)
+
+| Baseline state | Mode | fallback_reason |
+|---|---|---|
+| No rog/manifest.json | full_fallback | graph_absent |
+| Schema v1 | full_fallback | schema_v1_upgrade |
+| Schema v2, no semantic_compatibility | full_fallback | incremental_metadata_absent |
+| Schema v2, compatibility mismatch | full_fallback | semantic_compatibility_mismatch |
+| Structurally corrupt | full_fallback | corrupt_baseline_full_rebuild |
+| Unsupported schema major | error (nothing written) | n/a (fails closed) |
+| Valid, fingerprint unchanged | no_op | none |
+| Valid, fingerprint changed | incremental | none |
+
+A full rebuild is never hidden behind the incremental label. A corrupt
+baseline is never treated as a source of reusable contributions --
+Decision 0046 chose an explicit full rebuild over the corrupt baseline
+(self-healing, and rog/ is never load-bearing for repository validity
+per Decision 0044 section 9) rather than a hard failure; an unsupported
+schema major, by contrast, fails closed and writes nothing.
+
+## Durable replacement safety
+
+durable::write's build-then-swap sequence was upgraded from
+delete-then-rename to rename-based backup-and-rollback
+(durable::swap_with_rollback): any pre-existing rog/ is renamed aside
+before the new one is installed, and rolled back into place if
+installation fails. A fault-injection test (forcing the second rename to
+fail via an injected closure) proves the prior graph's manifest remains
+byte-recoverable at the final path afterward -- never a half-written or
+missing graph.
+
+## ROG-012 mutation-class equivalence matrix (all proven byte-for-byte)
+
+Every case below uses a shared harness: build s0 in one fixture, mutate
+to s1, run graph.update; independently build a second fixture straight
+to s1 and take one clean full build; assert every manifest field and
+every node/edge shard's bytes match exactly.
+
+- Addition -- Rust/Python/TypeScript files added; classified added,
+  reparsed, output matches a clean rebuild.
+- Edit -- a declaration added to an existing file; classified modified,
+  reparsed, matches.
+- Non-semantic edit -- a leading comment/blank line inserted; the file's
+  digest changes (so it is reparsed), but every affected symbol's stable
+  ID is proven byte-identical before and after.
+- Delete -- a file removed; its symbols, edges, and coverage entry are
+  proven absent from the resulting durable graph.
+- Rename/move -- old path deleted, new path added; proven classified as
+  delete+add (files_modified == 0), never a tracked rename, per Decision
+  0046 section 4.
+- Manifest change -- Cargo.toml/pyproject.toml/package.json
+  added/changed; converges through the always-global physical rebuild.
+- Relationship change -- an import statement changed; the old import
+  fact is proven absent from the resulting graph, the new one present.
+- Governance change -- a work-item JSON record edited; proven to
+  reparse exactly one file semantically (the JSON itself, cheaply
+  classified unsupported-language), not the whole repository.
+- Parser-failure introduction -- a valid file replaced with malformed
+  syntax; proven that only that file reparses, unrelated contributions
+  (a Python file in the same fixture) remain Complete, and freshness
+  becomes Partial.
+- Parser-failure recovery -- the malformed file repaired; Partial
+  clears, freshness returns to Fresh, and the result matches a clean
+  full rebuild of the fixed state exactly.
+- Policy transitions -- a file toggled source -> binary -> source;
+  proven no stale symbol survives the binary phase, and the final state
+  matches a clean full rebuild exactly.
+- Unsupported file add/delete -- a Markdown file added and another
+  removed; proven correctly counted as added/deleted with truthful
+  (non-code) coverage classification.
+- ROG-only mutation -- a second update() call with zero source changes
+  (the only prior change was rog/ itself, from the first build); proven
+  no_op, zero reparses.
+- Excluded-tree mutation -- files written under target/, node_modules/,
+  .venv/; proven to produce zero source-projection delta and a no_op
+  update.
+- True no-op -- proven that rog/manifest.json's bytes are completely
+  unchanged (not merely semantically equivalent) after a no-op update.
+
+## Observable reuse proof
+
+A 100-file Rust fixture, one file changed: semantic_reparsed == 1,
+semantic_reused == 99, output byte-identical to a clean full rebuild. A
+second 100-file fixture with zero changes: semantic_reparsed == 0,
+semantic_reused == 100.
+
+## Compatibility invalidation
+
+Directly tampering with a durable manifest's recorded
+semantic_compatibility.pipeline_version (simulating what a real
+pipeline-version bump would look like) forces full_fallback with
+fallback_reason "semantic_compatibility_mismatch" and semantic_reused ==
+0 -- reuse is never attempted against a baseline whose extraction
+behavior might have changed.
+
+## Cross-platform proof
+
+A 5-file fixture (Rust module+test, Python class, TypeScript interface),
+confirmed byte-identical by SHA-256 of every file, was built to s0 and
+mutated to s1 (2 files added, 2 modified including one comment-only edit,
+1 file renamed) independently via the raw engine stdio protocol on native
+Windows and a freshly re-synced Linux-native WSL2 Debian 13 checkout
+(~/repopact-linux, never /mnt/c/...). Result: byte-for-byte identical
+graph.update output (mode, fingerprints, every count) and every one of
+the final manifest's node/edge shard SHA-256 hashes. No macOS execution
+occurred or is claimed.
+
+## WI057 re-check
+
+update_does_not_exceed_the_wi057_bounded_git_invocation_count confirms
+graph.update stays within the existing <=4-invocations-per-snapshot
+bound; delta computation and contribution reuse read only the durable
+graph's own shards (disk I/O, not Git or filesystem-diff calls).
+
+## Performance-correctness fix
+
+While gathering engineering timing evidence, incremental::update was
+found to compute the SourceProjection twice per call -- once to compare
+fingerprints and classify the delta, again inside the always-global
+governance+physical rebuild. On a real RepoPact-scale fixture the
+projection walk (content-hashing every projected file) dominates wall
+time far more than semantic parsing does, so this roughly doubled every
+incremental update's real cost. Fixed by splitting
+RepositoryGraph::build_governance_and_physical into a
+projection-computing wrapper and a
+build_governance_and_physical_with_projection variant that
+incremental::update now calls with the projection it already has -- all
+69 repopact-graph tests remained green before and after.
+
+## Real RepoPact-scale engineering timing (engineering validation only)
+
+On a disposable ~5,100-file copy of RepoPact's own live checkout: full
+build 25.2s (755 files considered, 107 semantically complete,
+node_count=4574, edge_count=6237); a subsequent no-op update 24.0s (zero
+reparses, byte-identical manifest); a single-file change 21.3s (one
+reparse, 754 reused). All three are the same order of magnitude because
+the projection's content-hashing walk, not semantic parsing, dominates
+wall time on this fixture -- a genuine, disclosed finding, not a result
+this checkpoint claims to have optimized to zero. This is engineering
+validation only, explicitly not S8/R1 evidence and not claimed toward
+ROG-032, which requires a broader, dedicated measurement suite (peak
+memory, local-cache size, clean-clone load time, query latency,
+branch/merge rebuild cost) not attempted here.
+
+## Test results
+
+69/69 repopact-graph tests (43 pre-existing unchanged + 26 new). Full
+cargo test --workspace green. cargo fmt --check/cargo check --workspace
+clean. 6/6 Python graph_cli tests (3 new update tests) against the real
+built engine binary. Canonical repopact validate clean. Broad Python
+regression suite: see the evidence record's closeout.python_regression
+for the exact count captured after this document was written.
+
+## AC assessment
+
+Newly satisfied: ROG-012 (every named change class proven byte-for-byte
+equivalent to a clean full rebuild, cross-platform), ROG-030 (schema
+versioning plus now-proven migration/fallback behavior -- v1-to-v2
+upgrade only via full rebuild, old-v2/corrupt/unsupported-schema
+fallback behavior all tested).
+
+Still pending: ROG-010 (working_overlay unreachable pending ROG-013),
+ROG-013 (not attempted -- no watcher/overlay integration),
+ROG-004/017/018/022 (unchanged disclosed gaps from the semantic-adapter
+checkpoint; this checkpoint did not broaden semantic scope), ROG-031
+(the AC's broad closeout matrix now includes a proven incremental/full
+equivalence item, but this checkpoint did not audit every other item in
+that matrix as one coordinated pass), ROG-032 (engineering timing
+evidence gathered, but not the broader dedicated benchmark suite the AC
+requires; not claimed).
+
+## Next recommended WI063 phase
+
+ROG-013 (watcher/working-tree overlay integration) is the natural next
+phase now that both the full-build oracle and incremental contribution
+reuse are proven cross-platform; alternatively, closing ROG-017/018/022's
+disclosed semantic-coverage gaps before adding overlay complexity. A
+fresh architecture review should decide between the two.
+

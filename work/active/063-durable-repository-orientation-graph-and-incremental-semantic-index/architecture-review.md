@@ -721,3 +721,50 @@ spike results recorded in Decision 0045 and
 See Decision 0046 and `implementation-progress.md`'s
 incremental-equivalence-checkpoint section for the full architecture,
 test matrix, and evidence.
+
+## 2026-09-13 working-overlay refresh
+
+- **Actual starting SHA for this phase:**
+  `d7687c6871d162b4c37b35e666c157ac9af4ca8e` (the accepted
+  incremental-equivalence checkpoint).
+- **ROG-012 accepted.** The full semantic build remains the correctness
+  oracle; nothing in the incremental-equivalence checkpoint is reopened.
+- **Durable incremental update remains explicit/operator-driven.** Only
+  `repopact graph update` (or `graph.build`) writes `rog/`; nothing added
+  in this phase changes that.
+- **The working-tree overlay is session-local and non-durable.** It lives
+  in an in-memory `SessionGraphState` (`repopact-graph::overlay`), never
+  serialized to disk, never a repository-local database, and disappears
+  when the owning session/process ends.
+- **The durable graph remains the committed baseline.** A session's
+  effective graph may diverge from it (working-tree edits not yet
+  written), but `rog/` itself is never touched by ordinary watcher/session
+  activity -- proven by a dedicated byte-identical-shards test across a
+  burst of overlay operations.
+- **Watcher events are invalidation/update hints, not graph authority.**
+  A watcher-reported path is re-stat/re-hashed before anything is
+  trusted; a duplicate or already-current event produces no change; a
+  directory-shaped or oversized burst falls back to a full in-memory
+  reconcile rather than being trusted at face value (Decision 0047).
+- **Query/client results must disclose when overlay state contributes.**
+  `EffectiveGraphStatus` (basis / durable freshness / coverage /
+  fingerprints / changed-path count / overlay generation) is the typed
+  surface a session-aware client reads instead of silently treating the
+  effective graph as "the durable map."
+
+The eliminated behavior this phase specifically targets: the pre-existing
+desktop watcher/session flow called `core.graph_snapshot(snapshot)` (a
+full governance+physical+semantic rebuild from scratch) on every
+watcher-debounced event, every explicit refresh, and every mutation
+apply. Once semantic adapters existed (the prior checkpoint), this meant
+a full source-projection content-hash walk plus full semantic reparse on
+ordinary interactive file edits. This phase replaces that with a
+targeted, in-memory reconciliation keyed off the watcher's own
+already-known changed paths, reusing Decision 0046's contribution
+primitive (`semantic::build_file_contribution`) and delta-reconciliation
+machinery (`incremental::plan_reconciliation`, now shared rather than
+duplicated) instead of a second implementation.
+
+See Decision 0047 and `implementation-progress.md`'s
+working-overlay-checkpoint section for the full architecture, test
+matrix, and evidence.

@@ -100,6 +100,8 @@ pub fn extend(
             id: id.clone(),
             kind,
             label: basename(directory),
+            symbol_kind: None,
+            location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(
                 RecordKind::Directory,
@@ -114,6 +116,7 @@ pub fn extend(
             kind: GraphEdgeKind::Contains,
             layer: GraphLayer::Physical,
             derivation: DerivationClass::Filesystem,
+            location: None,
             source: RecordRef::new(RecordKind::Directory, directory.clone(), directory.clone()),
         });
     }
@@ -129,6 +132,8 @@ pub fn extend(
             id: id.clone(),
             kind,
             label: basename(&file.relative_path),
+            symbol_kind: None,
+            location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(
                 RecordKind::File,
@@ -143,6 +148,7 @@ pub fn extend(
             kind: GraphEdgeKind::Contains,
             layer: GraphLayer::Physical,
             derivation: DerivationClass::Filesystem,
+            location: None,
             source: RecordRef::new(
                 RecordKind::File,
                 file.relative_path.clone(),
@@ -157,6 +163,7 @@ pub fn extend(
                 kind: GraphEdgeKind::BelongsToWorkspace,
                 layer: GraphLayer::Physical,
                 derivation: DerivationClass::Manifest,
+                location: None,
                 source: RecordRef::new(RecordKind::Directory, workspace.clone(), workspace.clone()),
             });
         }
@@ -169,6 +176,7 @@ pub fn extend(
                 kind: GraphEdgeKind::ConfiguredBy,
                 layer: GraphLayer::Physical,
                 derivation: DerivationClass::Manifest,
+                location: None,
                 source: RecordRef::new(
                     RecordKind::File,
                     file.relative_path.clone(),
@@ -185,6 +193,7 @@ pub fn extend(
                     kind: GraphEdgeKind::Intersects,
                     layer: GraphLayer::Physical,
                     derivation: DerivationClass::Filesystem,
+                    location: None,
                     source: RecordRef::new(
                         RecordKind::File,
                         file.relative_path.clone(),

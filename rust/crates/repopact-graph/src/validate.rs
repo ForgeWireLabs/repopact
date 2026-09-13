@@ -8,7 +8,7 @@ use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
-use crate::durable::{self, DurableError, GRAPH_SCHEMA_VERSION};
+use crate::durable::{self, DurableError, SUPPORTED_GRAPH_SCHEMA_VERSIONS};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GraphDiagnostic {
@@ -38,11 +38,11 @@ pub fn validate_structure(repository_root: &Path) -> Vec<GraphDiagnostic> {
 
     let mut diagnostics = Vec::new();
 
-    if manifest.graph_schema_version != GRAPH_SCHEMA_VERSION {
+    if !SUPPORTED_GRAPH_SCHEMA_VERSIONS.contains(&manifest.graph_schema_version) {
         diagnostics.push(diagnostic(
             "graph.schema-unsupported",
             format!(
-                "durable graph declares schema version {} but this implementation supports only {GRAPH_SCHEMA_VERSION}",
+                "durable graph declares schema version {} but this implementation supports only {SUPPORTED_GRAPH_SCHEMA_VERSIONS:?}",
                 manifest.graph_schema_version
             ),
         ));

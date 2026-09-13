@@ -73,6 +73,45 @@ pub enum GraphNodeKind {
     Workspace,
     ConfigurationFile,
     NestedRepository,
+    // Code semantics (WI063 ROG-003, Decision 0045; schema v2). A single
+    // Symbol kind plus a typed SymbolKind field, deliberately not one
+    // GraphNodeKind variant per language/symbol-category -- see Decision
+    // 0045 section 3 for why.
+    Symbol,
+}
+
+/// Language-neutral symbol category (Decision 0045 section 3). New
+/// ordinary symbol categories in an already-supported language are added
+/// here, not as new `GraphNodeKind` variants, so growing language
+/// coverage does not require another schema-major bump.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SymbolKind {
+    Module,
+    Function,
+    Method,
+    Type,
+    Enum,
+    Interface,
+    Implementation,
+    TypeAlias,
+    Constant,
+    Macro,
+    Test,
+}
+
+/// Deterministic, UTF-8-byte-offset source location for a graph node/edge
+/// (Decision 0045 section 4). Explanatory metadata only -- never part of a
+/// symbol's primary identity, never a validation precondition. Kept
+/// separate from the shared governance `SourceRef`/`RecordRef` type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct GraphSourceLocation {
+    pub start_byte: usize,
+    pub end_byte: usize,
+    pub start_row: usize,
+    pub start_column: usize,
+    pub end_row: usize,
+    pub end_column: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -84,6 +123,10 @@ pub struct GraphNode {
     pub layer: GraphLayer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceRef>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub symbol_kind: Option<SymbolKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<GraphSourceLocation>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -105,6 +148,18 @@ pub enum GraphEdgeKind {
     // Physical topology (WI063 ROG-004).
     BelongsToWorkspace,
     ConfiguredBy,
+    // Code semantics (WI063 ROG-004, Decision 0045; schema v2). Only
+    // Defines and Imports are actually emitted this checkpoint; the rest
+    // are predeclared per Decision 0045 section 3 and must not be emitted
+    // until a real adapter backs them.
+    Defines,
+    Imports,
+    Exports,
+    Implements,
+    Extends,
+    References,
+    Calls,
+    UsesType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -117,6 +172,8 @@ pub struct GraphEdge {
     #[serde(default)]
     pub derivation: DerivationClass,
     pub source: SourceRef,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub location: Option<GraphSourceLocation>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -144,6 +201,8 @@ impl RepositoryGraph {
             id: "repository".to_owned(),
             kind: GraphNodeKind::Repository,
             label: "RepoPact repository".to_owned(),
+            symbol_kind: None,
+            location: None,
             layer: GraphLayer::Governance,
             source: Some(repository_source.clone()),
         });
@@ -157,6 +216,8 @@ impl RepositoryGraph {
                 id: work_id.clone(),
                 kind: GraphNodeKind::WorkItem,
                 label: item.title.clone(),
+                symbol_kind: None,
+                location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
             });
@@ -166,6 +227,8 @@ impl RepositoryGraph {
                     id: criterion_id.clone(),
                     kind: GraphNodeKind::AcceptanceCriterion,
                     label: criterion.text.clone(),
+                    symbol_kind: None,
+                    location: None,
                     layer: GraphLayer::Governance,
                     source: Some(RecordRef::new(
                         RecordKind::AcceptanceCriterion,
@@ -179,6 +242,7 @@ impl RepositoryGraph {
                     kind: GraphEdgeKind::Contains,
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
+                    location: None,
                     source: record.reference.clone(),
                 });
                 for evidence_id in &criterion.evidence {
@@ -193,6 +257,8 @@ impl RepositoryGraph {
                             id: evidence_node_id.clone(),
                             kind: GraphNodeKind::EvidenceRun,
                             label: evidence_id.clone(),
+                            symbol_kind: None,
+                            location: None,
                             layer: GraphLayer::Governance,
                             source: Some(evidence.reference.clone()),
                         });
@@ -202,6 +268,7 @@ impl RepositoryGraph {
                             kind: GraphEdgeKind::SupportedBy,
                             layer: GraphLayer::Governance,
                             derivation: DerivationClass::CanonicalRecord,
+                            location: None,
                             source: RecordRef::new(
                                 RecordKind::AcceptanceCriterion,
                                 format!("{}:{}", item.id, criterion.id),
@@ -219,6 +286,7 @@ impl RepositoryGraph {
                     kind: GraphEdgeKind::DependsOn,
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
+                    location: None,
                     source: record.reference.clone(),
                 });
                 graph.edge(GraphEdge {
@@ -227,6 +295,7 @@ impl RepositoryGraph {
                     kind: GraphEdgeKind::ReverseDependency,
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
+                    location: None,
                     source: record.reference.clone(),
                 });
             }
@@ -241,6 +310,8 @@ impl RepositoryGraph {
                 id: owner_node.clone(),
                 kind: GraphNodeKind::Scope,
                 label: item.owner_scope.clone(),
+                symbol_kind: None,
+                location: None,
                 layer: GraphLayer::Governance,
                 source: Some(owner_source.clone()),
             });
@@ -250,6 +321,7 @@ impl RepositoryGraph {
                 kind: GraphEdgeKind::OwnedBy,
                 layer: GraphLayer::Governance,
                 derivation: DerivationClass::CanonicalRecord,
+                location: None,
                 source: record.reference.clone(),
             });
             for scope in &item.affected_scopes {
@@ -258,6 +330,8 @@ impl RepositoryGraph {
                     id: scope_node_id.clone(),
                     kind: GraphNodeKind::Scope,
                     label: scope.clone(),
+                    symbol_kind: None,
+                    location: None,
                     layer: GraphLayer::Governance,
                     source: Some(owner_source.clone()),
                 });
@@ -267,6 +341,7 @@ impl RepositoryGraph {
                     kind: GraphEdgeKind::Affects,
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
+                    location: None,
                     source: record.reference.clone(),
                 });
             }
@@ -279,6 +354,8 @@ impl RepositoryGraph {
                         id: contract_node(&contract.reference.id),
                         kind: GraphNodeKind::Contract,
                         label: contract.reference.id.clone(),
+                        symbol_kind: None,
+                        location: None,
                         layer: GraphLayer::Governance,
                         source: Some(contract.reference.clone()),
                     });
@@ -288,6 +365,7 @@ impl RepositoryGraph {
                         kind: GraphEdgeKind::ConstrainedBy,
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
+                        location: None,
                         source: contract.reference.clone(),
                     });
                 }
@@ -305,6 +383,8 @@ impl RepositoryGraph {
                 id: evidence_node(&evidence.reference.id),
                 kind: GraphNodeKind::EvidenceRun,
                 label: evidence.reference.id.clone(),
+                symbol_kind: None,
+                location: None,
                 layer: GraphLayer::Governance,
                 source: Some(evidence.reference.clone()),
             });
@@ -314,6 +394,7 @@ impl RepositoryGraph {
                 kind: GraphEdgeKind::SupportsWorkItem,
                 layer: GraphLayer::Governance,
                 derivation: DerivationClass::CanonicalRecord,
+                location: None,
                 source: evidence.reference.clone(),
             });
         }
@@ -336,6 +417,8 @@ impl RepositoryGraph {
                 id: record_node(&record.reference.kind, &record.reference.id),
                 kind,
                 label: record.reference.id.clone(),
+                symbol_kind: None,
+                location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
             });
@@ -347,6 +430,7 @@ impl RepositoryGraph {
                         kind: GraphEdgeKind::Supersedes,
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
+                        location: None,
                         source: record.reference.clone(),
                     });
                 }
@@ -368,6 +452,8 @@ impl RepositoryGraph {
                         id: scope_node(id),
                         kind: GraphNodeKind::Scope,
                         label: id.to_owned(),
+                        symbol_kind: None,
+                        location: None,
                         layer: GraphLayer::Governance,
                         source: Some(owners.reference.clone()),
                     });
@@ -377,6 +463,8 @@ impl RepositoryGraph {
                             id: role_id.clone(),
                             kind: GraphNodeKind::Role,
                             label: owner.to_owned(),
+                            symbol_kind: None,
+                            location: None,
                             layer: GraphLayer::Governance,
                             source: Some(owners.reference.clone()),
                         });
@@ -386,6 +474,7 @@ impl RepositoryGraph {
                             kind: GraphEdgeKind::Allows,
                             layer: GraphLayer::Governance,
                             derivation: DerivationClass::CanonicalRecord,
+                            location: None,
                             source: owners.reference.clone(),
                         });
                     }
@@ -407,6 +496,8 @@ impl RepositoryGraph {
                         id: node_id.clone(),
                         kind: GraphNodeKind::Invariant,
                         label: id.to_owned(),
+                        symbol_kind: None,
+                        location: None,
                         layer: GraphLayer::Governance,
                         source: Some(invariants.reference.clone()),
                     });
@@ -416,6 +507,7 @@ impl RepositoryGraph {
                         kind: GraphEdgeKind::ConstrainedBy,
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
+                        location: None,
                         source: invariants.reference.clone(),
                     });
                 }
@@ -440,6 +532,8 @@ impl RepositoryGraph {
                         id: node_id.clone(),
                         kind: GraphNodeKind::FrozenSurface,
                         label: glob.to_owned(),
+                        symbol_kind: None,
+                        location: None,
                         layer: GraphLayer::Governance,
                         source: Some(frozen.reference.clone()),
                     });
@@ -449,6 +543,7 @@ impl RepositoryGraph {
                         kind: GraphEdgeKind::ConstrainedBy,
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
+                        location: None,
                         source: frozen.reference.clone(),
                     });
                     frozen_globs.push((node_id, glob.to_owned()));
@@ -461,6 +556,8 @@ impl RepositoryGraph {
                 id: finding_id.clone(),
                 kind: GraphNodeKind::AuditFinding,
                 label: finding.reference.id.clone(),
+                symbol_kind: None,
+                location: None,
                 layer: GraphLayer::Governance,
                 source: Some(finding.reference.clone()),
             });
@@ -474,6 +571,8 @@ impl RepositoryGraph {
                         id: scope_node(scope),
                         kind: GraphNodeKind::Scope,
                         label: scope.to_owned(),
+                        symbol_kind: None,
+                        location: None,
                         layer: GraphLayer::Governance,
                         source: Some(finding.reference.clone()),
                     });
@@ -483,6 +582,7 @@ impl RepositoryGraph {
                         kind: GraphEdgeKind::Concerns,
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
+                        location: None,
                         source: finding.reference.clone(),
                     });
                 }
@@ -827,6 +927,83 @@ mod tests {
 
         let status = status::status(&repository);
         assert_eq!(status.freshness, status::Freshness::Unsupported);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_genuine_v1_physical_only_graph_remains_readable_and_valid() {
+        // build_and_write always writes the current major (2) once the
+        // binary has semantic vocabulary (Decision 0045 section 2), so a
+        // "genuine v1 graph" is simulated by declaring version 1 on a
+        // graph whose actual content is pure Decision-0044 physical
+        // vocabulary -- exactly what an honest historical v1 build would
+        // have produced. This is not cheating the test: the whole point
+        // of the compatibility guarantee is that v1's *vocabulary* (not
+        // its version number in isolation) must still validate cleanly.
+        let root = seeded_repo("v1-remains-readable");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("build");
+
+        let manifest_path = durable::manifest_path(&root);
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        manifest["graph_schema_version"] = serde_json::Value::from(1);
+        std::fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let diagnostics = validate::validate_structure(&root);
+        assert!(
+            diagnostics.is_empty(),
+            "a schema-v1-declared graph containing only Decision 0044 \
+             physical vocabulary must remain structurally valid under \
+             the schema-v2-aware validator: {diagnostics:?}"
+        );
+        let status = status::status(&repository);
+        assert_eq!(status.freshness, status::Freshness::Fresh);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_v1_graph_rebuilds_deterministically_into_a_valid_v2_graph() {
+        let root = seeded_repo("v1-to-v2-rebuild");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("initial build");
+
+        let manifest_path = durable::manifest_path(&root);
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        manifest["graph_schema_version"] = serde_json::Value::from(1);
+        std::fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        // The only supported migration path is a full deterministic
+        // rebuild (Decision 0045 section 2) -- never an in-place bump of
+        // the version field alone.
+        let snapshot = repository.session().snapshot();
+        let rebuilt = build_and_write(&snapshot).expect("rebuild");
+        assert_eq!(
+            rebuilt.graph_schema_version,
+            durable::CURRENT_GRAPH_SCHEMA_VERSION
+        );
+        assert_eq!(rebuilt.graph_schema_version, 2);
+
+        let diagnostics = validate::validate_structure(&root);
+        assert!(
+            diagnostics.is_empty(),
+            "rebuilt v2 graph must validate cleanly: {diagnostics:?}"
+        );
+        let status = status::status(&repository);
+        assert_eq!(status.freshness, status::Freshness::Fresh);
 
         std::fs::remove_dir_all(root).unwrap();
     }

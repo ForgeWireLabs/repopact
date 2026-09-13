@@ -14,10 +14,18 @@ use sha2::{Digest, Sha256};
 use crate::{GraphEdge, GraphLayer, GraphNode, RepositoryGraph};
 
 pub const ROG_DIR_NAME: &str = "rog";
-/// Current (and, this session, only) supported major schema version. An
-/// unknown major version fails closed (Decision 0044 section 4) --
-/// callers must not interpret any other value optimistically.
-pub const GRAPH_SCHEMA_VERSION: u32 = 1;
+/// The schema major version `repopact graph build` always writes (Decision
+/// 0045 section 2): once semantic vocabulary exists in the binary, the
+/// canonical builder always uses it, rather than sometimes writing v1 and
+/// sometimes v2 depending on whether a given build happened to populate
+/// semantic content.
+pub const CURRENT_GRAPH_SCHEMA_VERSION: u32 = 2;
+/// Every major version this implementation can read/validate. Anything
+/// outside this set fails closed (Decision 0044 section 4) -- callers
+/// must not interpret any other value optimistically. Version 1
+/// (physical-only, Decision 0044) remains permanently valid; version 2
+/// (Decision 0045) adds semantic vocabulary additively.
+pub const SUPPORTED_GRAPH_SCHEMA_VERSIONS: [u32; 2] = [1, 2];
 pub const SHARD_COUNT: u32 = 16;
 pub const EXCLUDED_POLICY_ID: &str = "repopact-source-projection-v1";
 
@@ -175,7 +183,7 @@ pub fn write(
     }
 
     let manifest = Manifest {
-        graph_schema_version: GRAPH_SCHEMA_VERSION,
+        graph_schema_version: CURRENT_GRAPH_SCHEMA_VERSION,
         generator_version: env!("CARGO_PKG_VERSION").to_owned(),
         source_projection_fingerprint: source_projection_fingerprint.to_owned(),
         node_count,
@@ -323,20 +331,25 @@ fn nanos_suffix() -> u128 {
 mod tests {
     use crate::{GraphEdge, GraphNode};
 
-    /// Confirms, before any semantic node/edge kind is added, exactly the
+    /// Originally confirmed, before schema v2 was implemented, the exact
     /// failure mode Decision 0044/0045 must avoid: `GraphNodeKind` and
     /// `GraphEdgeKind` are closed serde enums with no catch-all variant, so
-    /// an implementation that only knows the schema-v1 variant set fails
-    /// hard (not "unknown value, ignored") when a shard line contains a
-    /// variant string it doesn't recognize. This is why semantic content
-    /// must bump `graph_schema_version` to 2 rather than silently
-    /// appending variants under version 1 -- an older v1 reader must
-    /// reject an unsupported major version cleanly (tested elsewhere in
-    /// `validate::tests`/`status`), not crash midway through parsing a
-    /// shard it was told was version 1.
+    /// an implementation that only knows a given variant set fails hard
+    /// (not "unknown value, ignored") when a shard line contains a variant
+    /// string it doesn't recognize. `symbol`/`defines` were the original
+    /// proof strings; now that schema v2 legitimately recognizes them,
+    /// this test uses a permanently-fictional variant name so it keeps
+    /// guarding the general hazard class (closed enums must never silently
+    /// accept an unrecognized kind string) rather than becoming a no-op
+    /// once its original example strings become real vocabulary. This is
+    /// why any future vocabulary growth must bump `graph_schema_version`
+    /// rather than silently appending variants under the current major --
+    /// an old reader must reject an unsupported major version cleanly
+    /// (tested elsewhere in `validate::tests`/`status`), not crash midway
+    /// through parsing a shard it was told was a version it understands.
     #[test]
-    fn a_v1_only_reader_cannot_deserialize_an_unrecognized_node_kind_string() {
-        let line = r#"{"id":"symbol:foo","kind":"symbol","label":"foo","layer":"semantic","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
+    fn a_reader_cannot_deserialize_an_unrecognized_node_kind_string() {
+        let line = r#"{"id":"symbol:foo","kind":"some_future_kind_not_yet_invented","label":"foo","layer":"semantic","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
         let result: Result<GraphNode, _> = serde_json::from_str(line);
         assert!(
             result.is_err(),
@@ -349,8 +362,8 @@ mod tests {
     }
 
     #[test]
-    fn a_v1_only_reader_cannot_deserialize_an_unrecognized_edge_kind_string() {
-        let line = r#"{"from":"file:src/lib.rs","to":"symbol:foo","kind":"defines","layer":"semantic","derivation":"parser","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
+    fn a_reader_cannot_deserialize_an_unrecognized_edge_kind_string() {
+        let line = r#"{"from":"file:src/lib.rs","to":"symbol:foo","kind":"some_future_relation_not_yet_invented","layer":"semantic","derivation":"parser","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
         let result: Result<GraphEdge, _> = serde_json::from_str(line);
         assert!(
             result.is_err(),

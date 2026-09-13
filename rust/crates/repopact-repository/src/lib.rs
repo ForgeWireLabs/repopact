@@ -13,7 +13,7 @@ pub mod git;
 pub use git::{CountingGitRunner, GitError, GitInvocation, GitOutput, GitRunner, NativeGitRunner};
 
 pub const STATUSES: [&str; 5] = ["proposed", "active", "blocked", "deferred", "completed"];
-pub const IGNORED_PARTS: [&str; 9] = [
+pub const IGNORED_PARTS: [&str; 10] = [
     ".git",
     "__pycache__",
     "node_modules",
@@ -23,6 +23,7 @@ pub const IGNORED_PARTS: [&str; 9] = [
     "dist",
     "fixtures",
     "worktrees",
+    "target",
 ];
 
 #[derive(Debug, Clone)]

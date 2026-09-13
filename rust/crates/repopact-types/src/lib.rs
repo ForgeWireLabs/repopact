@@ -152,6 +152,8 @@ pub enum RecordKind {
     Template,
     AdopterManifest,
     ResearchMetadata,
+    Directory,
+    File,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

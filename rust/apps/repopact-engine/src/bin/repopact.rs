@@ -46,8 +46,18 @@ fn main() {
 
     let args = env::args().skip(1).collect::<Vec<_>>();
     let (module, forwarded) = match args.first().map(String::as_str) {
-        Some("verify") => ("repopact.verify_cli", args.iter().skip(1).cloned().collect::<Vec<_>>()),
-        Some("release") => ("repopact.release_local", args.iter().skip(1).cloned().collect::<Vec<_>>()),
+        Some("verify") => (
+            "repopact.verify_cli",
+            args.iter().skip(1).cloned().collect::<Vec<_>>(),
+        ),
+        Some("release") => (
+            "repopact.release_local",
+            args.iter().skip(1).cloned().collect::<Vec<_>>(),
+        ),
+        Some("graph") => (
+            "repopact.graph_cli",
+            args.iter().skip(1).cloned().collect::<Vec<_>>(),
+        ),
         _ => ("repopact.cli", args),
     };
 

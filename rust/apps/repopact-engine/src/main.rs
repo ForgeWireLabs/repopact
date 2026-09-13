@@ -107,6 +107,9 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "work.create" | "work.propose" => create_work(&request),
         "work.amend_proposal" => amend_proposal(&request),
         "graph" => graph(&request),
+        "graph.status" => graph_status(&request),
+        "graph.build" => graph_build(&request),
+        "graph.verify" => graph_verify(&request),
         "analyze" => analyze(&request),
         operation => EngineResponse::failure(
             request.request_id.clone(),
@@ -304,6 +307,59 @@ fn graph(request: &EngineRequest) -> EngineResponse {
         request.request_id.clone(),
         ENGINE_VERSION,
         serde_json::to_value(core.graph_snapshot(&snapshot)).unwrap_or(Value::Null),
+    )
+}
+
+/// WI063 foundation graph operations. These never write outside `rog/`
+/// (`graph.build`) or write at all (`graph.status`/`graph.verify`); they
+/// never call out to a remote provider, and a repository with no durable
+/// graph is reported as `absent`, not as an error (Decision 0044 section
+/// 9). `graph.verify` recomputes the source-projection fingerprint (a full
+/// walk over the current source), so it is not free, but it performs no
+/// Git invocations beyond what `RepositorySession::snapshot()`/
+/// `Repository::topology()` already cost.
+fn graph_status(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let core = RepoPactCore::open(root);
+    let status = repopact_graph::status::status(core.repository());
+    EngineResponse::success(
+        request.request_id.clone(),
+        ENGINE_VERSION,
+        serde_json::to_value(status).unwrap_or(Value::Null),
+    )
+}
+
+fn graph_build(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let core = RepoPactCore::open(root);
+    let snapshot = core.snapshot();
+    match repopact_graph::build_and_write(&snapshot) {
+        Ok(manifest) => EngineResponse::success(
+            request.request_id.clone(),
+            ENGINE_VERSION,
+            serde_json::to_value(manifest).unwrap_or(Value::Null),
+        ),
+        Err(error) => semantic_failure(request, error.code, error.message),
+    }
+}
+
+fn graph_verify(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let core = RepoPactCore::open(root);
+    let status = repopact_graph::status::status(core.repository());
+    EngineResponse::success(
+        request.request_id.clone(),
+        ENGINE_VERSION,
+        serde_json::to_value(status).unwrap_or(Value::Null),
     )
 }
 

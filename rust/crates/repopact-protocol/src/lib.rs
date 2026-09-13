@@ -121,6 +121,9 @@ pub fn capabilities() -> Capabilities {
             "work.propose".to_owned(),
             "work.amend_proposal".to_owned(),
             "graph".to_owned(),
+            "graph.status".to_owned(),
+            "graph.build".to_owned(),
+            "graph.verify".to_owned(),
             "analyze".to_owned(),
         ],
         semantic_surfaces: vec![
@@ -128,6 +131,7 @@ pub fn capabilities() -> Capabilities {
             "schema-validation".to_owned(),
             "dashboard".to_owned(),
             "graph".to_owned(),
+            "orientation-graph".to_owned(),
             "analysis".to_owned(),
             "typed-work-item-mutation".to_owned(),
         ],

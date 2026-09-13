@@ -176,6 +176,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_release_group.add_argument("release_args", nargs=argparse.REMAINDER)
 
+    p_graph_group = sub.add_parser(
+        "graph",
+        help="Repository Orientation Graph status/build/verify (WI063 foundation)",
+        add_help=False,
+    )
+    p_graph_group.add_argument("graph_args", nargs=argparse.REMAINDER)
+
     p_adm = sub.add_parser("admission", help="Manage opt-in pre-execution admission")
     adm_sub = p_adm.add_subparsers(dest="admission_command", required=True)
     p_setup = adm_sub.add_parser("setup", help="Explicitly register this repository")
@@ -384,6 +391,11 @@ def main(argv: list[str] | None = None) -> int:
         from . import release_local
 
         return release_local.main(args.release_args)
+
+    if args.command == "graph":
+        from . import graph_cli
+
+        return graph_cli.main(args.graph_args)
 
     root = args.root.resolve()
 

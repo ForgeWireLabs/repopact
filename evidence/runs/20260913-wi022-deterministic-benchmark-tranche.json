@@ -19,7 +19,7 @@
     {
       "command": "python -m unittest discover -s tests -v",
       "exit_code": 0,
-      "summary": "The Proving Ground suite passed 21 tests, including common envelope validation, backward-compatible PactBench loading, malformed RealRunner handling, S2/S3/S4/S5/S6b scoring, deterministic ordering/seeds, and capture integrity."
+      "summary": "The Proving Ground suite passed 22 tests, including common envelope validation, backward-compatible PactBench loading, malformed RealRunner handling, S2/S3/S4/S5/S6b scoring, deterministic ordering/seeds, and capture integrity."
     },
     {
       "command": "python benchmarks/harness/run.py --selftest",

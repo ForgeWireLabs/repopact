@@ -318,3 +318,45 @@ fn nanos_suffix() -> u128 {
         .map(|duration| duration.as_nanos())
         .unwrap_or(0)
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{GraphEdge, GraphNode};
+
+    /// Confirms, before any semantic node/edge kind is added, exactly the
+    /// failure mode Decision 0044/0045 must avoid: `GraphNodeKind` and
+    /// `GraphEdgeKind` are closed serde enums with no catch-all variant, so
+    /// an implementation that only knows the schema-v1 variant set fails
+    /// hard (not "unknown value, ignored") when a shard line contains a
+    /// variant string it doesn't recognize. This is why semantic content
+    /// must bump `graph_schema_version` to 2 rather than silently
+    /// appending variants under version 1 -- an older v1 reader must
+    /// reject an unsupported major version cleanly (tested elsewhere in
+    /// `validate::tests`/`status`), not crash midway through parsing a
+    /// shard it was told was version 1.
+    #[test]
+    fn a_v1_only_reader_cannot_deserialize_an_unrecognized_node_kind_string() {
+        let line = r#"{"id":"symbol:foo","kind":"symbol","label":"foo","layer":"semantic","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
+        let result: Result<GraphNode, _> = serde_json::from_str(line);
+        assert!(
+            result.is_err(),
+            "a GraphNode JSONL line naming a node kind not in the current \
+             GraphNodeKind enum must fail to deserialize, not silently \
+             succeed with a default/unknown variant -- this is exactly the \
+             hazard of adding a new kind without bumping the major schema \
+             version"
+        );
+    }
+
+    #[test]
+    fn a_v1_only_reader_cannot_deserialize_an_unrecognized_edge_kind_string() {
+        let line = r#"{"from":"file:src/lib.rs","to":"symbol:foo","kind":"defines","layer":"semantic","derivation":"parser","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"}}"#;
+        let result: Result<GraphEdge, _> = serde_json::from_str(line);
+        assert!(
+            result.is_err(),
+            "a GraphEdge JSONL line naming an edge kind not in the current \
+             GraphEdgeKind enum must fail to deserialize -- the same hazard \
+             as the node-kind case above, for edges"
+        );
+    }
+}

@@ -583,3 +583,107 @@ The architecture is viable if three boundaries remain strict:
 3. durable graph usefulness is measured against pre-registered clean-clone orientation metrics rather than asserted from intuition.
 
 Under those constraints, WI063 can turn RepoPact from a system that tells a worker *what is governed* into one that can also tell the worker *where to look and what the surrounding change surface is*, without making every new agent rediscover the repository by brute force.
+
+---
+
+## 2026-09-13 semantic-phase refresh
+
+**Refreshed baseline:** `c8c56739bfbe355d4a8a382eebe36aef550fa6b4`
+**Coding agent:** Claude Code
+**Architecture reviewer:** GPT-5.6 Sol, High reasoning (operator-relayed refresh)
+**Status:** foundation checkpoint accepted as the durable oracle; semantic-adapter checkpoint begins
+
+This section supplements the foundation checkpoint above and its own
+2026-09-13 activation refresh; neither is rewritten. It records what
+changes for the semantic phase and a schema-compatibility issue that must
+be fixed before any semantic node/edge kind is added.
+
+### Foundation accepted as oracle
+
+The durable physical graph proven at `c8c5673` (schema v1: `Repository`,
+`Directory`, `File`, `Workspace`, `ConfigurationFile`, `NestedRepository`
+nodes; `Contains`/`BelongsToWorkspace`/`ConfiguredBy`/`Intersects` edges;
+cross-platform byte-identical rebuild proven on native Windows and
+Linux-native WSL2 Debian 13) is accepted as-is. This phase does not modify
+its node/edge semantics, its exclusion policy, its sharding rule, or its
+build-then-swap write path. Semantic extraction is additive.
+
+### The schema-evolution issue (must be fixed before adding node/edge kinds)
+
+Decision 0044 section 4 requires same-major schema evolution to remain
+readable by an implementation supporting that major. `GraphNodeKind` and
+`GraphEdgeKind` are closed Rust enums with `#[serde(rename_all =
+"snake_case")]` and no catch-all/unknown variant. `serde_json`
+deserializes a closed enum by exact string match against its variants; an
+unrecognized variant string is a **hard deserialization error**, not a
+silently-ignored unknown value. If a `Symbol` node kind or a `Defines`
+edge kind were added directly to these enums and the manifest's
+`graph_schema_version` were left at `1`, an older binary that still only
+knows the v1 variant set would fail to parse the shard JSONL lines
+containing the new variants -- exactly the "an older v1 reader rejects a
+supposedly v1 graph" defect this phase must avoid. This is confirmed by a
+focused compatibility test (`durable::tests::v1_reader_rejects_a_shard_containing_an_unrecognized_node_kind_string`)
+added before any semantic implementation, proving the failure mode
+directly rather than reasoning about it abstractly.
+
+The fix is **not** to make the enums open/stringly-typed (that would
+defeat the purpose of a typed vocabulary) and **not** to keep semantic
+content at schema version 1 (that would misrepresent the compatibility
+contract). The fix is to bump `graph_schema_version` to `2` for any
+durable graph containing semantic content, and to make the reader
+explicitly branch on major version: a v1 reader path that only ever
+constructs v1-legal enum values, and a v2 reader path that understands the
+extended vocabulary. `repopact graph build` always writes the newest
+version the running binary supports; `repopact graph verify`/`status`
+reject an unknown major (already true since the foundation checkpoint) and
+correctly read either 1 or 2 for what they are. See Decision 0045 for the
+binding contract.
+
+### Semantic scope for this checkpoint
+
+Deterministic Rust, Python, and JavaScript/TypeScript/JSX/TSX symbol and
+import extraction via Tree-sitter (evaluated and selected below), landing
+as `GraphLayer::Semantic` nodes/edges with `DerivationClass::Parser`. No
+incremental update, no query surface beyond `graph.status`/`build`/
+`verify` reporting semantic coverage, no Workbench UI, no `adopt`
+integration, no S8 R1. See Decision 0045 and
+`implementation-progress.md`'s semantic-checkpoint section for exact
+scope boundaries.
+
+### Parser substrate evaluation
+
+Tree-sitter was evaluated against language-specific stacks (Rust `syn`,
+Python's own `ast`/a Rust Python parser, SWC/Oxc-style JS/TS parsers) on:
+one common adapter architecture (Tree-sitter: yes, via a single `Parser` +
+per-language grammar crate, uniform `Node`/`Tree` API across all four
+languages -- language-specific stacks would require four structurally
+different parser APIs and four different AST shapes to normalize, a
+materially larger adapter-architecture cost for this checkpoint's
+language count); determinism (both classes are deterministic for
+well-formed input; Tree-sitter's error-recovery grammar additionally
+gives deterministic partial output for malformed input, which `syn` and
+strict language parsers typically reject outright); incremental
+capability (Tree-sitter has first-class incremental re-parse via
+`Tree::edit` + old-tree reuse, directly usable by a future incremental
+phase; most language-specific parsers do not); malformed-input behavior
+(Tree-sitter produces a partial tree with explicit `ERROR`/`is_missing`
+nodes rather than aborting, which is exactly the "coverage gap, not a
+crash" behavior ROG-022 requires); cancellation/resource bounding
+(Tree-sitter 0.27's `parse_with_options` + progress-callback + `reset()`
+API, spiked and proven below); Windows/Linux portability (Tree-sitter
+grammar crates are portable C compiled via `cc`, proven by a real spike
+compiling all five grammars on this Windows machine; both platforms
+already build the existing Rust workspace's native code identically);
+Rust/native packaging cost (grammar crates are small, self-contained C
+sources with no external system library dependency -- no `libclang`, no
+system Tree-sitter install required, matching the "released engine must
+carry the deterministic parser capability locally" requirement); license
+(Tree-sitter core and all four evaluated grammars are MIT-licensed,
+compatible with RepoPact's existing dependency posture); maintenance
+activity (Tree-sitter core and all four grammar crates have current
+releases on crates.io as of this session). Fashion was not a factor in the
+decision; the concrete criteria above were.
+
+**Verdict:** Tree-sitter selected, with the version pin, MSRV finding, and
+spike results recorded in Decision 0045 and
+`implementation-progress.md`.

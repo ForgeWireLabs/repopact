@@ -6,6 +6,192 @@
 **Coding agent:** not yet assigned  
 **Status:** pre-implementation architecture review for proposed WI063
 
+---
+
+## 2026-09-13 activation refresh
+
+**Refreshed baseline:** `8642b91c09fa0bfbbf72375f23bafee6fdf8cf45`  
+**Coding agent:** Claude Code  
+**Architecture reviewer:** GPT-5.6 Sol, High reasoning (operator-relayed refresh)  
+**Status:** activation gate satisfied; WI063 moved `proposed` -> `active`
+
+This section supplements the original 2026-09-12 review above. The original
+review's analysis, recommendations, and risk table are not rewritten; they
+remain accurate as architecture guidance. This section records what changed
+between the reviewed base and activation, and what does not need to change.
+
+### Activation gate
+
+The original review's Activation recommendation held WI063 `proposed` until
+"the release-parity UI work and public-release hardening reach the agreed
+release gate." That gate is now crossed:
+
+- WI055 (Tauri Workbench foundation) — completed.
+- WI058 (tabbed/responsive IA) — completed.
+- WI060 (Android Workbench runtime bring-up) — completed.
+- WI062 (cross-platform installation/launcher validation) — completed.
+- WI046 (local-first verification/release architecture) — completed, with a
+  genuine passing Linux CI proof and a real, reproducible host release
+  build (evidence: `evidence/runs/20260913-046-final-closeout.json`).
+- WI064 (research metadata consistency repair) — completed.
+
+No release-destabilizing work remains queued ahead of WI063 per the
+`work/active` and `work/proposed` lifecycle state at the refreshed baseline.
+
+### What changed in the Rust core since the reviewed base (`98c2aa8`)
+
+The reviewed base already reflected `repopact-graph`/`repopact-repository`/
+the engine protocol accurately for WI063's purposes. Between `98c2aa8` and
+`8642b91`, the commits that touched adjacent architecture were:
+
+- **WI046** (`9d4c508`, `017f73f`, `bbcb023`, and the WI050/WI057 portability
+  fixes `74b00e0`/`37dad3e`/`267b80e`): added `CoverageSummary.host_ready`
+  to `repopact/verification.py`, a `repopact_release.aggregate_release_readiness`
+  operation, and a new `repopact verify status` local-only status view. None
+  of this touches `repopact-graph`, `repopact-repository`'s session/snapshot
+  model, or the engine protocol's operation dispatch shape. The engine
+  protocol's `EngineRequest`/`EngineResponse` envelope and one-shot-per-process
+  dispatch model (Decision 0042) are unchanged and remain the correct seam
+  for new `graph.*` operations.
+- A real, previously-latent **POSIX process-containment gap** was found and
+  fixed in `rust/crates/repopact-repository/src/git.rs` (commit `37dad3e`):
+  `contain_child()` on non-Windows was a no-op, so `NativeGitRunner`'s
+  timeout path could leave an orphaned grandchild process running past its
+  configured timeout under process models where a shell does not exec
+  directly into its target command. This is now fixed with POSIX
+  process-group containment (`process_group(0)` + `killpg` via
+  `libc::kill(-pgid, SIGKILL)`). This is directly relevant to WI063: any new
+  Git invocation added for graph-orientation purposes inherits this fixed,
+  bounded-timeout behavior automatically through `NativeGitRunner`, and the
+  WI057 git-invocation-count regression test
+  (`snapshot_git_invocation_count_is_bounded_independent_of_work_items`,
+  bound `<= 4` invocations per `RepositorySession::snapshot()`) must
+  continue to pass unmodified.
+- A **cross-platform release-build reproducibility gap** was found and fixed
+  in `repopact/release_build.py` (commit `267b80e`): the release build's
+  anti-nondeterminism `RUSTFLAGS` (`-C debuginfo=0`, path remapping) were
+  previously Windows-only. This is orthogonal to WI063's own durable-graph
+  determinism requirement (ROG-011) but is worth noting as a precedent: the
+  same class of "ephemeral build/export path leaking into a supposedly
+  deterministic output" defect is exactly what WI063's canonical
+  serialization rule (no host absolute paths, no nondeterministic
+  timestamps) must guard against from the start, not discover after the
+  fact.
+- **WI054's `repopact-graph` crate** (`rust/crates/repopact-graph/src/lib.rs`,
+  511 lines, single file) is unchanged in shape from what the original
+  review describes: a flat `GraphNodeKind`/`GraphEdgeKind` enum pair, no
+  "layer" concept, `RepositoryGraph::build(&RepositorySnapshot)` walking
+  `RecordIndex` sections into nodes/edges, deterministic `sort()`/`dedup()`
+  on edges. The original review's recommendation to extend this crate with
+  a "second, derived repository-orientation domain" rather than replace it
+  is directly actionable as written.
+- **No `.repopact` transaction database, daemon, or hidden journal** has
+  been introduced anywhere between the reviewed base and the refreshed
+  baseline (confirmed via WI054's closeout evidence, which explicitly
+  records "no persistent repository-local transaction DB / hidden journal /
+  daemon state permitted" as GAM-018, unchanged and unaffected by any
+  subsequent work item).
+- **`repopact-mutation`'s plan/apply boundary** (Decision 0040) is
+  unchanged. It has no atomic-write (tempfile+rename) primitive of its own;
+  durability instead comes from content-addressed stale-plan detection,
+  preimage capture before any write, and a mandatory post-write
+  `repopact_validation::validate()` gate. WI063's foundation phase
+  implements its own self-contained atomic durable-graph write (build to a
+  fresh temporary directory, verify, then swap into place) rather than
+  forcing graph regeneration through `MutationRequest`/`MutationPlan`: a
+  full-graph rebuild is a "recompute a deterministic projection from
+  filtered source, write derived output" operation, not a targeted
+  governance-record edit with a small content-addressed read set, and the
+  fit with WI054's typed mutation surface (scoped to work-item
+  create/edit/lifecycle/dependency/AC operations, GAM-008/009) is poor. This
+  foundation phase's atomic-write behavior is documented in Decision 0044
+  rather than silently diverging from WI054's safety properties.
+
+### Stale proposal assumptions to correct
+
+- The proposal's rollout-plan Phase 0 line "refresh this architecture
+  review if the Rust core changed materially since WI063 creation" is
+  satisfied by this section; the Rust core did not change materially for
+  WI063's purposes (see above), so implementation proceeds from the
+  original review's recommendations without further architectural
+  reconsideration.
+### Consolidated implementation sequence for this session
+
+One plan across the layers named in the activation brief, with explicit
+phase boundaries. This session (the foundation checkpoint) implements
+phases 1-4, 9 (protocol/CLI only, no semantic operations), and 13-partial
+(structural validation only). It does not implement phases 5-8, 10-12, or
+14.
+
+1. **Durable graph contract** — Decision 0044 (this session).
+2. **Graph core** — `GraphLayer`/`DerivationClass` typed vocabulary, new
+   physical `GraphNodeKind`/`GraphEdgeKind` variants added to the existing
+   `repopact-graph` crate (this session).
+3. **Repository/session integration** — physical graph built from
+   `RepositorySession`/`RepositorySnapshot`/`Repository::all_files()`; no
+   second crawler (this session).
+4. **Durable serialization** — manifest + stable-sharded JSONL writer/reader
+   with atomic swap-in (this session).
+5. **Source projection/fingerprint** — `SourceProjection` module, SHA-256
+   content-digest based, self-exclusion, additive to shared
+   `IGNORED_PARTS` (this session).
+6. **Freshness** — typed `fresh/partial/stale/unsupported/corrupt/absent`
+   status derived by recomputing the projection fingerprint against the
+   manifest (this session; `working_overlay` is declared in the enum but
+   never emitted this session — no watcher/dirty-tree integration yet).
+7. **Incremental updates** — NOT this session. Full-build determinism is
+   the oracle this phase establishes; incremental update requires that
+   oracle to already be stable (per the proposal's own rollout order).
+8. **Semantic adapters** — NOT this session. No Tree-sitter, no
+   symbol/call graph. Only physical topology (directory/file/workspace/
+   config/nested-repository) this session.
+9. **Build/test/operational adapters** — NOT this session beyond the
+   minimal, already-deterministic manifest-presence classification
+   (`Workspace`/`ConfigurationFile` nodes for a directory containing
+   `Cargo.toml`/`pyproject.toml`/`package.json`); no Cargo-metadata/
+   pyproject/package.json *parsing* or dependency-edge extraction.
+10. **Engine protocol/CLI** — `graph.status`/`graph.build`/`graph.verify`
+    engine operations and `repopact graph status|build|verify` CLI (this
+    session). No `context`/`impact`/`tests`/`governance`/`orient` query
+    operations yet beyond a bounded `graph.status` summary.
+11. **Adoption/backfill** — NOT this session. `repopact adopt` is
+    unmodified. Backfill is the explicit, already-implemented
+    `repopact graph build` command; no `adopt`/`doctor` integration.
+12. **Workbench** — NOT this session. No new Tauri command, no new frontend
+    view. The existing `relationship_graph`/`GraphView` surface is
+    unmodified and continues to serve the flat governance graph exactly as
+    before (physical-layer nodes/edges are additive to the same
+    `RepositoryGraph`, so `GraphView` will begin including them once the
+    physical builder runs, but no UI is added to filter/present them
+    differently this session).
+13. **Validation/conformance** — structural durable-graph validation
+    (manifest/shard integrity, duplicate IDs, dangling edges, canonical
+    ordering, path safety, fingerprint match) integrated into the Rust
+    validation path this session. Incremental/full equivalence,
+    clean-clone timing, symlink/adversarial fuzzing, and cross-language
+    coverage-matrix validation are NOT this session.
+14. **Benchmarking/research** — NOT this session. No S8 R1 amendment, no
+    R1 run, no performance/scale evidence beyond what falls out of the
+    correctness tests above.
+
+### Fingerprint primitive at the refreshed baseline
+
+The original review's observation that no git blob-hash/content-identity
+API exists is still true at the refreshed baseline (confirmed by direct code
+  inspection: `git.rs`'s `NativeGitRunner`/`GitRunner` trait exposes only a
+  generic bounded `run(root, args, label)`, and the only git queries
+  actually issued by `RepositoryTopology::build` remain
+  `rev-parse --git-common-dir`, `worktree list --porcelain`,
+  `ls-files --cached`, and one bounded `log` call for evidence-run
+  commits). Decision 0044 therefore fixes the source-projection fingerprint
+  on the existing SHA-256 content-digest primitive
+  (`Repository::path_state`) rather than git blob identity, to avoid adding
+  per-file git invocations that would violate the WI057 bounded-invocation
+  guarantee. This is recorded as a decision, not an oversight; a future
+  bounded git blob-identity API (e.g. one `git ls-tree -r` call folded into
+  `RepositoryTopology::build`) remains open for a later phase if profiling
+  justifies it.
+
 ## Executive conclusion
 
 RepoPact already has the right foundation for a durable repository-orientation system, but the existing WI054 graph is intentionally limited to RepoPact governance relationships. WI063 should extend the canonical Rust graph/query stack with a second, derived repository-orientation domain rather than create a new service, external database, or model-specific memory layer.

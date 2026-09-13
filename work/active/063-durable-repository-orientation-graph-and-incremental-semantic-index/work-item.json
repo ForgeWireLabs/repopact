@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "063",
   "title": "Durable Repository Orientation Graph and Incremental Semantic Index",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -265,5 +265,5 @@
     }
   ],
   "created": "2026-09-12",
-  "updated": "2026-09-12"
+  "updated": "2026-09-13"
 }

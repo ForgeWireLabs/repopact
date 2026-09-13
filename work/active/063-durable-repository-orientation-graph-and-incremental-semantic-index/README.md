@@ -1,6 +1,6 @@
 # Work Item 063 - Durable Repository Orientation Graph and Incremental Semantic Index
 
-**Status:** Proposed
+**Status:** Active
 
 **Owner:** work-coordinator
 

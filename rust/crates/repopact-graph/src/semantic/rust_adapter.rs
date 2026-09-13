@@ -28,6 +28,11 @@ use crate::{
 
 pub const ADAPTER_VERSION: &str = "rust-adapter-0.1.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
+/// ROG-022: a maliciously or accidentally deeply nested AST must not
+/// overflow this walker\'s own recursion stack. Exceeding this depth
+/// truncates the walk for that subtree and marks the file Partial --
+/// it never panics or aborts the whole build.
+const MAX_WALK_DEPTH: usize = 512;
 
 pub struct RustAdapter;
 
@@ -84,6 +89,7 @@ impl SemanticAdapter for RustAdapter {
         let mut has_error = false;
         walk(
             tree.root_node(),
+            0,
             input.content,
             input.relative_path,
             "",
@@ -109,6 +115,7 @@ impl SemanticAdapter for RustAdapter {
 #[allow(clippy::too_many_arguments)]
 fn walk(
     node: Node,
+    depth: usize,
     source: &[u8],
     relative_path: &str,
     container: &str,
@@ -117,6 +124,10 @@ fn walk(
     edges: &mut Vec<GraphEdge>,
     has_error: &mut bool,
 ) {
+    if depth > MAX_WALK_DEPTH {
+        *has_error = true;
+        return;
+    }
     if node.is_error() {
         *has_error = true;
     }
@@ -310,6 +321,7 @@ fn walk(
     for child in node.children(&mut cursor) {
         walk(
             child,
+            depth + 1,
             source,
             relative_path,
             &next_container,
@@ -589,5 +601,30 @@ mod tests {
         let normal = extract("fn after_cancel() {}\n");
         assert_eq!(normal.coverage, FileCoverage::Complete);
         assert!(normal.nodes.iter().any(|n| n.label == "after_cancel"));
+    }
+
+    #[test]
+    fn recursion_depth_guard_truncates_pathologically_nested_input_instead_of_overflowing() {
+        // A real adversarial-input bound (ROG-022): deeply right-nested
+        // blocks would otherwise recurse this walker's own call stack
+        // without limit. 2000 nested blocks safely exceeds MAX_WALK_DEPTH
+        // (512) while still being a syntactically valid, tiny Rust file
+        // tree-sitter itself parses without issue -- proving the bound is
+        // in *this adapter's* walk, not merely inherited from tree-sitter.
+        let mut source = "fn f() {\n".to_owned();
+        for _ in 0..2000 {
+            source.push_str("{\n");
+        }
+        source.push_str("1\n");
+        for _ in 0..2000 {
+            source.push_str("}\n");
+        }
+        source.push_str("}\n");
+        let output = extract(&source);
+        assert!(
+            matches!(output.coverage, FileCoverage::Partial { .. }),
+            "exceeding the recursion-depth bound must truncate and report Partial, not panic or hang: {:?}",
+            output.coverage
+        );
     }
 }

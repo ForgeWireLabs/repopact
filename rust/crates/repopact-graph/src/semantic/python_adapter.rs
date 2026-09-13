@@ -31,6 +31,11 @@ use crate::{
 
 pub const ADAPTER_VERSION: &str = "python-adapter-0.1.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
+/// ROG-022: a maliciously or accidentally deeply nested AST must not
+/// overflow this walker\'s own recursion stack. Exceeding this depth
+/// truncates the walk for that subtree and marks the file Partial --
+/// it never panics or aborts the whole build.
+const MAX_WALK_DEPTH: usize = 512;
 
 pub struct PythonAdapter;
 
@@ -87,6 +92,7 @@ impl SemanticAdapter for PythonAdapter {
         let mut has_error = false;
         walk(
             tree.root_node(),
+            0,
             input.content,
             input.relative_path,
             "",
@@ -112,6 +118,7 @@ impl SemanticAdapter for PythonAdapter {
 #[allow(clippy::too_many_arguments)]
 fn walk(
     node: Node,
+    depth: usize,
     source: &[u8],
     relative_path: &str,
     container: &str,
@@ -120,6 +127,10 @@ fn walk(
     edges: &mut Vec<GraphEdge>,
     has_error: &mut bool,
 ) {
+    if depth > MAX_WALK_DEPTH {
+        *has_error = true;
+        return;
+    }
     if node.is_error() {
         *has_error = true;
     }
@@ -208,6 +219,7 @@ fn walk(
     for child in node.children(&mut cursor) {
         walk(
             child,
+            depth + 1,
             source,
             relative_path,
             &next_container,

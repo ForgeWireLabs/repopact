@@ -35,6 +35,11 @@ use crate::{
 
 pub const ADAPTER_VERSION: &str = "javascript-typescript-adapter-0.1.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
+/// ROG-022: a maliciously or accidentally deeply nested AST must not
+/// overflow this walker\'s own recursion stack. Exceeding this depth
+/// truncates the walk for that subtree and marks the file Partial --
+/// it never panics or aborts the whole build.
+const MAX_WALK_DEPTH: usize = 512;
 
 pub struct JavaScriptFamilyAdapter {
     language: SourceLanguage,
@@ -109,6 +114,7 @@ impl SemanticAdapter for JavaScriptFamilyAdapter {
         let mut has_error = false;
         walk(
             tree.root_node(),
+            0,
             input.content,
             self.language,
             input.relative_path,
@@ -135,6 +141,7 @@ impl SemanticAdapter for JavaScriptFamilyAdapter {
 #[allow(clippy::too_many_arguments)]
 fn walk(
     node: Node,
+    depth: usize,
     source: &[u8],
     language: SourceLanguage,
     relative_path: &str,
@@ -144,6 +151,10 @@ fn walk(
     edges: &mut Vec<GraphEdge>,
     has_error: &mut bool,
 ) {
+    if depth > MAX_WALK_DEPTH {
+        *has_error = true;
+        return;
+    }
     if node.is_error() {
         *has_error = true;
     }
@@ -293,6 +304,7 @@ fn walk(
     for child in node.children(&mut cursor) {
         walk(
             child,
+            depth + 1,
             source,
             language,
             relative_path,

@@ -319,7 +319,8 @@ fn incremental_update(
     // construction (WI063 incremental-equivalence checkpoint, step 6).
     let previous_semantic = read_semantic_contributions_by_file(root, &previous_manifest)?;
 
-    let (mut graph, _fresh_projection) = RepositoryGraph::build_governance_and_physical(snapshot);
+    let mut graph =
+        RepositoryGraph::build_governance_and_physical_with_projection(snapshot, projection);
 
     let policy = ResourcePolicy::default();
     let mut per_file = Vec::with_capacity(projection.files.len());

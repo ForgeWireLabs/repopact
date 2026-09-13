@@ -220,6 +220,27 @@ impl RepositoryGraph {
     pub(crate) fn build_governance_and_physical(
         snapshot: &RepositorySnapshot,
     ) -> (Self, projection::SourceProjection) {
+        let source_projection =
+            projection::SourceProjection::build(snapshot.repository(), snapshot.topology());
+        let graph =
+            Self::build_governance_and_physical_with_projection(snapshot, &source_projection);
+        (graph, source_projection)
+    }
+
+    /// Same as [`Self::build_governance_and_physical`], but takes an
+    /// already-computed [`projection::SourceProjection`] instead of
+    /// building a fresh one. `incremental::update` already computes the
+    /// projection once (to compare fingerprints and classify the delta)
+    /// before deciding an incremental path is safe; without this, it
+    /// would otherwise pay for a second full projection walk (hashing
+    /// every projected file's content again) purely to rebuild the
+    /// always-global governance/physical layers -- on a large repository
+    /// that walk, not semantic parsing, dominates wall time, so avoiding
+    /// the duplicate is a real cost win, not a cosmetic one.
+    pub(crate) fn build_governance_and_physical_with_projection(
+        snapshot: &RepositorySnapshot,
+        source_projection: &projection::SourceProjection,
+    ) -> Self {
         let mut graph = Self::default();
         let repository_source = RecordRef::new(RecordKind::Repository, "repository", "<root>");
         graph.node(GraphNode {
@@ -614,15 +635,13 @@ impl RepositoryGraph {
             }
         }
 
-        let source_projection =
-            projection::SourceProjection::build(snapshot.repository(), snapshot.topology());
         physical::extend(
             &mut graph,
             snapshot.repository(),
-            &source_projection,
+            source_projection,
             &frozen_globs,
         );
-        (graph, source_projection)
+        graph
     }
 
     pub fn node(&mut self, node: GraphNode) {

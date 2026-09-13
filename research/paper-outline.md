@@ -96,6 +96,9 @@ for supported semantics and represented repository-authoritative state.
 - H15 / S8: governance continuity and clean-clone orientation, registered 2026-09-12
   before any S8 run.
 
+The comparative evaluation (`benchmark-protocol.md`, H8–H15) now spans the complete
+registered suite S1–S8.
+
 ## 6. Results to date
 
 - Findings register with held/cracked outcomes.

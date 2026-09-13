@@ -1,0 +1,101 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "064",
+  "title": "Research Metadata Consistency Repair after H15/S8 Governance-Continuity Publication",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [
+    "docs"
+  ],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-13T04:54:21Z",
+    "note": "The September 12, 2026 governance-continuity/H15/S8 publication pass (commits db76120, cd3c62b, 8849331, d84d48f, 5d28307, ba3280c, 98c2aa8) already landed and preregistered H15 and S8 in the research corpus before any S8 run. Canonical `repopact validate` afterward correctly detects 6 cross-document representation-drift diagnostics between research/metadata.json (still declaring S1-S7/H8-H14/T1-T10 and a `status(w) ∈ {...}` lifecycle marker) and the now-current research/*.md content (S8/H15, T11, T12, and a `status(w) in {...}` lifecycle marker). This work item repairs representation consistency only: it does not add a new hypothesis, does not change H15 or S8's 2026-09-12 preregistration date, does not run S8, does not reinterpret any result, and does not implement or activate WI063 (which remains proposed and untouched, and is not a dependency of this item)."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "The six live canonical diagnostics from `repopact validate --root .` are captured verbatim (code, path, message) and each is mapped to the exact September 12, 2026 commit that introduced the representation drift, before any repair edit is made.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-2",
+      "text": "research/metadata.json's study_hypotheses map is extended with \"S8\": \"H15\" without altering S1-S7's existing mappings, and both configured mapping documents (research/benchmark-protocol.md, research/paper.md) are confirmed to already deterministically expose S1→H8 through S8→H15 in the parser's expected heading/table grammar.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-3",
+      "text": "research/benchmark-protocol.md and research/paper-outline.md each gain one deliberate, present-tense, machine-recognizable canonical current-range statement (H8–H15) that research/metadata.json's range_documents regex can match, without rewriting or removing the existing historical sentence describing the original H8–H14 suite and the 2026-09-12 amendment that added S8/H15.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-4",
+      "text": "The lifecycle notation drift (research/paper.md now reads `status(w) in {proposed, active, blocked, deferred, completed}` instead of the `∈` symbol) is resolved by making research/metadata.json's lifecycle set_documents pattern accept both the `∈` and `in` spellings while still requiring the exact five states in the exact canonical order; no lifecycle semantics, states, or ordering change.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-5",
+      "text": "T11 (Workbench maturity) and T12 (Orientation mechanism bias), both already present in research/paper.md as of the September 12 publication pass, are confirmed intentional, added to research/metadata.json's threats.identifiers (T1 through T12), and added as matching sections to research/threats-to-validity.md so both configured threat documents expose the identical canonical identifier set.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-6",
+      "text": "No wording is added or altered that would contradict the historical facts that H15 and S8 were both added and preregistered on 2026-09-12, and that no S8 run occurred before that preregistration; the historical H8–H14/S1–S7 description remains legible as history rather than being retroactively rewritten.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-7",
+      "text": "governance/policies/002-semantic-claim-freshness.md is inspected to determine whether this substantive cross-document research review requires advancing verified_on/review_by; if so, every document registered in research/metadata.json's claim_freshness.documents is actually reviewed (not mechanically bumped) and the dates are updated consistently with the policy's maximum review interval, with the review recorded in this item's evidence.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-8",
+      "text": "tests/test_research_metadata.py and the corresponding Rust repopact-validation research tests are updated only where their fixture literals legitimately advance from H8–H14/T1–T10 to H8–H15/T1–T12, preserving every negative case (stale range rejected, missing/wrong S8 mapping rejected, missing/repeated threat id rejected, lifecycle drift rejected) and adding a direct regression that the current September 12 publication shape validates cleanly.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-9",
+      "text": "After the repair, `repopact validate --root .` reports zero research.* diagnostics, canonical Rust conformance and the explicit Python legacy comparator both pass, and the fix is proven correct because the corpus became consistent rather than because any check was weakened or removed.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    },
+    {
+      "id": "AC-10",
+      "text": "Durable WI064 closeout evidence records the six original diagnostics verbatim, each diagnostic's root-cause commit, the exact files changed, confirmation that no H15/S8 historical preregistration fact was rewritten, the new canonical H8–H15/T1–T12 state, the freshness-review outcome, and Rust/Python parity results.",
+      "state": "satisfied",
+      "evidence": [
+        "20260913-064-research-metadata-consistency-repair"
+      ]
+    }
+  ],
+  "created": "2026-09-13",
+  "updated": "2026-09-13"
+}

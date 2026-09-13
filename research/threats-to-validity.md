@@ -104,3 +104,17 @@ for precision but risks coupling the standard to one Python implementation.
 **Mitigation:** the independently consumable conformance corpus maps standard rules to
 accept/reject fixtures and can run alternative validators. The corpus narrows coupling;
 it does not replace an independent implementation and third-party reproduction.
+
+## T11 — Workbench maturity
+
+The existence of a polished-looking UI can create a false impression that every governance
+capability has reached operator parity. UI claims must distinguish between implemented,
+wired, validated, and merely planned controls. **Mitigation:** missing operator controls
+remain visible as release work rather than being hidden by overall visual quality.
+
+## T12 — Orientation mechanism bias
+
+A future repository graph could be designed around the same tasks later used to evaluate
+it. **Mitigation:** S8 reduces this risk by registering correctness and orientation-cost
+measures before graph design and by requiring any graph-enabled condition to be added
+through a new dated amendment before graph-condition runs.

@@ -15,6 +15,7 @@ These studies originally operationalized hypotheses **H8–H14**: S1–S6 test H
 added to `protocol.md` in the 2026-06-24 amendment; S7 tests H14, added in the dated
 2026-08-21 amendment. A dated 2026-09-12 amendment below adds S8 for H15, governance
 continuity. Earlier study definitions are not retroactively changed by the later additions.
+The current complete study suite S1–S8 does now operationalize hypotheses **H8–H15**.
 
 ## Independent variable
 

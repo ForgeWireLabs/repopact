@@ -84,8 +84,38 @@ class ResearchMetadataTests(unittest.TestCase):
         self.assertTrue(any("expected 24; observed 21" in message for message in self.messages()))
 
     def test_stale_hypothesis_range_is_rejected(self) -> None:
-        self.replace("research/benchmark-protocol.md", "H8–H14", "H8–H10")
-        self.assertTrue(any("expected H8–H14; observed H8–H10" in message for message in self.messages()))
+        self.replace("research/benchmark-protocol.md", "H8–H15", "H8–H10")
+        self.assertTrue(any("expected H8–H15; observed H8–H10" in message for message in self.messages()))
+
+    def test_missing_s8_mapping_is_rejected(self) -> None:
+        self._set_metadata_field(
+            "benchmark.study_hypotheses",
+            {"S1": "H8", "S2": "H9", "S3": "H10", "S4": "H11", "S5": "H12", "S6": "H13", "S7": "H14"},
+        )
+        self.assertTrue(any("study-to-hypothesis mapping contradicts metadata" in message for message in self.messages()))
+
+    def test_wrong_s8_mapping_is_rejected(self) -> None:
+        self._set_metadata_field(
+            "benchmark.study_hypotheses",
+            {"S1": "H8", "S2": "H9", "S3": "H10", "S4": "H11", "S5": "H12", "S6": "H13", "S7": "H14", "S8": "H16"},
+        )
+        self.assertTrue(any("study-to-hypothesis mapping contradicts metadata" in message for message in self.messages()))
+
+    def test_missing_threat_identifier_is_rejected(self) -> None:
+        self._set_metadata_field(
+            "threats.identifiers",
+            ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12", "T13"],
+        )
+        self.assertTrue(any("missing T13" in message for message in self.messages()))
+
+    def test_current_governance_continuity_publication_shape_validates(self) -> None:
+        text = (self.root / "research" / "paper.md").read_text(encoding="utf-8")
+        self.assertIn("status(w) in {proposed, active, blocked, deferred, completed}", text)
+        self.assertIn("| S8 | H15 |", text)
+        threats_text = (self.root / "research" / "threats-to-validity.md").read_text(encoding="utf-8")
+        self.assertIn("## T11 —", threats_text)
+        self.assertIn("## T12 —", threats_text)
+        self.assertEqual([], self.messages())
 
     def test_future_provenance_wording_is_rejected(self) -> None:
         self.replace(

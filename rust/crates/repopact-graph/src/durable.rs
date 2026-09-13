@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::semantic::SemanticCoverage;
 use crate::{GraphEdge, GraphLayer, GraphNode, RepositoryGraph};
 
 pub const ROG_DIR_NAME: &str = "rog";
@@ -54,6 +55,11 @@ pub struct Manifest {
     pub edge_shards: Vec<ShardEntry>,
     pub coverage: Coverage,
     pub excluded_policy_id: String,
+    /// Absent (default) on a genuine schema-v1 manifest, which predates
+    /// semantic extraction entirely; always present on a schema-v2
+    /// manifest written by this or a later implementation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_coverage: Option<SemanticCoverage>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,6 +128,7 @@ pub fn write(
     repository_root: &Path,
     graph: &RepositoryGraph,
     source_projection_fingerprint: &str,
+    semantic_coverage: SemanticCoverage,
 ) -> Result<Manifest, DurableError> {
     let mut nodes_by_shard: std::collections::BTreeMap<u32, Vec<&GraphNode>> =
         std::collections::BTreeMap::new();
@@ -196,6 +203,7 @@ pub fn write(
             edges_by_layer,
         },
         excluded_policy_id: EXCLUDED_POLICY_ID.to_owned(),
+        semantic_coverage: Some(semantic_coverage),
     };
     let manifest_json = serde_json::to_string_pretty(&manifest)
         .map_err(|error| DurableError::new("graph.serialize", error.to_string()))?;

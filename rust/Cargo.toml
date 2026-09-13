@@ -32,3 +32,11 @@ repopact-validation = { path = "crates/repopact-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 sha2 = "0.10"
+# Exact pins per Decision 0045: same-major schema compatibility depends on
+# stable, reproducible parser behavior, not a floating grammar version
+# that could shift AST shape between builds.
+tree-sitter = "=0.27.0"
+tree-sitter-rust = "=0.24.2"
+tree-sitter-python = "=0.25.0"
+tree-sitter-javascript = "=0.25.0"
+tree-sitter-typescript = "=0.23.2"

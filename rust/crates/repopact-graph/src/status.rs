@@ -18,10 +18,13 @@ pub enum Freshness {
     /// Reserved for the future watcher/dirty-tree overlay (ROG-013).
     /// Never emitted by this session's implementation.
     WorkingOverlay,
-    /// Reserved for a future semantic adapter reporting an explicit
-    /// coverage gap while otherwise fresh. Never emitted by this
-    /// session's implementation (physical-only coverage is complete by
-    /// construction).
+    /// Structurally valid and fingerprint-fresh, but at least one
+    /// supported source file could not be fully processed (parse error,
+    /// cancellation, or adapter-internal failure -- not merely an
+    /// unsupported language or a policy exclusion, which are expected,
+    /// not gaps). The durable data is genuinely usable; the coverage gap
+    /// is explicit rather than silently absorbed into a plain `Fresh`
+    /// verdict (WI063 semantic-checkpoint requirement).
     Partial,
     Stale,
     Unsupported,
@@ -107,14 +110,27 @@ pub fn status(repository: &Repository) -> GraphStatus {
 
     let topology = repository.topology();
     let current_fingerprint = SourceProjection::build(repository, &topology).fingerprint();
-    let freshness = if current_fingerprint == manifest.source_projection_fingerprint {
-        Freshness::Fresh
-    } else {
+    let freshness = if current_fingerprint != manifest.source_projection_fingerprint {
         Freshness::Stale
+    } else if has_semantic_coverage_gap(&manifest) {
+        Freshness::Partial
+    } else {
+        Freshness::Fresh
     };
     GraphStatus {
         freshness,
         manifest: Some(manifest),
         diagnostics: Vec::new(),
     }
+}
+
+/// A coverage gap is a supported file that could not be fully processed
+/// (`files_partial`/`files_failed`) -- never merely an unsupported
+/// language or a policy exclusion, both of which are expected outcomes,
+/// not gaps in what the graph should have covered.
+fn has_semantic_coverage_gap(manifest: &durable::Manifest) -> bool {
+    manifest
+        .semantic_coverage
+        .as_ref()
+        .is_some_and(|coverage| coverage.files_partial > 0 || coverage.files_failed > 0)
 }

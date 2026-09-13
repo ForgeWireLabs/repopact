@@ -9,6 +9,7 @@ use serde_json::Value;
 pub mod durable;
 pub mod physical;
 pub mod projection;
+pub mod semantic;
 pub mod status;
 pub mod validate;
 
@@ -194,7 +195,9 @@ impl RepositoryGraph {
     /// walk, which callers building on top of an already-open
     /// `RepositorySnapshot` must avoid to keep the WI057 bounded-git-
     /// invocation guarantee intact.
-    pub fn build_with_fingerprint(snapshot: &RepositorySnapshot) -> (Self, String) {
+    pub fn build_with_fingerprint(
+        snapshot: &RepositorySnapshot,
+    ) -> (Self, String, semantic::SemanticCoverage) {
         let mut graph = Self::default();
         let repository_source = RecordRef::new(RecordKind::Repository, "repository", "<root>");
         graph.node(GraphNode {
@@ -597,10 +600,12 @@ impl RepositoryGraph {
             &source_projection,
             &frozen_globs,
         );
+        let semantic_coverage =
+            semantic::extend(&mut graph, snapshot.repository(), &source_projection);
 
         graph.edges.sort();
         graph.edges.dedup();
-        (graph, source_projection.fingerprint())
+        (graph, source_projection.fingerprint(), semantic_coverage)
     }
 
     pub fn node(&mut self, node: GraphNode) {
@@ -673,8 +678,13 @@ pub fn build(snapshot: &RepositorySnapshot) -> RepositoryGraph {
 pub fn build_and_write(
     snapshot: &RepositorySnapshot,
 ) -> Result<durable::Manifest, durable::DurableError> {
-    let (graph, fingerprint) = RepositoryGraph::build_with_fingerprint(snapshot);
-    durable::write(snapshot.repository().root(), &graph, &fingerprint)
+    let (graph, fingerprint, semantic_coverage) = RepositoryGraph::build_with_fingerprint(snapshot);
+    durable::write(
+        snapshot.repository().root(),
+        &graph,
+        &fingerprint,
+        semantic_coverage,
+    )
 }
 
 fn typed_work(record: &IndexedRecord) -> Option<WorkItem> {

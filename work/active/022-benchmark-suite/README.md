@@ -79,9 +79,9 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 - **Still gated:** S2/S3/S4/S6b live execution, full applicable-study telemetry, results
   across ≥2 model families, and the three-task RealRunner smoke. No row in any harness
   report is a finding.
-- **S5 dependency:** the existing drift selftest still fails at the removed flat import
-  `init_repo`; the supported package-boundary repair remains WI037-owned and was not
-  folded into this work.
+- **S5 dependency:** WI037 repaired the drift harness's removed flat imports. The
+  packaged RepoPact 3.0.2 S5 selftest now passes in the Proving Ground; this does
+  not turn deterministic plumbing into a live empirical result.
 - **Analysis freeze:** the dated 2026-09-13 amendment in
   [`research/benchmark-protocol.md`](../../../research/benchmark-protocol.md) freezes
   repetitions, seeds, temperature/model/version policy, scorers, paired effects,
@@ -92,10 +92,11 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 
 - [ ] **AC-1** — pending. S2-S6 driver boundaries and pre-registrations now exist, but
   the full wording is not claimed while external S2 materialization and the complete
-  live study execution path remain unverified; S5's existing executable harness is also
-  blocked by WI037's package boundary.
-- [ ] **AC-2** — pending. Common telemetry validation and S4/S5/S6b metrics exist, but
-  complete applicable-study instrumentation has not been demonstrated with live runs.
+  live study execution path remain unverified. The packaged S5 executable harness is
+  now green.
+- [ ] **AC-2** — pending. Common telemetry validation and S4/S5/S6b metrics exist, and
+  the deterministic S5 metrics now execute from the packaged dependency, but complete
+  applicable-study instrumentation has not been demonstrated with live runs.
 - [ ] **AC-3** — pending and operator-gated. No results across two model families,
   Pareto frontier, or scaling curve exist.
 - [x] **AC-4** — satisfied. The dated 2026-09-13 WI022 amendment freezes the enumerated
@@ -112,4 +113,6 @@ Evidence:
 and
 [`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json),
 and
-[`20260913-wi022-deterministic-benchmark-tranche`](../../../evidence/runs/20260913-wi022-deterministic-benchmark-tranche.json).
+[`20260913-wi022-deterministic-benchmark-tranche`](../../../evidence/runs/20260913-wi022-deterministic-benchmark-tranche.json),
+and
+[`20260913-wi022-s5-package-boundary-reconciliation`](../../../evidence/runs/20260913-wi022-s5-package-boundary-reconciliation.json).

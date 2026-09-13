@@ -26,7 +26,7 @@
         "package": "repopact",
         "version_file": "requirements-repopact.txt"
       },
-      "validation_commands": ["python -m repopact_cli validate --root .", "npm run validate:content"]
+      "validation_commands": ["repopact validate --root .", "npm run validate:content"]
     },
     {
       "id": "forgewire",
@@ -37,44 +37,24 @@
         "package": "repopact",
         "version_file": "requirements-repopact.txt"
       },
-      "validation_commands": ["python -m repopact_cli validate --root .", "python scripts/validate_audit.py"]
+      "validation_commands": ["repopact validate --root .", "python scripts/validate_audit.py"]
     },
     {
       "id": "moto-one-hyper",
       "repository": "ForgeWireLabs/moto-one-hyper-forgewire-rom-lab",
       "default_branch": "main",
       "consumption": {
-        "type": "vendored",
-        "version_file": "scripts/REPOPACT_VERSION",
-        "upstream_version": "2.3.0",
-        "upstream_revision": "f371c545535eaddd0880b52f71bd9e9a19704b1a",
-        "files": [
-          {
-            "upstream_path": "scripts/generate_dashboard.py",
-            "adopter_path": "scripts/generate_dashboard.py",
-            "mode": "exact",
-            "upstream_sha256": "98042f0a1251b029ca76286c5ee666f850f88f06db226f7999188490df3aa270",
-            "adopter_sha256": "98042f0a1251b029ca76286c5ee666f850f88f06db226f7999188490df3aa270"
-          },
-          {
-            "upstream_path": "scripts/repo_model.py",
-            "adopter_path": "scripts/repo_model.py",
-            "mode": "exact",
-            "upstream_sha256": "2ff2fc0dec0aaaf9c5a5f676bd84ebcbf9b7148a64eb79f7c00ba1b2ed1fc104",
-            "adopter_sha256": "2ff2fc0dec0aaaf9c5a5f676bd84ebcbf9b7148a64eb79f7c00ba1b2ed1fc104"
-          },
-          {
-            "upstream_path": "scripts/validate_repo.py",
-            "adopter_path": "scripts/validate_repo.py",
-            "mode": "overlay",
-            "upstream_sha256": "05347e93ceaab1c01b9d2ef612599a396f7633ed437f5f0d73c884a0298337ff",
-            "adopter_sha256": "1f63f572d61e11ae45d819d386dc7495490d49c4f78cd048c7bdb75198d8c21e",
-            "overlay_path": "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
-            "overlay_sha256": "9f032fc16096bb35fa2d5864699e772eb67ca2a81bfdf1975631324d7013c177"
-          }
-        ]
+        "type": "pypi",
+        "package": "repopact",
+        "version_file": "requirements-repopact.txt",
+        "local_extension": {
+          "path": "scripts/validate_moto.py",
+          "validation_command": "python scripts/validate_moto.py",
+          "canonical_command": "python -m repopact.cli validate --root <root>",
+          "composition": "canonical-first"
+        }
       },
-      "validation_commands": ["python scripts/validate_repo.py", "python -m unittest discover -s tests -v"]
+      "validation_commands": ["repopact validate --root .", "python scripts/validate_moto.py", "python -m unittest discover -s tests -v"]
     },
     {
       "id": "repopact-proving-ground",
@@ -85,7 +65,7 @@
         "package": "repopact",
         "version_file": "requirements-repopact.txt"
       },
-      "validation_commands": ["python -m repopact_cli validate --root .", "python -m unittest discover -s tests -v", "python benchmarks/pactbench/run.py --selftest"]
+      "validation_commands": ["repopact validate --root .", "python -m unittest discover -s tests -v", "python benchmarks/harness/run.py --selftest"]
     }
   ]
 }

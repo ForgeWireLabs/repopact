@@ -18,7 +18,8 @@
       "evidence": [
         "20260624-pactbench-harness-selftest",
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-wi022-deterministic-benchmark-tranche"
+        "20260913-wi022-deterministic-benchmark-tranche",
+        "20260913-wi022-s5-package-boundary-reconciliation"
       ]
     },
     {
@@ -28,7 +29,8 @@
       "evidence": [
         "20260624-pactbench-harness-selftest",
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-wi022-deterministic-benchmark-tranche"
+        "20260913-wi022-deterministic-benchmark-tranche",
+        "20260913-wi022-s5-package-boundary-reconciliation"
       ]
     },
     {

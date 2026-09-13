@@ -1,0 +1,44 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-s5-package-boundary-reconciliation",
+  "timestamp": "2026-09-13T17:10:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python benchmarks/drift/harness.py --selftest",
+      "exit_code": 0,
+      "summary": "The Proving Ground S5 deterministic drift selftest passed from the exact repopact==3.0.2 dependency after the WI037 package-boundary repair."
+    },
+    {
+      "command": "python benchmarks/harness/run.py --selftest",
+      "exit_code": 0,
+      "summary": "The 24-task PactBench deterministic selftest passed; its MockRunner output remains plumbing evidence and is not an empirical model result."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The Proving Ground benchmark suite passed 22 tests, including S5 scoring and deterministic envelope checks."
+    }
+  ],
+  "artifacts": [
+    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/9a3f2c8e0ef60875fd60745fe6c54de715df09ab",
+    "C:\\Projects\\repopact-proving-ground-wi037\\benchmarks\\drift\\harness.py",
+    "work/active/022-benchmark-suite/"
+  ],
+  "environment": {
+    "repository": "ForgeWireLabs/repopact-proving-ground",
+    "implementation_commit": "c575dad4b726ce597f869dcdf9e5d6b493041259",
+    "evidence_record_commit": "9a3f2c8e0ef60875fd60745fe6c54de715df09ab",
+    "platform": "Windows",
+    "python": "3.13",
+    "repopact_version": "3.0.2",
+    "classification": "deterministic S5/PactBench plumbing; no live model or empirical result",
+    "remaining_operator_gates": [
+      "RealRunner smoke requires provisioned model credentials",
+      "AC-3 requires runs across at least two model families",
+      "S2 external materialization and applicable live-study execution remain unverified"
+    ]
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "037",
+  "title": "Reconcile the adopter fleet to the RepoPact 3.x package boundary and repair Proving Ground",
+  "status": "completed",
+  "owner_scope": "tooling",
+  "affected_scopes": [
+    "governance",
+    "evidence",
+    "tooling"
+  ],
+  "depends_on": [
+    "029",
+    "036",
+    "038"
+  ],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-07-26T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "All declared public adopters use the intended current supported RepoPact release/boundary on their public default branch. Normal consumers use the exact supported PyPI package pin, and legacy vendored-core consumption is removed rather than falsely declared current.",
+      "state": "satisfied",
+      "evidence": ["20260913-037-adopter-fleet-3-0-2-reconciliation"]
+    },
+    {
+      "id": "AC-2",
+      "text": "Proving Ground uses supported repopact.* and CLI interfaces, authoritative cross-repository research links, and passes governance, benchmark, fixture, PactBench, and S5 drift checks from its declared dependency environment.",
+      "state": "satisfied",
+      "evidence": ["20260913-037-adopter-fleet-3-0-2-reconciliation"]
+    },
+    {
+      "id": "AC-3",
+      "text": "The canonical adopter manifest and deterministic verifier pass against immutable public default-branch heads and accurately describe each repository's real consumption architecture; no contract points at upstream files that no longer exist.",
+      "state": "satisfied",
+      "evidence": ["20260913-037-adopter-fleet-3-0-2-reconciliation"]
+    },
+    {
+      "id": "AC-4",
+      "text": "Every modified adopter has repository-native validation and dated evidence. No evidence overstates hosted CI or cross-platform execution.",
+      "state": "satisfied",
+      "evidence": ["20260913-037-adopter-fleet-3-0-2-reconciliation"]
+    }
+  ],
+  "created": "2026-07-26",
+  "updated": "2026-09-13"
+}

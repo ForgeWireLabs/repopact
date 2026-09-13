@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -40,6 +41,9 @@ class GitHubClient:
 
     def __init__(self, timeout: float = 20.0) -> None:
         self.timeout = timeout
+        self._git_workspace = tempfile.TemporaryDirectory(prefix="repopact-fleet-")
+        self._git_repositories: dict[str, Path] = {}
+        self._git_revisions: dict[str, set[str]] = {}
 
     def resolve_head(self, repository: str, branch: str) -> str:
         url = f"https://github.com/{repository}.git"
@@ -82,25 +86,154 @@ class GitHubClient:
                     check=False,
                 )
             except (OSError, subprocess.TimeoutExpired) as authenticated_exc:
+                gh_error = (
+                    f"authenticated GitHub read failed ({authenticated_exc})"
+                )
+            else:
+                if proc.returncode == 0:
+                    try:
+                        payload = json.loads(proc.stdout)
+                        if payload.get("encoding") != "base64":
+                            raise ValueError("GitHub content response was not base64")
+                        return base64.b64decode(str(payload["content"]), validate=False)
+                    except (KeyError, ValueError, json.JSONDecodeError) as exc:
+                        raise RemoteFailure(
+                            f"cannot decode authenticated GitHub content for {repository}@{revision}:{path}: {exc}"
+                        ) from exc
+                detail = proc.stderr.strip() or proc.stdout.strip() or f"gh exited {proc.returncode}"
+                gh_error = f"authenticated GitHub read failed ({detail})"
+            try:
+                return self._read_file_with_github_credentials(repository, revision, path)
+            except RemoteFailure as api_exc:
+                api_error = f"authenticated GitHub API read failed ({api_exc})"
+            try:
+                return self._read_file_with_git(repository, revision, path)
+            except RemoteFailure as git_exc:
                 raise RemoteFailure(
                     f"cannot read {repository}@{revision}:{path}: public read failed ({public_exc}); "
-                    f"authenticated GitHub read failed ({authenticated_exc})"
-                ) from authenticated_exc
-            if proc.returncode == 0:
+                    f"{gh_error}; {api_error}; authenticated Git transport read failed ({git_exc})"
+                ) from git_exc
+
+    def _read_file_with_github_credentials(self, repository: str, revision: str, path: str) -> bytes:
+        """Read a private adopter file with credentials supplied by Git's credential helper."""
+        try:
+            proc = subprocess.run(
+                ["git", "credential", "fill"],
+                input="protocol=https\nhost=github.com\n\n",
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RemoteFailure(f"credential helper unavailable: {exc}") from exc
+        if proc.returncode != 0:
+            raise RemoteFailure("Git credential helper did not return credentials")
+        credentials = dict(
+            line.split("=", 1)
+            for line in proc.stdout.splitlines()
+            if "=" in line
+        )
+        username = credentials.get("username")
+        password = credentials.get("password")
+        if not username or not password:
+            raise RemoteFailure("Git credential helper did not provide a GitHub username and token")
+        encoded_path = urllib.parse.quote(path, safe="/")
+        encoded_revision = urllib.parse.quote(revision, safe="")
+        url = f"https://api.github.com/repos/{repository}/contents/{encoded_path}?ref={encoded_revision}"
+        auth = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("ascii")
+        request = urllib.request.Request(
+            url,
+            headers={
+                "Accept": "application/vnd.github+json",
+                "Authorization": f"Basic {auth}",
+                "User-Agent": "RepoPact-fleet-verifier/1",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                payload = json.loads(response.read())
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            raise RemoteFailure(str(exc)) from exc
+        try:
+            if payload.get("encoding") != "base64":
+                raise ValueError("GitHub content response was not base64")
+            return base64.b64decode(str(payload["content"]), validate=False)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise RemoteFailure(f"invalid GitHub content response: {exc}") from exc
+
+    def _read_file_with_git(self, repository: str, revision: str, path: str) -> bytes:
+        """Read a private adopter file through the user's configured Git transport."""
+        key = repository.lower()
+        checkout = self._git_repositories.get(key)
+        if checkout is None:
+            checkout = Path(self._git_workspace.name) / str(len(self._git_repositories))
+            checkout.mkdir(parents=True, exist_ok=True)
+            commands = [
+                ["git", "init", "--quiet", str(checkout)],
+                [
+                    "git",
+                    "-C",
+                    str(checkout),
+                    "remote",
+                    "add",
+                    "origin",
+                    f"https://github.com/{repository}.git",
+                ],
+            ]
+            for command in commands:
                 try:
-                    payload = json.loads(proc.stdout)
-                    if payload.get("encoding") != "base64":
-                        raise ValueError("GitHub content response was not base64")
-                    return base64.b64decode(str(payload["content"]), validate=False)
-                except (KeyError, ValueError, json.JSONDecodeError) as exc:
-                    raise RemoteFailure(
-                        f"cannot decode authenticated GitHub content for {repository}@{revision}:{path}: {exc}"
-                    ) from exc
-            detail = proc.stderr.strip() or proc.stdout.strip() or f"gh exited {proc.returncode}"
-            raise RemoteFailure(
-                f"cannot read {repository}@{revision}:{path}: public read failed ({public_exc}); "
-                f"authenticated GitHub read failed ({detail})"
-            ) from public_exc
+                    proc = subprocess.run(
+                        command,
+                        capture_output=True,
+                        text=True,
+                        timeout=self.timeout,
+                        check=False,
+                    )
+                except (OSError, subprocess.TimeoutExpired) as exc:
+                    raise RemoteFailure(f"Git setup failed: {exc}") from exc
+                if proc.returncode != 0:
+                    detail = proc.stderr.strip() or proc.stdout.strip() or f"git exited {proc.returncode}"
+                    raise RemoteFailure(detail)
+            self._git_repositories[key] = checkout
+            self._git_revisions[key] = set()
+        if revision not in self._git_revisions[key]:
+            try:
+                proc = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(checkout),
+                        "fetch",
+                        "--quiet",
+                        "--depth=1",
+                        "origin",
+                        revision,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=self.timeout,
+                    check=False,
+                )
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                raise RemoteFailure(f"Git fetch failed: {exc}") from exc
+            if proc.returncode != 0:
+                detail = proc.stderr.strip() or proc.stdout.strip() or f"git exited {proc.returncode}"
+                raise RemoteFailure(detail)
+            self._git_revisions[key].add(revision)
+        try:
+            proc = subprocess.run(
+                ["git", "-C", str(checkout), "cat-file", "blob", f"{revision}:{path}"],
+                capture_output=True,
+                timeout=self.timeout,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RemoteFailure(f"Git file read failed: {exc}") from exc
+        if proc.returncode != 0:
+            detail = proc.stderr.decode(errors="replace").strip() or f"git exited {proc.returncode}"
+            raise RemoteFailure(detail)
+        return proc.stdout
 
 
 @dataclass(frozen=True)
@@ -111,6 +244,7 @@ class AdopterResult:
     remote_head: str | None
     consumption: str
     declared_version: str | None
+    local_extension: str | None
     current_release: str
     validation_commands: tuple[str, ...]
     local_checkouts: tuple[str, ...]
@@ -129,6 +263,7 @@ class AdopterResult:
             "remote_head": self.remote_head,
             "consumption": self.consumption,
             "declared_version": self.declared_version,
+            "local_extension": self.local_extension,
             "current_release": self.current_release,
             "validation_commands": list(self.validation_commands),
             "local_checkouts": list(self.local_checkouts),
@@ -364,6 +499,34 @@ def _verify_vendored(
     return checks, errors
 
 
+def _verify_local_extension(
+    adopter: dict,
+    head: str,
+    extension: dict,
+    client: RemoteClient,
+) -> tuple[list[str], list[str]]:
+    """Verify that a package adopter's local extension composes canonical validation first."""
+    checks: list[str] = []
+    errors: list[str] = []
+    path = str(extension["path"])
+    if path.startswith("/") or any(part == ".." for part in path.split("/")):
+        return checks, [f"local extension path escapes adopter root: {path}"]
+    try:
+        source = client.read_file(adopter["repository"], head, path).decode("utf-8").lower()
+    except (UnicodeError, RemoteFailure) as exc:
+        return checks, [f"local extension {path}: {exc}"]
+    canonical_command = str(extension["canonical_command"]).lower()
+    required_fragments = ("repopact.cli", "validate", "--root")
+    missing = [fragment for fragment in required_fragments if fragment not in canonical_command or fragment not in source]
+    if missing:
+        errors.append(
+            f"local extension {path} does not prove canonical-first RepoPact validation; missing {', '.join(missing)}"
+        )
+    else:
+        checks.append(f"canonical-first local extension: {path}")
+    return checks, errors
+
+
 def _verify_adopter(
     root: Path,
     upstream_repository: str,
@@ -376,6 +539,7 @@ def _verify_adopter(
     checks: list[str] = []
     head: str | None = None
     declared_version: str | None = None
+    local_extension: str | None = None
     consumption = adopter["consumption"]
     try:
         head = client.resolve_head(adopter["repository"], adopter["default_branch"])
@@ -389,6 +553,12 @@ def _verify_adopter(
             else:
                 declared_version = pins[0]
                 checks.append(f"exact PyPI pin: repopact=={declared_version}")
+            extension = consumption.get("local_extension")
+            if isinstance(extension, dict):
+                local_extension = str(extension["path"])
+                extension_checks, extension_errors = _verify_local_extension(adopter, head, extension, client)
+                checks.extend(extension_checks)
+                errors.extend(extension_errors)
         else:
             declared_version = text.strip()
             if not SEMVER.fullmatch(declared_version):
@@ -409,6 +579,7 @@ def _verify_adopter(
         remote_head=head,
         consumption=consumption["type"],
         declared_version=declared_version,
+        local_extension=local_extension,
         current_release=release,
         validation_commands=tuple(adopter["validation_commands"]),
         local_checkouts=local_checkouts,

@@ -1,5 +1,18 @@
 # Tooling Alignment Report
 
+## 2026-09-13 WI037 adopter-boundary reconciliation
+
+- `governance/adopters.json` now describes the five-adopter fleet at the public
+  RepoPact 3.0.2 boundary. Moto is a package adopter with a declared
+  repository-owned local extension, not a vendored core or checksum overlay.
+- `fleet_verify.py` now verifies that a declared package local extension exists
+  at the immutable public default head and proves canonical-first invocation of
+  the namespaced RepoPact CLI. The contract is adopter-neutral and does not
+  encode Moto-specific rules.
+- Legacy vendored contract support remains in the verifier for historical or
+  separately declared adopters; WI037 no longer declares Moto against obsolete
+  upstream scripts.
+
 ## 2026-09-10 canonical Rust engine cutover
 
 - WI056 makes the Rust engine the canonical authority for the proven repository,

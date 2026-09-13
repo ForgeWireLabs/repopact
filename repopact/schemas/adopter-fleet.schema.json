@@ -52,7 +52,19 @@
       "properties": {
         "type": {"const": "pypi"},
         "package": {"const": "repopact"},
-        "version_file": {"type": "string", "minLength": 1}
+        "version_file": {"type": "string", "minLength": 1},
+        "local_extension": {"$ref": "#/$defs/localExtension"}
+      }
+    },
+    "localExtension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "validation_command", "canonical_command", "composition"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "validation_command": {"type": "string", "minLength": 1},
+        "canonical_command": {"type": "string", "minLength": 1},
+        "composition": {"const": "canonical-first"}
       }
     },
     "vendoredConsumption": {

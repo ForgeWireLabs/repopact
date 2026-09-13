@@ -154,6 +154,40 @@ class FleetVerificationTests(unittest.TestCase):
         self.assertIn("exact checksum parity: scripts/exact.py", vendor.checks)
         self.assertIn("reviewable overlay parity: scripts/tool.py", vendor.checks)
 
+    def test_package_local_extension_must_compose_canonical_validation_first(self) -> None:
+        package = self.manifest["adopters"][0]
+        package["consumption"]["local_extension"] = {
+            "path": "scripts/validate_local.py",
+            "validation_command": "python scripts/validate_local.py",
+            "canonical_command": "python -m repopact.cli validate --root <root>",
+            "composition": "canonical-first",
+        }
+        extension_path = "scripts/validate_local.py"
+        self.files[(self.pypi_repo, self.pypi_head, extension_path)] = (
+            b"subprocess.run([sys.executable, '-m', 'repopact.cli', 'validate', '--root', str(root)])\n"
+        )
+        self._write_manifest()
+        report = self._verify()
+        self.assertTrue(report.ok)
+        result = next(item for item in report.adopters if item.adopter_id == "package")
+        self.assertEqual(extension_path, result.local_extension)
+        self.assertIn("canonical-first local extension: scripts/validate_local.py", result.checks)
+
+    def test_package_local_extension_without_canonical_boundary_fails_closed(self) -> None:
+        package = self.manifest["adopters"][0]
+        package["consumption"]["local_extension"] = {
+            "path": "scripts/validate_local.py",
+            "validation_command": "python scripts/validate_local.py",
+            "canonical_command": "python -m repopact.cli validate --root <root>",
+            "composition": "canonical-first",
+        }
+        self.files[(self.pypi_repo, self.pypi_head, "scripts/validate_local.py")] = b"print('local only')\n"
+        self._write_manifest()
+        report = self._verify()
+        result = next(item for item in report.adopters if item.adopter_id == "package")
+        self.assertFalse(result.ok)
+        self.assertTrue(any("canonical-first" in error for error in result.errors))
+
     def test_zero_context_insertion_overlay_reconstructs_bytes(self) -> None:
         patch = b"--- upstream/x\n+++ adopter/x\n@@ -1,0 +2 @@\n+inserted\n"
         self.assertEqual(b"first\ninserted\nsecond\n", fleet_verify._apply_unified_patch(b"first\nsecond\n", patch))

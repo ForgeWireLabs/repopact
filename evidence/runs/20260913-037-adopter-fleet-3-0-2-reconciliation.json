@@ -1,0 +1,65 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-037-adopter-fleet-3-0-2-reconciliation",
+  "timestamp": "2026-09-13T17:10:00-05:00",
+  "work_item": "037",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "repopact fleet-verify --root .",
+      "exit_code": 0,
+      "summary": "All five declared adopters passed against immutable default-branch heads: ForgeLink 6823a40, ForgeWire 6ea2b21, Moto e98040c, Proving Ground 9a3f2c8, and SkillForge d35510e. Each declared version file contains exactly repopact==3.0.2; Moto's local extension passed the canonical-first contract."
+    },
+    {
+      "command": "repopact check-frozen --root . --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "The explicitly requested adopter-fleet schema extension was acknowledged under INV-6; the schema adds the general package/local-extension canonical-first contract."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Installed the RepoPact development environment successfully."
+    },
+    {
+      "command": "repopact dashboard --root .; repopact validate --root .",
+      "exit_code": 0,
+      "summary": "Regenerated the RepoPact dashboard and passed repository governance validation after the fleet manifest and verifier changes."
+    },
+    {
+      "command": "python -m repopact.run_conformance --legacy-python",
+      "exit_code": 0,
+      "summary": "Canonical conformance passed 22/22, legacy-Python compatibility passed 22/22, and WI050 admission conformance passed 8/8."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The RepoPact suite passed 285 tests with 2 pre-existing formal-model skips, including the fleet verifier tests."
+    }
+  ],
+  "artifacts": [
+    "governance/adopters.json",
+    "repopact/schemas/adopter-fleet.schema.json",
+    "repopact/fleet_verify.py",
+    "tests/test_fleet_verify.py",
+    "governance/adopter-overlays/moto-one-hyper-validate-repo.patch",
+    "audits/reports/dashboard.md",
+    "work/completed/037-reconcile-the-adopter-fleet-and-proving-ground-package-boundary/",
+    "ForgeLink evidence: 20260913-wi037-repopact-3-0-2",
+    "SkillForge evidence: 20260913-037-repopact-3-0-2-upgrade",
+    "ForgeWire evidence: 20260913-275-repopact-3-0-2-adoption (partial, native blockers disclosed)",
+    "Moto evidence: 20260913-029-repopact-3-0-2-adoption",
+    "Proving Ground evidence: 20260913-003-repopact-3-0-2-adoption"
+  ],
+  "environment": {
+    "repository": "ForgeWireLabs/repopact",
+    "branch": "codex/wi037-refresh",
+    "implementation_tip": "2b8e193985837691a7cca1d4d63050038c715a08",
+    "platform": "Windows",
+    "release": "3.0.2",
+    "adopter_heads_immutable": true,
+    "private_remote_read": "GitHub credential helper API fallback used for operator-visible repositories; no hosted-CI claim",
+    "cross_platform_execution": "not claimed",
+    "live_wi022_model_execution": "not performed"
+  }
+}

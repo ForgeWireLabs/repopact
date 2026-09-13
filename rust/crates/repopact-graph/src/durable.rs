@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
+use crate::incremental::SemanticCompatibility;
 use crate::semantic::SemanticCoverage;
 use crate::{GraphEdge, GraphLayer, GraphNode, RepositoryGraph};
 
@@ -60,6 +61,16 @@ pub struct Manifest {
     /// manifest written by this or a later implementation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub semantic_coverage: Option<SemanticCoverage>,
+    /// Semantic-pipeline compatibility identity (WI063
+    /// incremental-equivalence checkpoint, Decision 0046). Absent on any
+    /// durable graph written before this checkpoint (including a genuine
+    /// v1 graph and a schema-v2 graph from the semantic-adapter
+    /// checkpoint that predates this field); an incremental update
+    /// encountering `None` here cannot trust unchanged-file reuse and
+    /// must fall back to a full rebuild before it can reason
+    /// incrementally at all.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic_compatibility: Option<SemanticCompatibility>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -129,6 +140,7 @@ pub fn write(
     graph: &RepositoryGraph,
     source_projection_fingerprint: &str,
     semantic_coverage: SemanticCoverage,
+    semantic_compatibility: SemanticCompatibility,
 ) -> Result<Manifest, DurableError> {
     let mut nodes_by_shard: std::collections::BTreeMap<u32, Vec<&GraphNode>> =
         std::collections::BTreeMap::new();
@@ -204,6 +216,7 @@ pub fn write(
         },
         excluded_policy_id: EXCLUDED_POLICY_ID.to_owned(),
         semantic_coverage: Some(semantic_coverage),
+        semantic_compatibility: Some(semantic_compatibility),
     };
     let manifest_json = serde_json::to_string_pretty(&manifest)
         .map_err(|error| DurableError::new("graph.serialize", error.to_string()))?;
@@ -211,14 +224,62 @@ pub fn write(
         .map_err(|error| DurableError::new("graph.io", error.to_string()))?;
 
     let final_path = rog_root(repository_root);
-    if final_path.exists() {
-        fs::remove_dir_all(&final_path)
-            .map_err(|error| DurableError::new("graph.io", error.to_string()))?;
-    }
-    fs::rename(&staging, &final_path)
-        .map_err(|error| DurableError::new("graph.io", error.to_string()))?;
+    let backup_path = repository_root.join(format!(
+        "{ROG_DIR_NAME}.previous-{}-{}",
+        std::process::id(),
+        nanos_suffix()
+    ));
+    swap_with_rollback(
+        |from: &Path, to: &Path| fs::rename(from, to),
+        &staging,
+        &final_path,
+        &backup_path,
+    )?;
 
     Ok(manifest)
+}
+
+/// Replace `final_path` with `staging` without ever leaving a window in
+/// which neither a valid old graph nor a valid new graph is installed
+/// there (WI063 incremental-equivalence checkpoint, step 10; Decision
+/// 0046). Any pre-existing durable graph is moved aside to `backup_path`
+/// (a rename, not a delete) before the new one is installed; if
+/// installing the new one fails, the old one is renamed back into place
+/// rather than left destroyed. `rename` is injected so tests can force
+/// the second rename to fail and assert the rollback property directly,
+/// without depending on a real filesystem fault.
+pub(crate) fn swap_with_rollback(
+    mut rename: impl FnMut(&Path, &Path) -> io::Result<()>,
+    staging: &Path,
+    final_path: &Path,
+    backup_path: &Path,
+) -> Result<(), DurableError> {
+    let had_previous = final_path.exists();
+    if had_previous {
+        rename(final_path, backup_path)
+            .map_err(|error| DurableError::new("graph.io", error.to_string()))?;
+    }
+    match rename(staging, final_path) {
+        Ok(()) => {
+            if had_previous {
+                let _ = fs::remove_dir_all(backup_path);
+            }
+            Ok(())
+        }
+        Err(install_error) => {
+            if had_previous {
+                // Best-effort rollback: restore the prior graph so a
+                // failed replacement never leaves the repository with no
+                // durable graph in a spot that previously had a valid
+                // one. If the rollback itself also fails, the backup
+                // remains on disk under `backup_path` rather than being
+                // silently lost -- an operator can recover it manually --
+                // but we still report the original installation failure.
+                let _ = rename(backup_path, final_path);
+            }
+            Err(DurableError::new("graph.io", install_error.to_string()))
+        }
+    }
 }
 
 fn write_staging(

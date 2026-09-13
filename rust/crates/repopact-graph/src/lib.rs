@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub mod durable;
+pub mod incremental;
 pub mod physical;
 pub mod projection;
 pub mod semantic;
@@ -198,6 +199,27 @@ impl RepositoryGraph {
     pub fn build_with_fingerprint(
         snapshot: &RepositorySnapshot,
     ) -> (Self, String, semantic::SemanticCoverage) {
+        let (mut graph, source_projection) = Self::build_governance_and_physical(snapshot);
+        let semantic_coverage =
+            semantic::extend(&mut graph, snapshot.repository(), &source_projection);
+        graph.edges.sort();
+        graph.edges.dedup();
+        (graph, source_projection.fingerprint(), semantic_coverage)
+    }
+
+    /// Governance + physical topology only (WI063 incremental-equivalence
+    /// checkpoint, step 1): both layers are deterministic and cheap enough
+    /// to rebuild globally on every `graph.update`, so only semantic
+    /// extraction needs contribution-level reuse. [`crate::incremental`]
+    /// calls this directly rather than duplicating governance/physical
+    /// construction; a full build ([`Self::build_with_fingerprint`]) is
+    /// this plus an unconditional full semantic pass. Callers must apply
+    /// their own `graph.edges.sort(); graph.edges.dedup();` after adding
+    /// semantic edges -- this function does not, since an incremental
+    /// caller still has more edges to add.
+    pub(crate) fn build_governance_and_physical(
+        snapshot: &RepositorySnapshot,
+    ) -> (Self, projection::SourceProjection) {
         let mut graph = Self::default();
         let repository_source = RecordRef::new(RecordKind::Repository, "repository", "<root>");
         graph.node(GraphNode {
@@ -600,12 +622,7 @@ impl RepositoryGraph {
             &source_projection,
             &frozen_globs,
         );
-        let semantic_coverage =
-            semantic::extend(&mut graph, snapshot.repository(), &source_projection);
-
-        graph.edges.sort();
-        graph.edges.dedup();
-        (graph, source_projection.fingerprint(), semantic_coverage)
+        (graph, source_projection)
     }
 
     pub fn node(&mut self, node: GraphNode) {
@@ -684,6 +701,7 @@ pub fn build_and_write(
         &graph,
         &fingerprint,
         semantic_coverage,
+        incremental::current_semantic_compatibility(),
     )
 }
 

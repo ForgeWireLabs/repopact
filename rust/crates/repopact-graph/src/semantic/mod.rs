@@ -129,6 +129,15 @@ pub struct FileCoverageEntry {
     pub coverage: FileCoverage,
     pub nodes_emitted: usize,
     pub edges_emitted: usize,
+    /// The `SourceProjection` content digest this entry was computed
+    /// against (WI063 incremental-equivalence checkpoint, Decision 0046).
+    /// `None` only for a durable graph written before this field existed;
+    /// an old schema-v2 graph without per-file digests cannot be diffed
+    /// for incremental reuse and must fall back to a full rebuild -- see
+    /// `crate::incremental`. Additive and optional so a pre-existing v2
+    /// reader that does not know this field still deserializes cleanly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_digest: Option<String>,
 }
 
 /// Bounded, already-approved input handed to an adapter. Adapters do not
@@ -188,158 +197,240 @@ pub struct SemanticCoverage {
     pub per_file: Vec<FileCoverageEntry>,
 }
 
-/// Run semantic extraction over `projection`'s files, appending
-/// `GraphLayer::Semantic` nodes/edges to `graph` and returning the
-/// coverage summary. Reads file content itself (through
-/// `repository.root()`, the same containment the projection was already
-/// built under -- no new discovery, no path re-resolution beyond the
-/// paths the projection already approved).
-pub fn extend(
-    graph: &mut RepositoryGraph,
-    repository: &Repository,
-    projection: &SourceProjection,
-) -> SemanticCoverage {
-    let policy = ResourcePolicy::default();
-    let mut coverage = SemanticCoverage::default();
-    coverage
-        .adapter_versions
-        .insert("rust".to_owned(), rust_adapter::ADAPTER_VERSION.to_owned());
-    coverage.adapter_versions.insert(
-        "python".to_owned(),
-        python_adapter::ADAPTER_VERSION.to_owned(),
-    );
-    coverage.adapter_versions.insert(
-        "javascript_typescript".to_owned(),
-        javascript_adapter::ADAPTER_VERSION.to_owned(),
-    );
-    coverage.relations_supported.insert(
-        "rust".to_owned(),
-        rust_adapter::SUPPORTED_RELATIONS
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
-    );
-    coverage.relations_supported.insert(
-        "python".to_owned(),
-        python_adapter::SUPPORTED_RELATIONS
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
-    );
-    coverage.relations_supported.insert(
-        "javascript_typescript".to_owned(),
-        javascript_adapter::SUPPORTED_RELATIONS
-            .iter()
-            .map(|s| s.to_string())
-            .collect(),
-    );
+/// One file's deterministic semantic contribution to the graph (WI063
+/// incremental-equivalence checkpoint, ROG-012). This is the single
+/// contribution-generation primitive: a clean full build calls it for
+/// every projected file, and an incremental update
+/// (`crate::incremental::update`) calls it only for added/modified files,
+/// reusing a prior contribution unchanged for everything else. There is
+/// deliberately no second, parallel per-file extraction path -- if full
+/// build and incremental update did not both funnel through this one
+/// function, byte-equivalence between them would be a coincidence rather
+/// than a structural guarantee.
+pub struct FileContribution {
+    pub entry: FileCoverageEntry,
+    pub nodes: Vec<GraphNode>,
+    pub edges: Vec<GraphEdge>,
+}
 
-    for file in &projection.files {
-        coverage.files_considered += 1;
-        let Some(language) = SourceLanguage::from_extension(&file.relative_path) else {
-            coverage.files_skipped_unsupported_language += 1;
-            coverage.per_file.push(FileCoverageEntry {
-                relative_path: file.relative_path.clone(),
+/// Build the semantic contribution for exactly one already-approved
+/// projected file. `digest` is the `SourceProjection` content digest for
+/// this file, recorded on the resulting entry so later incremental runs
+/// can detect whether the file has changed without reparsing it. Reads
+/// the file's content itself (through `repository.root()`, the same
+/// containment the projection was already built under) -- no new
+/// discovery, no path re-resolution beyond what the projection already
+/// approved.
+pub fn build_file_contribution(
+    repository: &Repository,
+    relative_path: &str,
+    digest: &str,
+    policy: &ResourcePolicy,
+) -> FileContribution {
+    let Some(language) = SourceLanguage::from_extension(relative_path) else {
+        return FileContribution {
+            entry: FileCoverageEntry {
+                relative_path: relative_path.to_owned(),
                 language: None,
                 coverage: FileCoverage::Skipped {
                     reason: SkipReason::UnsupportedLanguage,
                 },
                 nodes_emitted: 0,
                 edges_emitted: 0,
-            });
-            continue;
+                source_digest: Some(digest.to_owned()),
+            },
+            nodes: Vec::new(),
+            edges: Vec::new(),
         };
+    };
 
-        let absolute = repository.root().join(&file.relative_path);
-        let content = match std::fs::read(&absolute) {
-            Ok(bytes) => bytes,
-            Err(error) => {
-                coverage.files_failed += 1;
-                coverage.per_file.push(FileCoverageEntry {
-                    relative_path: file.relative_path.clone(),
+    let absolute = repository.root().join(relative_path);
+    let content = match std::fs::read(&absolute) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return FileContribution {
+                entry: FileCoverageEntry {
+                    relative_path: relative_path.to_owned(),
                     language: Some(language),
                     coverage: FileCoverage::Failed {
                         reason: error.to_string(),
                     },
                     nodes_emitted: 0,
                     edges_emitted: 0,
-                });
-                continue;
-            }
-        };
+                    source_digest: Some(digest.to_owned()),
+                },
+                nodes: Vec::new(),
+                edges: Vec::new(),
+            };
+        }
+    };
 
-        if content.len() > policy.max_file_bytes {
-            coverage.files_skipped_policy += 1;
-            coverage.per_file.push(FileCoverageEntry {
-                relative_path: file.relative_path.clone(),
+    if content.len() > policy.max_file_bytes {
+        return FileContribution {
+            entry: FileCoverageEntry {
+                relative_path: relative_path.to_owned(),
                 language: Some(language),
                 coverage: FileCoverage::Skipped {
                     reason: SkipReason::OversizedFile,
                 },
                 nodes_emitted: 0,
                 edges_emitted: 0,
-            });
-            continue;
-        }
-        if is_probably_binary(&content) {
-            coverage.files_skipped_policy += 1;
-            coverage.per_file.push(FileCoverageEntry {
-                relative_path: file.relative_path.clone(),
+                source_digest: Some(digest.to_owned()),
+            },
+            nodes: Vec::new(),
+            edges: Vec::new(),
+        };
+    }
+    if is_probably_binary(&content) {
+        return FileContribution {
+            entry: FileCoverageEntry {
+                relative_path: relative_path.to_owned(),
                 language: Some(language),
                 coverage: FileCoverage::Skipped {
                     reason: SkipReason::BinaryContent,
                 },
                 nodes_emitted: 0,
                 edges_emitted: 0,
-            });
-            continue;
-        }
-
-        let adapter = adapter_for(language);
-        let input = SourceInput {
-            relative_path: &file.relative_path,
-            content: &content,
-            resource_policy: &policy,
-        };
-        let started = Instant::now();
-        let output =
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| adapter.extract(&input)));
-        let output = match output {
-            Ok(output) => output,
-            Err(_) => AdapterOutput {
-                nodes: Vec::new(),
-                edges: Vec::new(),
-                coverage: FileCoverage::Failed {
-                    reason: "adapter panicked while parsing this file".to_owned(),
-                },
+                source_digest: Some(digest.to_owned()),
             },
+            nodes: Vec::new(),
+            edges: Vec::new(),
         };
-        let _elapsed = started.elapsed();
+    }
 
-        let node_count = output.nodes.len();
-        let edge_count = output.edges.len();
-        match &output.coverage {
-            FileCoverage::Complete => coverage.files_complete += 1,
-            FileCoverage::Partial { .. } => coverage.files_partial += 1,
-            FileCoverage::Skipped { .. } => coverage.files_skipped_policy += 1,
-            FileCoverage::Failed { .. } => coverage.files_failed += 1,
-        }
-        coverage.per_file.push(FileCoverageEntry {
-            relative_path: file.relative_path.clone(),
+    let adapter = adapter_for(language);
+    let input = SourceInput {
+        relative_path,
+        content: &content,
+        resource_policy: policy,
+    };
+    let started = Instant::now();
+    let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| adapter.extract(&input)));
+    let output = match output {
+        Ok(output) => output,
+        Err(_) => AdapterOutput {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            coverage: FileCoverage::Failed {
+                reason: "adapter panicked while parsing this file".to_owned(),
+            },
+        },
+    };
+    let _elapsed = started.elapsed();
+
+    let node_count = output.nodes.len();
+    let edge_count = output.edges.len();
+    FileContribution {
+        entry: FileCoverageEntry {
+            relative_path: relative_path.to_owned(),
             language: Some(language),
             coverage: output.coverage,
             nodes_emitted: node_count,
             edges_emitted: edge_count,
-        });
-        for node in output.nodes {
-            graph.node(node);
-        }
-        for edge in output.edges {
-            graph.edge(edge);
+            source_digest: Some(digest.to_owned()),
+        },
+        nodes: output.nodes,
+        edges: output.edges,
+    }
+}
+
+/// Fixed adapter-identity/relation-taxonomy metadata (independent of any
+/// particular file). Shared by the full build and by incremental update
+/// so both populate `SemanticCoverage.adapter_versions`/
+/// `relations_supported` identically.
+pub fn adapter_metadata() -> (BTreeMap<String, String>, BTreeMap<String, Vec<String>>) {
+    let mut adapter_versions = BTreeMap::new();
+    adapter_versions.insert("rust".to_owned(), rust_adapter::ADAPTER_VERSION.to_owned());
+    adapter_versions.insert(
+        "python".to_owned(),
+        python_adapter::ADAPTER_VERSION.to_owned(),
+    );
+    adapter_versions.insert(
+        "javascript_typescript".to_owned(),
+        javascript_adapter::ADAPTER_VERSION.to_owned(),
+    );
+    let mut relations_supported = BTreeMap::new();
+    relations_supported.insert(
+        "rust".to_owned(),
+        rust_adapter::SUPPORTED_RELATIONS
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    );
+    relations_supported.insert(
+        "python".to_owned(),
+        python_adapter::SUPPORTED_RELATIONS
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    );
+    relations_supported.insert(
+        "javascript_typescript".to_owned(),
+        javascript_adapter::SUPPORTED_RELATIONS
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
+    );
+    (adapter_versions, relations_supported)
+}
+
+/// Recompute the aggregate `SemanticCoverage` counters deterministically
+/// from a final per-file inventory (WI063 incremental-equivalence
+/// checkpoint, step 14). Deliberately not incremental increment/decrement
+/// bookkeeping: a full build and an incremental update both end with some
+/// final `Vec<FileCoverageEntry>` (assembled differently, one entry per
+/// file either way) and must derive numerically identical aggregates from
+/// it by the same counting rule, or a coverage-equality proof between the
+/// two paths would depend on bookkeeping happening to stay in sync rather
+/// than on this single shared computation.
+pub fn aggregate_coverage(per_file: Vec<FileCoverageEntry>) -> SemanticCoverage {
+    let (adapter_versions, relations_supported) = adapter_metadata();
+    let mut coverage = SemanticCoverage {
+        adapter_versions,
+        relations_supported,
+        ..SemanticCoverage::default()
+    };
+    for entry in &per_file {
+        coverage.files_considered += 1;
+        match &entry.coverage {
+            FileCoverage::Complete => coverage.files_complete += 1,
+            FileCoverage::Partial { .. } => coverage.files_partial += 1,
+            FileCoverage::Failed { .. } => coverage.files_failed += 1,
+            FileCoverage::Skipped {
+                reason: SkipReason::UnsupportedLanguage,
+            } => coverage.files_skipped_unsupported_language += 1,
+            FileCoverage::Skipped { .. } => coverage.files_skipped_policy += 1,
         }
     }
-
+    coverage.per_file = per_file;
     coverage
+}
+
+/// Run a full semantic extraction over every one of `projection`'s files,
+/// appending `GraphLayer::Semantic` nodes/edges to `graph` and returning
+/// the coverage summary. This is the correctness oracle (Decision 0046):
+/// it calls [`build_file_contribution`] for every file unconditionally,
+/// never reusing a prior result, so its output is always ground truth to
+/// compare an incremental update against.
+pub fn extend(
+    graph: &mut RepositoryGraph,
+    repository: &Repository,
+    projection: &SourceProjection,
+) -> SemanticCoverage {
+    let policy = ResourcePolicy::default();
+    let mut per_file = Vec::with_capacity(projection.files.len());
+    for file in &projection.files {
+        let contribution =
+            build_file_contribution(repository, &file.relative_path, &file.digest, &policy);
+        for node in contribution.nodes {
+            graph.node(node);
+        }
+        for edge in contribution.edges {
+            graph.edge(edge);
+        }
+        per_file.push(contribution.entry);
+    }
+    aggregate_coverage(per_file)
 }
 
 pub(crate) fn node_id_for_symbol(

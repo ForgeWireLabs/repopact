@@ -128,7 +128,7 @@ pub fn status(repository: &Repository) -> GraphStatus {
 /// (`files_partial`/`files_failed`) -- never merely an unsupported
 /// language or a policy exclusion, both of which are expected outcomes,
 /// not gaps in what the graph should have covered.
-fn has_semantic_coverage_gap(manifest: &durable::Manifest) -> bool {
+pub(crate) fn has_semantic_coverage_gap(manifest: &durable::Manifest) -> bool {
     manifest
         .semantic_coverage
         .as_ref()

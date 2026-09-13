@@ -2,9 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use repopact_mutation::{
-    apply, ApplyOptions, CreateWorkItem, MutationPlan, MutationRequest,
-};
+use repopact_mutation::{apply, ApplyOptions, CreateWorkItem, MutationPlan, MutationRequest};
 use repopact_repository::Repository;
 
 fn temp_root() -> PathBuf {
@@ -40,10 +38,7 @@ fn mutation_post_validation_includes_shared_verification_contract_diagnostics() 
         repository_identity: identity.clone(),
         plan_token: read_set.token(&identity),
         read_set,
-        request: MutationRequest::CreateWorkItem(CreateWorkItem::new(
-            "Parity probe",
-            "2026-09-12",
-        )),
+        request: MutationRequest::CreateWorkItem(CreateWorkItem::new("Parity probe", "2026-09-12")),
         file_operations: Vec::new(),
         generated_impacts: Vec::new(),
         graph_impacts: Vec::new(),
@@ -54,9 +49,9 @@ fn mutation_post_validation_includes_shared_verification_contract_diagnostics() 
     let result = apply(&plan, &ApplyOptions::default());
     assert!(!result.success);
     assert!(result.diagnostics.iter().any(|diagnostic| {
-        diagnostic.message.contains(
-            "default_profile \"missing\" does not name a declared verification profile",
-        )
+        diagnostic
+            .message
+            .contains("default_profile \"missing\" does not name a declared verification profile")
     }));
 
     fs::remove_dir_all(root).expect("cleanup");

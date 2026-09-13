@@ -38,8 +38,8 @@
     {
       "id": "ROG-003",
       "text": "Define a typed multilayer node model covering at minimum repository, directory, file, workspace/package/crate/module, configuration/build/test/runtime surfaces, selected language symbols, and the existing RepoPact governance node classes. Node identity is deterministic and repository-relative; line numbers alone are not primary symbol identity.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-semantic-checkpoint"]
     },
     {
       "id": "ROG-004",
@@ -50,8 +50,8 @@
     {
       "id": "ROG-005",
       "text": "Every durable graph relationship carries enough explanation metadata to identify its relation kind, source path/location where available, derivation mechanism, provenance/certainty class, and graph schema/generator context. Clients can explain why an edge exists without relying on an opaque model score.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-semantic-checkpoint"]
     },
     {
       "id": "ROG-006",
@@ -140,8 +140,8 @@
     {
       "id": "ROG-020",
       "text": "Coverage gaps are first-class graph output. Unsupported languages, parser failures, excluded trees, and relationships unavailable at the chosen extraction tier are reported explicitly. Partial coverage is never represented as complete repository understanding.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-semantic-checkpoint"]
     },
     {
       "id": "ROG-021",

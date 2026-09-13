@@ -284,3 +284,179 @@ incremental update must converge to). Do not begin Workbench UI, `adopt`
 integration, or S8 R1 preregistration until the query surface (ROG-023–026)
 exists to give the Workbench and research phases something real to
 consume.
+
+---
+
+# WI063 Implementation Progress — Semantic-Adapter Checkpoint (2026-09-13)
+
+**Starting SHA:** `c8c56739bfbe355d4a8a382eebe36aef550fa6b4`
+**This checkpoint's final SHA:** see `git log` HEAD at the final commit of this session
+**Decision:** 0045 (Tree-sitter selection, schema v2)
+
+## What this session proves
+
+Deterministic Rust/Python/JavaScript/TypeScript/JSX/TSX symbol and import
+extraction, built on the foundation checkpoint's durable physical graph,
+with schema v1 permanently preserved and schema v2 additive.
+
+### Selected parser and exact pinned versions
+
+Tree-sitter 0.27.0, `tree-sitter-rust` 0.24.2, `tree-sitter-python`
+0.25.0, `tree-sitter-javascript` 0.25.0, `tree-sitter-typescript` 0.23.2 --
+all pinned with exact (`=X.Y.Z`) version requirements in
+`rust/Cargo.toml`. See Decision 0045 for the full evaluation against
+language-specific parser stacks and the real compile/parse/cancellation
+spike that grounded the choice.
+
+### MSRV
+
+`tree-sitter` 0.27.0 declares `rust-version: 1.90`. RepoPact has no
+documented MSRV anywhere in the repository (confirmed by direct search
+before this decision). The installed toolchain (1.96.0) already exceeds
+1.90; this session establishes 1.90 as the workspace's de facto floor
+going forward, recorded in Decision 0045 since no prior document did.
+
+### Schema v2
+
+`GraphNodeKind::Symbol` + a separate `SymbolKind` enum (module, function,
+method, type, enum, interface, implementation, type_alias, constant,
+macro, test). `GraphEdgeKind` gains `Defines`/`Imports`/`Exports`/
+`Implements`/`Extends`/`References`/`Calls`/`UsesType` (only `Defines`/
+`Imports` are emitted this checkpoint). `GraphSourceLocation` (byte
+offsets + row/column) added as optional metadata on both `GraphNode` and
+`GraphEdge`, kept fully separate from the shared governance `SourceRef`.
+`durable::CURRENT_GRAPH_SCHEMA_VERSION` is now `2` (always written);
+`durable::SUPPORTED_GRAPH_SCHEMA_VERSIONS` is `[1, 2]`. Proven: a genuine
+v1 manifest (physical-only vocabulary) remains structurally valid and
+`Fresh`; the only supported v1-to-v2 path is a full deterministic
+rebuild, proven to converge correctly.
+
+### Adapter API
+
+`repopact_graph::semantic::SemanticAdapter` -- `fn extract(&self, input:
+&SourceInput) -> AdapterOutput`. No Tree-sitter type crosses this
+boundary. The orchestrator (`semantic::extend`) owns file eligibility
+(from the already-built source projection) and content loading; adapters
+never perform their own I/O, Git calls, or path resolution. Adapter
+panics are caught and downgraded to a per-file `Failed` coverage entry
+rather than aborting the whole build.
+
+### Language/relation coverage
+
+| Language | Symbols covered | Relations emitted | Known gaps |
+| --- | --- | --- | --- |
+| Rust | module, function, method (via impl block, tagged Function), struct, enum, trait, type alias, impl block, macro_rules!, `#[test]`/`#[tokio::test]`-style test functions | Defines, Imports | no visibility/exported detection |
+| Python | class, function, method, async def, pytest-convention `test_*` | Defines, Imports | no decorator-based test detection beyond naming convention |
+| JS/JSX/TS/TSX | function, class, method, TS interface/type-alias/enum | Defines, Imports | no exports detection; test detection is a narrow name-prefix heuristic only |
+
+No call-graph edges are emitted at all (ROG-019's false-precision risk is
+avoided by emitting nothing, not by hedged/heuristic edges).
+
+### Stable-ID strategy
+
+`language + repository-relative path + qualified container + symbol-kind
+tag + declared name`. Proven unaffected by leading blank lines/comments.
+Anonymous constructs are omitted rather than assigned unstable IDs (no
+adapter emits one).
+
+### Resource/cancellation policy (ROG-022)
+
+1 MiB max file size, 2s max parse deadline (conservative, unmeasured-in-
+production constants, centralized in `ResourcePolicy`). Cancellation uses
+`parse_with_options` + a progress callback checking a wall-clock deadline
+-- the deprecated `set_timeout_micros` does not exist in tree-sitter
+0.27.0 at all (confirmed by source inspection). A 512-level recursion
+depth guard was added to each adapter's own AST walker mid-session, after
+re-checking this AC's full text against the first implementation (which
+had none) -- proven by a test with 2000 levels of pathological nesting.
+Binary content (NUL-byte sniff) and oversized files are rejected before
+any parser runs. **Disclosed, not implemented:** minified-file and
+generated-file-specific policies (both named explicitly in ROG-022's
+text), and parser memory-behavior measurement.
+
+### `Freshness::Partial` -- now real
+
+A supported file that cannot be fully processed (parse error,
+cancellation, adapter failure) makes repository-wide status `Partial`,
+proven by a direct test. An unsupported-language file or a policy
+exclusion alone does *not* make the graph `Partial` -- also proven
+directly, in the other direction. `working_overlay` remains declared-only
+(ROG-013, out of scope this session).
+
+### Real RepoPact self-build (engineering validation, not S8/R1)
+
+`repopact graph build --root .` against RepoPact's own live checkout:
+18.2s, 749 files considered, 106 adapted (Rust/Python/JS/TS), **106/106
+complete, 0 partial, 0 failed** -- 643 files correctly classified
+unsupported-language. `node_count=4481` (governance 773, physical 954,
+semantic 2754), `edge_count=6122` (governance 1583, physical 1738,
+semantic 2801), schema v2, 16/16 shards, 4.0MB on disk. `graph verify`
+reported `Fresh`; canonical `repopact validate` accepted it with zero
+diagnostics. The `rog/` directory was deleted afterward, not committed --
+this checkpoint's scope is proving the mechanism works, not shipping a
+built graph.
+
+### Cross-platform determinism
+
+A 7-file fixture (Rust/Python/JS/TS/TSX plus one malformed-but-recoverable
+Rust file and one unsupported README.md), confirmed byte-identical by
+SHA-256, built independently on native Windows and Linux-native WSL2
+Debian 13: **byte-for-byte identical** fingerprint
+(`12e09a01...eb899a2`), node/edge counts (18/17), every one of 21 shard
+hashes, and identical semantic coverage breakdown (7 considered, 5
+complete, 1 partial, 1 unsupported). No macOS execution.
+
+### Git/process bound
+
+`randomized_git_invocation_count_is_still_bounded_after_graph_build`
+(<=4 invocations) passes unchanged after semantic extraction. The
+orchestrator is single-threaded and sequential; no per-file thread or
+process is spawned.
+
+### Packaging impact
+
+`repopact-engine.exe` release build: 6,955,520 bytes before this
+checkpoint vs. 12,073,984 bytes after -- **+5,118,464 bytes (+73.6%)**.
+No system Tree-sitter install, `libclang`, or runtime grammar download is
+required; the released binary carries full parsing capability locally.
+
+### Test counts
+
+`repopact-graph`: 43 tests (up from 18 at the foundation checkpoint).
+Full `cargo test --workspace`: green, including the full Tauri desktop
+build. Canonical `repopact validate`, the Python legacy comparator, and
+`tests/test_conformance.py` (6 passed, 18 subtests) all pass.
+
+### Acceptance criteria assessed this session
+
+**Satisfied:** ROG-003 (typed multilayer node model now includes real
+symbol coverage with proven deterministic, non-line-based IDs), ROG-005
+(every edge across both physical and semantic layers carries relation
+kind, layer, derivation, source, and location where meaningful), ROG-020
+(coverage gaps -- unsupported language, parse failure, policy exclusion,
+adapter failure -- are five distinct, tested, first-class states, never
+collapsed into one "skipped" bucket).
+
+**Pending, with the proven subset and exact gap disclosed** (see the
+evidence record's `ac_notes` for full detail): ROG-004 (edge taxonomy
+broader than what's emitted), ROG-010 (`working_overlay` still
+unreachable pending ROG-013), ROG-017 (no exported/public detection),
+ROG-018 (no exports detection, narrow test-naming heuristic), ROG-022
+(no minified/generated-file policy, no memory measurement).
+
+**Not attempted:** ROG-012/013 (incremental/watcher), ROG-014–016 beyond
+the foundation checkpoint's own proof, ROG-023–030 beyond
+`graph.status/build/verify`, ROG-027/028 (Workbench), ROG-029
+(branch/merge), ROG-032 (dedicated benchmark suite), ROG-033/034 (S8 R1),
+ROG-035/038 (documentation/closeout).
+
+## Next recommended WI063 phase
+
+Two credible options: (a) close this checkpoint's disclosed gaps
+(visibility/exports detection for Rust/JS/TS, minified/generated file
+policy) before broadening further -- narrow, well-understood work; or (b)
+proceed to ROG-012/013 incremental-update proof against this checkpoint's
+now cross-platform-proven full-build oracle, per the architecture
+review's own phase ordering. A fresh architecture review should decide
+between the two rather than this session assuming either.
+

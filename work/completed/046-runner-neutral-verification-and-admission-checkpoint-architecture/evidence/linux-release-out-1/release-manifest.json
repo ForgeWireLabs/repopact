@@ -1,0 +1,22 @@
+{
+  "artifact_version": "3.0.2dev1",
+  "artifacts": [
+    {
+      "kind": "wheel",
+      "path": "repopact-3.0.2.dev1-py3-none-manylinux_2_39_x86_64.whl",
+      "sha256": "cab43e1d42bb2ff47fbb3d8881e3ffdd4b3285795e3c62712aafd1b873f225c8"
+    },
+    {
+      "kind": "sdist",
+      "path": "repopact-3.0.2.dev1.tar.gz",
+      "sha256": "eb52d8ee333a8c34f505eb070bd28f4d83e09a7fd1e4af141a1ff684a671cc18"
+    }
+  ],
+  "commit": "267b80eef865c1164864e00ea096046a32e3a437",
+  "format": "repopact-local-release-manifest-v1",
+  "publication": {
+    "performed": false
+  },
+  "reproducible": true,
+  "version": "3.0.2"
+}

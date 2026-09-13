@@ -1,0 +1,33 @@
+{
+  "artifact_version": "3.0.2dev1",
+  "commit": "267b80eef865c1164864e00ea096046a32e3a437",
+  "reproducible": true,
+  "sdist": {
+    "path": "repopact-3.0.2.dev1.tar.gz",
+    "root_modules": [],
+    "rust_sources": 37,
+    "sha256": "eb52d8ee333a8c34f505eb070bd28f4d83e09a7fd1e4af141a1ff684a671cc18"
+  },
+  "version": "3.0.2",
+  "wheel": {
+    "abi_tag": "none",
+    "data_files": 0,
+    "engine_scripts": [
+      "repopact-3.0.2.dev1.data/scripts/repopact-engine"
+    ],
+    "import_roots": [
+      "repopact"
+    ],
+    "launcher_scripts": [
+      "repopact-3.0.2.dev1.data/scripts/repopact"
+    ],
+    "path": "repopact-3.0.2.dev1-py3-none-manylinux_2_39_x86_64.whl",
+    "platform_tag": "manylinux_2_39_x86_64",
+    "python_tag": "py3",
+    "root_modules": [],
+    "schemas": 15,
+    "sha256": "cab43e1d42bb2ff47fbb3d8881e3ffdd4b3285795e3c62712aafd1b873f225c8",
+    "templates": 7,
+    "top_level": []
+  }
+}

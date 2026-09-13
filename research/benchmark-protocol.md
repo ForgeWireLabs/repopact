@@ -305,3 +305,96 @@ No S8 result is reported from exploratory runs performed before those artifacts 
   correctness and cost into one score.
 - Disconfirming results recorded with the same weight as confirming ones; threats tracked
   in [`threats-to-validity.md`](threats-to-validity.md).
+
+## Dated amendment — 2026-09-13 — WI022 analysis plan for S2-S6
+
+This narrow amendment freezes the WI022 analysis contract before any reportable live
+comparative result from S2, S3, S4, S5, or S6. It does not alter the already-registered
+S1-S6 constructs, task definitions, S7 material, or the S8/R1 governance-continuity
+material above. Exploratory fixture and MockRunner executions remain non-empirical.
+
+### Fixed run configuration
+
+- **Repetitions.** Run each registered task, mutation, or coordination case three times
+  per registered condition and model/version. PactBench/S6a retains its existing task
+  set and uses the same three-repetition rule for new comparative runs. A case-condition
+  pair is the unit of pairing; S3 pairs the two workers within one case run.
+- **Seeds.** Derive the deterministic seed as the unsigned first 64 bits of
+  `SHA-256(study_id || task_set_version || case_id || condition || repetition)`, using
+  the literal separators `|`. Record the resulting integer in every run envelope. No
+  wall-clock or provider-generated seed is accepted.
+- **Temperature.** Use temperature `0` where the provider exposes temperature. Where a
+  provider does not expose that control, record `provider-default` and treat the provider
+  batch as a separately identified configuration; do not pool it silently with a
+  temperature-controlled batch.
+- **Model identity.** Pin and record model family, provider, and the exact provider model
+  or release identifier. An alias, moving `latest` label, or unrecorded wrapper revision
+  is not a model pin. A model/provider/version change starts a new batch and is not pooled
+  with the prior batch without a dated amendment.
+- **Rubrics.** Use the registered task rubric plus the versioned scorer named by the
+  run envelope. The current deterministic driver versions are `s2-recovery-rubric.v1`,
+  `s3-coordination-rubric.v1`, `s4-token-economy.v1`, `s5-drift-adapter.v1`, and
+  `s6b-injection-rubric.v1`; a scorer change requires a new version and amendment.
+
+### Primary effects and uncertainty
+
+Report one primary comparison per study family before exploratory secondary analyses:
+
+- **S2:** paired resolution-rate difference (RepoPact minus baseline), with state-recovery
+  score difference and tokens-to-completion treated as registered secondary outcomes.
+- **S3:** paired difference in joint success, with conflict, duplicate-work, and
+  scope-collision rates reported separately as secondary outcomes.
+- **S4:** success-aware cost-per-resolved-task difference for comparable conditions; also
+  report the registered cost-success Pareto frontier and the slope of context tokens per
+  request against accumulated project state. A failed task has no resolved-task cost and
+  cannot improve the frontier.
+- **S5:** paired detection-rate difference and silent-staleness-rate difference, with
+  time/edits-to-detection and reconciliation cost reported separately. Registered blind
+  spots remain in the denominator and are reported explicitly.
+- **S6:** for S6a use the existing security confusion-matrix catch/false-stop outcomes;
+  for S6b use injection-followed-rate difference and structural-detection-rate difference.
+
+For each primary effect, report a two-sided 95% uncertainty interval using a paired
+bootstrap over case IDs with 10,000 deterministic resamples. The bootstrap seed is
+`SHA-256("ci|" || study_id || "|" || primary_endpoint || "|" || task_set_version)`;
+record the exact implementation and seed in the result manifest. For binary paired
+outcomes also report the exact two-sided McNemar p-value as a sensitivity analysis. Do
+not collapse cost, correctness, drift, or security constructs into a single score.
+
+### Multiplicity, missingness, and exclusions
+
+- The primary endpoint family is the set of one named primary effect for each executed
+  study family. Apply Holm-Bonferroni at family-wise alpha `0.05` across that set, and
+  report raw and adjusted p-values. Secondary endpoints are labelled exploratory and
+  are not used to promote or demote the primary claim.
+- Never impute a missing run, missing token field, missing price, or failed task as zero.
+  A failed or incomplete execution is retained with its failure class and excluded only
+  from the metric whose required observation is absent; the denominator and exclusion
+  count are reported. A missing required telemetry field makes the affected run
+  incomplete/invalid, not a successful cheap run.
+- Exclude a run only for a pre-specified protocol violation: wrong task-set digest,
+  wrong condition, wrong model/version batch, missing raw capture, malformed runner
+  response, or an operator interruption recorded before completion. Exclusions are
+  decided from the run manifest and capture integrity, never from the outcome. If more
+  than 10% of a planned paired endpoint is missing or invalid, stop interpretation of
+  that endpoint and record the batch as incomplete.
+- Stop a batch when all three repetitions for every registered case-condition-model
+  cell are complete, or when the missingness rule above is triggered. There is no
+  optional stopping based on an interim effect, and no replacement case may be selected
+  after seeing results.
+
+### Version drift, pricing, and reportability
+
+Model/provider/version drift, tokenizer changes, wrapper changes, and task-material
+changes are batch boundaries. Preserve the earlier captures and start a new registered
+batch rather than merging unlike telemetry. S4 captures additionally record the provider,
+currency, rate-card/pricing identifier, cache policy, and the rate-card effective timestamp
+in UTC for every request; a later price change is a new pricing batch or a separately
+reported sensitivity analysis.
+
+Every reportable run must carry the exact command, task-set and fixture versions, runner
+contract version, scorer version, model identity, configuration, per-request and aggregate
+telemetry, failure data, and a raw transcript/output/postcondition reference. A run with
+`illustrative` or `non_empirical` classification is excluded from reportable aggregates.
+Fixture selftests, deterministic fake workers, and MockRunner output may validate the
+pipeline but cannot satisfy a live result or RealRunner smoke criterion.

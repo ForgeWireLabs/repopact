@@ -1,0 +1,86 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-deterministic-benchmark-tranche",
+  "timestamp": "2026-09-13T16:30:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git -C C:\\Projects\\repopact-proving-ground-wi022 status --short --branch; git -C C:\\Projects\\repopact-proving-ground-wi022 rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "The isolated Proving Ground branch is clean at 5545fba after three WI022 commits; its starting SHA was 8f68bc4 and no concurrent Proving Ground work was overwritten."
+    },
+    {
+      "command": "python -m compileall -q benchmarks tests",
+      "exit_code": 0,
+      "summary": "The common run substrate, strict RealRunner contract, capture utilities, and S2-S6b drivers compile successfully."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The Proving Ground suite passed 21 tests, including common envelope validation, backward-compatible PactBench loading, malformed RealRunner handling, S2/S3/S4/S5/S6b scoring, deterministic ordering/seeds, and capture integrity."
+    },
+    {
+      "command": "python benchmarks/harness/run.py --selftest",
+      "exit_code": 0,
+      "summary": "The existing 24-task PactBench deterministic selftest remains green. MockRunner output is explicitly illustrative/non-empirical."
+    },
+    {
+      "command": "python benchmarks/drift/harness.py --selftest",
+      "exit_code": 1,
+      "summary": "The existing S5 selftest still fails before execution with ModuleNotFoundError for flat module init_repo. This is the known WI037 package-boundary blocker; WI022 did not vendor or repair it."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected in the isolated RepoPact worktree."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "The current RepoPact worktree installed successfully in editable development mode with its declared development dependencies."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "RepoPact governance validation passed after the WI022 amendment, evidence record, work-item reconciliation, and dashboard regeneration."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The full RepoPact suite passed: 283 tests ran, with 2 pre-existing formal-model obligations skipped."
+    }
+  ],
+  "artifacts": [
+    "benchmarks/harness/execution.py",
+    "benchmarks/harness/runners.py",
+    "benchmarks/harness/capture.py",
+    "benchmarks/harness/run.schema.json",
+    "benchmarks/s2/",
+    "benchmarks/s3/",
+    "benchmarks/s4/",
+    "benchmarks/s5/",
+    "benchmarks/s6b/",
+    "tests/test_benchmark_suite.py",
+    "research/benchmark-protocol.md",
+    "work/active/022-benchmark-suite/"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repopact_worktree": "C:\\Projects\\repopact-wi022",
+    "repopact_start_sha": "f880143122b7c06c042609aaa8e49ef1d405a700f",
+    "proving_ground_worktree": "C:\\Projects\\repopact-proving-ground-wi022",
+    "proving_ground_start_sha": "8f68bc4ba38aadfb85c11f51d0e21f89201cc274",
+    "proving_ground_end_sha": "5545fba278cd3d07d8bf01c53821caea7bdb7b7e",
+    "classification": "deterministic plumbing checkpoint; no live model or empirical result",
+    "operator_gates": [
+      "S2 external materialization must be executed from its pinned dataset revisions",
+      "RealRunner smoke requires provisioned model credentials",
+      "AC-3 requires runs across at least two model families",
+      "WI037 owns the Proving Ground package-boundary repair"
+    ],
+    "concurrency": "WI061 and WI063 RepoPact work was not overwritten or folded into WI022; the RepoPact worktree was created from the fetched origin/main at f880143."
+  }
+}

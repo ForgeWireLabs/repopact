@@ -55,38 +55,51 @@ governed by threats T5, T6, T7, T8.
 - **AC-4** — freeze the statistical analysis plan before interpreting any live result.
 - **AC-5** — run and capture a three-task RealRunner smoke against one real model.
 
-## Progress (reconciled 2026-07-26)
+## Progress (reconciled 2026-09-13)
 
-Foundation landed; criteria stay `pending` because the live-model runs they ultimately
-require are operator-gated. Evidence:
+The deterministic/non-operator-gated tranche is implemented in the isolated Proving
+Ground WI022 branch; live-model criteria remain pending. Evidence:
 [`20260624-pactbench-harness-selftest`](../../../evidence/runs/20260624-pactbench-harness-selftest.json)
 (`partial`).
 
-- **Harness** (now in the Proving Ground repo, `benchmarks/harness/`) runs end-to-end via a deterministic `MockRunner`:
-  loader → arms → grader → confusion matrix + token/cost instrumentation; `--selftest`
-  green over the task set. The `RealRunner` is the documented, operator-gated integration
-  point (toward AC-1 plumbing + AC-2 instrumentation).
-- **PactBench** now has **24 tasks** (17 `must_not_weaken` across correctness and six
-  security classes + 7 decoys), verified in the public 2.2.0 adopter rollout. Real,
-  runnable fixtures and deterministic harness selftests remain plumbing evidence, not
-  agent-behavior findings.
-- **Still gated:** S2/S3/S4 drivers and real-model runs across ≥2 model families
-  (AC-2 full instrumentation, AC-3 results). No row in any harness report is a finding yet.
-- **Statistical and live-run gates added 2026-07-18:** AC-4 prevents post-hoc analysis
-  choices, and AC-5 prevents an untested RealRunner interface from becoming the critical
-  path for the full experiment.
+- **Common substrate:** `repopact.experiment-run.v1` carries study/case/condition,
+  fixture/task-set versions, repetition/seed, model identity, policy/scorer versions,
+  completion/failure state, per-request and aggregate telemetry, observations, capture
+  references, exact command, provenance, and illustrative classification.
+- **PactBench** now has **24 tasks**; the registered S1/S6a suite remains unchanged and
+  its deterministic selftest is plumbing evidence only.
+- **RealRunner:** `repopact.real-runner.v1` is provider-neutral and rejects malformed or
+  incomplete telemetry instead of turning it into zeroes. A failed/incomplete response is
+  retained as an explicit non-reportable failure.
+- **Drivers and registrations:** Proving Ground now has deterministic S2 recovery and
+  pinned-bed selectors/materialization, S3 concurrent isolated-worker scoring, S4 C0-C9
+  plus C2+C3 condition validation and cost/success analyses, an S5 shared-envelope
+  adapter, and S6b scoring over frozen tasks 0023/0024. Mock/fake outputs are explicitly
+  illustrative/non-empirical.
+- **Still gated:** S2/S3/S4/S6b live execution, full applicable-study telemetry, results
+  across ≥2 model families, and the three-task RealRunner smoke. No row in any harness
+  report is a finding.
+- **S5 dependency:** the existing drift selftest still fails at the removed flat import
+  `init_repo`; the supported package-boundary repair remains WI037-owned and was not
+  folded into this work.
+- **Analysis freeze:** the dated 2026-09-13 amendment in
+  [`research/benchmark-protocol.md`](../../../research/benchmark-protocol.md) freezes
+  repetitions, seeds, temperature/model/version policy, scorers, paired effects,
+  uncertainty, multiplicity, missingness, exclusions, stopping, pricing timestamps, and
+  illustrative-vs-reportable treatment.
 
 ## Criterion state
 
-- [ ] **AC-1** — pending. S1/S6a and S5 foundations exist; S2, S3, S4, and S6b
-  drivers/task sets do not.
-- [ ] **AC-2** — pending. Confusion-matrix and illustrative token/cost plumbing
-  exist, but the full token/context, drift-cost, and injection instrumentation
-  contract is not implemented across S2–S6.
+- [ ] **AC-1** — pending. S2-S6 driver boundaries and pre-registrations now exist, but
+  the full wording is not claimed while external S2 materialization and the complete
+  live study execution path remain unverified; S5's existing executable harness is also
+  blocked by WI037's package boundary.
+- [ ] **AC-2** — pending. Common telemetry validation and S4/S5/S6b metrics exist, but
+  complete applicable-study instrumentation has not been demonstrated with live runs.
 - [ ] **AC-3** — pending and operator-gated. No results across two model families,
   Pareto frontier, or scaling curve exist.
-- [ ] **AC-4** — pending. No dated statistical amendment freezes the enumerated
-  analysis choices.
+- [x] **AC-4** — satisfied. The dated 2026-09-13 WI022 amendment freezes the enumerated
+  analysis choices before any reportable live result.
 - [ ] **AC-5** — pending and operator-gated. No three-task RealRunner smoke exists.
 
 The 2026-07-26 live check also found that Proving Ground's S5 selftest fails
@@ -97,4 +110,6 @@ plumbing evidence only.
 Evidence:
 [`20260624-pactbench-harness-selftest`](../../../evidence/runs/20260624-pactbench-harness-selftest.json)
 and
-[`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).
+[`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json),
+and
+[`20260913-wi022-deterministic-benchmark-tranche`](../../../evidence/runs/20260913-wi022-deterministic-benchmark-tranche.json).

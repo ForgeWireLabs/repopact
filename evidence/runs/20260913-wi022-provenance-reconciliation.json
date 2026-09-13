@@ -1,0 +1,65 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-provenance-reconciliation",
+  "timestamp": "2026-09-13T14:45:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git -C C:\\Projects\\repopact-proving-ground-wi022 rev-parse HEAD; git -C C:\\Projects\\repopact-wi022 rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "The verified implementation tips are Proving Ground 5545fba278cd3d07d8bf01c53821caea7bdb7b7e and RepoPact 075214835e753f0c5910a147f883c6502866066e before this supplemental record."
+    },
+    {
+      "command": "git -C C:\\Projects\\repopact-wi022 merge-base origin/main codex/wi022-repopact-records",
+      "exit_code": 0,
+      "summary": "The current RepoPact merge base with the concurrent WI063-integrated default branch is b614bf7f6025fd503267685fdd5a1caca39ac5b1."
+    },
+    {
+      "command": "python -m unittest discover -s tests -q",
+      "exit_code": 0,
+      "summary": "The final verified Proving Ground suite passed 22 tests; the PactBench selftest passed all 24 tasks."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The final verified RepoPact suite passed 283 tests, with 2 pre-existing formal-model obligations skipped."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .; python -m repopact.cli check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "RepoPact validation and frozen-surface checks passed."
+    },
+    {
+      "command": "python benchmarks/drift/harness.py --selftest",
+      "exit_code": 1,
+      "summary": "The existing S5 selftest remains blocked before execution by ModuleNotFoundError for flat module init_repo; this is WI037-owned and was not changed by WI022."
+    }
+  ],
+  "artifacts": [
+    "evidence/runs/20260913-wi022-deterministic-benchmark-tranche.json",
+    "evidence/runs/20260913-wi022-provenance-reconciliation.json",
+    "work/active/022-benchmark-suite/work-item.json",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "proving_ground_tip": "5545fba278cd3d07d8bf01c53821caea7bdb7b7e",
+    "repopact_branch_tip_before_supplemental_record": "075214835e753f0c5910a147f883c6502866066e",
+    "current_repopact_merge_base_with_wi063": "b614bf7f6025fd503267685fdd5a1caca39ac5b1",
+    "earlier_repopact_end_sha": "1dc2d2cedb98a17bb564243f6561d77824bab667",
+    "checkpoint_explanation": "The earlier repopact_end_sha is the validated and reconciled checkpoint recorded by the original evidence run; it is not recursively self-updating to later repository HEADs.",
+    "post_checkpoint_changes": "Commits after that checkpoint changed only evidence reconciliation and test-count bookkeeping, not benchmark implementation semantics.",
+    "final_verified_results": {
+      "proving_ground_tests": 22,
+      "pactbench_selftest_tasks": 24,
+      "repopact_tests": 283,
+      "repopact_skipped": 2,
+      "repopact_validate": "pass",
+      "frozen_surface_check": "pass",
+      "s5_selftest": "blocked by WI037 package-boundary issue"
+    },
+    "acceptance_states_unchanged": true,
+    "acceptance_note": "This supplemental record does not change AC-1/AC-2/AC-3/AC-5 pending states or AC-4 satisfied state; WI022 remains active and has no empirical findings."
+  }
+}

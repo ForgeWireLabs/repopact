@@ -124,6 +124,7 @@ pub fn capabilities() -> Capabilities {
             "graph.status".to_owned(),
             "graph.build".to_owned(),
             "graph.verify".to_owned(),
+            "graph.update".to_owned(),
             "analyze".to_owned(),
         ],
         semantic_surfaces: vec![

@@ -53,6 +53,34 @@ class GraphCliTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertEqual(result["freshness"], "stale")
 
+    def test_update_with_no_prior_graph_is_a_full_fallback(self) -> None:
+        code, result = self.capture("update")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["mode"], "full_fallback")
+        self.assertEqual(result["fallback_reason"], "graph_absent")
+
+    def test_update_after_build_with_no_change_is_a_true_no_op(self) -> None:
+        self.capture("build")
+        code, result = self.capture("update")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["mode"], "no_op")
+        self.assertEqual(result["semantic_reparsed"], 0)
+
+    def test_update_after_one_file_change_reuses_the_rest(self) -> None:
+        (self.root / "src" / "other.rs").write_text("pub fn y() {}\n", encoding="utf-8")
+        self.capture("build")
+        (self.root / "src" / "lib.rs").write_text("pub fn x() { /* changed */ }\n", encoding="utf-8")
+        code, result = self.capture("update")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["mode"], "incremental")
+        self.assertEqual(result["files_modified"], 1)
+        self.assertEqual(result["semantic_reparsed"], 1)
+        self.assertGreaterEqual(result["semantic_reused"], 1)
+
+        verify_code, verify_result = self.capture("verify")
+        self.assertEqual(verify_code, 0)
+        self.assertEqual(verify_result["freshness"], "fresh")
+
 
 if __name__ == "__main__":
     unittest.main()

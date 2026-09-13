@@ -110,6 +110,7 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.status" => graph_status(&request),
         "graph.build" => graph_build(&request),
         "graph.verify" => graph_verify(&request),
+        "graph.update" => graph_update(&request),
         "analyze" => analyze(&request),
         operation => EngineResponse::failure(
             request.request_id.clone(),
@@ -361,6 +362,28 @@ fn graph_verify(request: &EngineRequest) -> EngineResponse {
         ENGINE_VERSION,
         serde_json::to_value(status).unwrap_or(Value::Null),
     )
+}
+
+/// WI063 incremental-equivalence checkpoint (ROG-012, Decision 0046).
+/// Reuses unchanged semantic contributions and always converges to the
+/// same canonical output as `graph.build`; never hides a full rebuild
+/// behind a claimed "incremental" mode (see
+/// `repopact_graph::incremental::UpdateMode`).
+fn graph_update(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let core = RepoPactCore::open(root);
+    let snapshot = core.snapshot();
+    match repopact_graph::incremental::update(&snapshot) {
+        Ok(result) => EngineResponse::success(
+            request.request_id.clone(),
+            ENGINE_VERSION,
+            serde_json::to_value(result).unwrap_or(Value::Null),
+        ),
+        Err(error) => semantic_failure(request, error.code, error.message),
+    }
 }
 
 fn analyze(request: &EngineRequest) -> EngineResponse {

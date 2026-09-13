@@ -88,6 +88,36 @@ def _verify(args: argparse.Namespace) -> int:
     return _FRESHNESS_EXIT_CODES.get(result.get("freshness"), 2)
 
 
+def _update(args: argparse.Namespace) -> int:
+    try:
+        response = EngineClient().call("graph.update", root=args.root)
+    except EngineSemanticError as error:
+        print(f"RepoPact graph update failed: {error}", file=sys.stderr)
+        return 1
+    result = response["result"]
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        mode = result.get("mode", "unknown")
+        lines = [f"RepoPact orientation graph update: mode={mode}"]
+        if result.get("fallback_reason"):
+            lines.append(f"  fallback_reason={result['fallback_reason']}")
+        lines.append(
+            f"  files: added={result.get('files_added')} modified={result.get('files_modified')} "
+            f"deleted={result.get('files_deleted')} unchanged={result.get('files_unchanged')}"
+        )
+        lines.append(
+            f"  semantic: reparsed={result.get('semantic_reparsed')} "
+            f"reused={result.get('semantic_reused')} skipped={result.get('semantic_skipped')}"
+        )
+        lines.append(
+            f"  graph: nodes={result.get('final_node_count')} edges={result.get('final_edge_count')} "
+            f"freshness={result.get('freshness')}"
+        )
+        print("\n".join(lines))
+    return _FRESHNESS_EXIT_CODES.get(result.get("freshness"), 2)
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="RepoPact Repository Orientation Graph (WI063 foundation) operations"
@@ -108,6 +138,13 @@ def main(argv: list[str] | None = None) -> int:
     p_verify.add_argument("--root", type=Path, default=Path.cwd())
     p_verify.add_argument("--json", action="store_true")
     p_verify.set_defaults(handler=_verify)
+
+    p_update = sub.add_parser(
+        "update", help="Incrementally update the durable graph (falls back to a full rebuild when reuse is not safe)"
+    )
+    p_update.add_argument("--root", type=Path, default=Path.cwd())
+    p_update.add_argument("--json", action="store_true")
+    p_update.set_defaults(handler=_update)
 
     args = parser.parse_args(argv)
     return args.handler(args)

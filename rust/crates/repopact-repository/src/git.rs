@@ -100,6 +100,17 @@ impl NativeGitRunner {
             // console or flash a native terminal window.
             command.creation_flags(0x08000000);
         }
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            // Make the child its own process group leader (pgid == its pid).
+            // Git (or a shell wrapping a test command) may itself fork
+            // descendants; without this, killing only the direct child leaves
+            // any such descendant orphaned and still holding the stdout/stderr
+            // pipes open, so terminate_child_tree's kill would not actually
+            // bound how long this call can block.
+            command.process_group(0);
+        }
         command
     }
 
@@ -159,6 +170,15 @@ fn terminate_child_tree(child: &mut Child, containment: Option<ProcessContainmen
     if let Some(containment) = containment {
         containment.terminate();
     }
+    #[cfg(unix)]
+    if let Some(pgid) = containment {
+        // Negative pid targets the whole process group (see setpgid(2)/
+        // kill(2)): this reaches descendants the direct child may itself
+        // have forked, not just the immediate child.
+        unsafe {
+            let _ = libc::kill(-pgid, libc::SIGKILL);
+        }
+    }
     let _ = child.kill();
     let deadline = Instant::now() + TERMINATION_GRACE;
     loop {
@@ -173,8 +193,10 @@ fn terminate_child_tree(child: &mut Child, containment: Option<ProcessContainmen
 #[cfg(windows)]
 type ProcessContainment = WindowsJobObject;
 
-#[cfg(not(windows))]
-type ProcessContainment = ();
+/// The child's process group id (== its own pid; see `command()`'s
+/// `process_group(0)`), used to kill the whole group on timeout.
+#[cfg(unix)]
+type ProcessContainment = i32;
 
 #[cfg(windows)]
 #[derive(Debug)]
@@ -248,9 +270,9 @@ fn contain_child(child: &Child) -> io::Result<ProcessContainment> {
     WindowsJobObject::attach(child)
 }
 
-#[cfg(not(windows))]
-fn contain_child(_child: &Child) -> io::Result<ProcessContainment> {
-    Ok(())
+#[cfg(unix)]
+fn contain_child(child: &Child) -> io::Result<ProcessContainment> {
+    Ok(child.id() as i32)
 }
 
 impl GitRunner for NativeGitRunner {
@@ -405,6 +427,14 @@ mod tests {
         {
             assert!(source.contains("JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE"));
             assert!(source.contains("creation_flags(0x08000000)"));
+        }
+        #[cfg(unix)]
+        {
+            // The whole process group, not just the direct child, must be
+            // signaled on timeout -- a plain child.kill() cannot reach a
+            // descendant the direct child forked itself.
+            assert!(source.contains("process_group(0)"));
+            assert!(source.contains("libc::kill(-pgid"));
         }
     }
 }

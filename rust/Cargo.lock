@@ -2925,6 +2925,7 @@ dependencies = [
 name = "repopact-repository"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "repopact-types",
  "serde_json",
  "sha2",

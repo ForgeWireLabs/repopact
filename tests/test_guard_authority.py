@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 from unittest.mock import patch
 from pathlib import Path
@@ -89,6 +90,14 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertIn(report["interpreter"]["canonical_path"], report["service_command"])
         self.assertIn("--state-root", report["service_command"])
 
+    @unittest.skipUnless(
+        os.name == "nt",
+        "WindowsBackend's dependency-trust preflight resolves user-writable roots "
+        "via Windows-only env vars (USERPROFILE/LOCALAPPDATA/TEMP/TMP) and ACL "
+        "inspection (_windows_path_chain_is_protected short-circuits with "
+        "'Windows ACL inspection is unavailable on this host' when os.name != 'nt'); "
+        "this scenario is only meaningful on Windows.",
+    )
     def test_user_site_dependency_is_rejected_even_outside_checkout_and_venv(self):
         backend = WindowsBackend()
         user_site = self.tmp / "user-site" / "site-packages"

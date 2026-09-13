@@ -6,6 +6,7 @@ publish = false
 
 [dependencies]
 regex.workspace = true
+repopact-graph.workspace = true
 repopact-repository.workspace = true
 repopact-schema.workspace = true
 repopact-types.workspace = true

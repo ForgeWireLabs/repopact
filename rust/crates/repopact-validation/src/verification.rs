@@ -46,7 +46,9 @@ fn validate_semantics(validator: &Validator, value: &Value, path: &Path) -> Vec<
         if !profiles.contains_key(default) {
             diagnostics.push(validator.at(
                 "verification.default-profile-missing",
-                format!("default_profile {default:?} does not name a declared verification profile"),
+                format!(
+                    "default_profile {default:?} does not name a declared verification profile"
+                ),
                 path,
             ));
         }
@@ -208,10 +210,16 @@ mod tests {
             }"#,
         );
         let codes = verification_codes(&root);
-        assert!(codes.iter().any(|code| code == "verification.default-profile-missing"));
-        assert!(codes.iter().any(|code| code == "verification.step-duplicate"));
+        assert!(codes
+            .iter()
+            .any(|code| code == "verification.default-profile-missing"));
+        assert!(codes
+            .iter()
+            .any(|code| code == "verification.step-duplicate"));
         assert!(codes.iter().any(|code| code == "verification.cwd-escape"));
-        assert!(codes.iter().any(|code| code == "verification.placeholder-unknown"));
+        assert!(codes
+            .iter()
+            .any(|code| code == "verification.placeholder-unknown"));
         fs::remove_dir_all(root).unwrap();
     }
 

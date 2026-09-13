@@ -2956,6 +2956,7 @@ name = "repopact-validation"
 version = "0.1.0"
 dependencies = [
  "regex",
+ "repopact-graph",
  "repopact-repository",
  "repopact-schema",
  "repopact-types",

@@ -1,4 +1,5 @@
 mod adopters;
+mod graph;
 mod research;
 mod verification;
 
@@ -146,6 +147,7 @@ impl Validator {
         self.validate_dashboard();
         self.validate_adopters();
         self.validate_research();
+        self.validate_graph();
         self.diagnostics.sort_by(|left, right| {
             (left.path.as_deref(), &left.message).cmp(&(right.path.as_deref(), &right.message))
         });

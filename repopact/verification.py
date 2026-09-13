@@ -58,6 +58,7 @@ class StepResult:
 class CoverageSummary:
     mode: str
     satisfied: bool
+    host_ready: bool
     all_declared_executed: bool
     required_total: int
     required_executed: int
@@ -505,25 +506,37 @@ def _coverage(profile: dict[str, Any], results: list[StepResult], platform: str)
         sorted({platform_name for step in required for platform_name in step.platforms})
     )
     required_platforms = tuple(sorted(profile.get("required_platforms") or ()))
+    # host_ready answers a narrower question than `satisfied`: did *this*
+    # host complete everything it is itself responsible for, independent of
+    # whether other required platforms have ever run? A caller that wants to
+    # gate host-scoped work (e.g. "may I build the artifact this host owns")
+    # should use host_ready, not `satisfied` -- `satisfied` additionally
+    # requires the full cross-platform required_platforms set to be
+    # represented by *this single invocation*, which no individual host can
+    # ever do once more than one platform is required. Conflating the two
+    # is WI046 architecture defect C: it deadlocked every host's release
+    # build behind a completeness claim only a nonexistent multi-host single
+    # process could ever satisfy.
     if mode == "complete":
         # A single local invocation can only ever attest to the host it ran on.
         # "complete" is honestly satisfied only when this run's platform covers
         # the *entire* declared required-platform set; any other required
         # platform is reported as missing rather than assumed executed
         # elsewhere. Aggregating separate hosts' evidence into one complete
-        # verdict is a deliberately separate, not-yet-built concern.
+        # verdict is a deliberately separate operation (see
+        # release_local.aggregate_release_readiness), not something a single
+        # profile invocation can ever claim by itself.
         missing_platforms = tuple(sorted(set(required_platforms) - {platform}))
-        satisfied = (
-            not required_unavailable
-            and not required_not_applicable
-            and not missing_platforms
-        )
+        host_ready = not required_unavailable and not required_not_applicable
+        satisfied = host_ready and not missing_platforms
     else:
         missing_platforms = ()
         satisfied = not required_unavailable
+        host_ready = satisfied
     return CoverageSummary(
         mode=mode,
         satisfied=satisfied,
+        host_ready=host_ready,
         all_declared_executed=all_declared_executed,
         required_total=len(required),
         required_executed=len(required_executed),

@@ -21,6 +21,11 @@ from .verification import (
 
 
 def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["status"]:
+        from . import verify_status
+
+        return verify_status.main(argv[1:])
     parser = argparse.ArgumentParser(
         description="Run a repository-defined RepoPact verification profile locally"
     )

@@ -184,7 +184,13 @@ When hosted CD is enabled, release verification and artifact construction use th
 
 One host only proves what actually ran there. A Windows verification run is not Linux or macOS evidence, and a desktop run is not Android or iOS evidence. Profile output records the executing platform, declared platform applicability, capability availability, and aggregate coverage.
 
-Release claims that require multiple platforms should aggregate concrete evidence from those actual platforms rather than treating one green profile as universal proof.
+A single host's `release` profile run therefore always reports `status: incomplete` once more than one platform is required -- that is honest, not a defect. `coverage.host_ready` is the narrower signal for "did this host finish everything it itself owns," and it is what gates whether this host may build its own release artifacts. Building on one host never requires (and never waits for) the other required platforms.
+
+Cross-platform release readiness is a deliberately separate, explicit operation: `repopact release readiness --evidence <path>...` combines multiple hosts' repository-native `release-readiness.json` records (one written per `release build` run) into one aggregate verdict, keyed on matching candidate identity (commit, version, dirty state) rather than any provider run ID. It reports missing platforms, failed platforms, evidence from the wrong candidate, and the aggregate ready/not-ready state. Aggregate incompleteness never blocks a host from building; it only blocks claiming the release as fully cross-platform ready.
+
+## Unified local status view
+
+`repopact verify status [--json] [--release-evidence PATH...]` prints one operator-facing view combining: local verification (contract presence, default profile, latest recorded evidence and its result); hosted CI and hosted CD (the local policy default, whether an adapter workflow file is present, and its gating repository-variable name -- the *actual* live value of that variable is always reported as `unknown`, since reading it would require a remote API call this command never makes); admission/enforcement coverage, invocation, effectiveness, and enforcement closure (each `not-proven` unless concrete evidence says otherwise -- a local pass is never treated as proof of remote enforcement); and release (required platforms, which have supplied evidence, missing platforms, and aggregate readiness). No remote API call is made anywhere in this command.
 
 ## Relationship to authorization
 

@@ -1,0 +1,51 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-063-foundation-checkpoint",
+  "timestamp": "2026-09-13T19:40:00Z",
+  "work_item": "063",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {"command":"Decision 0044 recorded before implementation","exit_code":0,"summary":"decisions/0044-durable-repository-orientation-graph-projection-and-freshness-contract.md binds authority, durable path (rog/manifest.json + nodes/edges/shard-NNNN.jsonl), schema version 1 with fail-closed unknown-major behavior, canonical serialization rules, SHA-256-keyed stable sharding (N=16), the source projection and content-hash fingerprint, manifest-presence-as-capability-signal, the six-state freshness model, and the local-cache boundary (defined, not built)."},
+    {"command":"cargo test -p repopact-graph --manifest-path rust/Cargo.toml","exit_code":0,"summary":"14/14 tests pass: platform-independent stable physical node IDs, workspace/configuration-file classification, no absolute-path leakage, byte-for-byte repeated full-build determinism, graph self-exclusion from its own source projection, stale-fingerprint detection, graph-disabled compatibility, unknown major schema version rejection, corrupted shard-hash detection, duplicate-node rejection, dangling-edge rejection, and a WI057-equivalent bounded git-invocation-count test (<=4)."},
+    {"command":"cargo test -p repopact-validation --manifest-path rust/Cargo.toml","exit_code":0,"summary":"49/49 tests pass (46 pre-existing + 3 new): a graph-disabled repository reports zero graph.* diagnostics, a freshly built durable graph validates cleanly through the canonical validate() entry point, and a tampered (unsupported) schema version is surfaced as graph.schema-unsupported by canonical validate()."},
+    {"command":"cargo test --workspace --manifest-path rust/Cargo.toml","exit_code":0,"summary":"Full Rust workspace green after fixing a genuine regression caught mid-session: the first draft of SourceProjection::build called Repository::all_files(), which recomputes RepositoryTopology (fresh Git invocations) on every call, breaking repopact-desktop-api's desktop_reads_reuse_one_snapshot_generation_without_git_fanout and watcher_burst_has_one_bounded_refresh_and_ignores_build_churn. Fixed by threading the already-open snapshot's topology through RepositoryGraph::build_with_fingerprint; both tests restored to green."},
+    {"command":"repopact validate --root . (REPOPACT_ENGINE, freshly rebuilt)","exit_code":0,"summary":"Canonical Rust validation passes on the live repository (which has no rog/ directory -- graph-disabled, correctly reported as valid with zero graph.* diagnostics)."},
+    {"command":"repopact.legacy_validate --root .","exit_code":0,"summary":"Explicit Python legacy comparator agrees."},
+    {"command":"python -m pytest tests/test_conformance.py -q","exit_code":0,"summary":"6 passed, 18 subtests passed."},
+    {"command":"python -m pytest tests/test_graph_cli.py -v","exit_code":0,"summary":"3/3 new Python CLI tests pass: status on a disabled repository reports absent and exits 0; build then status reports fresh; a source change after build is reported stale via graph verify (exit 1)."},
+    {"command":"python -m pytest tests/ -q (broad suite, excluding the disclosed WI050 Windows gap file)","exit_code":0,"summary":"270 passed, 2 pre-existing skips, no regressions."},
+    {"command":"Manual end-to-end engine protocol test (raw stdio)","exit_code":0,"summary":"graph.build on a live fixture produced a real durable graph (4 nodes across governance+physical layers, 3 edges, sharded across 16 shards); graph.status/graph.verify correctly reported fresh; editing a source file after the build correctly flipped freshness to stale on the next graph.verify call."},
+    {"command":"Cross-platform canonical determinism proof (ROG-011)","exit_code":0,"summary":"A minimal 5-file fixture, confirmed byte-identical by SHA-256 of every source file, was independently built on native Windows (C:\\Projects\\repopact checkout) and a Linux-native WSL2 Debian 13 checkout (~/repopact-linux, never /mnt/c/...) via the raw engine stdio protocol. Result: byte-for-byte identical source_projection_fingerprint (0d95a16cffaaf1ffce81189ca8e6ab90b81fe03daea6114ec2a920f6eba9b5e5), node_count (8), edge_count (13), and every individual node/edge shard SHA-256 hash across both platforms. No macOS execution occurred or is claimed."}
+  ],
+  "artifacts": [
+    "decisions/0044-durable-repository-orientation-graph-projection-and-freshness-contract.md",
+    "rust/crates/repopact-graph/src/lib.rs",
+    "rust/crates/repopact-graph/src/physical.rs",
+    "rust/crates/repopact-graph/src/projection.rs",
+    "rust/crates/repopact-graph/src/durable.rs",
+    "rust/crates/repopact-graph/src/validate.rs",
+    "rust/crates/repopact-graph/src/status.rs",
+    "rust/crates/repopact-validation/src/graph.rs",
+    "rust/apps/repopact-engine/src/main.rs",
+    "rust/crates/repopact-protocol/src/lib.rs",
+    "repopact/graph_cli.py",
+    "repopact/cli.py",
+    "tests/test_graph_cli.py",
+    "work/active/063-durable-repository-orientation-graph-and-incremental-semantic-index/architecture-review.md",
+    "work/active/063-durable-repository-orientation-graph-and-incremental-semantic-index/implementation-progress.md"
+  ],
+  "environment": {
+    "date": "2026-09-13",
+    "windows": "10.0.19045 x64, C:\\Projects\\repopact",
+    "linux": "WSL2 Debian 13 (trixie), Linux-native checkout at ~/repopact-linux (never /mnt/c/...)",
+    "macos": "not available; not claimed"
+  },
+  "closeout": {
+    "scope": "Foundation checkpoint only, per this session's consolidated implementation sequence: durable graph contract, graph core (physical layer), repository/session integration, durable serialization, source projection/fingerprint, freshness (partial: fresh/stale/unsupported/corrupt/absent proven, working_overlay/partial declared but not emitted), engine protocol/CLI (status/build/verify only), and validation/conformance (structural checks only, no incremental/language-adapter coverage).",
+    "acs_satisfied_this_session": ["ROG-001", "ROG-002", "ROG-006", "ROG-007", "ROG-008", "ROG-009", "ROG-011"],
+    "acs_with_partial_evidence_but_left_pending": ["ROG-003", "ROG-004", "ROG-005", "ROG-010", "ROG-023", "ROG-024", "ROG-025", "ROG-026", "ROG-030", "ROG-031", "ROG-036", "ROG-037", "ROG-039", "ROG-040"],
+    "not_attempted_this_session": ["ROG-012 through ROG-022 (semantic adapters, incremental engine, adoption)", "ROG-027/028 (Workbench)", "ROG-029 (branch/merge)", "ROG-032 (performance/storage evidence)", "ROG-033/034 (S8 R1)", "ROG-035/038 (documentation/closeout)"],
+    "next_phase": "Phase 2: semantic language adapters -- evaluate Tree-sitter vs alternatives and record the decision before writing any parser adapter; define the adapter interface; implement Rust/Python/TypeScript coverage incrementally with coverage reporting and parser-failure isolation."
+  }
+}

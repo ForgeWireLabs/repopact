@@ -26,14 +26,14 @@
     {
       "id": "ROG-001",
       "text": "Record a durable architecture decision before implementation makes a persistent graph format canonical. The decision defines the graph's repository path, schema/version contract, sharding/canonical serialization, source-projection fingerprint, enablement semantics, local-cache boundary, migration/backfill behavior, and the fact that the graph is derived rather than a new source of truth.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-002",
       "text": "Extend the canonical WI054 Rust graph/query authority instead of creating a second competing graph implementation. Existing governance nodes and relationships remain canonical for governance, while repository-orientation layers add physical, semantic, build/test/operational relationships and deterministic cross-layer links.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-003",
@@ -56,26 +56,26 @@
     {
       "id": "ROG-006",
       "text": "Define and enforce derivation classes that distinguish canonical RepoPact-record relationships, deterministic parser relationships, manifest/build-system relationships, and any future heuristic/inferred relationships. LLM or heuristic output is never silently promoted to concrete graph authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-007",
       "text": "Implement a deterministic portable durable graph representation suitable for Git versioning, clean-clone loading, corruption detection, and canonical rebuild. The representation includes a manifest plus stable partitioning/sharding of graph data so unrelated source changes do not rewrite the entire graph unnecessarily.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-008",
       "text": "Do not make a committed SQLite, sled, RocksDB, or other opaque binary database the sole durable graph representation. A local acceleration database is permitted only as a disposable, reconstructable cache whose deletion loses no repository-authoritative state.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-009",
       "text": "Define a canonical source projection and fingerprint that excludes the graph's own derived files and explicitly excluded cache/generated paths, avoids circular self-hashing, and uses stable path/content or Git object identities where available. Graph freshness can be verified without blindly reparsing every source file.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-010",
@@ -86,8 +86,8 @@
     {
       "id": "ROG-011",
       "text": "Canonical full graph rebuilds from the same source projection and graph-schema version are deterministic and byte-equivalent after documented normalization across repeated runs and supported platforms. Nondeterministic timestamps or traversal order may not poison the fixpoint.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260913-063-foundation-checkpoint"]
     },
     {
       "id": "ROG-012",

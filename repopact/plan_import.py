@@ -395,10 +395,11 @@ def main() -> int:
         return 0
     from . import validate_repo
     problems = validate_repo.validate(root)
-    if problems:
-        for p in problems:
+    blocking = validate_repo.blocking_problems(problems)
+    if blocking:
+        for p in blocking:
             print(f"ERROR {p.path.relative_to(root)}: {p.message}")
-        print(f"\nImport produced {len(problems)} validation error(s).")
+        print(f"\nImport produced {len(blocking)} validation error(s).")
         return 1
     print("\nwork/ ledger imported; repository validates as a conformant RepoPact.")
     return 0

@@ -307,9 +307,10 @@ def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
                     "actions": [], "decisions": [], "downgraded": [], "blocked": []}
 
     problems = validate_repo.validate(root)
-    if problems:
+    blocking = validate_repo.blocking_problems(problems)
+    if blocking:
         report["validated"] = False
-        report["problems"] = [f"{p.path.relative_to(root)}: {p.message}" for p in problems]
+        report["problems"] = [f"{p.path.relative_to(root)}: {p.message}" for p in blocking]
         return report
 
     archive_root = root / "archive"
@@ -369,7 +370,7 @@ def takeover(root: Path, delete: bool = False, dry_run: bool = False) -> dict:
 
     if not dry_run and report["retired"]:
         generate_dashboard.write_dashboard(root)
-        report["post_validate_ok"] = not validate_repo.validate(root)
+        report["post_validate_ok"] = not validate_repo.blocking_problems(validate_repo.validate(root))
     return report
 
 

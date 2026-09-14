@@ -169,10 +169,11 @@ def main() -> int:
     from . import validate_repo
 
     problems = validate_repo.validate(target)
-    if problems:
-        for problem in problems:
+    blocking = validate_repo.blocking_problems(problems)
+    if blocking:
+        for problem in blocking:
             print(f"ERROR {problem.path.relative_to(target)}: {problem.message}")
-        print(f"\nBootstrap produced an invalid repository: {len(problems)} error(s).")
+        print(f"\nBootstrap produced an invalid repository: {len(blocking)} error(s).")
         return 1
     print(f"Bootstrapped a valid RepoPact at {target}")
     return 0

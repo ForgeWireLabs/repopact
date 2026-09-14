@@ -119,8 +119,9 @@ def evaluate_case(case: dict, command: str, fixtures_root: Path) -> CaseResult:
     output = "\n".join(part for part in (proc.stdout, proc.stderr) if part)
     expect = case.get("expect")
     if expect == "accept":
-        if reference_problems:
-            observed = "; ".join(problem.message for problem in reference_problems)
+        blocking = [problem for problem in reference_problems if problem.severity == "error"]
+        if blocking:
+            observed = "; ".join(problem.message for problem in blocking)
             return CaseResult(case_id, False, f"fixture isolation failed: unexpected violations: {observed}")
         passed = proc.returncode == 0
         detail = "accepted" if passed else f"expected accept, exit={proc.returncode}: {output.strip()}"

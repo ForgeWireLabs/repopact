@@ -50,6 +50,20 @@ CHECKBOX_LINE = re.compile(r"-\s*\[([ xX])\]\s*\*\*([A-Za-z][A-Za-z0-9]*-\d+)\b"
 class Problem:
     path: Path
     message: str
+    severity: str = "error"
+
+
+def blocking_problems(problems: list[Problem]) -> list[Problem]:
+    """Problems whose severity gates repository validity.
+
+    Mirrors the Rust engine's ``valid = error_count == 0`` contract (Decision
+    0055): 'warning' and 'info' diagnostics are advisory -- they surface
+    potential issues or coverage limits but never make a repository invalid.
+    Every caller that decides pass/fail from ``validate_repo.validate()``
+    output must gate on this, not on the raw problem list, once any
+    non-error-severity diagnostic exists.
+    """
+    return [p for p in problems if p.severity == "error"]
 
 
 def validate_dates(value: object, field: str, path: Path, problems: list[Problem]) -> None:
@@ -1126,6 +1140,620 @@ def validate_assurance_mappings(
                     _validate_evidence_ref(evidence_ref, path, root, evidence_ids, problems)
 
 
+# --- assurance sensitive-evidence guardrails (WI051 phase 2, Decision 0055) -
+#
+# Bounded, false-positive-prone heuristics over content an assurance mapping
+# already explicitly references -- never a whole-repository scan. Diagnostic
+# wording names the pattern observed, never a legal/compliance conclusion
+# (Decision 0055 section 2). This is the Python regression-comparator mirror
+# of ``repopact-validation::assurance``; Rust is canonical.
+
+MAX_ASSURANCE_ARTIFACT_BYTES = 262_144
+
+_PRIVATE_KEY_MARKERS = (
+    "-----BEGIN PRIVATE KEY-----",
+    "-----BEGIN RSA PRIVATE KEY-----",
+    "-----BEGIN OPENSSH PRIVATE KEY-----",
+)
+_SECRET_ASSIGNMENT_LABELS = ("password", "secret", "api_key", "access_token")
+_IDENTITY_LABELS = (
+    "patient_id", "medical_record_number", "mrn", "passport_number",
+    "social_security_number", "ssn", "bank_account_number", "routing_number",
+)
+_SECRET_QUERY_PARAMS = ("token", "api_key", "password", "secret")
+_STRONG_CLAIM_PHRASES = ("certified", "fully compliant", "complies with", "meets all requirements")
+
+
+def _decode_text(raw: bytes) -> str | None:
+    if b"\x00" in raw:
+        return None
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _detect_private_key_marker(text: str) -> str | None:
+    for marker in _PRIVATE_KEY_MARKERS:
+        if marker in text:
+            return marker
+    return None
+
+
+def _find_label_assignment(lower_text: str, label: str) -> bool:
+    """True when *label* appears on a word boundary immediately followed by
+    optional whitespace and ``=``/``:`` and then a non-blank value."""
+    search_from = 0
+    while True:
+        offset = lower_text.find(label, search_from)
+        if offset == -1:
+            return False
+        before = lower_text[offset - 1] if offset > 0 else ""
+        boundary_ok = not (before.isalnum() or before == "_")
+        after = lower_text[offset + len(label):]
+        trimmed = after.lstrip(" \t")
+        has_assignment = trimmed[:1] in ("=", ":")
+        if boundary_ok and has_assignment:
+            value = trimmed.lstrip(":=").lstrip(" ")
+            if value and value[0] not in ("\n", "\r"):
+                return True
+        search_from = offset + len(label)
+        if search_from >= len(lower_text):
+            return False
+
+
+def _detect_secret_assignment(text: str) -> bool:
+    lower = text.lower()
+    return any(_find_label_assignment(lower, label) for label in _SECRET_ASSIGNMENT_LABELS)
+
+
+def _detect_identity_markers(text: str) -> bool:
+    lower = text.lower()
+    return any(_find_label_assignment(lower, label) for label in _IDENTITY_LABELS)
+
+
+def _luhn_valid(digits: list[int]) -> bool:
+    total = 0
+    double = False
+    for digit in reversed(digits):
+        value = digit
+        if double:
+            value *= 2
+            if value > 9:
+                value -= 9
+        total += value
+        double = not double
+    return total % 10 == 0
+
+
+def _detect_luhn_valid_pan(text: str) -> bool:
+    """Bounded scan for a 13-19 digit, Luhn-valid sequence (spaces/dashes
+    tolerated as separators). A shape heuristic, never proof of cardholder
+    data or PCI scope."""
+    length = len(text)
+    index = 0
+    while index < length:
+        if text[index].isdigit():
+            start = index
+            digits: list[int] = []
+            cursor = index
+            while cursor < length:
+                ch = text[cursor]
+                if ch.isdigit():
+                    digits.append(int(ch))
+                elif ch in (" ", "-"):
+                    pass
+                else:
+                    break
+                cursor += 1
+                if len(digits) > 19:
+                    break
+            if 13 <= len(digits) <= 19 and _luhn_valid(digits):
+                return True
+            index = cursor if cursor > start else start + 1
+        else:
+            index += 1
+    return False
+
+
+def _has_credential_in_uri(uri: str) -> bool:
+    if "://" not in uri:
+        return False
+    after_scheme = uri.split("://", 1)[1]
+    authority = re.split(r"[/?#]", after_scheme, maxsplit=1)[0]
+    if "@" not in authority:
+        return False
+    userinfo = authority.rsplit("@", 1)[0]
+    return bool(userinfo) and ":" in userinfo
+
+
+def _has_secret_query_param(uri: str) -> bool:
+    if "?" not in uri:
+        return False
+    query = uri.split("?", 1)[1].split("#", 1)[0]
+    for pair in query.split("&"):
+        key, _, value = pair.partition("=")
+        if key.lower() in _SECRET_QUERY_PARAMS and value:
+            return True
+    return False
+
+
+def _scan_repository_artifact(resolved: Path, mapping_id: str, path: Path, problems: list[Problem]) -> None:
+    try:
+        size = resolved.stat().st_size
+    except OSError:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact could not be read for sensitive-evidence inspection",
+            "info",
+        ))
+        return
+    if size > MAX_ASSURANCE_ARTIFACT_BYTES:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact exceeds the {MAX_ASSURANCE_ARTIFACT_BYTES}-byte "
+            f"bounded inspection limit ({size} bytes); not inspected for sensitive-evidence indicators",
+            "info",
+        ))
+        return
+    try:
+        raw = resolved.read_bytes()
+    except OSError:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact could not be read for sensitive-evidence inspection",
+            "info",
+        ))
+        return
+    text = _decode_text(raw)
+    if text is None:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact is binary or not valid UTF-8; "
+            "not inspected for sensitive-evidence indicators",
+            "info",
+        ))
+        return
+    marker = _detect_private_key_marker(text)
+    if marker:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact contains a private-key marker ('{marker}'); "
+            "private-key material must never be committed as evidence",
+            "error",
+        ))
+    if _detect_secret_assignment(text):
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact contains a secret-assignment-shaped pattern "
+            "(e.g. password=/secret=/api_key=/access_token=); potential secret/credential material, "
+            "not a confirmed classification",
+            "warning",
+        ))
+    if _detect_luhn_valid_pan(text):
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact contains a Luhn-valid, 13-19 digit sequence shaped "
+            "like a primary account number; potential cardholder-data-shaped evidence, not a confirmed "
+            "PCI scope determination",
+            "warning",
+        ))
+    if _detect_identity_markers(text):
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' evidence artifact contains a high-signal health/identity/financial "
+            "label (e.g. patient_id/ssn/passport_number/bank_account_number); potential restricted "
+            "health/identity evidence, not a confirmed classification",
+            "warning",
+        ))
+
+
+def _scan_external_reference(reference: str, mapping_id: str, path: Path, problems: list[Problem]) -> None:
+    if _has_credential_in_uri(reference):
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' external evidence reference embeds userinfo credentials in its URI; "
+            "use a credential-free reference",
+            "error",
+        ))
+    if _has_secret_query_param(reference):
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' external evidence reference has a query parameter shaped like a "
+            "secret/token/credential; verify it does not leak one",
+            "warning",
+        ))
+
+
+def _scan_evidence_ref_for_hazards(
+    root: Path, evidence_ref: object, mapping_id: str, path: Path, problems: list[Problem]
+) -> None:
+    if not isinstance(evidence_ref, dict):
+        return
+    kind = evidence_ref.get("kind")
+    sensitivity = evidence_ref.get("sensitivity")
+    if kind == "repository_artifact":
+        if sensitivity == "restricted":
+            problems.append(Problem(
+                path,
+                f"mapping '{mapping_id}' declares a 'restricted' evidence artifact stored directly as a "
+                "repository file; restricted evidence should normally be represented by a hash, controlled "
+                "external reference, redacted artifact, synthetic artifact, or bounded metadata instead of "
+                "a raw repository artifact",
+                "warning",
+            ))
+        relative = str(evidence_ref.get("path", ""))
+        resolved = _resolve_repo_relative(root, relative)
+        if resolved is not None:
+            _scan_repository_artifact(resolved, mapping_id, path, problems)
+    elif kind == "external_reference":
+        external = evidence_ref.get("external")
+        if isinstance(external, dict):
+            reference = external.get("reference")
+            if isinstance(reference, str):
+                _scan_external_reference(reference, mapping_id, path, problems)
+
+
+def validate_sensitive_evidence(root: Path, problems: list[Problem]) -> None:
+    """Bounded sensitive-evidence guardrail diagnostics (ACM-004, Decision
+    0055). Scoped only to evidence content an assurance mapping already
+    explicitly references; never a whole-repository scan."""
+    directory = root / "assurance" / "mappings"
+    if not directory.is_dir():
+        return
+    for path in sorted(directory.glob("*.json")):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        mapping_id = str(data.get("id", ""))
+        for evidence_ref in data.get("evidence_refs", []) if isinstance(data.get("evidence_refs"), list) else []:
+            _scan_evidence_ref_for_hazards(root, evidence_ref, mapping_id, path, problems)
+        for dependency in data.get("third_party_dependencies", []) if isinstance(data.get("third_party_dependencies"), list) else []:
+            if not isinstance(dependency, dict):
+                continue
+            for evidence_ref in dependency.get("evidence_refs", []) if isinstance(dependency.get("evidence_refs"), list) else []:
+                _scan_evidence_ref_for_hazards(root, evidence_ref, mapping_id, path, problems)
+
+
+# --- assurance review snapshot, drift, and claim safety (ACM-005) ----------
+
+
+def _find_markdown_record_path(directory: Path, record_id: str) -> Path | None:
+    if not directory.is_dir():
+        return None
+    for path in sorted(directory.glob("*.md")):
+        if path.name.upper() == "README.MD":
+            continue
+        try:
+            front = parse_file(path)
+        except FrontMatterError:
+            continue
+        if str(front.get("id", "")) == record_id:
+            return path
+    return None
+
+
+def _find_work_item_path(root: Path, item_id: str) -> Path | None:
+    for status in STATUSES:
+        status_dir = root / "work" / status
+        if not status_dir.is_dir():
+            continue
+        for manifest in sorted(status_dir.glob("*/work-item.json")):
+            try:
+                data = load_json(manifest)
+            except (OSError, ValueError, json.JSONDecodeError):
+                continue
+            if str(data.get("id", "")) == item_id:
+                return manifest
+    return None
+
+
+def _find_evidence_path(root: Path, evidence_id: str) -> Path | None:
+    directory = root / "evidence" / "runs"
+    if not directory.is_dir():
+        return None
+    for path in sorted(directory.glob("*.json")):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        if str(data.get("id", "")) == evidence_id:
+            return path
+    return None
+
+
+def _digest_file(path: Path) -> str:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return "absent"
+
+
+def _digest_repo_relative(root: Path, relative: str) -> str:
+    resolved = _resolve_repo_relative(root, relative)
+    if resolved is None:
+        return "unresolvable"
+    if not resolved.exists():
+        return "absent"
+    if not resolved.is_file():
+        return "unresolvable"
+    return _digest_file(resolved)
+
+
+def _canonical_review_projection(mapping: dict) -> dict:
+    """The mapping's canonical review projection (Decision 0055 section 5):
+    the full record with ``review.snapshot``, ``created``, and ``updated``
+    excluded. Everything else, including ``notes``, participates."""
+    projection = json.loads(json.dumps(mapping))
+    projection.pop("created", None)
+    projection.pop("updated", None)
+    review = projection.get("review")
+    if isinstance(review, dict):
+        review.pop("snapshot", None)
+    return projection
+
+
+def _canonical_bytes(value: object) -> bytes:
+    """Deterministic, recursively key-sorted, compact JSON bytes.
+    ``json.dumps(..., sort_keys=True)`` already sorts nested dict keys."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def _recompute_reference_digest(root: Path, category: str, kind: str, reference: str) -> str:
+    if category == "control":
+        if kind == "policy":
+            found = _find_markdown_record_path(root / "governance" / "policies", reference)
+            return _digest_file(found) if found else "absent"
+        if kind == "decision":
+            found = _find_markdown_record_path(root / "decisions", reference)
+            return _digest_file(found) if found else "absent"
+        if kind == "work_item":
+            found = _find_work_item_path(root, reference)
+            return _digest_file(found) if found else "absent"
+        if kind == "invariant":
+            return _digest_file(root / "governance" / "invariants.json")
+        if kind == "contract":
+            return _digest_repo_relative(root, reference)
+        return "unresolvable"
+    if category == "implementation":
+        if kind == "decision":
+            found = _find_markdown_record_path(root / "decisions", reference)
+            return _digest_file(found) if found else "absent"
+        if kind == "work_item":
+            found = _find_work_item_path(root, reference)
+            return _digest_file(found) if found else "absent"
+        return _digest_repo_relative(root, reference)
+    if category == "evidence":
+        if kind == "evidence_run":
+            found = _find_evidence_path(root, reference)
+            return _digest_file(found) if found else "absent"
+        return _digest_repo_relative(root, reference)
+    if category == "documentation":
+        return _digest_repo_relative(root, reference)
+    return "unresolvable"
+
+
+def compute_review_snapshot(root: Path, mapping_id: str) -> dict:
+    """Compute the deterministic, read-only review snapshot for
+    *mapping_id* (Decision 0055 section 5/9). Never mutates the mapping;
+    mirrors ``repopact-validation::compute_review_snapshot`` (Rust
+    canonical). Raises ``ValueError`` if the mapping does not exist."""
+    path = root / "assurance" / "mappings" / f"{mapping_id}.json"
+    if not path.is_file():
+        raise ValueError(f"no assurance mapping with id '{mapping_id}'")
+    data = load_json(path)
+    projection = _canonical_review_projection(data)
+    mapping_digest = hashlib.sha256(_canonical_bytes(projection)).hexdigest()
+
+    references: list[dict] = []
+    for control_ref in data.get("control_refs", []) if isinstance(data.get("control_refs"), list) else []:
+        if not isinstance(control_ref, dict):
+            continue
+        kind = control_ref.get("kind")
+        reference = control_ref.get("ref")
+        if not kind or not reference:
+            continue
+        digest = _recompute_reference_digest(root, "control", kind, reference)
+        references.append({"category": "control", "kind": kind, "ref": reference, "digest": digest})
+    for impl_ref in data.get("implementation_refs", []) if isinstance(data.get("implementation_refs"), list) else []:
+        if not isinstance(impl_ref, dict):
+            continue
+        kind = impl_ref.get("kind")
+        reference = impl_ref.get("ref")
+        if not kind or not reference:
+            continue
+        digest = _recompute_reference_digest(root, "implementation", kind, reference)
+        references.append({"category": "implementation", "kind": kind, "ref": reference, "digest": digest})
+    for evidence_ref in data.get("evidence_refs", []) if isinstance(data.get("evidence_refs"), list) else []:
+        if not isinstance(evidence_ref, dict):
+            continue
+        kind = evidence_ref.get("kind")
+        if kind == "evidence_run":
+            reference = evidence_ref.get("evidence_run_id")
+        elif kind == "repository_artifact":
+            reference = evidence_ref.get("path")
+        else:
+            continue
+        if not reference:
+            continue
+        digest = _recompute_reference_digest(root, "evidence", kind, reference)
+        references.append({"category": "evidence", "kind": kind, "ref": reference, "digest": digest})
+    for doc_ref in data.get("documentation_refs", []) if isinstance(data.get("documentation_refs"), list) else []:
+        if not isinstance(doc_ref, dict):
+            continue
+        reference = doc_ref.get("path")
+        if not reference:
+            continue
+        digest = _digest_repo_relative(root, reference)
+        references.append({"category": "documentation", "kind": "documentation", "ref": reference, "digest": digest})
+
+    return {"mapping_digest": mapping_digest, "references": references}
+
+
+def _check_framework_version_stale(data: dict, mapping_id: str, path: Path, problems: list[Problem]) -> None:
+    framework = data.get("framework")
+    review = data.get("review")
+    if not isinstance(framework, dict) or not isinstance(review, dict):
+        return
+    current = framework.get("version")
+    reviewed = review.get("framework_version_reviewed")
+    if isinstance(current, str) and isinstance(reviewed, str) and current != reviewed:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' framework version '{current}' differs from the reviewed version "
+            f"'{reviewed}'; the review has not accounted for this framework revision",
+            "warning",
+        ))
+
+
+def _check_review_due(data: dict, mapping_id: str, path: Path, today_value: str, problems: list[Problem]) -> None:
+    review = data.get("review")
+    if not isinstance(review, dict):
+        return
+    due_at = review.get("review_due_at")
+    reviewed_at = review.get("reviewed_at")
+    interval_days = review.get("review_interval_days")
+    due_date: str | None = None
+    if isinstance(due_at, str) and len(due_at) >= 10:
+        due_date = due_at[:10]
+    elif isinstance(reviewed_at, str) and len(reviewed_at) >= 10 and isinstance(interval_days, int):
+        try:
+            base = date.fromisoformat(reviewed_at[:10])
+            due_date = (base + timedelta(days=interval_days)).isoformat()
+        except ValueError:
+            due_date = None
+    if due_date is None:
+        return
+    if due_date < today_value:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' control review is overdue (due {due_date}, today {today_value})",
+            "warning",
+        ))
+
+
+def _check_review_drift(root: Path, data: dict, mapping_id: str, snapshot: dict, path: Path, problems: list[Problem]) -> None:
+    stored_digest = snapshot.get("mapping_digest")
+    projection = _canonical_review_projection(data)
+    current_digest = hashlib.sha256(_canonical_bytes(projection)).hexdigest()
+    if isinstance(stored_digest, str) and stored_digest != current_digest:
+        problems.append(Problem(
+            path,
+            f"mapping '{mapping_id}' has changed since its last review snapshot (reviewed digest "
+            f"{stored_digest}, current digest {current_digest}); re-review and take a fresh snapshot",
+            "warning",
+        ))
+    for entry in snapshot.get("references", []) if isinstance(snapshot.get("references"), list) else []:
+        if not isinstance(entry, dict):
+            continue
+        category = str(entry.get("category", ""))
+        kind = str(entry.get("kind", ""))
+        reference = str(entry.get("ref", ""))
+        stored = str(entry.get("digest", ""))
+        if stored == "unresolvable":
+            continue
+        current = _recompute_reference_digest(root, category, kind, reference)
+        if current in ("absent", "unresolvable"):
+            if stored != current:
+                problems.append(Problem(
+                    path,
+                    f"mapping '{mapping_id}' {category} reference '{reference}' ({kind}) was reviewed "
+                    f"but is now {current}",
+                    "warning",
+                ))
+        elif current != stored:
+            problems.append(Problem(
+                path,
+                f"mapping '{mapping_id}' {category} reference '{reference}' ({kind}) has changed since "
+                f"review (reviewed digest {stored}, current digest {current})",
+                "warning",
+            ))
+
+
+def _non_empty_array(data: dict, key: str) -> bool:
+    value = data.get(key)
+    return isinstance(value, list) and len(value) > 0
+
+
+def _check_documentation_claims(root: Path, data: dict, mapping_id: str, path: Path, problems: list[Problem]) -> None:
+    has_control = _non_empty_array(data, "control_refs")
+    has_impl = _non_empty_array(data, "implementation_refs")
+    has_evidence = _non_empty_array(data, "evidence_refs")
+    has_attestation = isinstance(data.get("attestation"), dict)
+    has_gap = _non_empty_array(data, "gaps")
+    basis_support = {
+        "mapping": True,
+        "control_reference": has_control,
+        "implementation_reference": has_impl,
+        "evidence_reference": has_evidence,
+        "external_attestation_reference": has_attestation,
+    }
+    for doc_ref in data.get("documentation_refs", []) if isinstance(data.get("documentation_refs"), list) else []:
+        if not isinstance(doc_ref, dict):
+            continue
+        claim_basis = doc_ref.get("claim_basis")
+        doc_path = str(doc_ref.get("path", ""))
+        supported = basis_support.get(claim_basis, True)
+        if not supported:
+            problems.append(Problem(
+                path,
+                f"mapping '{mapping_id}' documentation '{doc_path}' declares claim_basis '{claim_basis}' "
+                "but the mapping has no corresponding data to support it",
+                "error",
+            ))
+            continue
+        resolved = _resolve_repo_relative(root, doc_path)
+        if resolved is None or not resolved.is_file():
+            continue
+        try:
+            size = resolved.stat().st_size
+        except OSError:
+            continue
+        if size > MAX_ASSURANCE_ARTIFACT_BYTES:
+            continue
+        try:
+            raw = resolved.read_bytes()
+        except OSError:
+            continue
+        text = _decode_text(raw)
+        if text is None:
+            continue
+        lower = text.lower()
+        strong_claim = any(phrase in lower for phrase in _STRONG_CLAIM_PHRASES)
+        weak_support = has_gap or (not has_evidence and not has_attestation)
+        if strong_claim and weak_support:
+            problems.append(Problem(
+                path,
+                f"mapping '{mapping_id}' documentation '{doc_path}' may claim stronger assurance than "
+                "this record's evidence/attestation/gap state supports; this is an advisory heuristic "
+                "over the declared documentation file only, not a legal or classification determination",
+                "warning",
+            ))
+
+
+def validate_review_and_claims(root: Path, problems: list[Problem], today: str | None = None) -> None:
+    """Review freshness, drift, and documentation claim-basis diagnostics
+    (ACM-005, Decision 0055). All date comparisons accept an injectable
+    *today* (``YYYY-MM-DD``) so tests never depend on the wall clock."""
+    directory = root / "assurance" / "mappings"
+    if not directory.is_dir():
+        return
+    today_value = today or date.today().isoformat()
+    for path in sorted(directory.glob("*.json")):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError):
+            continue
+        mapping_id = str(data.get("id", ""))
+        _check_framework_version_stale(data, mapping_id, path, problems)
+        _check_review_due(data, mapping_id, path, today_value, problems)
+        review = data.get("review")
+        if isinstance(review, dict) and isinstance(review.get("snapshot"), dict):
+            _check_review_drift(root, data, mapping_id, review["snapshot"], path, problems)
+        _check_documentation_claims(root, data, mapping_id, path, problems)
+
+
 def validate_orphan_work_dirs(root: Path, problems: list[Problem]) -> None:
     """Fail when a directory under work/ holds planning content but no work-item.json.
 
@@ -1233,6 +1861,8 @@ def validate(root: Path) -> list[Problem]:
     policy_ids = validate_policies(root, problems)
     invariant_ids = _collect_invariant_ids(root)
     validate_assurance_mappings(root, decision_ids, policy_ids, invariant_ids, work_ids, problems)
+    validate_sensitive_evidence(root, problems)
+    validate_review_and_claims(root, problems)
     validate_dashboard(root, problems)
     validate_research_records(root, problems)
     validate_admission_records(root, problems)
@@ -1245,10 +1875,11 @@ def main() -> int:
     args = parser.parse_args()
     root = args.root.resolve()
     problems = validate(root)
-    if problems:
-        for problem in problems:
-            print(f"ERROR {problem.path.relative_to(root)}: {problem.message}")
-        print(f"\nValidation failed with {len(problems)} error(s).")
+    for problem in problems:
+        print(f"{problem.severity.upper()} {problem.path.relative_to(root)}: {problem.message}")
+    blocking = blocking_problems(problems)
+    if blocking:
+        print(f"\nValidation failed with {len(blocking)} error(s).")
         return 1
     print("Repository governance validation passed.")
     return 0

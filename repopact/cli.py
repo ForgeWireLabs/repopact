@@ -221,6 +221,15 @@ def main(argv: list[str] | None = None) -> int:
     p_amend = work_sub.add_parser("amend-proposal", help="Change only the title of proposed work")
     p_amend.add_argument("work_item"); p_amend.add_argument("title"); p_amend.add_argument("--root", type=Path, default=Path.cwd())
 
+    p_assurance = sub.add_parser("assurance", help="Assurance/control mapping operations (WI051)")
+    assurance_sub = p_assurance.add_subparsers(dest="assurance_command", required=True)
+    p_snapshot = assurance_sub.add_parser(
+        "snapshot",
+        help="Print the deterministic, read-only review snapshot for an assurance mapping (Decision 0055)",
+    )
+    p_snapshot.add_argument("mapping_id")
+    p_snapshot.add_argument("--root", type=Path, default=Path.cwd())
+
     p_appr = sub.add_parser("approval", help="Operator approval receipt operations")
     appr_sub = p_appr.add_subparsers(dest="approval_command", required=True)
     p_req = appr_sub.add_parser("request", help="Create and save an authorization request")
@@ -305,7 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:
             print(f"Guard operation failed: {exc}", file=sys.stderr); return 1
 
-    if args.command in {"admission", "work", "approval"}:
+    if args.command in {"admission", "work", "assurance", "approval"}:
         from . import admission
         if args.command == "admission":
             root = args.root.resolve(); protected = args.protected_dir.resolve() if args.protected_dir else None
@@ -341,6 +350,21 @@ def main(argv: list[str] | None = None) -> int:
                 {"id": args.work_item, "title": args.title, "date": date.today().isoformat()},
                 "Updated",
             )
+        if args.command == "assurance":
+            root = args.root.resolve()
+            if args.assurance_command == "snapshot":
+                from .engine_client import EngineError, EngineClient
+
+                try:
+                    response = EngineClient().call(
+                        "assurance.snapshot", root=root, params={"mapping_id": args.mapping_id}
+                    )
+                except EngineError as exc:
+                    print(f"Rust engine compatibility error: {exc}", file=sys.stderr)
+                    return 1
+                result = response.get("result") or {}
+                print(json.dumps(result, indent=2, sort_keys=True))
+                return 0
         if args.command == "approval":
             if args.approval_command == "pending":
                 root = args.root.resolve(); req_dir = root / "evidence" / "admission" / "requests"

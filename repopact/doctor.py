@@ -408,6 +408,7 @@ def main() -> int:
 
     findings = diagnose(root)
     problems = validate_repo.validate(root)
+    blocking = validate_repo.blocking_problems(problems)
     errors = [f for f in findings if f.severity == "error"]
     warns = [f for f in findings if f.severity == "warn"]
 
@@ -416,13 +417,13 @@ def main() -> int:
     for f in warns:
         print(f"WARN   [{f.code}] {f.message}" + ("  (fixable: --fix)" if f.fixable and not args.fix else ""))
     for p in problems:
-        print(f"INVALID {p.path.relative_to(root)}: {p.message}")
+        print(f"{'INVALID' if p.severity == 'error' else p.severity.upper()} {p.path.relative_to(root)}: {p.message}")
 
-    if not errors and not warns and not problems:
+    if not errors and not warns and not blocking:
         print("repopact doctor: healthy - no drift detected; repository validates.")
         return 0
-    print(f"\n{len(errors)} error(s), {len(warns)} warning(s), {len(problems)} validation issue(s).")
-    return 1 if errors or problems else 0
+    print(f"\n{len(errors)} error(s), {len(warns)} warning(s), {len(blocking)} validation issue(s).")
+    return 1 if errors or blocking else 0
 
 
 if __name__ == "__main__":

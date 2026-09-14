@@ -481,10 +481,11 @@ def main() -> int:
 
     from . import validate_repo
     problems = validate_repo.validate(target)
-    if problems:
-        for p in problems:
+    blocking = validate_repo.blocking_problems(problems)
+    if blocking:
+        for p in blocking:
             print(f"ERROR {p.path.relative_to(target)}: {p.message}")
-        print(f"\nAdoption produced {len(problems)} validation error(s) to resolve.")
+        print(f"\nAdoption produced {len(blocking)} validation error(s) to resolve.")
         return 1
     print("\nAdopted repository validates as a conformant RepoPact.")
     # A graph bootstrap failure is distinct from governance-adoption

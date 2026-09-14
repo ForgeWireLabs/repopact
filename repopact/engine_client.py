@@ -246,8 +246,9 @@ def render_validation(response: dict[str, Any]) -> int:
     diagnostics = response.get("diagnostics") or result.get("diagnostics") or []
     for diagnostic in diagnostics:
         code = diagnostic.get("code", "engine.diagnostic")
+        severity = str(diagnostic.get("severity", "error")).upper()
         location = diagnostic.get("path") or diagnostic.get("record") or "<repository>"
-        print(f"ERROR [{code}] {location}: {diagnostic.get('message', '')}")
+        print(f"{severity} [{code}] {location}: {diagnostic.get('message', '')}")
     valid = bool(result.get("valid"))
     if valid:
         print("Repository governance validation passed.")

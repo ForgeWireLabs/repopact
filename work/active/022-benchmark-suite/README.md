@@ -194,3 +194,25 @@ cell, comparative result, Pareto frontier, or scaling curve was started. Evidenc
 - [ ] **AC-3** remains pending and is not admitted for comparative execution. The
   published execution substrate needs a deterministic fix and tests for the local
   Windows result-file postcondition before any further admission attempt.
+
+## AC-3 post-fix admission checkpoint (2026-09-14)
+
+The deterministic Windows postcondition repair was published to Proving Ground
+`master@d7be39767bb6336dd1eb9133ec0ee592a5a98d3e`; the two new raw captures were
+then published at `master@4bab17bf0e6f4fca68b89ca27490e35cc7af8b6c` under the new
+`20260914-wi022-ac3-admission-v2` namespace. The historical failed admission record
+and captures remain unchanged.
+
+The shared bounded workspace reader correctly distinguishes Windows sharing/lock
+(`winerror=32/33`, retryable) from permanent access denial. The real lock regression
+passed, while each fresh model-created result file reproduced `PermissionError`
+`errno=13`, native `winerror=5`, after one host read attempt. Both app-server
+lifecycle checks and public usage reconciliation passed. No retry was made.
+
+Exactly one fresh `gpt-5.6-luna` and exactly one fresh `gpt-6-astra` admission were
+run from the published default branch. Both failed admission on the host-side exact
+file postcondition; model JSON and `fileChange` evidence were not promoted to
+success. Evidence: [`20260914-wi022-ac3-admission-v2`](../../../evidence/runs/20260914-wi022-ac3-admission-v2.json).
+
+- [ ] **AC-3** remains pending and pre-inference blocked by the shared Windows
+  access-denied boundary. No registered AC-3 benchmark cell has been executed.

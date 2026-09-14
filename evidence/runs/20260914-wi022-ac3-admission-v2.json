@@ -1,0 +1,160 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-admission-v2",
+  "timestamp": "2026-09-14T15:20:00-05:00",
+  "work_item": "022",
+  "result": "blocked",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-admission-attestation.v2",
+  "classification": "empirical-admission-only",
+  "study_id": "WI022-AC3-admission",
+  "repository_refs": {
+    "repopact_main_before_bookkeeping": "8d0b3f047aadec1e41bf007ca793b89747c7585b",
+    "repopact_bookkeeping_branch": "codex/wi022-ac3-admission-v2-bookkeeping-20260914",
+    "previous_failed_admission_evidence": "20260914-wi022-ac3-admission-probes",
+    "previous_failed_admission_captures_preserved": true
+  },
+  "published_executor": {
+    "repository": "ForgeWireLabs/repopact-proving-ground",
+    "old_master": "a59a70566cc3d71bd55d1ed42c125b77cfb21445",
+    "implementation_commit": "d7be39767bb6336dd1eb9133ec0ee592a5a98d3e",
+    "capture_commit": "4bab17bf0e6f4fca68b89ca27490e35cc7af8b6c",
+    "master": "4bab17bf0e6f4fca68b89ca27490e35cc7af8b6c",
+    "executor_version": "repopact.codex-empirical.v1",
+    "runtime_version": "codex-cli-public-app-server-v2",
+    "schema_digest": "3ca5e023a4b7054177fdc52851e72c27de08ed9b37005fca3ec57dd288099595"
+  },
+  "root_cause": {
+    "classification": "permanent_access_denied",
+    "errno": 13,
+    "winerror": 5,
+    "winerror_source": "native CreateFileW classification probe",
+    "transient_sharing": false,
+    "acl_or_security_boundary": true,
+    "lifecycle_failure": false,
+    "diagnosis": "The parent evaluator sees the model-created result file as an existing regular file, but its native read-open receives ERROR_ACCESS_DENIED. Both model families reproduce the same host-side security boundary. The executor-owned app-server and public command processes were already terminated/queryable, so this is not a process-lifecycle race."
+  },
+  "scope": {
+    "registered_benchmark_cells_executed": 0,
+    "ac3_started": false,
+    "new_admission_probe_calls": 2,
+    "gpt_5_6_calls": 1,
+    "gpt_6_calls": 1,
+    "comparative_results": 0,
+    "retries_after_fix": 0,
+    "auxiliary_model_calls": 0
+  },
+  "deterministic_fix": {
+    "files": [
+      "benchmarks/harness/workspace_io.py",
+      "benchmarks/harness/admission_probe.py",
+      "benchmarks/harness/codex_app_server.py",
+      "benchmarks/harness/empirical.py",
+      "benchmarks/harness/codex_real_runner_v2.py",
+      "benchmarks/s3/empirical.py",
+      "tests/test_workspace_io.py",
+      "tests/test_ac3_empirical.py"
+    ],
+    "policy": "Workspace-confined exact-byte reads reject path escape, directory substitution, and symlink/reparse components; only native Windows sharing/lock errors 32/33 are retried.",
+    "deadline_seconds": 2.0,
+    "retry_interval_seconds": 0.05,
+    "permanent_error_policy": "errno=13 with native winerror=5 is recorded once and fails closed; no retry",
+    "lifecycle_policy": "CodexAppServer records turn/completed, public usage reconciliation, owned app-server termination, public command PIDs, and queryable command termination; no global process killing is used.",
+    "runtime_diff_policy": "fileChange remains corroborating evidence only; host-side filesystem state remains authoritative."
+  },
+  "regression": {
+    "pg_tests": {"command": "python -m unittest discover -s tests -v", "passed": 82, "skipped": 1, "failed": 0},
+    "exclusive_lock": "passed on Windows; native winerror=32 was observed on initial read and the helper succeeded after the child released FileShare.None",
+    "permanent_permission": "passed; controlled access denial was attempted once and failed closed",
+    "wrong_content": "passed; exact read succeeded but mismatched bytes did not satisfy the objective",
+    "path_controls": "passed; nonexistent, directory, escape, and symlink/reparse cases were covered; symlink case was skipped because this host denies unprivileged symlink creation",
+    "empirical_compatibility": "passed; S2/S3/S4/S6 adapters, telemetry, manifest, and S5 plan tests remained green",
+    "ac5_compatibility": "passed; historical runner and v2 telemetry tests remained green",
+    "lifecycle": "passed in both fresh admission captures: turn/completed observed, usage reconciled, owned app-server terminated, and public command processes exited"
+  },
+  "results": [
+    {
+      "family": "gpt-5.6",
+      "model": {"family": "gpt-5.6", "provider": "openai", "version": "gpt-5.6-luna"},
+      "status": "FAIL",
+      "probe_model_reported_status": "pass",
+      "thread_id": "01a0a192-4154-71b2-b4e3-cb9f0a594ceb",
+      "turn_id": "01a0a192-42bd-7f63-a8a7-4e9435e0357b",
+      "started_at": "2026-09-14T20:18:29.738637Z",
+      "ended_at": "2026-09-14T20:19:18.665908Z",
+      "requests": 4,
+      "tool_calls": 2,
+      "telemetry": {"input_tokens": 57326, "output_tokens": 2109, "cached_input_tokens": 51200, "cache_write_input_tokens": 0, "context_tokens": 57253, "task_tokens": 73, "reasoning_output_tokens": 1729, "cache_adjusted_input_tokens": 6126, "requests": 4, "elapsed_ms": 46823.759, "usd": 0.0, "source": "public Codex app-server thread/tokenUsage/updated"},
+      "workspace_read": {
+        "operation": "read_bytes_after_quiescence",
+        "workspace": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-5-6-pjyk6ytg",
+        "path": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-5-6-pjyk6ytg\\admission-result.txt",
+        "deadline_seconds": 2.0,
+        "retry_interval_seconds": 0.05,
+        "attempts_required": 1,
+        "transient_errors_encountered": [],
+        "elapsed_quiescence_ms": 114.321,
+        "attempts": [{"attempt_ordinal": 1, "classification": "permanent_access_denied", "elapsed_since_turn_completion_ms": 1.594, "error": {"exception_class": "PermissionError", "errno": 13, "winerror": 5, "winerror_source": "native CreateFileW classification probe", "filename": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-5-6-pjyk6ytg\\admission-result.txt", "message": "[Errno 13] Permission denied while reading admission-result.txt"}, "path": {"exists": true, "is_file": true, "is_symlink": false, "stat": {"mode": 33206, "size": 30, "mtime_ns": 1789417132441979100, "ctime_ns": 1789417132441979100, "inode": 59672695063303234, "device": 9808844133593495912, "file_attributes": 32}, "parent_stat": {"mode": 16895, "size": 0, "mtime_ns": 1789417132441979100, "ctime_ns": 1789417109730896300, "inode": 51509920738928741, "device": 9808844133593495912, "file_attributes": 16}}, "process": {"os_name": "nt", "system": "Windows", "release": "11", "version": "10.0.26200", "machine": "AMD64", "python": "3.13.15", "pid": 35224, "executable": "C:\\Users\\jerem\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"}}],
+        "final_file_metadata": {"exists": true, "is_file": true, "is_symlink": false, "stat": {"mode": 33206, "size": 30, "mtime_ns": 1789417132441979100, "ctime_ns": 1789417132441979100, "inode": 59672695063303234, "device": 9808844133593495912, "file_attributes": 32}, "parent_stat": {"mode": 16895, "size": 0, "mtime_ns": 1789417132441979100, "ctime_ns": 1789417109730896300, "inode": 51509920738928741, "device": 9808844133593495912, "file_attributes": 16}}
+      },
+      "runtime_identity": {"executor_version": "repopact.codex-empirical.v1", "runtime_version": "codex-cli-public-app-server-v2", "cli_user_agent": "Codex Desktop/0.154.0-alpha.6.2 (Windows 10.0.26200; x86_64) dumb (repopact-pactbench; 1)", "turn_completed_observed": true, "final_usage_reconciled": true, "owned_process_terminated": true, "public_command_processes": [{"pid": 36588, "status": "exited", "winerror": 87}, {"pid": 98080, "status": "exited", "winerror": 87}]},
+      "raw_capture": "proving-ground:evidence/captures/20260914-wi022-ac3-admission-v2/gpt-5.6.json",
+      "raw_capture_sha256": "bdc8b2401f42af773991697650fded6e6894293bd944f247a1d1d17d7a1bb336",
+      "capture_digest": "f9a6a1afce4a9bd4117c16eceade42a7d5b17e257427cab8d347d92460174bb6",
+      "capture_secret_scan": "passed",
+      "envelope_validation": "PASS"
+    },
+    {
+      "family": "gpt-6",
+      "model": {"family": "gpt-6", "provider": "openai", "version": "gpt-6-astra"},
+      "status": "FAIL",
+      "probe_model_reported_status": "pass",
+      "thread_id": "01a0a193-2176-7ab0-b671-c95343caa7ee",
+      "turn_id": "01a0a193-220c-7640-b5e4-3ba116d88b16",
+      "started_at": "2026-09-14T20:19:27.709727Z",
+      "ended_at": "2026-09-14T20:19:51.892510Z",
+      "requests": 3,
+      "tool_calls": 1,
+      "telemetry": {"input_tokens": 49680, "output_tokens": 253, "cached_input_tokens": 32640, "cache_write_input_tokens": 0, "context_tokens": 49607, "task_tokens": 73, "reasoning_output_tokens": 0, "cache_adjusted_input_tokens": 17040, "requests": 3, "elapsed_ms": 22710.183, "usd": 0.0, "source": "public Codex app-server thread/tokenUsage/updated"},
+      "workspace_read": {
+        "operation": "read_bytes_after_quiescence",
+        "workspace": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-6-0ghv1v7e",
+        "path": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-6-0ghv1v7e\\admission-result.txt",
+        "deadline_seconds": 2.0,
+        "retry_interval_seconds": 0.05,
+        "attempts_required": 1,
+        "transient_errors_encountered": [],
+        "elapsed_quiescence_ms": 55.684,
+        "attempts": [{"attempt_ordinal": 1, "classification": "permanent_access_denied", "elapsed_since_turn_completion_ms": 1.117, "error": {"exception_class": "PermissionError", "errno": 13, "winerror": 5, "winerror_source": "native CreateFileW classification probe", "filename": "C:\\Users\\jerem\\AppData\\Local\\Temp\\wi022-admission-gpt-6-0ghv1v7e\\admission-result.txt", "message": "[Errno 13] Permission denied while reading admission-result.txt"}, "path": {"exists": true, "is_file": true, "is_symlink": false, "stat": {"mode": 33206, "size": 29, "mtime_ns": 1789417188547324800, "ctime_ns": 1789417188546327800, "inode": 72620543992227283, "device": 9808844133593495912, "file_attributes": 32}, "parent_stat": {"mode": 16895, "size": 0, "mtime_ns": 1789417188546327800, "ctime_ns": 1789417167705946800, "inode": 60798594970145858, "device": 9808844133593495912, "file_attributes": 16}}, "process": {"os_name": "nt", "system": "Windows", "release": "11", "version": "10.0.26200", "machine": "AMD64", "python": "3.13.15", "pid": 7912, "executable": "C:\\Users\\jerem\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"}}],
+        "final_file_metadata": {"exists": true, "is_file": true, "is_symlink": false, "stat": {"mode": 33206, "size": 29, "mtime_ns": 1789417188547324800, "ctime_ns": 1789417188546327800, "inode": 72620543992227283, "device": 9808844133593495912, "file_attributes": 32}, "parent_stat": {"mode": 16895, "size": 0, "mtime_ns": 1789417188546327800, "ctime_ns": 1789417167705946800, "inode": 60798594970145858, "device": 9808844133593495912, "file_attributes": 16}}
+      },
+      "runtime_identity": {"executor_version": "repopact.codex-empirical.v1", "runtime_version": "codex-cli-public-app-server-v2", "cli_user_agent": "Codex Desktop/0.154.0-alpha.6.2 (Windows 10.0.26200; x86_64) dumb (repopact-pactbench; 1)", "turn_completed_observed": true, "final_usage_reconciled": true, "owned_process_terminated": true, "public_command_processes": [{"pid": 34259, "status": "exited", "winerror": 87}, {"pid": 42650, "status": "exited", "winerror": 87}]},
+      "raw_capture": "proving-ground:evidence/captures/20260914-wi022-ac3-admission-v2/gpt-6.json",
+      "raw_capture_sha256": "15cd44b0aaa9d4406a94f335b3e851a53d8a30e815129953090559a75478b27c",
+      "capture_digest": "25ca19e39b6413fee37fe605a39bb53274e2ea16cb57a4d448cef6ec92bb9655",
+      "capture_secret_scan": "passed",
+      "envelope_validation": "PASS"
+    }
+  ],
+  "matrix_integrity": {"logical_cells": 543, "execution_slots": 567, "live_model_or_worker_turns": 432, "shared_deterministic_s5_cells": 135, "model_dependent_cells": 408, "registered_corpus_or_condition_digest_changed": false, "s4_methods_version": "2026-09-14.s4-methods.1", "s5_execution_method_version": "2026-09-14.s5-model-independent.1"},
+  "commands": [
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Complete published-fix PG suite: 82 passed, 1 platform-specific symlink skip."},
+    {"command": "python -m benchmarks.harness.admission_probe --family gpt-5.6 --capture-root evidence/captures", "exit_code": 1, "summary": "Exactly one fresh post-fix gpt-5.6 admission; real turn/capture completed, host read failed closed with errno 13/winerror 5."},
+    {"command": "python -m benchmarks.harness.admission_probe --family gpt-6 --capture-root evidence/captures", "exit_code": 1, "summary": "Exactly one fresh post-fix gpt-6 admission; real turn/capture completed, host read failed closed with errno 13/winerror 5."},
+    {"command": "offline capture digest and secret-scan verification", "exit_code": 0, "summary": "Both v2 captures validate against their digests and pass the secret scan."}
+  ],
+  "artifacts": [
+    "proving-ground:master@4bab17bf0e6f4fca68b89ca27490e35cc7af8b6c:evidence/captures/20260914-wi022-ac3-admission-v2/gpt-5.6.json",
+    "proving-ground:master@4bab17bf0e6f4fca68b89ca27490e35cc7af8b6c:evidence/captures/20260914-wi022-ac3-admission-v2/gpt-6.json",
+    "evidence/runs/20260914-wi022-ac3-admission-probes.json",
+    "work/active/022-benchmark-suite/work-item.json",
+    "research/benchmark-protocol.md"
+  ],
+  "environment": {"date": "2026-09-14", "host": "Windows 11", "python": "3.13.15", "codex": "0.154.0-alpha.6.2", "provider": "openai", "fixture": "disposable-admission-fixture", "registered_benchmark_inference_started": false, "model_comparison_started": false, "previous_attempts_overwritten": false, "new_capture_namespace": "20260914-wi022-ac3-admission-v2"},
+  "acceptance_boundary": {"wi022_ac3": "pending", "registered_cells": "none executed", "comparative_results": "none", "readiness": "AC-3 remains pre-inference blocked by permanent Windows access denial on host reads of model-created workspace files. No comparative benchmark cell has been run."},
+  "notes": [
+    "The first failed admission evidence record and both original captures remain unchanged and are explicitly linked above.",
+    "The new v2 attempts were run from the published default branch implementation and were each attempted exactly once.",
+    "The model-reported JSON pass values and runtime fileChange evidence were not treated as objective success; host-side exact-byte reads failed with native ERROR_ACCESS_DENIED."
+  ]
+}

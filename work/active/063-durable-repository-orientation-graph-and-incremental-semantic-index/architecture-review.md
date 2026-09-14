@@ -1055,3 +1055,77 @@ Two further architectural additions, both detailed in Decision 0052:
 See `implementation-progress.md`'s Workbench-operator-map-and-branch-
 merge-checkpoint section for the full implementation, test matrix, and
 evidence.
+
+## 2026-09-14 closeout-readiness refresh
+
+```text
+coding agent = Claude Code
+architecture reviewer = GPT-5.6 Sol High
+```
+
+Starting SHA for this refresh: `341c29803404c2b1c4dba4c3939dd9c8cc81ae9c`
+(the accepted Workbench operator-map + branch/merge checkpoint). The
+accepted current stack is now:
+
+```text
+durable deterministic ROG
+        +
+incremental equivalence
+        +
+working overlay
+        +
+operational metadata
+        +
+bounded query kernel
+        +
+capability/adoption/clean clone
+        +
+Workbench operator map
+        +
+derived-graph merge repair
+```
+
+The remaining work to reach either full WI063 closure or an honest
+closeout-readiness checkpoint is characterization and evidence
+synthesis, not new architecture:
+
+```text
+fixture-boundary disposition (ROG-019)
+platform evidence (ROG-028)
+performance/storage characterization (ROG-032)
+registered S8 R1 experiment (ROG-033/034)
+operator/agent documentation (ROG-035)
+authority-boundary closeout (ROG-036/037/040)
+final executable evidence synthesis (ROG-038)
+```
+
+No new graph architecture is introduced merely because WI063 is near
+closeout. Decision 0053 (this checkpoint) binds the fixture-boundary
+model, benchmark methodology and pre-registration ordering, the
+macOS-evidence policy, the no-paid-provider rule, and the exact
+conditions under which ROG-038 and WI063 may actually close.
+
+**Pre-existing external blockers, confirmed again this checkpoint,
+never fabricated:**
+
+- **ROG-028 / macOS.** No macOS runner exists anywhere in this
+  repository's CI configuration (`.github/workflows/governance.yml`
+  and `release.yml` both run `ubuntu-latest` only) and none is
+  available in this local environment. No hosted macOS job was created
+  or run to manufacture a checkbox.
+- **ROG-034 / S8 R1.** Checked `research/amendments/2026-09-12-
+  governance-continuity.md`: "No S8 run had been performed when
+  H15/S8 was added." Neither the B0 nor R0 condition has ever actually
+  executed -- S8 exists only as a frozen, pre-registered protocol. Its
+  construct requires a real multi-worker/multi-client handoff matrix
+  with actual agent/model runs, which this session has no operator
+  authorization to fund (paid model API usage) or fabricate. Per this
+  checkpoint's own explicit instruction, ROG-033 (the amendment) can
+  still be satisfied on its own; ROG-034 (the executed comparison)
+  cannot be honestly satisfied this checkpoint and is recorded as
+  blocked on authorized benchmark execution -- not silently skipped,
+  not faked.
+
+See `implementation-progress.md`'s closeout-readiness section and the
+`20260914-063-closeout-readiness-checkpoint` evidence record for the
+full disposition of every remaining AC.

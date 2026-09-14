@@ -2119,3 +2119,130 @@ ROG-028's macOS-execution gap explicitly resolved or dispositioned
 before final WI063 completion. This checkpoint stops here per its own
 explicit instruction -- no S8 R1, no final WI063 closure.
 
+## 2026-09-14 -- closeout-readiness checkpoint
+
+Starting point: `341c298` (the accepted Workbench-operator-map + branch/
+merge checkpoint, synchronized exactly). This checkpoint's goal was to
+resolve every remaining WI063 acceptance criterion honestly -- either
+satisfy it or name the exact external blocker -- per Decision 0053.
+
+### ROG-019: fixture-boundary metadata model
+
+Closed without weakening ROG-021. `repopact-repository`'s file walker
+now records, for the exact name `fixtures` only, that a boundary exists
+at a path -- never its contents (no second filesystem pass). The
+source projection's fingerprint covers each boundary's path and
+classification, so creating/removing/renaming a fixture directory
+changes the fingerprint exactly like an ordinary file, while editing
+content inside it changes nothing. The graph gains one bounded fact per
+boundary (a `Directory` node, `node_role = "test_fixture"`) with no
+children ever created beneath it. Full build, `graph.update`, and
+working-overlay refresh all converge identically across add/remove/
+rename. 10 new tests, including one that plants a secret-looking
+filename inside the boundary and proves it never surfaces anywhere in
+the graph.
+
+### ROG-032: performance/storage matrix
+
+`rog-benchmark`, a new source-controlled Rust binary, measures the full
+requested matrix against real RepoPact and two deterministically
+generated fixtures (medium ~2,000 files, large ~10,000 files, seeded
+and reproducible, never committed as generated trees). Real RepoPact:
+8,777 nodes / 10,693 edges, 4.4s full build (Windows) / 0.7s (Linux),
+0.556 graph/source ratio. Medium fixture: byte-identical node/edge/
+durable-byte counts on Windows and Linux (4,471 / 7,895 / 4,278,980
+bytes) -- wall-clock timings differ honestly (filesystem/process
+overhead), never normalized away. Large fixture: cold durable-load time
+grows to 10.9s, a real disclosed scaling characteristic. Incremental
+update measured across 5 distinct mutation classes; working-overlay
+single-edit and full-refresh timing measured; branch/merge rebuild cost
+measured through a real two-branch `git merge` and
+`repopact_graph::merge_reconcile`. Local-cache size reported as 0 bytes
+(no persistent cache exists in this architecture, not invented to
+answer the question). Peak memory uses a documented OS-level process
+measurement on each platform. The existing 1 MiB parse-size limit was
+reviewed against this data and found still appropriate -- not
+re-justified by intuition, and not changed without a measurement basis
+to change it.
+
+### ROG-033/034: S8 R1 pre-registration and execution status
+
+A dated amendment to `research/benchmark-protocol.md` (commit
+`b3ae030`) defines R1 precisely -- allowed graph operations, required
+graph state (explicit-enabled, fresh, no working overlay), and,
+decided before any run, that a bounded `graph.search` call is never
+counted as a repository-wide search operation. B0/R0/the task set/
+every existing metric are untouched. This commit chronologically
+precedes any R1 result, satisfying ROG-033 on its own.
+
+ROG-034 (the executed comparison) remains pending: neither B0 nor R0
+has ever run (confirmed from the 2026-09-12 research amendment), and
+S8's construct requires a real, potentially costly, multi-agent
+benchmark execution this checkpoint has no standing authorization to
+fund. No result was fabricated or partially substituted -- this is
+recorded as an honest external blocker per Decision 0053.
+
+### ROG-035: documentation
+
+`docs/repository-orientation-graph.md` is the canonical human + agent
+guide: what ROG is/is not, its fact-class taxonomy, every named
+workflow, a troubleshooting table, the authority boundary, and bounded
+agent examples covering every disclosed state. Linked from `AGENTS.md`
+and `README.md`. The previously-missing `repopact graph search` CLI
+subcommand was also added.
+
+### ROG-036/037/040: no-cloud and authority-boundary proofs
+
+`no_network_dependency_audit.rs` executes `cargo tree` against the
+three deterministic-core crates and asserts none of a 30-entry
+blocklist of network/LLM/cloud-shaped crate names appears anywhere in
+the resolved graph or in the crates' own manifests -- combined with the
+existing exhaustive local-only test suite, this is the networkless-
+execution proof (ROG-036).
+
+`authority_boundary_tests.rs` proves a shard tampered with a plausible
+authority-like fact is detected as structurally corrupt and refused;
+`repopact-mutation` gains two adversarial tests proving a tampered
+durable graph claiming approval/waiver for a specific work item changes
+nothing about that work item's mutation-plan diagnostics, applicability,
+or canonical status (structurally guaranteed -- `plan()` never takes a
+graph as an authority input at all). A static Workbench test proves the
+operator map's only backend calls are query/status/verify/build, never
+plan/apply/discard (ROG-037/040). WI050's admission/guard/isolation
+tests were re-run explicitly and show no regression.
+
+### ROG-028: macOS
+
+No macOS runner exists in this repository's CI (`governance.yml`/
+`release.yml` both declare `ubuntu-latest` only) or in this local
+environment. None was created. Every other ROG-028 clause remains
+independently proven (and is now further reinforced by cross-platform-
+identical ROG-032 benchmark results). ROG-028 stays pending, macOS
+execution named as the sole residual gap.
+
+### Acceptance criteria this checkpoint
+
+**Satisfied:** ROG-019, ROG-032, ROG-033, ROG-035, ROG-036, ROG-037,
+ROG-040.
+
+**Still pending, with the exact gap named:**
+
+- **ROG-028** -- macOS execution evidence only; every other clause proven.
+- **ROG-034** -- blocked on authorized, potentially funded, multi-agent
+  S8 benchmark execution; B0/R0 have never run.
+- **ROG-038** -- deliberately not marked satisfied this checkpoint. This
+  is a closeout-readiness record, not final closeout evidence, because
+  ROG-028/034 remain genuinely pending. The full required inventory is
+  nonetheless enumerated in the evidence record's
+  `rog_038_inventory_for_future_final_closeout` field for continuity.
+
+### WI063 lifecycle state
+
+**Remains active.** 33 of 40 acceptance criteria are now satisfied. The
+only two remaining blockers are external (an authorized macOS execution
+environment, and an authorized/funded S8 benchmark run) -- both are
+legitimate reasons to keep the work item open, not shortfalls to paper
+over. Once either or both are resolved, produce the final ROG-038
+closeout record and transition WI063 through canonical lifecycle
+tooling. No further WI063 architecture work remains.
+

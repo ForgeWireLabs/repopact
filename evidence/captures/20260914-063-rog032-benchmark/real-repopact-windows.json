@@ -1,0 +1,89 @@
+{
+  "generator_version": "rog-benchmark-fixture-gen-v1",
+  "scale": "real_repopact",
+  "composition": null,
+  "platform": "windows",
+  "full_build": {
+    "wall_ms": 4402.6386999999995,
+    "node_count": 8777,
+    "edge_count": 10693,
+    "shard_count": 16,
+    "graph_schema_version": 3,
+    "peak_working_set_bytes": 33349632
+  },
+  "storage": {
+    "durable_bytes": 7684501,
+    "source_bytes": 13820565,
+    "graph_source_ratio": 0.5560193089066908,
+    "local_cache_bytes": 0,
+    "local_cache_note": "no persistent local acceleration cache exists in this architecture; the durable Git-tracked graph plus a disposable in-memory query index are the only two representations"
+  },
+  "clean_load": {
+    "status_ms": 984.1379999999999,
+    "durable_load_ms": 996.5724,
+    "query_index_build_ms": 14.5656,
+    "durable_freshness": "Fresh"
+  },
+  "representative_query_latency_ms": {
+    "resolve_ms": 0.009300000000000001,
+    "search_ms": 7.2483,
+    "orient_ms": 0.4597,
+    "neighbors_ms": 0.0792,
+    "dependencies_ms": 0.0058000000000000005,
+    "dependents_ms": 0.0066,
+    "impact_ms": 0.0829,
+    "tests_ms": 0.0024,
+    "governance_ms": 0.0761
+  },
+  "incremental_by_change_class": {
+    "ci_metadata_edit": {
+      "wall_ms": 496.0344,
+      "mode": "NoOp",
+      "semantic_reparsed": 0,
+      "semantic_reused": 769,
+      "files_added": 0,
+      "files_modified": 0,
+      "files_deleted": 0
+    },
+    "manifest_dependency_edit": {
+      "wall_ms": 503.05069999999995,
+      "mode": "NoOp",
+      "semantic_reparsed": 0,
+      "semantic_reused": 769,
+      "files_added": 0,
+      "files_modified": 0,
+      "files_deleted": 0
+    },
+    "non_semantic_text_edit": {
+      "wall_ms": 822.7390999999999,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 768,
+      "files_modified": 1
+    },
+    "semantic_symbol_edit": {
+      "wall_ms": 809.2085,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 768,
+      "files_modified": 1
+    },
+    "single_new_source_file": {
+      "wall_ms": 792.5157,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 768,
+      "files_added": 0,
+      "files_modified": 1,
+      "files_deleted": 0
+    }
+  },
+  "working_overlay": {
+    "single_file_watcher_edit_ms": null,
+    "explicit_full_session_refresh_ms": 514.6638999999999
+  },
+  "branch_merge": {
+    "skipped": "could not return to base branch"
+  },
+  "peak_memory_methodology": "Windows: Get-Process -Id <pid>.PeakWorkingSet64 (OS-reported peak working set of this process, not a hard allocator limit)"
+}

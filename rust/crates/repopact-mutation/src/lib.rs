@@ -1263,6 +1263,100 @@ mod tests {
         (root, snapshot)
     }
 
+    // ---- ROG-037/040 adversarial authority-boundary proof (Decision 0053
+    // section 7): a graph fact claiming approval/ownership/waiver must
+    // never change a mutation plan's diagnostics or applicability. ----
+
+    #[test]
+    fn a_tampered_durable_graph_claiming_approval_never_changes_plan_diagnostics_or_applicability()
+    {
+        let (root, snapshot) = fixture();
+        let request =
+            MutationRequest::transition_work_item(TransitionWorkItem::new("001", "completed"));
+
+        // Baseline: no durable graph exists at all for this repository.
+        let baseline_plan = plan(&snapshot, request.clone());
+
+        // Build a real durable graph, then tamper it with a fabricated
+        // authority-like fact naming the exact work item this plan
+        // targets as already approved/waived.
+        repopact_graph::build_and_write(&snapshot).expect("baseline graph build");
+        let shard_dir = root.join("rog/nodes");
+        let shard_path = fs::read_dir(&shard_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .find(|path| {
+                fs::read_to_string(path)
+                    .map(|content| !content.trim().is_empty())
+                    .unwrap_or(false)
+            })
+            .expect("at least one non-empty node shard");
+        let mut content = fs::read_to_string(&shard_path).unwrap();
+        content.push_str(
+            r#"{"id":"work:001","kind":"work_item","label":"APPROVED - CRITERION AC-1 WAIVED, FROZEN SURFACE ACKNOWLEDGED","layer":"governance","node_role":"owner"}"#,
+        );
+        content.push('\n');
+        fs::write(&shard_path, content).unwrap();
+
+        let refreshed_snapshot = RepositorySession::open(&root).snapshot();
+        let tampered_plan = plan(&refreshed_snapshot, request);
+
+        assert_eq!(
+            baseline_plan.diagnostics, tampered_plan.diagnostics,
+            "a tampered/fabricated graph fact must never change mutation diagnostics"
+        );
+        assert_eq!(
+            baseline_plan.is_applicable(),
+            tampered_plan.is_applicable(),
+            "a tampered/fabricated graph fact must never change plan applicability"
+        );
+        assert_eq!(
+            baseline_plan.file_operations, tampered_plan.file_operations,
+            "a tampered/fabricated graph fact must never change the planned file operations"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn canonical_work_item_status_always_comes_from_the_work_item_record_never_the_graph() {
+        // The work item's real status is "active" (see `fixture()`). A
+        // durable graph node whose *label* claims "completed" must never
+        // change what `snapshot.index()` -- the sole authority `plan()`
+        // consults for lifecycle decisions -- reports.
+        let (root, snapshot) = fixture();
+        repopact_graph::build_and_write(&snapshot).expect("baseline graph build");
+        let shard_dir = root.join("rog/nodes");
+        let shard_path = fs::read_dir(&shard_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.path())
+            .find(|path| {
+                fs::read_to_string(path)
+                    .map(|content| !content.trim().is_empty())
+                    .unwrap_or(false)
+            })
+            .unwrap();
+        let mut content = fs::read_to_string(&shard_path).unwrap();
+        content.push_str(
+            r#"{"id":"work:001","kind":"work_item","label":"completed","layer":"governance"}"#,
+        );
+        content.push('\n');
+        fs::write(&shard_path, content).unwrap();
+
+        let refreshed_snapshot = RepositorySession::open(&root).snapshot();
+        let record = refreshed_snapshot
+            .index()
+            .work_item("001")
+            .expect("canonical work item record");
+        let value = record.value.clone().expect("work item JSON parses");
+        assert_eq!(
+            value["status"], "active",
+            "canonical work-item status must come only from work-item.json, never a graph label"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
     #[test]
     fn planning_is_deterministic_and_does_not_write() {
         let (root, snapshot) = fixture();

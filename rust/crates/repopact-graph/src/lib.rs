@@ -6,6 +6,8 @@ use repopact_types::{RecordKind, RecordRef, SourceRef, WorkItem};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(test)]
+mod authority_boundary_tests;
 pub mod capability;
 #[cfg(test)]
 mod clean_clone_tests;

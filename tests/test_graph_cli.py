@@ -260,6 +260,13 @@ class GraphQueryCliTests(unittest.TestCase):
         self.assertEqual(result["result"]["outcome"], "exact")
         self.assertEqual(result["result"]["fact"]["id"], "work:900")
 
+    def test_search_finds_a_work_item_by_bounded_text(self) -> None:
+        self.capture("build")
+        code, result = self.capture("search", "900")
+        self.assertEqual(code, 0)
+        matches = result["result"]["matches"]
+        self.assertTrue(any(match["node"]["id"] == "work:900" for match in matches))
+
     def test_resolve_repository_path(self) -> None:
         self.capture("build")
         code, result = self.capture("resolve", "--path", "src/lib.rs")

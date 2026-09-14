@@ -251,3 +251,20 @@ it("a repository-changed generation bump invalidates the selection and re-resolv
   await waitFor(() => expect(resolveCalls).toBe(1));
   await screen.findByTestId("graph-selection-stale");
 });
+
+it("ROG-037: the operator map never calls a mutation-authority API -- only graph_query/status/verify/build", async () => {
+  const path = await import("node:path");
+  const source = await (await import("node:fs/promises")).readFile(
+    path.resolve(process.cwd(), "src/GraphOperatorMap.tsx"),
+    "utf-8",
+  );
+  const forbidden = ["desktopApi.plan(", "desktopApi.apply(", "desktopApi.discard(", "acknowledgeFrozen", "waiveCriterion"];
+  for (const call of forbidden) {
+    expect(source.includes(call)).toBe(false);
+  }
+  const allowedDesktopApiCalls = [...source.matchAll(/desktopApi\.(\w+)\(/g)].map((match) => match[1]);
+  const allowed = new Set(["graphQuery", "graphStatus", "graphVerify", "graphBuild"]);
+  for (const call of allowedDesktopApiCalls) {
+    expect(allowed.has(call)).toBe(true);
+  }
+});

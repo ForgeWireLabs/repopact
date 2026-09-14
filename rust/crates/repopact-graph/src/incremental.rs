@@ -1143,8 +1143,10 @@ mod tests {
             "only the modified file may be reparsed"
         );
         assert_eq!(
-            result.semantic_reused, 99,
-            "every other file must be reused, not reparsed"
+            result.semantic_reused, 100,
+            "every other file must be reused, not reparsed (99 unchanged fixture files \
+             plus the .gitattributes the first build's enablement wrote -- Decision 0051 \
+             step 35)"
         );
 
         let clean_root = temp_root("clean-reuse-proof");
@@ -1180,7 +1182,11 @@ mod tests {
         let result = update(&snapshot1).expect("no-op update");
         assert_eq!(result.mode, UpdateMode::NoOp);
         assert_eq!(result.semantic_reparsed, 0);
-        assert_eq!(result.semantic_reused, 100);
+        assert_eq!(
+            result.semantic_reused, 101,
+            "100 fixture files plus the .gitattributes the baseline build's enablement \
+             wrote (Decision 0051 step 35)"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 

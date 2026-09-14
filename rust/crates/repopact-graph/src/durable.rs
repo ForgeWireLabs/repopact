@@ -255,19 +255,66 @@ pub fn write(
     Ok(manifest)
 }
 
-/// Decision 0051 section 7 / step 12: before an enable operation may
-/// report success, check whether Git would ignore the durable graph
-/// directory or the capability declaration -- a graph that validates
-/// locally but disappears on clone is not a successful enabled graph.
-/// One bounded, batched `git check-ignore` invocation (never per-shard,
-/// the exact precedent already established by Python's
-/// `adopt_repo.gitignored_records`, ported here using `--` positional
-/// paths instead of `--stdin` since the shared [`repopact_repository::
-/// GitRunner`] trait always pipes `/dev/null` to a child's stdin).
-/// Fails open (assumes nothing is ignored) when Git is unavailable or
-/// the repository is not a Git checkout at all -- consistent with the
-/// existing best-effort precedent -- but fails closed (refuses to
-/// report success) when Git positively confirms an ignore match.
+/// A genuine product defect discovered during this checkpoint's real-
+/// git-clone testing (Decision 0051, ROG-016 step 35), not merely a
+/// test inconvenience to route around: a very common real-world
+/// Git-for-Windows configuration (`core.autocrlf=true` at the system
+/// level -- the installer's own historical default, present on this
+/// very machine despite an explicit `core.autocrlf=false` at both the
+/// user and repository level) silently rewrites LF line endings to
+/// CRLF for every ordinary text file on checkout. For `rog/`'s
+/// LF-only JSONL shards and manifest, this breaks every recorded
+/// SHA-256 shard hash outright (a freshly, correctly cloned graph
+/// reports `Corrupt`). For any other source file the durable graph's
+/// fingerprint covers, the same checkout-time rewrite silently changes
+/// that file's content digest, so the very same clone -- otherwise
+/// perfect -- recomputes a different `SourceProjection` fingerprint
+/// than the one the manifest recorded, reporting `Stale` instead of
+/// `Fresh` immediately after a clean clone. `* -text` disables Git's
+/// line-ending conversion for the whole repository (the standard fix
+/// for content-addressed tooling); the `rog/`/capability lines are
+/// kept as explicit, self-documenting redundancy in case a future
+/// narrower override is ever added above this line.
+const GITATTRIBUTES_PROTECTION: &str =
+    "* -text\nrog/** -text\ngovernance/rog-capability.json -text\n";
+
+/// Ensure `.gitattributes` at the repository root protects the entire
+/// source-projection-fingerprinted tree (and, redundantly/explicitly,
+/// the durable graph and capability declaration) from Git's own text/
+/// line-ending normalization on checkout, appending only the missing
+/// lines and never touching any other content in an existing file.
+/// Idempotent: running this on a repository that already has the
+/// protection is a no-op. Best-effort -- an I/O failure here is
+/// reported, matching the same seriousness as any other enablement
+/// precondition, since silently proceeding would let a real
+/// corruption/staleness-on-clone risk through.
+pub fn ensure_gitattributes_protects_durable_graph(
+    repository_root: &Path,
+) -> Result<(), DurableError> {
+    let path = repository_root.join(".gitattributes");
+    let existing = fs::read_to_string(&path).unwrap_or_default();
+    let needed: Vec<&str> = GITATTRIBUTES_PROTECTION
+        .lines()
+        .filter(|line| {
+            !existing
+                .lines()
+                .any(|existing_line| existing_line.trim() == *line)
+        })
+        .collect();
+    if needed.is_empty() {
+        return Ok(());
+    }
+    let mut updated = existing;
+    if !updated.is_empty() && !updated.ends_with('\n') {
+        updated.push('\n');
+    }
+    for line in needed {
+        updated.push_str(line);
+        updated.push('\n');
+    }
+    fs::write(&path, updated).map_err(|error| DurableError::new("graph.io", error.to_string()))
+}
+
 pub fn check_enablement_not_ignored(repository: &Repository) -> Result<(), DurableError> {
     let runner = repository.git_runner();
     // A trailing slash is required: `git check-ignore` treats a bare

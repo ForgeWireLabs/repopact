@@ -785,7 +785,11 @@ mod tests {
             "the file is reprocessed (classified) but never sent to an adapter"
         );
         let coverage = overlay.coverage();
-        assert_eq!(coverage.files_skipped_unsupported_language, 1);
+        assert_eq!(
+            coverage.files_skipped_unsupported_language, 2,
+            "notes.xyz plus the .gitattributes the baseline build's enablement wrote \
+             (Decision 0051 step 35), both unrecognized-extension skips"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -973,7 +977,11 @@ mod tests {
         let snapshot = snapshot_of(&root);
         let outcome = overlay.reconcile(&snapshot, &["src/file_042.rs".to_owned()]);
         assert_eq!(outcome.semantic_reparsed, 1);
-        assert_eq!(outcome.semantic_reused, 99);
+        assert_eq!(
+            outcome.semantic_reused, 100,
+            "99 unchanged fixture files plus the .gitattributes the baseline build's \
+             enablement wrote (Decision 0051 step 35)"
+        );
 
         // A second, no-op reconcile: zero reparses, zero durable writes
         // (implicitly -- overlay never writes durable at all).

@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub mod capability;
+#[cfg(test)]
+mod clean_clone_tests;
 pub mod durable;
 pub mod incremental;
 pub mod metadata;
@@ -865,6 +867,11 @@ pub fn build_and_write(
     // build as successful if Git would ignore the artifacts a clean
     // clone needs to actually carry it.
     durable::check_enablement_not_ignored(snapshot.repository())?;
+    // ROG-016 step 35: protect the durable graph from Git's own text/
+    // line-ending normalization on checkout (a real, discovered defect
+    // -- see `durable::GITATTRIBUTES_PROTECTION`), before the source
+    // projection this build's fingerprint covers is computed.
+    durable::ensure_gitattributes_protects_durable_graph(snapshot.repository().root())?;
     let (graph, fingerprint, semantic_coverage) = RepositoryGraph::build_with_fingerprint(snapshot);
     durable::write(
         snapshot.repository().root(),

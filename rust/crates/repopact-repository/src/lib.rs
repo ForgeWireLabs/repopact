@@ -1093,7 +1093,18 @@ fn walk_files_inner(
                 walk_files_inner(root, &normalize_path(&path), linked, result);
             }
         } else if kind.is_file() {
-            result.push(normalize_path(&path));
+            // A linked worktree's `.git` is a plain pointer *file* (never a
+            // directory), so the directory-only `ignored_part` check above
+            // never sees it and it would otherwise leak into the physical
+            // source projection as an ordinary tracked file -- corrupting
+            // the fingerprint/node count for a `graph build` run inside a
+            // worktree. Every other `IGNORED_PARTS` name is directory-shaped
+            // in practice, so this file-side check only ever excludes a
+            // same-named plain file, never a legitimate source file.
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !ignored_part(&name) {
+                result.push(normalize_path(&path));
+            }
         }
     }
 }
@@ -1549,6 +1560,32 @@ mod tests {
             .iter_contracts()
             .iter()
             .any(|path| path == &orphan.join("AGENTS.md")));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_worktree_roots_own_git_pointer_file_is_excluded_from_files_under() {
+        // A linked worktree's own `.git` is a plain pointer *file* (never a
+        // directory), so the directory-only ignored-name check in
+        // `walk_files_inner` used to miss it entirely, leaking it into the
+        // source projection as an ordinary tracked file (WI063 checkpoint:
+        // adoption/backfill/clean-clone -- discovered while proving a
+        // RepoPact-scale backfill in a disposable worktree).
+        let root = temp_root("self-worktree-git-file");
+        fs::write(
+            root.join(".git"),
+            "gitdir: /elsewhere/.git/worktrees/self\n",
+        )
+        .unwrap();
+        fs::write(root.join("AGENTS.md"), "root").unwrap();
+        let repo = Repository::open(&root);
+        let topology = repo.topology();
+        let files = repo.files_under_with_topology(repo.root(), &topology);
+        assert!(
+            !files.iter().any(|path| path == &root.join(".git")),
+            "the worktree's own .git pointer file must never appear as a source file"
+        );
+        assert!(files.iter().any(|path| path.ends_with("AGENTS.md")));
         fs::remove_dir_all(root).unwrap();
     }
 

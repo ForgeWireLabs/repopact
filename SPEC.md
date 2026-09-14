@@ -181,6 +181,32 @@ cross-record consistency.
     distinct facts; none implies the others, and none implies RepoPact
     certifies compliance with the referenced framework. A repository with no
     `assurance/mappings` directory remains fully valid.
+16. **Assurance sensitive-evidence guardrails, review drift, and claim
+    safety (optional, Decision 0055).** Diagnostics are scoped only to
+    evidence content an assurance mapping already references -- never a
+    whole-repository scan -- and are bounded to 262,144 bytes per
+    referenced `repository_artifact`; binary or oversize content is
+    skipped with an `info` coverage diagnostic rather than read further. A
+    private-key marker in referenced evidence content, or a
+    credential-bearing external evidence reference URI
+    (`scheme://user:password@host`), is an `error`. A generic
+    secret-assignment-shaped pattern, a Luhn-valid card-number-shaped digit
+    sequence, a high-signal health/identity/financial label, or a
+    `restricted`-declared `repository_artifact` evidence reference is a
+    `warning` -- a potential indicator, never a legal or data-protection
+    classification, and never blocking. Where `review.snapshot` is present,
+    its `mapping_digest` and per-reference digests are recomputed from
+    current repository content (never a Git commit) and compared;
+    disagreement is `warning`-severity mapping or reference drift, and a
+    reference that is now absent or unresolvable is reported distinctly
+    from drift. `framework.version` disagreeing with
+    `review.framework_version_reviewed`, and an explicit or computed
+    `review_due_at` that has passed, are `warning`-severity staleness.
+    `documentation_refs[].claim_basis` requires the corresponding
+    `control_refs`/`implementation_refs`/`evidence_refs`/`attestation` to be
+    genuinely present on the same record; an unsupported basis is an
+    `error`. None of these diagnostics is JSON-schema rejection: a stale,
+    drifted, or warned-about mapping remains a structurally valid record.
 
 ## 5. Lifecycle state machine
 

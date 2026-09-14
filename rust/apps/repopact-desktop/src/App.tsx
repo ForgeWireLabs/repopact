@@ -18,6 +18,7 @@ import type {
 } from "./generated/types";
 import { LIFECYCLE_STATUSES } from "./generated/types";
 import { desktopApi, type DesktopFailure } from "./lib/api";
+import { GraphOperatorMap } from "./GraphOperatorMap";
 
 /**
  * WI060 AND-011: the Android system-Back unwind order, factored out as a
@@ -291,6 +292,7 @@ function App() {
   const [notice, setNotice] = useState("");
   const [navOpen, setNavOpen] = useState(false);
   const [theme, setTheme] = useState<"system" | "light" | "dark">("system");
+  const [graphViewMode, setGraphViewMode] = useState<"table" | "map">("table");
 
   const setSectionTab = useCallback((section: PrimaryTab, value: SectionTab) => {
     setSectionTabs((current) => ({ ...current, [section]: value }));
@@ -507,6 +509,34 @@ function App() {
     setNavOpen(false);
   };
 
+  // ROG-027 source navigation (Decision 0052 section 5): route a graph
+  // fact's RecordRef into the existing detail surfaces where one exists
+  // (work items, decisions, evidence). Every other record kind (files,
+  // symbols, governance/policy records with no dedicated detail page
+  // yet) has no further navigation target -- the operator map's own
+  // identity panel already shows the repository-relative path, and a
+  // "copy path" action covers the rest without granting arbitrary
+  // filesystem-open authority.
+  const navigateToRecord = (kind: string, id: string) => {
+    if (kind === "work_item") {
+      setTab("work");
+      void openWorkItem(id);
+      return;
+    }
+    if (kind === "decision") {
+      const match = decisions.find((item) => item.reference.id === id);
+      setTab("decisions");
+      if (match) void openDecision(match);
+      return;
+    }
+    if (kind === "evidence_run") {
+      const match = evidence.find((item) => item.reference.id === id);
+      setTab("evidence");
+      if (match) void openEvidence(match);
+      return;
+    }
+  };
+
   const openNavigation = () => {
     setNavOpen(true);
   };
@@ -542,7 +572,7 @@ function App() {
             {tab === "work" && <WorkPage items={workItems} query={workQuery} setQuery={(value) => { setWorkQuery(value); setSectionPage("work", 0); }} selected={selectedWork} value={sectionTabs.work as WorkTab} onChange={(value) => setSectionTab("work", value)} page={pages.work} onPageChange={(value) => setSectionPage("work", value)} compact={compact} detail={detail?.kind === "work" ? detail : null} onOpen={openWorkItem} onBack={() => setDetail(null)} onPlan={submitPlan} />}
             {tab === "decisions" && <DecisionsPage records={decisions} value={sectionTabs.decisions as DecisionTab} onChange={(value) => setSectionTab("decisions", value)} page={pages.decisions} onPageChange={(value) => setSectionPage("decisions", value)} compact={compact} detail={detail?.kind === "decision" ? detail : null} record={selectedDecision} onOpen={openDecision} onBack={() => setDetail(null)} />}
             {tab === "evidence" && <EvidencePage records={evidence} value={sectionTabs.evidence as EvidenceTab} onChange={(value) => setSectionTab("evidence", value)} page={pages.evidence} onPageChange={(value) => setSectionPage("evidence", value)} compact={compact} detail={detail?.kind === "evidence" ? detail : null} record={selectedEvidence} onOpen={openEvidence} onBack={() => setDetail(null)} />}
-            {tab === "graph" && <GraphPage graph={graph} value={sectionTabs.graph as GraphTab} onChange={(value) => setSectionTab("graph", value)} page={pages.graph} onPageChange={(value) => setSectionPage("graph", value)} compact={compact} />}
+            {tab === "graph" && <GraphPage graph={graph} value={sectionTabs.graph as GraphTab} onChange={(value) => setSectionTab("graph", value)} page={pages.graph} onPageChange={(value) => setSectionPage("graph", value)} compact={compact} viewMode={graphViewMode} onViewModeChange={setGraphViewMode} generation={overview.generation} onNavigateToRecord={navigateToRecord} />}
             {tab === "validation" && <ValidationPage validation={validation} value={sectionTabs.validation as ValidationTab} onChange={(value) => setSectionTab("validation", value)} page={pages.validation} onPageChange={(value) => setSectionPage("validation", value)} compact={compact} />}
             {tab === "analysis" && <AnalysisPage analysis={analysis} value={sectionTabs.analysis as AnalysisTab} onChange={(value) => setSectionTab("analysis", value)} page={pages.analysis} onPageChange={(value) => setSectionPage("analysis", value)} compact={compact} />}
             {tab === "settings" && <SettingsPage overview={overview} value={sectionTabs.settings as SettingsTab} onChange={(value) => setSectionTab("settings", value)} theme={theme} setTheme={setTheme} />}
@@ -660,14 +690,26 @@ function graphStatusLabel(status: EffectiveGraphStatus): string {
   return status.coverage === "partial" ? "Durable · Partial" : "Durable · Fresh";
 }
 
-function GraphPage({ graph, value, onChange, page, onPageChange, compact }: { graph: GraphView | null; value: GraphTab; onChange: (value: GraphTab) => void; page: number; onPageChange: (page: number) => void; compact: boolean }) {
+function GraphPage({ graph, value, onChange, page, onPageChange, compact, viewMode, onViewModeChange, generation, onNavigateToRecord }: { graph: GraphView | null; value: GraphTab; onChange: (value: GraphTab) => void; page: number; onPageChange: (page: number) => void; compact: boolean; viewMode: "table" | "map"; onViewModeChange: (mode: "table" | "map") => void; generation: number; onNavigateToRecord: (kind: string, id: string) => void }) {
   const edges = graph?.edges ?? [];
   const categories: Record<GraphTab, typeof edges> = { dependencies: edges.filter((edge) => edge.kind === "depends_on" || edge.kind === "reverse_dependency"), evidence: edges.filter((edge) => edge.kind === "supported_by" || edge.kind === "supports_work_item"), governance: edges.filter((edge) => !["depends_on", "reverse_dependency", "supported_by", "supports_work_item"].includes(edge.kind)), all: edges };
   const tabs: SectionTabOption<GraphTab>[] = [{ id: "dependencies", label: "Dependencies", count: categories.dependencies.length }, { id: "evidence", label: "Evidence", count: categories.evidence.length }, { id: "governance", label: "Governance", count: categories.governance.length }, { id: "all", label: "All", count: edges.length }];
   const selected = categories[value];
   const pageSize = compact ? 6 : 10;
   const visible = pageSlice(selected, page, pageSize);
-  return <section className="page-stack"><SectionTabs tabs={tabs} value={value} onChange={onChange} label="Graph relationship views" panelId="graph-page-panel" /><section id="graph-page-panel" className="panel" role="tabpanel" aria-labelledby={`graph-page-panel-tab-${value}`} aria-label={`${value} graph view`}><div className="panel-heading"><div><p className="eyebrow">RELATIONSHIP MODEL</p><h3>Repository graph</h3></div><span className="tag">{compact ? "Stacked accessible view" : "Table alternative"}</span></div>{graph && <p className="muted graph-status-line" data-testid="graph-status">Graph state: <strong>{graphStatusLabel(graph.status)}</strong></p>}{!graph ? <p className="muted">Loading graph…</p> : <><div className="table-wrap wide-only"><table><caption className="sr-only">Repository relationship edges</caption><thead><tr><th>From</th><th>Relationship</th><th>To</th><th>Source</th></tr></thead><tbody>{visible.map((edge, index) => <tr key={`${edge.from}-${edge.to}-${index}`}><td>{edge.from}</td><td>{edge.kind}</td><td>{edge.to}</td><td>{edge.source.path}</td></tr>)}</tbody></table></div><div className="graph-cards compact-only">{visible.map((edge, index) => <article className="relationship-card" key={`${edge.from}-${edge.to}-${index}`}><strong>{edge.kind}</strong><dl><div><dt>From</dt><dd>{edge.from}</dd></div><div><dt>To</dt><dd>{edge.to}</dd></div><div><dt>Source</dt><dd>{edge.source.path}</dd></div></dl></article>)}</div>{selected.length === 0 && <p className="muted empty-inline">No relationships in this view.</p>}<LocalPager page={page} pageSize={pageSize} total={selected.length} compact={compact} onPageChange={onPageChange} /></>}</section></section>;
+  // ROG-027 (Decision 0052): the operator repository map is additive to
+  // the pre-existing ROG-010/013 relationship table -- it never replaces
+  // that already-accepted disclosure surface, and both consume typed
+  // structured results, never a raw graph dump re-parsed as presentation
+  // text.
+  const modeToggle = <div className="button-row graph-mode-toggle" role="tablist" aria-label="Graph view mode">
+    <button type="button" role="tab" aria-selected={viewMode === "table"} className={viewMode === "table" ? "section-tab selected" : "section-tab"} onClick={() => onViewModeChange("table")}>Relationship table</button>
+    <button type="button" role="tab" aria-selected={viewMode === "map"} className={viewMode === "map" ? "section-tab selected" : "section-tab"} onClick={() => onViewModeChange("map")} data-testid="graph-mode-map-button">Operator map</button>
+  </div>;
+  if (viewMode === "map") {
+    return <section className="page-stack">{modeToggle}<GraphOperatorMap compact={compact} changeSignal={generation} onNavigateToRecord={onNavigateToRecord} /></section>;
+  }
+  return <section className="page-stack">{modeToggle}<SectionTabs tabs={tabs} value={value} onChange={onChange} label="Graph relationship views" panelId="graph-page-panel" /><section id="graph-page-panel" className="panel" role="tabpanel" aria-labelledby={`graph-page-panel-tab-${value}`} aria-label={`${value} graph view`}><div className="panel-heading"><div><p className="eyebrow">RELATIONSHIP MODEL</p><h3>Repository graph</h3></div><span className="tag">{compact ? "Stacked accessible view" : "Table alternative"}</span></div>{graph && <p className="muted graph-status-line" data-testid="graph-status">Graph state: <strong>{graphStatusLabel(graph.status)}</strong></p>}{!graph ? <p className="muted">Loading graph…</p> : <><div className="table-wrap wide-only"><table><caption className="sr-only">Repository relationship edges</caption><thead><tr><th>From</th><th>Relationship</th><th>To</th><th>Source</th></tr></thead><tbody>{visible.map((edge, index) => <tr key={`${edge.from}-${edge.to}-${index}`}><td>{edge.from}</td><td>{edge.kind}</td><td>{edge.to}</td><td>{edge.source.path}</td></tr>)}</tbody></table></div><div className="graph-cards compact-only">{visible.map((edge, index) => <article className="relationship-card" key={`${edge.from}-${edge.to}-${index}`}><strong>{edge.kind}</strong><dl><div><dt>From</dt><dd>{edge.from}</dd></div><div><dt>To</dt><dd>{edge.to}</dd></div><div><dt>Source</dt><dd>{edge.source.path}</dd></div></dl></article>)}</div>{selected.length === 0 && <p className="muted empty-inline">No relationships in this view.</p>}<LocalPager page={page} pageSize={pageSize} total={selected.length} compact={compact} onPageChange={onPageChange} /></>}</section></section>;
 }
 
 function ValidationPage({ validation, value, onChange, page, onPageChange, compact }: { validation: ValidationView | null; value: ValidationTab; onChange: (value: ValidationTab) => void; page: number; onPageChange: (page: number) => void; compact: boolean }) {

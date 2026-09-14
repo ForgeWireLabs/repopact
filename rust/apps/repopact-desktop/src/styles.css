@@ -183,6 +183,18 @@ th { color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform:
 .empty-inline { padding: 18px 8px; }
 .compact-only { display: none; }
 
+/* ROG-027 operator repository map (Decision 0052). */
+.graph-status-banner { display: grid; gap: 8px; }
+.graph-mode-toggle { margin-bottom: 4px; }
+.operator-map-layout.wide { display: grid; grid-template-columns: minmax(280px, .85fr) minmax(0, 1.5fr); gap: 16px; align-items: start; }
+.operator-map-layout.compact { display: grid; gap: 16px; }
+.filter-fieldset { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; display: flex; flex-wrap: wrap; gap: 10px 16px; }
+.filter-fieldset legend { padding: 0 6px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.checkbox-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+.fact-list { display: grid; gap: 4px; list-style: none; padding: 0; margin: 6px 0 14px; }
+.fact-list li { font-size: 12px; color: var(--ink); }
+.fact-list button.quiet-button { padding: 4px 0; }
+
 @media (max-width: 900px) {
   .topbar { min-height: 68px; }
   .topbar-brand { gap: 8px; }

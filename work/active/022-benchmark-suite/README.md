@@ -176,3 +176,21 @@ no registered AC-3 benchmark cell has been executed.
 
 - [ ] **AC-3** remains pending. The two permitted family admission probes are not
   comparative benchmark evidence and do not satisfy the criterion by themselves.
+
+## AC-3 admission probes (2026-09-14)
+
+The two and only two permitted non-benchmark family admission probes were run from
+the published Proving Ground implementation: exactly one `gpt-5.6` probe and exactly
+one `gpt-6` probe. Both real model turns completed and both raw empirical captures
+passed the secret scan. The model-reported admission JSON was `status: pass` in each
+capture, but the parent postcondition checker failed closed while reading the
+disposable `admission-result.txt` with Windows `PermissionError [Errno 13]`.
+
+The failed local postcondition is an implementation defect, not comparative result
+evidence. No retry was made. No registered AC-3 benchmark cell, S2/S3/S4/S5/S6a/S6b
+cell, comparative result, Pareto frontier, or scaling curve was started. Evidence:
+[`20260914-wi022-ac3-admission-probes`](../../../evidence/runs/20260914-wi022-ac3-admission-probes.json).
+
+- [ ] **AC-3** remains pending and is not admitted for comparative execution. The
+  published execution substrate needs a deterministic fix and tests for the local
+  Windows result-file postcondition before any further admission attempt.

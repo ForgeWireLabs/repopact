@@ -1,0 +1,170 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-admission-probes",
+  "timestamp": "2026-09-14T14:47:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-admission-attestation.v1",
+  "classification": "empirical-admission-only",
+  "study_id": "WI022-AC3-admission",
+  "published_executor": {
+    "repository": "ForgeWireLabs/repopact-proving-ground",
+    "implementation_commit": "0d43f9da959c57e854caac01e0e18f3195468620",
+    "capture_commit": "a59a70566cc3d71bd55d1ed42c125b77cfb21445",
+    "master": "a59a70566cc3d71bd55d1ed42c125b77cfb21445",
+    "executor_version": "repopact.codex-empirical.v1",
+    "runtime_version": "codex-cli-public-app-server-v2",
+    "schema_digest": "3ca5e023a4b7054177fdc52851e72c27de08ed9b37005fca3ec57dd288099595"
+  },
+  "scope": {
+    "registered_benchmark_cells_executed": 0,
+    "ac3_started": false,
+    "admission_probe_calls": 2,
+    "gpt_5_6_calls": 1,
+    "gpt_6_calls": 1,
+    "comparative_results": 0,
+    "retries": 0,
+    "auxiliary_model_calls": 0
+  },
+  "results": [
+    {
+      "family": "gpt-5.6",
+      "model": {"family": "gpt-5.6", "provider": "openai", "version": "gpt-5.6-luna"},
+      "status": "failed_admission",
+      "probe_model_reported_status": "pass",
+      "thread_id": "01a0a172-aef1-7a22-b688-c6f2b45ecab1",
+      "turn_id": "01a0a172-af75-77c3-b39d-048f4582ea88",
+      "requests": 5,
+      "tool_calls": 2,
+      "telemetry_aggregate": {
+        "input_tokens": 72939,
+        "cached_input_tokens": 55296,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1568,
+        "reasoning_output_tokens": 1119,
+        "context_tokens": 72866,
+        "task_tokens": 73,
+        "cache_adjusted_input_tokens": 17643,
+        "requests": 5,
+        "tool_calls": 2,
+        "elapsed_ms": 39628.781,
+        "usd": 0.0,
+        "pricing_id": "chatgpt-subscription-unmetered-2026-09-14"
+      },
+      "postconditions": {
+        "model_reported_fixture_read": true,
+        "model_reported_result_creation": true,
+        "local_result_file_read": false,
+        "local_checker_error": "PermissionError [Errno 13] while reading admission-result.txt",
+        "admitted": false,
+        "retry_performed": false
+      },
+      "runtime_identity": {
+        "executor_version": "repopact.codex-empirical.v1",
+        "runtime_version": "codex-cli-public-app-server-v2",
+        "cli_user_agent": "Codex Desktop/0.154.0-alpha.6.2 (Windows 10.0.26200; x86_64) dumb (repopact-pactbench; 1)",
+        "reasoning_effort": "xhigh",
+        "approval_policy": "never",
+        "sandbox": "workspaceWrite"
+      },
+      "raw_capture": "proving-ground:evidence/captures/20260914-wi022-ac3-admission/gpt-5.6.json",
+      "raw_capture_sha256": "62beea3ae4672d293fc4a3cea1b0276a18f901eb22efcf95615087db16087cc9",
+      "capture_digest": "dd07d2031fe0c489ed9257a0282d19e469c69a09a7054638a9d84af7f1dcfaec",
+      "capture_secret_scan": "passed",
+      "telemetry_source": "public Codex app-server thread/tokenUsage/updated"
+    },
+    {
+      "family": "gpt-6",
+      "model": {"family": "gpt-6", "provider": "openai", "version": "gpt-6-astra"},
+      "status": "failed_admission",
+      "probe_model_reported_status": "pass",
+      "thread_id": "01a0a175-1070-7d73-8e8f-ef8399197dfa",
+      "turn_id": "01a0a175-10fd-7a52-af2e-edd92bc241b4",
+      "requests": 3,
+      "tool_calls": 1,
+      "telemetry_aggregate": {
+        "input_tokens": 49597,
+        "cached_input_tokens": 32640,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 303,
+        "reasoning_output_tokens": 43,
+        "context_tokens": 49524,
+        "task_tokens": 73,
+        "cache_adjusted_input_tokens": 16957,
+        "requests": 3,
+        "tool_calls": 1,
+        "elapsed_ms": 21713.88,
+        "usd": 0.0,
+        "pricing_id": "chatgpt-subscription-unmetered-2026-09-14"
+      },
+      "postconditions": {
+        "model_reported_fixture_read": true,
+        "model_reported_result_creation_and_verification": true,
+        "local_result_file_read": false,
+        "local_checker_error": "PermissionError [Errno 13] while reading admission-result.txt",
+        "admitted": false,
+        "retry_performed": false
+      },
+      "runtime_identity": {
+        "executor_version": "repopact.codex-empirical.v1",
+        "runtime_version": "codex-cli-public-app-server-v2",
+        "cli_user_agent": "Codex Desktop/0.154.0-alpha.6.2 (Windows 10.0.26200; x86_64) dumb (repopact-pactbench; 1)",
+        "reasoning_effort": "xhigh",
+        "approval_policy": "never",
+        "sandbox": "workspaceWrite"
+      },
+      "raw_capture": "proving-ground:evidence/captures/20260914-wi022-ac3-admission/gpt-6.json",
+      "raw_capture_sha256": "8ef684392d6f332d045232856d0d2440389525af0836a0b38ad4a04080f6cf0b",
+      "capture_digest": "37c8e685b1bb72e05b09968a66e6ce25971a5b691ee3a066e3a63c2cc3f63841",
+      "capture_secret_scan": "passed",
+      "telemetry_source": "public Codex app-server thread/tokenUsage/updated"
+    }
+  ],
+  "commands": [
+    {
+      "command": "python -m benchmarks.harness.admission_probe --family gpt-5.6 --capture-root evidence/captures",
+      "exit_code": 1,
+      "summary": "One and only gpt-5.6-luna admission attempt completed a real model turn and capture, then failed closed on the local Windows result-file read; no retry was made."
+    },
+    {
+      "command": "python -m benchmarks.harness.admission_probe --family gpt-6 --capture-root evidence/captures",
+      "exit_code": 1,
+      "summary": "One and only gpt-6-astra admission attempt completed a real model turn and capture, then failed closed on the same local Windows result-file read; no retry was made."
+    },
+    {
+      "command": "offline capture metadata inspection and assert_no_secrets for both captures",
+      "exit_code": 0,
+      "summary": "Both empirical captures were preserved, secret-scanned, and reconciled to public app-server telemetry metadata."
+    }
+  ],
+  "artifacts": [
+    "proving-ground:master@a59a70566cc3d71bd55d1ed42c125b77cfb21445:evidence/captures/20260914-wi022-ac3-admission/gpt-5.6.json",
+    "proving-ground:master@a59a70566cc3d71bd55d1ed42c125b77cfb21445:evidence/captures/20260914-wi022-ac3-admission/gpt-6.json",
+    "research/benchmark-protocol.md",
+    "work/active/022-benchmark-suite/work-item.json"
+  ],
+  "environment": {
+    "date": "2026-09-14",
+    "host": "Windows",
+    "python": "3.13",
+    "codex": "0.154.0-alpha.6.2",
+    "provider": "openai",
+    "fixture": "disposable-admission-fixture",
+    "registered_benchmark_inference_started": false,
+    "model_comparison_started": false,
+    "raw_capture_secret_scan": "passed",
+    "temp_fixture_teardown": "completed by probe context manager after each attempt"
+  },
+  "acceptance_boundary": {
+    "wi022_ac3": "pending; admission gate failed for both required families",
+    "comparative_results": "none",
+    "registered_cells": "none executed",
+    "next_action": "repair and deterministically test the local Windows result-file postcondition before any new admission attempt; operator authorization is required for any further live probe"
+  },
+  "notes": [
+    "These two turns are admission evidence only and are not AC-3 benchmark cells or comparative findings.",
+    "The model-reported JSON status was pass in both captures, but admission requires the local objective postcondition and therefore failed closed when the parent process received PermissionError.",
+    "The prescribed one-attempt-per-family boundary was honored exactly; no retry or registered S2/S3/S4/S5/S6a/S6b execution occurred."
+  ]
+}

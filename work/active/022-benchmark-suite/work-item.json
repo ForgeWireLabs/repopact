@@ -26,7 +26,7 @@
     {
       "id": "AC-2",
       "text": "Instrumentation: token/cost reporting (per-request input/output tokens, context-vs-task split, requests-per-task, USD, cache-adjusted tokens); drift reporting (detection rate, time-to-detection, silent-staleness, reconciliation cost); security reporting (confusion matrix + injection-followed/detection rates).",
-      "state": "pending",
+      "state": "satisfied",
       "evidence": [
         "20260624-pactbench-harness-selftest",
         "20260726-semantic-ledger-freshness-reconciliation",
@@ -34,7 +34,8 @@
         "20260913-wi022-s5-package-boundary-reconciliation",
         "20260913-wi022-ac5-realrunner-smoke",
         "20260913-wi022-telemetry-v2-checkpoint",
-        "20260913-wi022-ac5-v2-selection"
+        "20260913-wi022-ac5-v2-selection",
+        "20260914-wi022-ac5-realrunner-smoke-v2"
       ]
     },
     {
@@ -58,13 +59,14 @@
     {
       "id": "AC-5",
       "text": "RealRunner completes a documented smoke run on at least three pre-registered tasks with one real model before full studies begin; raw command, provider/model version, prompts, outputs, token/cost telemetry, grader results, and failures are captured, and no MockRunner output is presented as empirical evidence.",
-      "state": "pending",
+      "state": "satisfied",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-wi022-ac5-realrunner-smoke"
+        "20260913-wi022-ac5-realrunner-smoke",
+        "20260914-wi022-ac5-realrunner-smoke-v2"
       ]
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-09-13"
+  "updated": "2026-09-14"
 }

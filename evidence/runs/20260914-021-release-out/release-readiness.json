@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    {
+      "kind": "wheel",
+      "path": "repopact-3.0.2.dev1-py3-none-win_amd64.whl",
+      "sha256": "7361454af329645573da522d2de5c379a74b0518a0d17d6323c81e7550d2e8d3"
+    },
+    {
+      "kind": "sdist",
+      "path": "repopact-3.0.2.dev1.tar.gz",
+      "sha256": "f51cadb22c32f82fea1c9a899ac81526e1f5e48143d39c15746cede724adffa5"
+    }
+  ],
+  "candidate": {
+    "commit": "4035c03229417f21ae95bcd52d5ab1c3226cb9d4",
+    "dirty": false,
+    "version": "3.0.2"
+  },
+  "format": "repopact-release-readiness-v1",
+  "host_preparation": "passed",
+  "missing_platforms": [
+    "linux",
+    "macos"
+  ],
+  "platform": "windows",
+  "required_platforms": [
+    "linux",
+    "macos",
+    "windows"
+  ]
+}

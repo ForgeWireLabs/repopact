@@ -19,7 +19,8 @@
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-021-launch-readiness-reconciliation"
+        "20260913-021-launch-readiness-reconciliation",
+        "20260914-021-ci-verification"
       ]
     },
     {
@@ -28,7 +29,8 @@
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-021-launch-readiness-reconciliation"
+        "20260913-021-launch-readiness-reconciliation",
+        "20260914-021-ci-verification"
       ]
     },
     {
@@ -37,7 +39,8 @@
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-021-launch-readiness-reconciliation"
+        "20260913-021-launch-readiness-reconciliation",
+        "20260914-021-release-preparation"
       ]
     },
     {
@@ -51,5 +54,5 @@
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-09-13"
+  "updated": "2026-09-14"
 }

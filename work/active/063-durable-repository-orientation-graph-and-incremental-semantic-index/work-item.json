@@ -154,8 +154,10 @@
     {
       "id": "ROG-018",
       "text": "Initial semantic coverage is sufficient to orient RepoPact itself and includes at least Rust, Python, and TypeScript/JavaScript source structure plus relevant JSON/TOML/YAML/Markdown and manifest metadata. Coverage is reported per language and relation; support for a language does not falsely imply a complete call graph.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-metadata-operational-topology-checkpoint"
+      ]
     },
     {
       "id": "ROG-019",
@@ -174,14 +176,18 @@
     {
       "id": "ROG-021",
       "text": "Implement safe repository-boundary and exclusion behavior: do not follow symlinks outside the repository by default, do not index `.git` internals as source, honor RepoPact/graph exclusions, classify submodules or nested repos, bound vendor/generated/dependency trees, avoid common build/cache/venv/node_modules/target outputs by default, and do not ingest ignored secret files merely because they exist locally.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-metadata-operational-topology-checkpoint"
+      ]
     },
     {
       "id": "ROG-022",
       "text": "Language adapters are resource-bounded and failure-isolated for malformed or adversarial repository content. Define and test file-size/binary/minified/generated policies, cancellation or timeout behavior, recursion/depth bounds where applicable, malformed syntax handling, path normalization, parser memory behavior, and recovery after a failed region parse.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-metadata-operational-topology-checkpoint"
+      ]
     },
     {
       "id": "ROG-023",
@@ -295,5 +301,5 @@
     }
   ],
   "created": "2026-09-12",
-  "updated": "2026-09-13"
+  "updated": "2026-09-14"
 }

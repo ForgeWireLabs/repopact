@@ -7,8 +7,8 @@ export type Severity = "error" | "warning" | "info";
 export type WatcherState = "running" | "unavailable" | "stopped";
 export type ChangeOrigin = "external" | "self_apply";
 export type RecordKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "audit_registry" | "dashboard" | "template" | "adopter_manifest" | "research_metadata";
-export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding";
-export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows";
+export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "directory" | "file" | "workspace" | "configuration_file" | "nested_repository" | "symbol" | "manifest";
+export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows" | "belongs_to_workspace" | "configured_by" | "defines" | "imports" | "exports" | "implements" | "extends" | "references" | "calls" | "uses_type";
 export type AnalysisKind = "next_work_id" | "scope" | "dependency" | "evidence" | "finding" | "contract" | "frozen_surface" | "provenance" | "related_work";
 export type FindingClassification = "fact" | "constraint" | "suggestion";
 export type GraphBasis = "durable" | "working_overlay";
@@ -29,8 +29,8 @@ export interface WorkItemDetailView { summary: WorkItemSummaryView; work_item: W
 export interface DecisionSummaryView { reference: RecordRef; readable: boolean; title: string | null; status: string | null; date: string | null; supersedes: string[]; }
 export interface EvidenceSummaryView { reference: RecordRef; readable: boolean; timestamp: string | null; work_item: string | null; result: string | null; provenance: string | null; }
 export interface RecordDetailView { reference: RecordRef; value: unknown | null; text: string | null; readable: boolean; }
-export interface GraphNode { id: string; kind: GraphNodeKind; label: string; source: RecordRef | null; }
-export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; source: RecordRef; }
+export interface GraphNode { id: string; kind: GraphNodeKind; label: string; layer: GraphLayer; source: RecordRef | null; symbol_kind?: SymbolKind | null; location?: GraphSourceLocation | null; manifest_kind?: ManifestKind | null; node_role?: GraphNodeRole | null; }
+export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; layer: GraphLayer; derivation: string; source: RecordRef; location?: GraphSourceLocation | null; relation_role?: GraphRelationRole | null; }
 export interface EffectiveGraphStatus { basis: GraphBasis; durable_freshness: DurableFreshness; coverage: GraphCoverageState; baseline_fingerprint: string | null; effective_fingerprint: string; changed_path_count: number; overlay_generation: number; }
 export interface GraphView { nodes: GraphNode[]; edges: GraphEdge[]; status: EffectiveGraphStatus; }
 export interface AnalysisFindingView { kind: AnalysisKind; classification: FindingClassification; code: string; message: string; basis: RecordRef[]; related_records: string[]; remediation: string | null; }
@@ -118,11 +118,20 @@ export type OrientOutcome =
 
 export interface QueryEnvelope<T> { query_contract_version: number; graph_schema_version: number; graph_fingerprint: string; status: EffectiveGraphStatus; warnings: string[]; truncated: boolean; returned_nodes: number; returned_edges: number; next_cursor?: string | null; result: T; }
 
+// Decision 0052 section 3 (operator search box, ROG-027): a bounded,
+// deterministic search over already-indexed graph fields. Never a
+// fuzzy/embedding/semantic-similarity score.
+export type SearchRank = "exact" | "exact_normalized" | "prefix" | "substring";
+export type SearchField = "stable_id" | "repository_relative_path" | "label" | "node_role";
+export interface SearchMatch { node: FactRef; rank: SearchRank; matched_field: SearchField; }
+export interface SearchResult { query: string; matches: SearchMatch[]; }
+
 // The one typed request shape the desktop boundary accepts
 // (repopact_desktop_api::GraphQueryRequest) -- mirrors the engine
 // protocol's per-operation params exactly.
 export type GraphQueryRequest =
   | { operation: "resolve"; selector: NodeSelector; bounds?: QueryBounds }
+  | { operation: "search"; text: string; bounds?: QueryBounds }
   | { operation: "context"; node_id: string; bounds?: QueryBounds }
   | { operation: "neighbors"; node_id: string; direction?: Direction; bounds?: QueryBounds }
   | { operation: "path"; from: string; to: string; bounds?: QueryBounds }
@@ -132,7 +141,217 @@ export type GraphQueryRequest =
   | { operation: "governance"; node_id: string; bounds?: QueryBounds }
   | { operation: "impact"; node_id: string; bounds?: QueryBounds }
   | { operation: "orient"; selector: NodeSelector; bounds?: QueryBounds };
+
+// Decision 0051 (ROG-039 five-state capability model) + Decision 0052
+// section 2 (Workbench freshness/coverage disclosure). The exact same
+// `repopact_graph::status::GraphStatus`/`durable::Manifest` shape the
+// engine's `graph.status`/`graph.verify` operations return.
+export type CapabilityState = "legacy_absent" | "legacy_enabled" | "explicit_disabled" | "explicit_enabled" | "enabled_missing";
+export type Freshness = "absent" | "fresh" | "partial" | "stale" | "unsupported" | "corrupt";
+export interface ShardEntry { shard: string; sha256: string; count: number; }
+export interface GraphCoverage { nodes_by_layer: Record<string, number>; edges_by_layer: Record<string, number>; }
+export interface GraphManifest { graph_schema_version: number; generator_version: string; source_projection_fingerprint: string; node_count: number; edge_count: number; shard_count: number; node_shards: ShardEntry[]; edge_shards: ShardEntry[]; coverage: GraphCoverage; excluded_policy_id: string; semantic_coverage?: unknown; semantic_compatibility?: unknown; }
+export interface GraphDiagnosticView { code: string; message: string; }
+export interface GraphStatusView { freshness: Freshness; capability_state: CapabilityState; manifest: GraphManifest | null; diagnostics: GraphDiagnosticView[]; }
 "#;
+
+#[cfg(test)]
+mod tests {
+    //! ROG-027/028 (Decision 0052 section 4): "Do not hand-maintain two
+    //! subtly different models." `TYPESCRIPT` above is a hand-written
+    //! literal, not derived from the Rust types, so nothing stops it
+    //! silently drifting whenever a Rust struct gains, loses, or renames
+    //! a field. This module is the executable guardrail: it serializes a
+    //! *real* instance of each graph/query/status type this checkpoint's
+    //! operator map consumes and asserts every top-level JSON key
+    //! actually appears as a declared member of that type's TypeScript
+    //! interface in `TYPESCRIPT` -- so a future Rust field added to, say,
+    //! `GraphNode` or `GraphStatus` without a matching template edit
+    //! fails this test loudly, instead of silently shipping a stale
+    //! frontend contract the way the pre-existing `GraphNode`/`GraphEdge`
+    //! drift this checkpoint fixes did.
+
+    use repopact_graph::capability::CapabilityState;
+    use repopact_graph::query::{SearchField, SearchMatch, SearchRank};
+    use repopact_graph::status::{Freshness, GraphStatus};
+    use repopact_graph::{GraphEdge, GraphEdgeKind, GraphLayer, GraphNode, GraphNodeKind};
+
+    use super::TYPESCRIPT;
+
+    /// The exact `{ ... }` field-list body of `export interface <name>`
+    /// (or the shared field list on a tagged-union variant, when
+    /// `name` names a `{ operation: "..."; ... }` object literal instead)
+    /// inside the template, or `None` if that declaration cannot be
+    /// found at all -- itself a drift signal worth failing on.
+    fn interface_body<'a>(name: &'a str) -> &'a str {
+        let marker = format!("export interface {name} ");
+        let start = TYPESCRIPT
+            .find(&marker)
+            .unwrap_or_else(|| panic!("TypeScript template has no `export interface {name}` declaration -- has it been renamed or removed?"));
+        let brace_start = TYPESCRIPT[start..].find('{').unwrap() + start;
+        let brace_end = TYPESCRIPT[brace_start..].find('}').unwrap() + brace_start;
+        &TYPESCRIPT[brace_start..=brace_end]
+    }
+
+    fn assert_every_key_declared(interface_name: &str, value: &serde_json::Value) {
+        let body = interface_body(interface_name);
+        let object = value
+            .as_object()
+            .unwrap_or_else(|| panic!("{interface_name} did not serialize to a JSON object"));
+        for key in object.keys() {
+            let optional_marker = format!("{key}?:");
+            let required_marker = format!("{key}:");
+            assert!(
+                body.contains(&optional_marker) || body.contains(&required_marker),
+                "Rust field `{key}` is missing from the TypeScript `{interface_name}` \
+                 interface -- the generated types.ts has drifted from the real Rust shape. \
+                 Add `{key}` to the TYPESCRIPT template in generate-types.rs and regenerate."
+            );
+        }
+    }
+
+    #[test]
+    fn graph_node_typescript_interface_covers_every_rust_field() {
+        let node = GraphNode {
+            id: "file:src/lib.rs".to_owned(),
+            kind: GraphNodeKind::File,
+            label: "lib.rs".to_owned(),
+            layer: GraphLayer::Physical,
+            source: None,
+            symbol_kind: None,
+            location: None,
+            manifest_kind: None,
+            node_role: None,
+        };
+        assert_every_key_declared("GraphNode", &serde_json::to_value(&node).unwrap());
+    }
+
+    #[test]
+    fn graph_edge_typescript_interface_covers_every_rust_field() {
+        let edge = GraphEdge {
+            from: "a".to_owned(),
+            to: "b".to_owned(),
+            kind: GraphEdgeKind::DependsOn,
+            layer: GraphLayer::Governance,
+            derivation: Default::default(),
+            source: repopact_types::RecordRef {
+                kind: repopact_types::RecordKind::WorkItem,
+                id: "100".to_owned(),
+                path: "work/active/100/work-item.json".to_owned(),
+            },
+            location: None,
+            relation_role: None,
+        };
+        assert_every_key_declared("GraphEdge", &serde_json::to_value(&edge).unwrap());
+    }
+
+    #[test]
+    fn search_match_typescript_interface_covers_every_rust_field() {
+        let node = GraphNode {
+            id: "file:src/lib.rs".to_owned(),
+            kind: GraphNodeKind::File,
+            label: "lib.rs".to_owned(),
+            layer: GraphLayer::Physical,
+            source: None,
+            symbol_kind: None,
+            location: None,
+            manifest_kind: None,
+            node_role: None,
+        };
+        let search_match = SearchMatch {
+            node: repopact_graph::query::FactRef::from_node(&node),
+            rank: SearchRank::Exact,
+            matched_field: SearchField::StableId,
+        };
+        assert_every_key_declared("SearchMatch", &serde_json::to_value(&search_match).unwrap());
+    }
+
+    #[test]
+    fn graph_status_typescript_interface_covers_every_rust_field() {
+        let status = GraphStatus {
+            freshness: Freshness::Fresh,
+            capability_state: CapabilityState::ExplicitEnabled,
+            manifest: None,
+            diagnostics: Vec::new(),
+        };
+        assert_every_key_declared("GraphStatusView", &serde_json::to_value(&status).unwrap());
+    }
+
+    #[test]
+    fn graph_query_request_search_operation_tag_is_present() {
+        // The tagged-union discriminant for the newly added `graph.search`
+        // operation must actually appear in the template's
+        // `GraphQueryRequest` union, not just be documented in prose.
+        assert!(
+            TYPESCRIPT.contains(r#"{ operation: "search"; text: string;"#),
+            "GraphQueryRequest's TypeScript union is missing the \"search\" operation variant"
+        );
+    }
+
+    #[test]
+    fn known_node_kind_variants_are_all_declared() {
+        // A lighter-weight drift guard for enums that generate-types.rs
+        // hand-lists as a string union: every currently-defined
+        // GraphNodeKind variant's serde wire string must appear in the
+        // TypeScript GraphNodeKind union.
+        let all_kinds = [
+            GraphNodeKind::Repository,
+            GraphNodeKind::WorkItem,
+            GraphNodeKind::AcceptanceCriterion,
+            GraphNodeKind::EvidenceRun,
+            GraphNodeKind::Scope,
+            GraphNodeKind::Role,
+            GraphNodeKind::Decision,
+            GraphNodeKind::Policy,
+            GraphNodeKind::Contract,
+            GraphNodeKind::Invariant,
+            GraphNodeKind::FrozenSurface,
+            GraphNodeKind::AuditFinding,
+            GraphNodeKind::Directory,
+            GraphNodeKind::File,
+            GraphNodeKind::Workspace,
+            GraphNodeKind::ConfigurationFile,
+            GraphNodeKind::NestedRepository,
+            GraphNodeKind::Symbol,
+            GraphNodeKind::Manifest,
+        ];
+        let declared_union = interface_union("GraphNodeKind");
+        for kind in all_kinds {
+            let wire = serde_json::to_value(kind).unwrap();
+            let wire = wire.as_str().unwrap();
+            assert!(
+                declared_union.contains(&format!("\"{wire}\"")),
+                "GraphNodeKind variant `{wire}` is missing from the TypeScript union"
+            );
+        }
+    }
+
+    fn interface_union(name: &str) -> String {
+        let marker = format!("export type {name} = ");
+        let start = TYPESCRIPT.find(&marker).unwrap_or_else(|| {
+            panic!("TypeScript template has no `export type {name} =` declaration")
+        });
+        let end = TYPESCRIPT[start..].find(';').unwrap() + start;
+        TYPESCRIPT[start..end].to_owned()
+    }
+
+    #[test]
+    fn generated_output_matches_the_template_after_lifecycle_status_substitution() {
+        // A minimal smoke test that the substitution step itself does not
+        // silently drop content -- the marker must be gone and the real
+        // list of statuses must be present in the generated output.
+        let statuses = repopact_types::LifecycleStatus::ALL
+            .iter()
+            .map(|status| format!("\"{status}\""))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let generated = TYPESCRIPT.replace("__LIFECYCLE_STATUSES__", &format!("[{statuses}]"));
+        assert!(!generated.contains("__LIFECYCLE_STATUSES__"));
+        for status in repopact_types::LifecycleStatus::ALL {
+            assert!(generated.contains(&format!("\"{status}\"")));
+        }
+    }
+}
 
 fn main() {
     let output = env::args()

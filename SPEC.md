@@ -91,6 +91,7 @@ Structure is defined by the schemas; this catalog is generated from them.
 | Invariants | `governance/invariants.json` | [`invariants.schema.json`](repopact/schemas/invariants.schema.json) | `version`, `invariants` |
 | Frozen surface | `governance/frozen-surface.json` | [`frozen-surface.schema.json`](repopact/schemas/frozen-surface.schema.json) | `version`, `protected` |
 | Verification contract | `governance/verification.json` | [`verification-profile.schema.json`](repopact/schemas/verification-profile.schema.json) | `$schema`, `version`, `execution_policy`, `profiles` |
+| Assurance/control mapping | `assurance/mappings/<id>.json` | [`assurance-mapping.schema.json`](repopact/schemas/assurance-mapping.schema.json) | `$schema`, `version`, `id`, `framework`, `requirement`, `applicability`, `created`, `updated` |
 | Decision (front matter) | `decisions/NNNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `date` |
 | Policy (front matter) | `governance/policies/NNN-slug.md` | [`record-frontmatter.schema.json`](repopact/schemas/record-frontmatter.schema.json) | `id`, `title`, `status`, `applies_to` |
 <!-- /generated:catalog -->
@@ -164,6 +165,22 @@ cross-record consistency.
     `coverage: complete` is incomplete when a required declared platform or
     capability was not executed. Verification success does not synthesize
     operator approval or prove remote admission enforcement.
+15. **Assurance/control mapping (optional, Decision 0054).** Where
+    `assurance/mappings/*.json` exists, each record's `id` matches its filename
+    and is unique. A non-`unassessed` `applicability.status` carries a
+    non-empty `rationale` and `determined_by`. `control_refs`/
+    `implementation_refs` naming `decision`, `policy`, `invariant`, or
+    `work_item` resolve to an existing canonical record; path-shaped
+    `implementation_refs` (`source`, `configuration`, `workflow`, `test`,
+    `runtime_surface`) and `control_refs` of kind `contract` are
+    repository-relative, cannot escape the repository, and must resolve to an
+    existing file. `evidence_refs` of kind `evidence_run` resolve to an
+    existing evidence run; kind `repository_artifact` resolves to an existing
+    repository-relative file. A mapping's presence, an implemented control, a
+    referenced evidence artifact, and a referenced attestation are four
+    distinct facts; none implies the others, and none implies RepoPact
+    certifies compliance with the referenced framework. A repository with no
+    `assurance/mappings` directory remains fully valid.
 
 ## 5. Lifecycle state machine
 

@@ -29,6 +29,10 @@ RECORDS = [
      "Protected paths and symbols requiring operator approval."),
     ("verification-profile.schema.json", "Verification contract", "governance/verification.json",
      "Provider-neutral named local verification profiles and execution policy."),
+    ("assurance-mapping.schema.json", "Assurance/control mapping", "assurance/mappings/<id>.json",
+     "Optional, adopter-owned mapping of an implemented control to an external "
+     "framework requirement (Decision 0054). RepoPact never derives compliance "
+     "or certification from a mapping's presence."),
 ]
 
 

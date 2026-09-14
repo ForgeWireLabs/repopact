@@ -120,6 +120,20 @@ def _update(args: argparse.Namespace) -> int:
     return _FRESHNESS_EXIT_CODES.get(result.get("freshness"), 2)
 
 
+def _disable(args: argparse.Namespace) -> int:
+    try:
+        response = EngineClient().call("graph.disable", root=args.root)
+    except EngineSemanticError as error:
+        print(f"RepoPact graph disable failed: {error}", file=sys.stderr)
+        return 1
+    result = response["result"]
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        print("RepoPact orientation graph explicitly disabled.")
+    return 0
+
+
 # ---- ROG-023/024/025/026: typed bounded query/orientation commands --------
 #
 # CLI convenience syntax maps explicit, mutually-exclusive target flags
@@ -317,6 +331,14 @@ def main(argv: list[str] | None = None) -> int:
     p_update.add_argument("--root", type=Path, default=Path.cwd())
     p_update.add_argument("--json", action="store_true")
     p_update.set_defaults(handler=_update)
+
+    p_disable = sub.add_parser(
+        "disable",
+        help="Explicitly disable the durable orientation graph (removes rog/, persists capability=disabled)",
+    )
+    p_disable.add_argument("--root", type=Path, default=Path.cwd())
+    p_disable.add_argument("--json", action="store_true")
+    p_disable.set_defaults(handler=_disable)
 
     # ---- ROG-023/024/025/026 typed bounded query/orientation commands ----
 

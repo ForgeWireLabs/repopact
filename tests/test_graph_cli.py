@@ -81,6 +81,46 @@ class GraphCliTests(unittest.TestCase):
         self.assertEqual(verify_code, 0)
         self.assertEqual(verify_result["freshness"], "fresh")
 
+    # ---- ROG-039/015: explicit capability lifecycle via the CLI --------
+
+    def test_build_then_status_reports_explicit_enabled(self) -> None:
+        self.capture("build")
+        code, result = self.capture("status")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["capability_state"], "explicit_enabled")
+
+    def test_disable_removes_graph_and_reports_explicit_disabled(self) -> None:
+        self.capture("build")
+        code, result = self.capture("disable")
+        self.assertEqual(code, 0)
+        self.assertTrue(result["disabled"])
+        self.assertFalse((self.root / "rog").exists())
+
+        status_code, status_result = self.capture("status")
+        self.assertEqual(status_code, 0)
+        self.assertEqual(status_result["freshness"], "absent")
+        self.assertEqual(status_result["capability_state"], "explicit_disabled")
+
+    def test_build_disable_rebuild_cycle_via_cli(self) -> None:
+        self.capture("build")
+        self.capture("disable")
+        code, result = self.capture("build")
+        self.assertEqual(code, 0)
+        status_code, status_result = self.capture("status")
+        self.assertEqual(status_code, 0)
+        self.assertEqual(status_result["capability_state"], "explicit_enabled")
+
+    def test_read_only_commands_never_enable_capability(self) -> None:
+        # Before any build, capability must be legacy_absent; status/
+        # verify are read-only and must never change that.
+        self.capture("status")
+        self.capture("verify")
+        code, result = self.capture("status")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["capability_state"], "legacy_absent")
+        self.assertFalse((self.root / "rog").exists())
+        self.assertFalse((self.root / "governance" / "rog-capability.json").exists())
+
 
 class GraphQueryCliTests(unittest.TestCase):
     """WI063 bounded-query-and-orientation checkpoint (ROG-023/024/026):

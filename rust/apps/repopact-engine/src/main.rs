@@ -113,6 +113,7 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.build" => graph_build(&request),
         "graph.verify" => graph_verify(&request),
         "graph.update" => graph_update(&request),
+        "graph.disable" => graph_disable(&request),
         "graph.resolve" => query_ops::graph_resolve(&request),
         "graph.context" => query_ops::graph_context(&request),
         "graph.neighbors" => query_ops::graph_neighbors(&request),
@@ -357,6 +358,25 @@ fn graph_build(request: &EngineRequest) -> EngineResponse {
             request.request_id.clone(),
             ENGINE_VERSION,
             serde_json::to_value(manifest).unwrap_or(Value::Null),
+        ),
+        Err(error) => semantic_failure(request, error.code, error.message),
+    }
+}
+
+/// WI063 adoption/backfill/clean-clone checkpoint (Decision 0051
+/// section 4): explicit disable. Removes the derived `rog/` directory
+/// and persists `capabilities.rog = disabled` -- idempotent, never
+/// touches source/governance.
+fn graph_disable(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    match repopact_graph::disable_graph(&root) {
+        Ok(()) => EngineResponse::success(
+            request.request_id.clone(),
+            ENGINE_VERSION,
+            json!({"disabled": true}),
         ),
         Err(error) => semantic_failure(request, error.code, error.message),
     }

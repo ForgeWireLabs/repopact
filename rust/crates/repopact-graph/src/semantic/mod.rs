@@ -6,6 +6,7 @@
 //! invocation, or symlink traversal themselves (Decision 0045 section 7).
 
 mod javascript_adapter;
+pub(crate) mod operational;
 mod python_adapter;
 mod rust_adapter;
 
@@ -534,6 +535,7 @@ pub fn extend(
         }
         per_file.push(contribution.entry);
     }
+    operational::apply(graph, projection, &per_file);
     aggregate_coverage(per_file)
 }
 

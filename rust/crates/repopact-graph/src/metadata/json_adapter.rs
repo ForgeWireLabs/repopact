@@ -173,12 +173,7 @@ fn extract_package_json(relative_path: &str, value: &Value) -> AdapterOutput {
     // contributions are collected.
     if let Some(workspaces) = value.get("workspaces").and_then(Value::as_array) {
         for pattern in workspaces.iter().filter_map(Value::as_str) {
-            let fact = fact_node(
-                relative_path,
-                "workspace_glob",
-                pattern,
-                pattern.to_owned(),
-            );
+            let fact = fact_node(relative_path, "workspace_glob", pattern, pattern.to_owned());
             edges.push(contains_edge(
                 manifest_id.clone(),
                 fact.id.clone(),
@@ -229,7 +224,12 @@ fn extract_tauri_conf_json(relative_path: &str, value: &Value) -> AdapterOutput 
     }
 
     if let Some(identifier) = value.get("identifier").and_then(Value::as_str) {
-        let fact = fact_node(relative_path, "identifier", identifier, identifier.to_owned());
+        let fact = fact_node(
+            relative_path,
+            "identifier",
+            identifier,
+            identifier.to_owned(),
+        );
         edges.push(contains_edge(
             manifest_id.clone(),
             fact.id.clone(),

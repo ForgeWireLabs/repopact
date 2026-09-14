@@ -567,10 +567,16 @@ path = "tests/integration.rs"
         );
         assert!(output.edges.iter().any(|e| e.to == bin.id
             && e.layer == GraphLayer::Runtime
-            && e.relation_role.as_ref().map(crate::GraphRelationRole::as_str)
+            && e.relation_role
+                .as_ref()
+                .map(crate::GraphRelationRole::as_str)
                 == Some(crate::roles::ENTRY_POINT_FOR)));
 
-        let test_target = output.nodes.iter().find(|n| n.label == "integration").unwrap();
+        let test_target = output
+            .nodes
+            .iter()
+            .find(|n| n.label == "integration")
+            .unwrap();
         assert_eq!(
             test_target
                 .node_role
@@ -580,7 +586,9 @@ path = "tests/integration.rs"
         );
         assert!(output.edges.iter().any(|e| e.to == test_target.id
             && e.layer == GraphLayer::Test
-            && e.relation_role.as_ref().map(crate::GraphRelationRole::as_str)
+            && e.relation_role
+                .as_ref()
+                .map(crate::GraphRelationRole::as_str)
                 == Some(crate::roles::TESTS)));
     }
 

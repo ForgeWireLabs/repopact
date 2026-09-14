@@ -588,17 +588,15 @@ mod tests {
         let node_json = serde_json::to_string(&node).expect("node serializes");
         let edge_json = serde_json::to_string(&edge).expect("edge serializes");
 
-        let old_node: OldV3GraphNode =
-            serde_json::from_str(&node_json).expect(
-                "an old-v3 reader shape with no knowledge of node_role must still \
+        let old_node: OldV3GraphNode = serde_json::from_str(&node_json).expect(
+            "an old-v3 reader shape with no knowledge of node_role must still \
                  deserialize a new-v3 node carrying it -- extra JSON object keys \
                  an old struct never asks for are not a deserialization error",
-            );
-        let old_edge: OldV3GraphEdge =
-            serde_json::from_str(&edge_json).expect(
-                "an old-v3 reader shape with no knowledge of relation_role must \
+        );
+        let old_edge: OldV3GraphEdge = serde_json::from_str(&edge_json).expect(
+            "an old-v3 reader shape with no knowledge of relation_role must \
                  still deserialize a new-v3 edge carrying it",
-            );
+        );
 
         // The coarse fact remains independently true, exactly as Decision
         // 0049 section 3 requires -- the old reader recovers a correct,

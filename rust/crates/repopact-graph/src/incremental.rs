@@ -529,6 +529,7 @@ pub(crate) fn plan_reconciliation(
     }
     counts.files_deleted = delta.values().filter(|d| **d == FileDelta::Deleted).count();
 
+    semantic::operational::apply(&mut graph, projection, &per_file);
     graph.edges.sort();
     graph.edges.dedup();
     let semantic_coverage = semantic::aggregate_coverage(per_file);

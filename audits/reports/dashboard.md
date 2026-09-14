@@ -21,8 +21,8 @@
 
 | Status | Count |
 | --- | ---: |
-| proposed | 4 |
-| active | 6 |
+| proposed | 3 |
+| active | 7 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 54 |
@@ -38,5 +38,6 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
+- 051: Assurance Control Mapping and Sensitive Evidence Boundary (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

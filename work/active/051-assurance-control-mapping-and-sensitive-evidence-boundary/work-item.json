@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "051",
   "title": "Assurance Control Mapping and Sensitive Evidence Boundary",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -63,5 +63,5 @@
     }
   ],
   "created": "2026-09-05",
-  "updated": "2026-09-05"
+  "updated": "2026-09-14"
 }

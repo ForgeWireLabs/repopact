@@ -1,0 +1,72 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-budget-checkpoint-v2",
+  "timestamp": "2026-09-14T00:00:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-budget-checkpoint.v2",
+  "classification": "pre-inference-budget",
+  "study_id": "WI022-AC3",
+  "based_on": "20260914-wi022-ac3-execution-manifest-v2",
+  "ac3_started": false,
+  "registered_turn_basis": {
+    "live_model_or_worker_turns": 432,
+    "s3_worker_turns_per_logical_cell": 2,
+    "shared_deterministic_s5_cells": 135,
+    "auxiliary_model_turns": 0,
+    "embedding_requests": 0,
+    "memory_service_calls": 0
+  },
+  "per_live_turn_reference": {
+    "requests": {"point": 9, "min": 7, "max": 11},
+    "input_tokens": {"point": 214042.333, "min": 121494, "max": 304289},
+    "cached_input_tokens": {"point": 182869.333},
+    "output_tokens": {"point": 4907.333, "min": 4149, "max": 6411},
+    "reasoning_output_tokens": {"point": 2924.333, "min": 2133, "max": 4686},
+    "context_tokens": {"point": 214015.333, "min": 121477, "max": 304272},
+    "task_tokens": {"point": 27, "min": 22, "max": 31},
+    "cache_adjusted_input_tokens": {"point": 31173},
+    "tool_calls": {"point": 8, "min": 4, "max": 12},
+    "elapsed_ms": {"point": 111617.06, "min": 86541.496, "max": 138822.759}
+  },
+  "programme_estimate": {
+    "requests": {"point": 3888, "min": 3024, "max": 4752},
+    "input_tokens": {"point": 92466288, "min": 52485408, "max": 131452848},
+    "cached_input_tokens": {"point": 78999552, "min": 42246144, "max": 118222848},
+    "output_tokens": {"point": 2119968, "min": 1792368, "max": 2769552},
+    "reasoning_output_tokens": {"point": 1263312, "min": 921456, "max": 1687392},
+    "context_tokens": {"point": 92454624, "min": 52472016, "max": 131443344},
+    "task_tokens": {"point": 11664, "min": 9504, "max": 13392},
+    "cache_adjusted_input_tokens": {"point": 13466736, "min": 10239264, "max": 16930944},
+    "tool_calls": {"point": 3456, "min": 1728, "max": 5184},
+    "elapsed_ms": {"point": 48218569.776, "min": 37386078.272, "max": 59972500.752},
+    "wall_time_hours": {"point": 13.394, "min": 10.385, "max": 16.659}
+  },
+  "cost_and_quota": {
+    "marginal_usd": 0.0,
+    "pricing_policy": "authenticated ChatGPT/Codex subscription; no per-request API rate exposed",
+    "subscription_quota_burden": "432 registered live turns and their internal app-server requests; exact quota consumption is runtime/account dependent",
+    "auxiliary_service_burden": "none in the frozen local S4 C3/C4/C5 implementations or S5 validator",
+    "setup_precomputation": "workspace copies, pinned materialization, local hashing, summary extraction, and SQLite setup are tracked separately and have no model/API calls"
+  },
+  "commands": [
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Budget source smoke telemetry and deterministic executor tests passed before admissions."}
+  ],
+  "artifacts": [
+    "evidence/runs/20260914-wi022-ac3-execution-manifest-v2.json",
+    "proving-ground:master@0d43f9da959c57e854caac01e0e18f3195468620:evidence/runs/20260914-wi022-ac3-execution-manifest-v2.json",
+    "evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json"
+  ],
+  "environment": {
+    "date": "2026-09-14",
+    "host": "Windows",
+    "python": "3.13",
+    "budget_inference_started": false,
+    "pricing_policy": "authenticated ChatGPT/Codex subscription"
+  },
+  "notes": [
+    "Estimates are extrapolated from the published 20260914 AC-5 v2 smoke telemetry and are not observed AC-3 results.",
+    "No registered AC-3 benchmark cell has been executed."
+  ]
+}

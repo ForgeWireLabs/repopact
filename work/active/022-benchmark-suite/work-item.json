@@ -44,7 +44,9 @@
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-wi022-deterministic-benchmark-tranche"
+        "20260913-wi022-deterministic-benchmark-tranche",
+        "20260914-wi022-ac3-execution-manifest-v2",
+        "20260914-wi022-ac3-budget-checkpoint-v2"
       ]
     },
     {

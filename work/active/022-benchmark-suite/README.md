@@ -148,3 +148,31 @@ and
 [`20260913-wi022-telemetry-v2-checkpoint`](../../../evidence/runs/20260913-wi022-telemetry-v2-checkpoint.json).
 and
 [`20260914-wi022-ac5-realrunner-smoke-v2`](../../../evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json).
+
+## AC-3 execution readiness checkpoint (2026-09-14)
+
+The AC-3 execution substrate is published to Proving Ground
+`master@0d43f9da959c57e854caac01e0e18f3195468620`. The shared empirical executor
+supports strict study-specific output schemas, public app-server request ledgers,
+capture/secret checks, runtime identity, and non-illustrative provenance. Narrow
+empirical adapters now exist for S2, S3, S4, S6a, and S6b; S2 remains explicitly
+blocked until a functional pinned SWE-bench/SWE-EVO checkout/evaluator is provisioned.
+The historical AC-5 v2 adapter and captures remain unchanged in behavior.
+
+S4 runnable conditions C0-C8 plus C2+C3 have frozen local operational semantics in
+`2026-09-14.s4-methods.1`: no auxiliary model, embedding API, or memory-service calls;
+C5 is an isolated in-memory SQLite store and C7 requires exact RepoPact records with
+no full-corpus fallback. S5 is model-independent under
+`2026-09-14.s5-model-independent.1`; its 135 deterministic cells are shared rather
+than duplicated under two model labels.
+
+The superseding manifest preserves the old 678-cell checkpoint and enumerates 543
+logical cells (567 execution slots: 432 live turns plus 135 deterministic S5
+observations). The revised budget estimates 3,888 internal inference requests,
+92,466,288 point input tokens, 2,119,968 point output tokens, and approximately
+13.394 hours, with zero auxiliary model/service calls and zero marginal USD under
+the current authenticated subscription policy. This is still pre-inference planning;
+no registered AC-3 benchmark cell has been executed.
+
+- [ ] **AC-3** remains pending. The two permitted family admission probes are not
+  comparative benchmark evidence and do not satisfy the criterion by themselves.

@@ -1,0 +1,76 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-execution-manifest-v2",
+  "timestamp": "2026-09-14T00:00:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-execution-attestation.v2",
+  "classification": "pre-inference-planning",
+  "study_id": "WI022-AC3",
+  "manifest_version": "wi022-ac3-execution-manifest.v2",
+  "ac3_started": false,
+  "supersedes": {
+    "manifest": "evidence/runs/20260914-wi022-ac3-execution-manifest.json",
+    "preserved_at": "codex/wi022-ac3-checkpoint-20260914@33809126e888da8eb96b8a40979a35336e7e5994",
+    "old_logical_cells": 678,
+    "old_duplicated_s5_cells": 270
+  },
+  "published_executor": {
+    "repository": "ForgeWireLabs/repopact-proving-ground",
+    "ref": "master",
+    "commit": "0d43f9da959c57e854caac01e0e18f3195468620",
+    "manifest_path": "evidence/runs/20260914-wi022-ac3-execution-manifest-v2.json",
+    "manifest_sha256": "3bd1a35f92df8434812856409c9f38ee4abfbe3d63fce5dd4ecb3bffefd0bdfb"
+  },
+  "frozen_corpus": {
+    "version": "pactbench-2026-09-14-materialized-v2",
+    "digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54"
+  },
+  "models": [
+    {"family": "gpt-5.6", "provider": "openai", "version": "gpt-5.6-luna"},
+    {"family": "gpt-6", "provider": "openai", "version": "gpt-6-astra"}
+  ],
+  "counts": {
+    "logical_cells": 543,
+    "execution_slots": 567,
+    "model_dependent_cells": 408,
+    "shared_deterministic_s5_cells": 135,
+    "live_benchmark_worker_or_model_turns": 432,
+    "s3_worker_turns_per_logical_cell": 2,
+    "auxiliary_model_turns": 0,
+    "embedding_requests": 0,
+    "memory_service_calls": 0
+  },
+  "by_study": {
+    "S2": {"logical_cells": 72, "live_turns": 72},
+    "S3": {"logical_cells": 24, "live_turns": 48, "workers_per_cell": 2},
+    "S4": {"logical_cells": 180, "live_turns": 180},
+    "S5": {"logical_cells": 135, "live_turns": 0, "deterministic": true},
+    "S6a": {"logical_cells": 108, "live_turns": 108},
+    "S6b": {"logical_cells": 24, "live_turns": 24}
+  },
+  "cell_enumeration": "The published Proving Ground manifest above enumerates all 543 cells with study, case, condition, repetition, seed, model/null model, task-set identity, condition version/fingerprint, scorer, workspace-materialization identity, expected workers/turns, and auxiliary-call class.",
+  "commands": [
+    {"command": "python -m benchmarks.harness.ac3_execution_manifest --out evidence/runs/20260914-wi022-ac3-execution-manifest-v2.json", "exit_code": 0, "summary": "Generated the published 543-cell plan without starting any model or benchmark turn."},
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "72 deterministic tests passed on the published executor before admissions."}
+  ],
+  "artifacts": [
+    "proving-ground:master@0d43f9da959c57e854caac01e0e18f3195468620:evidence/runs/20260914-wi022-ac3-execution-manifest-v2.json",
+    "research/benchmark-protocol.md",
+    "evidence/runs/20260914-wi022-ac3-budget-checkpoint-v2.json"
+  ],
+  "environment": {
+    "date": "2026-09-14",
+    "host": "Windows",
+    "python": "3.13",
+    "codex": "0.154.0-alpha.6.2",
+    "benchmark_inference_started": false,
+    "historical_checkpoint_commit": "33809126e888da8eb96b8a40979a35336e7e5994"
+  },
+  "notes": [
+    "The old 678-cell checkpoint is superseded, not rewritten.",
+    "543 is the logical-cell count under the old manifest's S3 definition; 567 is the execution-slot count after expanding each S3 logical cell to two live worker turns.",
+    "This file is planning/attestation evidence only. No registered AC-3 benchmark cell has been executed."
+  ]
+}

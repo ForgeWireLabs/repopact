@@ -563,3 +563,170 @@ been executed (see `research/amendments/2026-09-12-governance-continuity.md`), s
 result may yet exist under this amendment regardless of graph readiness. Running the full
 B0/R0/R1 matrix requires an authorized multi-worker/multi-client benchmark execution,
 which is not incurred here without explicit operator approval (Decision 0053 section 6).
+
+## Dated amendment — 2026-09-14 — WI022 AC-3 empirical execution methods
+
+This is a pre-result operationalization of the already registered WI022 AC-3 studies. It
+does not change the hypotheses, registered cases, arms, repetitions, outcome metrics,
+paired analysis, uncertainty plan, multiplicity handling, missingness rule, exclusion
+rule, or stopping rule. **No AC-3 benchmark inference had occurred when this execution-
+method amendment was frozen.** The published implementation is Proving Ground
+`master@0d43f9da959c57e854caac01e0e18f3195468620`, with the historical AC-5 adapter and
+captures preserved.
+
+### Shared empirical contract
+
+The study-owned shared executor is `benchmarks/harness/empirical.py`, version
+`repopact.codex-empirical.v1`. It reuses `codex_app_server.py` and the public
+`codex app-server --stdio` protocol. One fresh process, ephemeral thread, and one
+`turn/start` are used per task turn; the requested model is passed to both
+`thread/start` and `turn/start`. The historical default output remains
+`pactbench.action-signal.v1`; S2/S3/S4/S6b supply strict versioned object schemas.
+
+The shared `EmpiricalTurn` records model family/provider/version, thread and turn ids,
+raw public events, public server requests, final structured output, request-level
+`TokenUsage`, aggregate telemetry, elapsed time, tool-call attribution, reconciliation
+metadata, capture reference/digest, public initialization/thread identity, schema
+identity, workspace identity, scorer/materialization metadata, and empirical provenance.
+An empirical envelope is accepted only when this provenance is classified empirical,
+the recognized executor version and runtime identity are present, a capture digest and
+reference exist, and non-empty per-request usage reconciles exactly to the aggregate.
+Illustrative drivers and self-tests retain their explicit illustrative/non-empirical
+classification.
+
+Request accounting is the existing v2 contract: public
+`thread/tokenUsage/updated`; an advancing `last` delta must equal the cumulative
+`total` delta; duplicate totals are ignored and backward, reset, partial, or
+incompatible totals fail closed. The provider reports input, cache-read input,
+cache-write input, output, and reasoning-output counts. The harness attributes the
+pinned `tiktoken==0.9.0`/`o200k_base` count of the exact task payload to the first
+request only, derives context as input minus task tokens, records
+`cache_adjusted_input = input - cached_input`, preserves cache writes separately,
+counts completed public tool items between request notifications, and sums all
+additive fields without outer-turn or internal raw-response telemetry. USD remains
+zero under the authenticated subscription policy and is not inferred as an API rate.
+
+### S2 empirical boundary
+
+`benchmarks/s2/empirical.py` requires a verified `materialize.py` manifest with the
+registered immutable source revision, selected task, and source digest. A separate
+study-owned functional checkout builder must supply the actual executable seed and
+evaluation bed; the adapter refuses to treat model/evaluation projections as a
+functional checkout. `create_matched_workspaces` copies one functional seed into
+disposable `baseline` and `repopact` roots and verifies their tree digest is equal.
+The registered problem statement is followed by
+`s2-recovery-instruction.v1`; the model receives one task turn. Resolution,
+regression, invariant state, goal/prior-decision/remaining-work recovery, and effort
+signals come from the objective evaluation callback over the functional/evaluation
+bed. `tokens_to_completion` is a study outcome field and is never converted into
+telemetry. If a functional checkout/evaluator is not provisioned, the run is a
+concrete provisioning blocker.
+
+### S3 empirical boundary
+
+`benchmarks/s3/empirical.py` preserves the registered two-worker design. Each logical
+case/condition/repetition creates two matched disposable workspaces, two independent
+executor instances and therefore two independent public app-server threads, with
+worker-specific capture names and workspace identities. Worker prompts carry only the
+registered worker identity and scope. After each turn, file hashes and Git status are
+read from the worker workspace; actual changed paths and content digests become
+`CoordinationEvent`s. The existing `score_coordination` function remains authoritative
+for conflicting edits, duplicated logical work, scope collisions, and joint success.
+Thus **one logical S3 cell equals two live worker turns**; no worker shares conversation
+state with the other.
+
+### S4 operational semantics
+
+The exact renderer is `benchmarks/s4/operationalization.py`, version
+`2026-09-14.s4-methods.1`. Its implementation fingerprint is the SHA-256 of the
+canonical version/condition/configuration record emitted by
+`condition_implementation_fingerprint`. Unless stated otherwise, text is UTF-8,
+CRLF/CR is normalized to LF, paths are POSIX-relative and lexicographically ordered,
+file sections use `\n--- relative/path ---\nCONTENT\n`, and the rendered context is
+inserted into the initial benchmark task payload only. There are no auxiliary model,
+embedding API, or memory-service calls in any runnable S4 condition. Every context
+render has a payload fingerprint, allowed-source list, dependency record, empty
+auxiliary-call list, and reset policy.
+
+- **C0 — zero context:** the exact normalized registered task payload only. The
+  harness injects no durable project context, file contents, RepoPact records, or
+  tools; unavoidable public runtime/system context is not treated as harness context.
+  Reset is per task.
+- **C1 — full prompt stuffing:** every readable text file under the matched source
+  root, excluding `.git`, `__pycache__`, and `.pytest_cache`, sorted by relative path.
+  Sections use the frozen delimiter above and are prefixed by `CONTEXT`. A deterministic
+  prefix truncation limit of 120,000 characters is recorded; no ellipsis or post-hoc
+  selection is applied. It is inserted once in the initial turn, not re-injected into
+  each internal inference request. Dependency is local filesystem text only.
+- **C2 — convention file:** every recursively discovered `AGENTS.md` under the matched
+  source root, including nested files, sorted by relative path; an empty list is a
+  valid result and does not fall back to another condition. No RepoPact records are
+  added unless an ordinary `AGENTS.md` actually contains them. Reset is per task.
+- **C3 — RAG/vector retrieval:** the C3 corpus is the same ordinary readable text-file
+  walk under the source root as C1, excluding the same directory parts; RepoPact
+  governance/work/evidence indexes are not supplied as an index. Each whole file is
+  one chunk. Query text is the exact normalized task text. The local embedding is
+  `sha256-token-bucket-v1`, dimension 256, with token counts hashed into buckets.
+  Similarity is cosine; the top eight files are selected, ties break by relative path,
+  and if no score is positive the first eight ordered files are used. Retrieval is
+  inserted under `RETRIEVED` using the standard delimiters. No remote embedding call.
+- **C2+C3 — convention plus RAG:** the complete C2 payload is emitted first, followed
+  by the literal `=== C2+C3 COMPOSITION ===` boundary and an independently rendered
+  C3 payload. The C3 corpus and ranking are not allowed to use the C2 output as an
+  index. Reset is per task.
+- **C4 — summarized/rolling memory:** a deterministic local extractive summary is
+  initialized per task from the ordinary source corpus. Non-empty source lines are
+  scored by token overlap with the exact task text, ties break by path and line
+  number, the selected lines are returned in path/line order, and the maximum summary
+  is 8,000 characters. The summary is created once for the initial turn, persists
+  only within that task turn, and has no summary-model or auxiliary model call.
+- **C5 — external agent-memory store:** the actual backend is Python `sqlite3` with
+  an in-memory database (`sqlite3:memory`), not a named SaaS memory product. All
+  ordinary source files are written in sorted order as `(path, content)` rows before
+  retrieval. Retrieval uses the same local hashed-token/cosine top-eight ranking and
+  the standard sections. A new in-memory database is created and closed for every
+  task; there are no embeddings, model calls, network calls, or hidden memory-service
+  costs.
+- **C6 — on-demand tool fetch:** the initial payload is task-only. The available
+  read-only tool surface is exactly `list_files(glob)`, `read_file(path)`, and
+  `search_text(query, glob)`. Directory listing and bounded search are permitted
+  through those tools; writes, arbitrary network access, and RepoPact commands are
+  unavailable to the condition. Actual tool items are counted by the shared public
+  request telemetry, not hidden in setup. Reset is per task.
+- **C7 — RepoPact records:** the initial payload contains exactly, in this order,
+  `AGENTS.md`, `governance/invariants.json`, `governance/owners.json`,
+  `governance/frozen-surface.json`, and the README plus JSON of the lexicographically
+  first active `work/*/work-item.json` directory. Missing required records or active
+  work-item README is a hard provisioning error; C7 never falls back to C1. No
+  RepoPact command is silently invoked by the renderer, and no later on-demand record
+  expansion is allowed. Reset is per task.
+- **C8 — RepoPact plus RAG:** the complete C7 payload is emitted first, followed by
+  `=== C7+C3 COMPOSITION ===` and the independent C3 result from the ordinary source
+  corpus. C7 records are not placed into the C3 corpus or retrieval index. Reset is
+  per task and there are no auxiliary calls.
+- **C9:** remains registered and explicitly out of scope; the renderer rejects it.
+
+### S5 execution boundary
+
+The frozen S5 construct is deterministic drift detection under C2, C2+C3, and C7.
+The published `s5-drift-adapter.v1` and deterministic validator do not consume a
+model response, and the local S4 renderers do not add auxiliary calls. S5 is therefore
+**model-independent** under `2026-09-14.s5-model-independent.1`. One mutation/condition/
+repetition is one shared system observation with zero task turns and no model label.
+The old checkpoint's 135 S5 cells per model (270 duplicated total) are superseded by
+135 shared cells. The old 678-cell manifest remains preserved and is linked by the
+revised manifest; it is not rewritten.
+
+### Auxiliary-call and family policy
+
+The revised manifest records, per cell, benchmark task turns, worker turns, auxiliary
+call class, task-set identity, condition implementation fingerprint, scorer, and
+workspace-materialization requirement. S2/S3/S4/S6 primary task or worker turns
+have no auxiliary model, embedding, or memory-service calls in this implementation;
+S4 C4/C5 are local deterministic work, and S5 is local deterministic validator work.
+Setup/precomputation, workspace copies, materialization, and local indexing are
+recorded separately from primary inference and have zero marginal USD under the
+current runtime policy. The two admitted families are `gpt-5.6/openai/gpt-5.6-luna`
+and `gpt-6/openai/gpt-6-astra`; no provider diversity is claimed. Both tested families
+are served through the same OpenAI/Codex runtime, so provider/runtime effects are not
+independently identified.

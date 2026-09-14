@@ -10,6 +10,7 @@
   "study_id": "WI022-AC3-admission",
   "repository_refs": {
     "repopact_main_before_bookkeeping": "13d5c8fac084b032d6a4284263828551b454894e",
+    "repopact_concurrent_remote_head_reconciled": "4f85b5e3dfac7fb994c262039854389b30f68f08",
     "proving_ground_master_before_admission": "817ac722dafd3784a8eb4821b2a0dcf1b5d68940",
     "proving_ground_master_after_admission": "9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c",
     "proving_ground_admission_evidence": "20260914-wi022-ac3-admission-v3",
@@ -181,12 +182,13 @@
     "statement": "No registered AC-3 benchmark cell has been executed."
   },
   "commands": [
-    {"command": "git fetch origin main; git rev-parse origin/main", "exit_code": 0, "summary": "RepoPact main was fetched at 13d5c8fac084b032d6a4284263828551b454894e after the two admissions."},
+    {"command": "git fetch origin main; git rev-parse origin/main", "exit_code": 0, "summary": "RepoPact main was fetched at 13d5c8fac084b032d6a4284263828551b454894e immediately after the two admissions."},
+    {"command": "git fetch origin main; git merge --no-ff origin/main", "exit_code": 0, "summary": "Concurrent RepoPact head 4f85b5e3dfac7fb994c262039854389b30f68f08 was merged without overwriting concurrent WI051 work."},
     {"command": "python -m pip install -e \".[dev]\"", "exit_code": 0, "summary": "RepoPact editable development installation completed successfully."},
     {"command": "repopact check-frozen --root . --base main", "exit_code": 0, "summary": "No frozen-surface changes detected."},
     {"command": "repopact dashboard --root .", "exit_code": 0, "summary": "Derived dashboard regenerated from governed records."},
     {"command": "repopact validate", "exit_code": 0, "summary": "Repository governance validation passed after admission bookkeeping."},
-    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Full RepoPact suite passed 309 tests with 2 pre-existing formal-model skips."}
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Full merged-tree RepoPact suite passed 328 tests with 2 pre-existing formal-model skips."}
   ],
   "artifacts": [
     "proving-ground:master@9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c:evidence/runs/20260914-wi022-ac3-admission-v3.json",

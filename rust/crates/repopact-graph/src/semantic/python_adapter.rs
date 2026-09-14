@@ -195,6 +195,7 @@ fn walk(
                         relative_path.to_owned(),
                     )),
                     symbol_kind: Some(SymbolKind::Module),
+                    manifest_kind: None,
                     location: None,
                 });
                 edges.push(GraphEdge {
@@ -279,6 +280,7 @@ fn emit_symbol(
             relative_path.to_owned(),
         )),
         symbol_kind: Some(symbol_kind),
+        manifest_kind: None,
         location: Some(location),
     });
     edges.push(GraphEdge {

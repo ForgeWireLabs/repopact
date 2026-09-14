@@ -1005,3 +1005,282 @@ coverage gaps (JSON/TOML/YAML/Markdown adapters, exports detection,
 minified/generated policy) before adding further overlay sophistication.
 A fresh architecture review should decide between the two.
 
+---
+
+# WI063 Implementation Progress -- Metadata/Operational-Topology Checkpoint (2026-09-14)
+
+## Scope
+
+Building on the accepted working-overlay checkpoint, this checkpoint
+adds deterministic structured-metadata (JSON/TOML/YAML/Markdown) and
+operational-topology (Cargo/Python/npm/CI) extraction, emits real
+Rust `Exports` edges, closes ROG-021 with direct graph-level evidence,
+and closes ROG-022 with a real parser-memory measurement. Decision 0048
+binds the architecture, including a schema-compatibility audit that
+found schema v3 genuinely necessary. Explicitly not attempted:
+ROG-023-026 query/orientation APIs, ROG-027 Workbench repository map,
+adoption/backfill integration, S8 R1, a persistent parser-tree cache, or
+a SQLite/local graph database.
+
+## Canonical pending-AC matrix (from `work-item.json`, not a summary)
+
+The prior working-overlay checkpoint's final report understated the
+remaining acceptance-criteria inventory. The actual canonical state at
+this checkpoint's start (`dfd5690`) was:
+
+- **Satisfied (15):** ROG-001, 002, 003, 005, 006, 007, 008, 009, 010,
+  011, 012, 013, 017, 020, 030.
+- **Pending (25):** ROG-004, 014, 015, 016, 018, 019, 021, 022, 023,
+  024, 025, 026, 027, 028, 029, 031, 032, 033, 034, 035, 036, 037, 038,
+  039, 040.
+
+This checkpoint's primary candidates were ROG-018/019/021/022, plus
+ROG-004 if its complete taxonomy became satisfied. See "AC assessment"
+below for the actual outcome and the full remaining inventory.
+
+## Schema-compatibility audit and Decision 0048
+
+Before adding any new closed-enum vocabulary, a focused test
+(`durable::tests::a_nested_closed_enum_field_carries_the_identical_hazard_as_a_top_level_kind`)
+proved that a nested closed enum field (the exact shape a new
+`manifest_kind` field would have) carries the identical old-reader-
+hard-fails hazard as a top-level `GraphNodeKind`/`GraphEdgeKind`
+addition. Decision 0045 section 3's framing -- that growing `SymbolKind`
+"does not require another schema-major bump" -- was only ever true for a
+*pre-Symbol* v1 reader, never for a v2-era reader compiled before a
+given variant existed. **Conclusion: schema v3 is genuinely necessary**
+for this checkpoint's new vocabulary. `CURRENT_GRAPH_SCHEMA_VERSION`
+moves to 3, `SUPPORTED_GRAPH_SCHEMA_VERSIONS` becomes `[1, 2, 3]`; v1
+and v2 remain permanently readable; migration to v3 is full
+deterministic rebuild only. New tests
+(`a_genuine_v2_semantic_graph_remains_readable_and_valid`,
+`a_v2_graph_rebuilds_deterministically_into_a_valid_v3_graph`) mirror
+the existing v1 compatibility proofs one major up.
+
+## Source semantic adapters vs. metadata adapters
+
+Both families are reached from the identical per-file classification
+point, `semantic::build_file_contribution` -- there is exactly one
+contribution-generation pipeline. `SourceLanguage` gained `Json`/
+`Toml`/`Yaml`/`Markdown` variants; `SourceLanguage::is_metadata()`
+routes these to a new, distinct `MetadataAdapter` trait
+(`repopact_graph::metadata`) rather than the Tree-sitter-backed
+`SemanticAdapter` trait used for Rust/Python/JS/TS. Both trait families
+return the same `AdapterOutput` shape, so the shared orchestration
+(size/binary/minified/generated policy checks, panic isolation, per-file
+coverage entries) applies identically regardless of which family
+handled a given file.
+
+Four `MetadataAdapter` implementations:
+
+| Adapter | Recognizes | Facts extracted |
+|---|---|---|
+| TOML | `Cargo.toml`, `pyproject.toml` | package/project identity, workspace members, dependencies (dependencies/dev-dependencies/build-dependencies/workspace.dependencies), optional-dependency groups, script entrypoints, build backend |
+| JSON | `package.json`, `tsconfig*.json` | package identity, dependencies/devDependencies/peerDependencies, scripts, tsconfig extends/references/select compilerOptions |
+| YAML | `.github/workflows/*.yml`/`.yaml` | workflow name, job ids, `uses`/`run`/`working-directory` per step (`${{ ... }}` recorded symbolically, never evaluated) |
+| Markdown | `*.md`/`*.markdown` | heading hierarchy, repository-relative links (external URLs/anchors excluded), code-fence languages, front-matter presence |
+
+An unrecognized file within a recognized metadata *language* (e.g. an
+arbitrary `.json` data file) is explicitly skipped
+(`SkipReason::UnrecognizedMetadataSchema`) -- distinct from
+`UnsupportedLanguage` (the language itself isn't handled at all) and
+never fabricated into facts, per Decision 0048's "do not flatten
+arbitrary JSON keys" constraint.
+
+## Dependency direction and fact vs. resolved-edge design
+
+Package-level dependencies reuse the existing `GraphEdgeKind::DependsOn`
+(already used for governance work-item dependencies) tagged
+`GraphLayer::Package`/`DerivationClass::Manifest`, rather than a new
+edge kind -- one directional canonical relation; reverse dependencies
+are obtained by inbound traversal, not persisted, consistent with the
+checkpoint directive's explicit preference. Dependency/reference targets
+(a crate name, an npm package, a tsconfig `extends` path, a Cargo
+workspace member) are recorded as **local fact nodes**, never as edges
+resolved into another file's own manifest node -- resolving whether a
+named dependency is even present in this repository (versus a registry
+dependency with no local file at all) would require cross-file lookup
+no per-file adapter performs, consistent with Decision 0045's "import
+fact, not resolved target" precedent for source-language imports.
+
+## Rust Exports emission (ROG-004)
+
+Bare `pub` modules, functions, structs, enums, traits, and type aliases
+now emit the already-declared (Decision 0045) but previously-unemitted
+`GraphEdgeKind::Exports` edge, detected via Rust's `visibility_modifier`
+AST node. Deliberately narrow: `pub(crate)`/`pub(super)`/`pub(in path)`
+and private items never emit `Exports`; a `#[test]` function never does
+even if marked `pub`, since test functions are not part of a crate's
+public API surface. This is a syntactic visibility fact, not a claim of
+full re-export (`pub use`) resolution. JS/TS/Python export detection was
+not implemented this checkpoint -- a disclosed gap.
+
+## Coverage-disclosure bug found and fixed
+
+While inspecting a real RepoPact self-build's output, `aggregate_coverage`'s
+`adapter_versions`/`relations_supported` (the durable manifest's own
+coverage record) were found to only ever include the three source-
+language adapters, even though 424 metadata files had genuinely been
+processed by the four new metadata adapters. Fixed by merging
+`metadata::adapter_versions()`/`relations_supported()` into the same map
+a client already reads -- distinct from, and in addition to, the
+separate `incremental::current_semantic_compatibility()` identity, which
+tracks a different concern (safe-to-reuse) from this one (what actually
+ran and what it claims to support).
+
+## ROG-022: minified/generated policy and real memory evidence
+
+`metadata::policy` adds two deterministic, centralized classifiers,
+applied uniformly ahead of every adapter (source and metadata alike),
+each backed by a new `SkipReason` variant:
+
+- **Minified**: a file at or above 4 KiB with either zero newlines or an
+  average line length above 500 bytes.
+- **Generated**: a case-insensitive match against a small, specific
+  marker set ("generated by", "@generated", "do not edit", ...) within
+  the first 1 KiB of content only.
+
+8 tests include explicit false-positive guards: ordinary prose
+mentioning "generate" in an unrelated sentence does not trigger the
+generated classifier; a marker outside the bounded scan window is not
+detected (the scan is deliberately bounded, not a full-file search); a
+short one-liner is not classified minified merely for being one line.
+
+**Real parser-memory measurement** (previously the one ROG-022 clause
+this WI had not addressed): a near-limit fixture (three ~2,000-line/
+~100 KB Rust/Python/TypeScript files, plus a pathological single-line
+deeply-nested Rust file) was built via the real engine binary on native
+Windows, with peak memory measured directly from the OS process handle
+(`PeakWorkingSet64`) using file-redirected I/O (a first attempt using
+pipe-based stdin/stdout deadlocked and was corrected). Result: **16.27
+MB peak working set** for the full build (6,009 nodes, 8,008 edges). The
+pathological nested file was caught by the minified-content policy (a
+single ~16 KB line, near-zero newline density) before ever reaching the
+parser -- a real, *measured* instance of defense-in-depth, not merely a
+unit-tested code path in isolation. This is engineering measurement, not
+a claimed hard memory cap: the honest resource contract remains bounded
+input size + parser timeout/cancellation + this measured (not guessed)
+peak-memory data point.
+
+## ROG-021: graph-level boundary evidence
+
+5 new tests build a real graph and inspect its actual nodes/edges,
+rather than asserting on `repopact-repository`'s own (separately tested)
+walker logic:
+
+- Excluded `target/`/`node_modules/`/`.venv/` trees produce zero graph
+  nodes.
+- `.git` internals (including a nested repository's own `.git`) are
+  never indexed as source.
+- A nested repository is classified `GraphNodeKind::NestedRepository`
+  while its internals remain bounded.
+- A `.env`-shaped file is still truthfully listed as a physical fact (a
+  content digest) but its actual secret value never appears as any node
+  label -- containment is a boundary decision, not an accidental content
+  leak.
+- A symlink pointing outside the repository is not traversed; content
+  reachable only through it never appears in the graph (symlink creation
+  succeeded on this Windows machine during the test run, not merely
+  skipped as unsupported).
+
+## Metadata preserves ROG-012 and ROG-013
+
+8 new incremental-equivalence tests (reusing the exact same shared
+harness as the source-language mutation matrix) prove byte-for-byte
+equivalence between an incremental `graph.update` and a clean full
+rebuild for Cargo.toml dependency/workspace-member changes, a
+pyproject.toml dependency change, a package.json script change, a
+tsconfig.json reference change, a CI workflow job change, and a
+Markdown link change -- plus a dedicated test proving a metadata-only
+edit reparses exactly the one manifest file, never the unrelated Rust/
+Python/TypeScript source files in the same fixture. 1 new overlay test
+proves the same properties (immediate in-memory update, unrelated-
+contribution reuse, `basis=working_overlay` disclosure, zero durable
+writes) for a metadata mutation through `SessionGraphState::reconcile`.
+
+This work incidentally caught and fixed a genuine bug: an "unchanged"
+metadata file's previously-durable contribution was silently dropped
+during incremental reconciliation, because `read_semantic_contributions_by_file`
+filtered reusable prior contributions by `layer == GraphLayer::Semantic`
+only -- metadata facts live in `GraphLayer::Package`/`Build` and were
+never being reused, while a clean full rebuild always regenerated them
+correctly (masking the bug until the equivalence tests explicitly
+compared incremental output against a clean rebuild byte-for-byte).
+Fixed by filtering for "not Governance/Physical" (the two layers
+exclusively produced by the always-global rebuild) instead of a single
+named layer, so every current and future contribution layer is
+reusable.
+
+## Cross-platform proof
+
+An 11-file mixed-metadata fixture (Rust with a module/test, Python,
+TypeScript, `Cargo.toml` with a dependency, `pyproject.toml` with a
+script entrypoint, `package.json` with a dependency/script,
+`tsconfig.json` with `extends`, a CI workflow YAML, a Markdown document
+with headings/links/a fence, an unrecognized generic JSON file, and a
+malformed Rust file), confirmed byte-identical by SHA-256 of every
+source file, was built independently on native Windows (two consecutive
+builds, byte-identical `rog/` directories, proving same-platform
+determinism too) and a freshly re-synced Linux-native WSL2 Debian 13
+checkout. Result: identical fingerprint, node/edge counts, coverage, and
+all 32 manifest+shard SHA-256 hashes. No macOS execution occurred or is
+claimed.
+
+## Real RepoPact self-build (engineering validation only)
+
+766 files considered; `node_count=7,979` (governance 784 / physical 971
+/ semantic 3,009 / build 17 / package 3,198); `edge_count=9,751`
+(governance 1,613 / physical 1,772 / semantic 3,419 / build 15 /
+package 2,932); 380 files complete, 0 partial, 0 failed, 175
+unsupported-language, 211 policy-skipped (204 unrecognized-metadata-
+schema, 5 generated-content, 1 binary-content, 1 minified-content);
+~10.4s wall-clock. This is engineering validation only, explicitly not
+S8/R1 evidence.
+
+## Test results
+
+126 `repopact-graph` tests total (83 pre-existing unchanged + 43 new).
+Full `cargo test --workspace` green. `cargo fmt --check`/`cargo check
+--workspace` clean. Canonical `repopact validate` clean. Broad Python
+regression suite: see the evidence record's `closeout.python_regression`
+for the exact count captured after this document was written.
+
+## AC assessment
+
+**Newly satisfied:** ROG-018 (Rust/Python/TS/JS source structure plus
+relevant JSON/TOML/YAML/Markdown and manifest metadata, coverage
+reported per language and relation, no call-graph implication),
+ROG-021 (every boundary/exclusion clause now has direct graph-level
+evidence), ROG-022 (every clause including the previously-missing
+parser-memory-behavior evidence, now real and measured).
+
+**Still pending, with the exact gap named:**
+
+- **ROG-004** -- the edge taxonomy for containment/definitions/imports/
+  exports/dependencies is real and tested (Exports newly emitted for
+  Rust); Implements/Extends/References/Calls/UsesType remain correctly
+  declared-but-unemitted (no false resolver). The AC's required taxonomy
+  also names test and runtime relations, and neither exists as an edge
+  class yet. Left pending on this named gap.
+- **ROG-019** -- Cargo/Python/npm/tsconfig/CI facts are all real, but
+  the AC's full conjunctive list also names test targets/fixtures,
+  generated-boundary path classification (distinct from ROG-022's
+  content-level policy), installer/package surfaces, and runtime/
+  application entry points, none of which were implemented, nor was the
+  npm `package.json` `workspaces` field. Left pending on these named
+  gaps.
+- **ROG-014-016, 023-029, 033-040** -- not attempted, explicitly out of
+  scope for this checkpoint.
+- **ROG-031/032** -- gained further genuine evidence but were not
+  audited/measured as their AC's full text requires.
+
+## Next recommended WI063 phase
+
+The typed bounded query/orientation surface (ROG-023 through ROG-026)
+is the natural next phase now that the graph carries real package/
+build/CI metadata alongside source symbols. Alternatively, closing this
+checkpoint's own disclosed ROG-004/019 gaps (test/runtime relations,
+test-target/fixture/generated-boundary/installer-surface/runtime-
+entrypoint nodes) first. A fresh architecture review should decide
+between the two.
+

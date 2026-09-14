@@ -747,15 +747,17 @@ mod tests {
 
     #[test]
     fn unsupported_file_change_updates_inventory_without_fabricating_semantics() {
+        // `.md` is now a recognized metadata language -- use a genuinely
+        // unrecognized extension for this fixture instead.
         let root = temp_root("overlay-unsupported");
         base_fixture(&root);
         let snapshot0 = snapshot_of(&root);
         crate::build_and_write(&snapshot0).expect("baseline build");
         let mut overlay = SessionGraphState::open(&snapshot0);
 
-        write(&root, "README.md", "# fixture\nmore notes\n");
+        write(&root, "notes.xyz", "# fixture\nmore notes\n");
         let snapshot = snapshot_of(&root);
-        let outcome = overlay.reconcile(&snapshot, &["README.md".to_owned()]);
+        let outcome = overlay.reconcile(&snapshot, &["notes.xyz".to_owned()]);
         assert!(outcome.changed);
         assert_eq!(
             outcome.semantic_reparsed, 1,
@@ -957,6 +959,64 @@ mod tests {
         let noop = overlay.reconcile(&snapshot, &["src/file_042.rs".to_owned()]);
         assert!(!noop.changed);
         assert_eq!(noop.semantic_reparsed, 0);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn metadata_mutation_updates_the_graph_and_reuses_unrelated_source_contributions() {
+        // WI063 metadata/operational-topology checkpoint, step 34: a
+        // manifest edit through the session overlay must update the
+        // in-memory graph, regenerate only that manifest's own
+        // contribution, reuse unrelated semantic source contributions
+        // untouched, leave rog/ unwritten, and disclose working-overlay
+        // basis -- exactly the same properties already proven for a
+        // source-language edit.
+        let root = temp_root("overlay-metadata-mutation");
+        base_fixture(&root);
+        write(&root, "Cargo.toml", "[package]\nname = \"fixture\"\n");
+        let snapshot0 = snapshot_of(&root);
+        crate::build_and_write(&snapshot0).expect("baseline build");
+        let mut overlay = SessionGraphState::open(&snapshot0);
+        let before_shards = all_shard_bytes(&root);
+
+        write(
+            &root,
+            "Cargo.toml",
+            "[package]\nname = \"fixture\"\n\n[dependencies]\nserde = \"1.0\"\n",
+        );
+        let snapshot = snapshot_of(&root);
+        let outcome = overlay.reconcile(&snapshot, &["Cargo.toml".to_owned()]);
+
+        assert!(outcome.changed);
+        assert_eq!(
+            outcome.semantic_reparsed, 1,
+            "only Cargo.toml's own contribution should be regenerated"
+        );
+        assert!(overlay
+            .effective_graph()
+            .nodes
+            .values()
+            .any(|node| node.label == "serde"));
+        // Unrelated source contributions must still be present.
+        assert!(overlay
+            .effective_graph()
+            .nodes
+            .values()
+            .any(|node| node.label == "helper"));
+        assert!(overlay
+            .effective_graph()
+            .nodes
+            .values()
+            .any(|node| node.label == "widget"));
+
+        let status = overlay.status();
+        assert_eq!(status.basis, GraphBasis::WorkingOverlay);
+
+        let after_shards = all_shard_bytes(&root);
+        assert_eq!(
+            before_shards, after_shards,
+            "an overlay reconcile over a metadata file must never write rog/"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 }

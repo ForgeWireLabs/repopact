@@ -146,6 +146,7 @@ fn walk(
                     "module",
                     SymbolKind::Module,
                     file_node_id,
+                    has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -169,6 +170,7 @@ fn walk(
                     tag,
                     kind,
                     file_node_id,
+                    !is_test && has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -185,6 +187,7 @@ fn walk(
                     "type",
                     SymbolKind::Type,
                     file_node_id,
+                    has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -201,6 +204,7 @@ fn walk(
                     "enum",
                     SymbolKind::Enum,
                     file_node_id,
+                    has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -217,6 +221,7 @@ fn walk(
                     "interface",
                     SymbolKind::Interface,
                     file_node_id,
+                    has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -233,6 +238,7 @@ fn walk(
                     "type_alias",
                     SymbolKind::TypeAlias,
                     file_node_id,
+                    has_public_visibility(node, source),
                     nodes,
                     edges,
                 );
@@ -249,6 +255,7 @@ fn walk(
                     "macro",
                     SymbolKind::Macro,
                     file_node_id,
+                    false,
                     nodes,
                     edges,
                 );
@@ -272,6 +279,7 @@ fn walk(
                 "impl",
                 SymbolKind::Implementation,
                 file_node_id,
+                false,
                 nodes,
                 edges,
             );
@@ -297,6 +305,7 @@ fn walk(
                         relative_path.to_owned(),
                     )),
                     symbol_kind: Some(SymbolKind::Module),
+                    manifest_kind: None,
                     location: None,
                 });
                 edges.push(GraphEdge {
@@ -398,6 +407,20 @@ fn has_test_attribute(function_node: Node, source: &[u8]) -> bool {
     result
 }
 
+/// Whether an item node carries a bare `pub` visibility modifier (WI063
+/// ROG-004/024 Exports coverage). Deliberately narrow: `pub(crate)`,
+/// `pub(super)`, and `pub(in path)` are real Rust visibility, but they
+/// are not "exported to the rest of the world" in the sense this
+/// checkpoint claims -- only a bare `pub` (or no restriction argument)
+/// counts. Never a claim of full re-export/`pub use` resolution.
+fn has_public_visibility(item_node: Node, source: &[u8]) -> bool {
+    let mut cursor = item_node.walk();
+    let result = item_node.children(&mut cursor).any(|child| {
+        child.kind() == "visibility_modifier" && text_of(child, source).trim() == "pub"
+    });
+    result
+}
+
 #[allow(clippy::too_many_arguments)]
 fn emit_symbol(
     node: Node,
@@ -408,6 +431,7 @@ fn emit_symbol(
     kind_tag: &str,
     symbol_kind: SymbolKind,
     file_node_id: &str,
+    is_public: bool,
     nodes: &mut Vec<GraphNode>,
     edges: &mut Vec<GraphEdge>,
 ) {
@@ -430,8 +454,24 @@ fn emit_symbol(
             relative_path.to_owned(),
         )),
         symbol_kind: Some(symbol_kind),
+        manifest_kind: None,
         location: Some(location),
     });
+    if is_public {
+        edges.push(GraphEdge {
+            from: file_node_id.to_owned(),
+            to: id.clone(),
+            kind: GraphEdgeKind::Exports,
+            layer: GraphLayer::Semantic,
+            derivation: DerivationClass::Parser,
+            source: RecordRef::new(
+                RecordKind::File,
+                relative_path.to_owned(),
+                relative_path.to_owned(),
+            ),
+            location: Some(location),
+        });
+    }
     edges.push(GraphEdge {
         from: file_node_id.to_owned(),
         to: id,
@@ -495,6 +535,40 @@ mod tests {
         assert!(kinds.contains(&Some(SymbolKind::Implementation)));
         assert!(kinds.contains(&Some(SymbolKind::TypeAlias)));
         assert!(kinds.contains(&Some(SymbolKind::Macro)));
+    }
+
+    #[test]
+    fn bare_pub_items_emit_exports_edges_pub_crate_and_private_do_not() {
+        let output = extract(
+            "pub fn public_fn() {}\npub(crate) fn crate_fn() {}\nfn private_fn() {}\npub struct PublicStruct;\nstruct PrivateStruct;\n",
+        );
+        let exported_labels: Vec<&str> = output
+            .edges
+            .iter()
+            .filter(|e| e.kind == GraphEdgeKind::Exports)
+            .map(|e| {
+                output
+                    .nodes
+                    .iter()
+                    .find(|n| n.id == e.to)
+                    .map(|n| n.label.as_str())
+                    .unwrap_or_default()
+            })
+            .collect();
+        assert!(exported_labels.contains(&"public_fn"));
+        assert!(exported_labels.contains(&"PublicStruct"));
+        assert!(!exported_labels.contains(&"crate_fn"));
+        assert!(!exported_labels.contains(&"private_fn"));
+        assert!(!exported_labels.contains(&"PrivateStruct"));
+    }
+
+    #[test]
+    fn a_test_function_never_emits_an_exports_edge_even_if_marked_pub() {
+        let output = extract("#[test]\npub fn it_works() {}\n");
+        assert!(!output
+            .edges
+            .iter()
+            .any(|e| e.kind == GraphEdgeKind::Exports));
     }
 
     #[test]

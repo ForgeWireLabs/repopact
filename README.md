@@ -34,7 +34,7 @@ RepoPact treats that as a software-engineering problem, not just a memory proble
 | Authority is implicit or scattered | Roles, scopes, frozen surfaces, invariants, and optional admission policy make boundaries explicit |
 | Brownfield reconstruction is uncertain | Provenance distinguishes `concrete`, `provisional`, and `inferred` state |
 | Generated views drift from source records | Dashboard and derived specification blocks are regenerated and validated |
-| Verification is tied to one hosted provider | Repository-defined local verification is becoming the canonical path; hosted CI/CD is optional |
+| Verification is tied to one hosted provider | Repository-defined local verification is canonical on current development `main`; hosted CI/CD is optional |
 
 The goal is not to slow AI-assisted development back down. The goal is to make higher implementation throughput **inspectable, recoverable, and sustainable across humans, agents, machines, providers, and sessions**.
 
@@ -127,7 +127,7 @@ See [decision 0021](decisions/0021-preflight-mandatory-and-provenance.md) and th
 
 RepoPact is moving CI/CD semantics into the repository instead of making a hosted provider the source of truth.
 
-On current `main`, WI046 adds repository-defined verification profiles and local release operations:
+Current development `main` includes WI046's completed repository-defined verification profiles and local release operations:
 
 ```powershell
 repopact verify quick
@@ -143,7 +143,7 @@ GitHub Actions is an **optional hosted adapter**, disabled by default. Hosted va
 
 Verification, artifact construction, inspection, and publication remain separate operations. Publication requires explicit operator intent and credentials supplied outside the repository.
 
-This local-first surface is active development on `main` under [WI046](work/active/046-runner-neutral-verification-and-admission-checkpoint-architecture/). Do not assume every command in this section is present in the stable 3.0.2 PyPI artifact until the next release is cut.
+This local-first architecture was completed under [WI046](work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/). These commands remain development-only relative to the stable 3.0.2 PyPI artifact until a later release is cut.
 
 See [`docs/guides/local-ci-cd.md`](docs/guides/local-ci-cd.md).
 

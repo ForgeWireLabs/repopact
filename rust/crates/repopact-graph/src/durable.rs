@@ -21,13 +21,17 @@ pub const ROG_DIR_NAME: &str = "rog";
 /// canonical builder always uses it, rather than sometimes writing v1 and
 /// sometimes v2 depending on whether a given build happened to populate
 /// semantic content.
-pub const CURRENT_GRAPH_SCHEMA_VERSION: u32 = 2;
+pub const CURRENT_GRAPH_SCHEMA_VERSION: u32 = 3;
 /// Every major version this implementation can read/validate. Anything
 /// outside this set fails closed (Decision 0044 section 4) -- callers
 /// must not interpret any other value optimistically. Version 1
-/// (physical-only, Decision 0044) remains permanently valid; version 2
-/// (Decision 0045) adds semantic vocabulary additively.
-pub const SUPPORTED_GRAPH_SCHEMA_VERSIONS: [u32; 2] = [1, 2];
+/// (physical-only, Decision 0044) and version 2 (Decision 0045 semantic
+/// vocabulary) remain permanently valid; version 3 (Decision 0048) adds
+/// metadata/operational vocabulary (`GraphNodeKind::Manifest` +
+/// `ManifestKind`, new `SourceLanguage` variants) additively -- proven
+/// genuinely necessary by a focused compatibility audit, not silently
+/// appended under v2.
+pub const SUPPORTED_GRAPH_SCHEMA_VERSIONS: [u32; 3] = [1, 2, 3];
 pub const SHARD_COUNT: u32 = 16;
 pub const EXCLUDED_POLICY_ID: &str = "repopact-source-projection-v1";
 
@@ -466,6 +470,36 @@ mod tests {
             "a GraphEdge JSONL line naming an edge kind not in the current \
              GraphEdgeKind enum must fail to deserialize -- the same hazard \
              as the node-kind case above, for edges"
+        );
+    }
+
+    /// WI063 metadata/operational-topology checkpoint, step 31: before
+    /// adding any *nested* closed enum (a `SymbolKind`/`ManifestKind`-
+    /// shaped field embedded inside `GraphNode`), prove it carries the
+    /// identical hazard as a top-level `GraphNodeKind`/`GraphEdgeKind`
+    /// variant -- Decision 0045's claim that growing `SymbolKind` "does
+    /// not require another schema-major bump" was true only in the sense
+    /// that a genuinely *old* (pre-Symbol) v1 reader never had this field
+    /// at all; it does NOT mean a v2-era reader compiled before a new
+    /// `SymbolKind`/`ManifestKind` variant existed can deserialize a
+    /// shard line naming that variant. This test proves the general
+    /// case: any closed, non-`#[serde(other)]` enum nested inside
+    /// `GraphNode` (not just the top-level `kind` field) hard-fails on
+    /// an unrecognized string exactly like `GraphNodeKind` does. This is
+    /// the audit finding Decision 0048 relies on to justify a schema
+    /// major bump for this checkpoint's new `ManifestKind`/`SourceLanguage`
+    /// vocabulary, rather than silently appending it under v2.
+    #[test]
+    fn a_nested_closed_enum_field_carries_the_identical_hazard_as_a_top_level_kind() {
+        let line = r#"{"id":"symbol:foo","kind":"symbol","label":"foo","layer":"semantic","source":{"kind":"file","id":"src/lib.rs","path":"src/lib.rs"},"symbol_kind":"some_future_symbol_kind_not_yet_invented"}"#;
+        let result: Result<GraphNode, _> = serde_json::from_str(line);
+        assert!(
+            result.is_err(),
+            "an unrecognized value in a nested closed enum field (symbol_kind here, \
+             the same shape a future manifest_kind field would have) must fail to \
+             deserialize just as a top-level `kind` mismatch does -- nesting a \
+             closed enum one level deeper does not exempt it from the schema- \
+             major-bump rule"
         );
     }
 }

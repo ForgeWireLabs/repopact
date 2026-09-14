@@ -13,6 +13,7 @@ use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watche
 use repopact_analysis::{AnalysisFinding, AnalysisQuery};
 use repopact_core::RepoPactCore;
 use repopact_graph::overlay::{EffectiveGraphStatus, SessionGraphState};
+use repopact_graph::query::{Direction, GraphQueryEngine, NodeSelector, QueryBounds};
 use repopact_graph::{GraphEdge, GraphNode};
 use repopact_mutation::{
     CreateWorkItem, EditWorkItem, GeneratedImpact, MutationDiagnostic, MutationPlan,
@@ -188,6 +189,75 @@ pub struct GraphView {
     /// orthogonal facts a client must not flatten into "current
     /// complete" (Decision 0047).
     pub status: EffectiveGraphStatus,
+}
+
+/// The one typed request shape Tauri commands and other desktop clients
+/// use to reach the bounded query kernel (WI063 ROG-023/024/026,
+/// Decision 0050). Mirrors the engine protocol's per-operation params
+/// exactly, so a Workbench/agent client and the CLI/engine agree on one
+/// wire shape -- never a presentation string to parse.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "operation", rename_all = "snake_case")]
+pub enum GraphQueryRequest {
+    Resolve {
+        selector: NodeSelector,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Context {
+        node_id: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Neighbors {
+        node_id: String,
+        #[serde(default = "default_query_direction")]
+        direction: Direction,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Path {
+        from: String,
+        to: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Dependencies {
+        node_id: String,
+        #[serde(default)]
+        transitive: bool,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Dependents {
+        node_id: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Tests {
+        node_id: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Governance {
+        node_id: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Impact {
+        node_id: String,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Orient {
+        selector: NodeSelector,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+}
+
+fn default_query_direction() -> Direction {
+    Direction::Both
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -681,6 +751,62 @@ impl DesktopService {
             .as_ref()
             .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?;
         Ok(graph_view(&active.overlay))
+    }
+
+    /// WI063 bounded-query-and-orientation checkpoint (ROG-023/024/026,
+    /// Decision 0050 section 8): the same canonical
+    /// `repopact_graph::query::GraphQueryEngine` the engine binary and CLI
+    /// use, run here against this session's `SessionGraphState::
+    /// effective_graph()` -- never the durable baseline directly, and
+    /// never a second, desktop-specific query implementation. A query in
+    /// an open desktop session always reflects uncommitted working-tree
+    /// state when present, disclosed via the returned envelope's
+    /// `status.basis`.
+    pub fn graph_query(&self, request: GraphQueryRequest) -> Result<Value, DesktopError> {
+        let state = self.lock()?;
+        let active = state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?;
+        let context = active.overlay.query_context();
+        let engine = GraphQueryEngine::new(active.overlay.effective_graph(), context);
+        let value = match request {
+            GraphQueryRequest::Resolve { selector, bounds } => {
+                serde_json::to_value(engine.resolve(&selector, &bounds))
+            }
+            GraphQueryRequest::Context { node_id, bounds } => {
+                serde_json::to_value(engine.context(&node_id, &bounds))
+            }
+            GraphQueryRequest::Neighbors {
+                node_id,
+                direction,
+                bounds,
+            } => serde_json::to_value(engine.neighbors(&node_id, direction, &bounds)),
+            GraphQueryRequest::Path { from, to, bounds } => {
+                serde_json::to_value(engine.path(&from, &to, &bounds))
+            }
+            GraphQueryRequest::Dependencies {
+                node_id,
+                transitive,
+                bounds,
+            } => serde_json::to_value(engine.dependencies(&node_id, transitive, &bounds)),
+            GraphQueryRequest::Dependents { node_id, bounds } => {
+                serde_json::to_value(engine.dependents(&node_id, &bounds))
+            }
+            GraphQueryRequest::Tests { node_id, bounds } => {
+                serde_json::to_value(engine.tests(&node_id, &bounds))
+            }
+            GraphQueryRequest::Governance { node_id, bounds } => {
+                serde_json::to_value(engine.governance(&node_id, &bounds))
+            }
+            GraphQueryRequest::Impact { node_id, bounds } => {
+                serde_json::to_value(engine.impact(&node_id, &bounds))
+            }
+            GraphQueryRequest::Orient { selector, bounds } => {
+                serde_json::to_value(engine.orient(&selector, &bounds))
+            }
+        };
+        value.map_err(|error| DesktopError::new("graph.query-encoding", error.to_string()))
     }
 
     pub fn analyze(&self, query: AnalysisQuery) -> Result<AnalysisView, DesktopError> {
@@ -1924,5 +2050,67 @@ mod tests {
             "ordinary desktop session activity (open/watcher/refresh) must never create rog/"
         );
         assert!(all_durable_shard_bytes(dir.path()).is_empty());
+    }
+
+    #[test]
+    fn graph_query_resolves_against_the_session_overlay_not_the_durable_baseline() {
+        // WI063 bounded-query-and-orientation checkpoint (ROG-023/026,
+        // step 34): a query in an open desktop session must reach
+        // SessionGraphState::effective_graph(), never a stale/absent
+        // durable baseline -- proven here by resolving a file added
+        // *after* the session was opened, with no durable graph ever
+        // built at all.
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+
+        fs::write(dir.path().join("src/added.rs"), "pub fn added() {}\n").unwrap();
+        service.refresh_repository().unwrap();
+
+        let result = service
+            .graph_query(GraphQueryRequest::Resolve {
+                selector: repopact_graph::query::NodeSelector::RepositoryPath(
+                    "src/added.rs".to_owned(),
+                ),
+                bounds: QueryBounds::default(),
+            })
+            .unwrap();
+        assert_eq!(result["result"]["outcome"], "exact");
+        assert_eq!(result["result"]["fact"]["id"], "file:src/added.rs");
+        assert!(!dir.path().join("rog").exists());
+    }
+
+    #[test]
+    fn graph_query_orient_discloses_working_overlay_basis_when_dirty() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+
+        let result = service
+            .graph_query(GraphQueryRequest::Orient {
+                selector: repopact_graph::query::NodeSelector::RepositoryPath(
+                    "src/lib.rs".to_owned(),
+                ),
+                bounds: QueryBounds::default(),
+            })
+            .unwrap();
+        assert_eq!(result["result"]["outcome"], "resolved");
+        assert_eq!(result["status"]["basis"], "working_overlay");
+    }
+
+    #[test]
+    fn graph_query_requires_an_open_session() {
+        let service = DesktopService::new();
+        let error = service
+            .graph_query(GraphQueryRequest::Resolve {
+                selector: repopact_graph::query::NodeSelector::WorkItemId("063".to_owned()),
+                bounds: QueryBounds::default(),
+            })
+            .unwrap_err();
+        assert_eq!(error.code, "session.not-open");
     }
 }

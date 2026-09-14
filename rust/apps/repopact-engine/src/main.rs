@@ -15,7 +15,9 @@ use repopact_types::{Diagnostic, Severity, WorkItem};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-const ENGINE_VERSION: &str = env!("REPOPACT_ENGINE_VERSION");
+mod query_ops;
+
+pub(crate) const ENGINE_VERSION: &str = env!("REPOPACT_ENGINE_VERSION");
 
 #[derive(Debug, Deserialize)]
 struct CreateParams {
@@ -111,6 +113,16 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.build" => graph_build(&request),
         "graph.verify" => graph_verify(&request),
         "graph.update" => graph_update(&request),
+        "graph.resolve" => query_ops::graph_resolve(&request),
+        "graph.context" => query_ops::graph_context(&request),
+        "graph.neighbors" => query_ops::graph_neighbors(&request),
+        "graph.path" => query_ops::graph_path(&request),
+        "graph.dependencies" => query_ops::graph_dependencies(&request),
+        "graph.dependents" => query_ops::graph_dependents(&request),
+        "graph.tests" => query_ops::graph_tests(&request),
+        "graph.governance" => query_ops::graph_governance(&request),
+        "graph.impact" => query_ops::graph_impact(&request),
+        "graph.orient" => query_ops::graph_orient(&request),
         "analyze" => analyze(&request),
         operation => EngineResponse::failure(
             request.request_id.clone(),
@@ -131,7 +143,7 @@ fn handshake(request: &EngineRequest) -> EngineResponse {
     response
 }
 
-fn require_root(request: &EngineRequest) -> Result<PathBuf, EngineResponse> {
+pub(crate) fn require_root(request: &EngineRequest) -> Result<PathBuf, EngineResponse> {
     let Some(root) = request.root.as_deref() else {
         return Err(EngineResponse::failure(
             request.request_id.clone(),
@@ -447,6 +459,20 @@ fn semantic_failure(
     );
     response.diagnostics.push(diagnostic);
     response
+}
+
+/// A genuine fail-closed protocol error (`ok: false`) -- distinct from
+/// [`semantic_failure`], which reports a domain-level failure inside a
+/// successful envelope. Used by the query surface (Decision 0050 section
+/// 7) for the two cases that must never be presented as ordinary data:
+/// an unsupported durable schema major, and a durable graph that failed
+/// structural validation.
+pub(crate) fn semantic_failure_closed(
+    request: &EngineRequest,
+    code: impl Into<String>,
+    message: impl Into<String>,
+) -> EngineResponse {
+    EngineResponse::failure(request.request_id.clone(), ENGINE_VERSION, code, message)
 }
 
 fn protocol_diagnostic(value: &Diagnostic) -> ProtocolDiagnostic {

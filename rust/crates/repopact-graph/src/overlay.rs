@@ -516,6 +516,21 @@ impl SessionGraphState {
             overlay_generation: self.overlay_generation,
         }
     }
+
+    /// Assemble the [`crate::query::GraphQueryContext`] the query kernel
+    /// needs to disclose graph state for a query run against this
+    /// session's effective graph (WI063 bounded-query checkpoint,
+    /// Decision 0050 section 8). The in-memory effective graph is always
+    /// built by the current build code -- never loaded from an old durable
+    /// shard -- so it is always reported at the current schema major.
+    pub fn query_context(&self) -> crate::query::GraphQueryContext {
+        crate::query::GraphQueryContext {
+            graph_schema_version: crate::durable::CURRENT_GRAPH_SCHEMA_VERSION,
+            graph_fingerprint: self.effective_fingerprint.clone(),
+            status: self.status(),
+            semantic_coverage: self.coverage(),
+        }
+    }
 }
 
 fn symmetric_difference_count(a: &BTreeMap<String, String>, b: &BTreeMap<String, String>) -> usize {

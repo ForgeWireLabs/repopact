@@ -46,6 +46,92 @@ export interface MutationPlanView { session_id: string; plan_handle: string; pla
 export interface MutationApplyView { session_id: string; generation: number; plan_token: string; success: boolean; rolled_back: boolean; stale: boolean; changed_paths: string[]; diagnostics: MutationDiagnosticView[]; }
 export interface RepositoryChangedEvent { session_id: string; generation: number; snapshot_token: string; origin: ChangeOrigin; changed_paths: string[]; overview: RepositoryOverview; }
 export interface AnalyzeRequest { candidate_id?: string | null; }
+
+// WI063 bounded-query-and-orientation checkpoint (ROG-023/024/025/026,
+// Decision 0050). NOTE: GraphNode/GraphEdge above are known-stale
+// relative to the current Rust shapes (missing layer/symbol_kind/
+// location/manifest_kind/node_role and layer/derivation/location/
+// relation_role respectively) -- a pre-existing condition from before
+// this checkpoint, not something fixed here (this generator is a
+// hand-maintained literal template, not derived from the Rust types).
+// The query-surface types below are added fresh and are current as of
+// this checkpoint.
+export type GraphNodeRole = string;
+export type GraphRelationRole = string;
+export type Direction = "outgoing" | "incoming" | "both";
+export type RelationProvenance = "persisted" | "query_derived_inverse";
+export type SymbolKind = "module" | "function" | "method" | "type" | "enum" | "interface" | "implementation" | "type_alias" | "constant" | "macro" | "test";
+export type ManifestKind = "cargo_package" | "python_project" | "node_package" | "type_script_config" | "ci_workflow" | "json_document" | "toml_document" | "yaml_document" | "markdown_document";
+export type GraphLayer = "governance" | "physical" | "semantic" | "build" | "test" | "runtime" | "package";
+export type HintReason = "target_source" | "owning_manifest" | "direct_dependency" | "direct_dependent" | "relevant_test" | "runtime_entrypoint" | "applicable_governance";
+
+export interface SymbolSelector { name: string; path?: string | null; symbol_kind?: SymbolKind | null; container?: string | null; }
+export type NodeSelector =
+  | { type: "node_id"; value: string }
+  | { type: "repository_path"; value: string }
+  | { type: "work_item_id"; value: string }
+  | { type: "package"; value: string }
+  | { type: "module"; value: string }
+  | { type: "symbol"; value: SymbolSelector };
+
+export interface QueryBounds {
+  max_nodes?: number;
+  max_edges?: number;
+  max_depth?: number;
+  layers?: GraphLayer[] | null;
+  relation_kinds?: GraphEdgeKind[] | null;
+  max_output_bytes?: number;
+  estimated_token_budget?: number | null;
+  page_size?: number;
+  cursor?: string | null;
+  compact?: boolean;
+  allow_stale?: boolean;
+}
+
+export interface GraphSourceLocation { start_byte: number; end_byte: number; start_row: number; start_column: number; end_row: number; end_column: number; }
+export interface FactRef { id: string; kind: GraphNodeKind; label: string; layer: GraphLayer; role?: GraphNodeRole | null; symbol_kind?: SymbolKind | null; manifest_kind?: ManifestKind | null; source?: RecordRef | null; location?: GraphSourceLocation | null; }
+export interface RelationFact { from: string; to: string; kind: GraphEdgeKind; layer: GraphLayer; role?: GraphRelationRole | null; derivation: string; source: RecordRef; location?: GraphSourceLocation | null; provenance: RelationProvenance; }
+
+export type ResolutionOutcome =
+  | { outcome: "exact"; fact: FactRef }
+  | { outcome: "ambiguous"; candidates: FactRef[] }
+  | { outcome: "not_found" };
+
+export interface NeighborsResult { node: FactRef; relations: RelationFact[]; neighbors: FactRef[]; }
+export interface DependenciesResult { node: FactRef; dependencies: RelationFact[]; nodes: FactRef[]; transitive: boolean; }
+export interface DependentsResult { node: FactRef; dependents: RelationFact[]; nodes: FactRef[]; }
+export type PathOutcome =
+  | { outcome: "found"; nodes: FactRef[]; edges: RelationFact[] }
+  | { outcome: "no_path" }
+  | { outcome: "search_truncated_before_proof" };
+export interface PathResult { from: FactRef; to: FactRef; path: PathOutcome; }
+export interface ContextResult { identity: FactRef; containment: RelationFact[]; direct_relations: RelationFact[]; related_nodes: FactRef[]; }
+export interface TestsResult { node: FactRef; test_targets: FactRef[]; relations: RelationFact[]; }
+export interface GovernanceResult { node: FactRef; relations: RelationFact[]; facts: FactRef[]; }
+export interface ImpactResult { target: FactRef; impact_semantics: "structural_only"; dependents: FactRef[]; test_targets: FactRef[]; build_package_runtime_surfaces: FactRef[]; applicable_governance: FactRef[]; }
+export interface NavigationHint { subject: FactRef; reason: HintReason; rank: number; }
+export interface OrientResult { identity: FactRef; containment: RelationFact[]; direct_dependencies: RelationFact[]; direct_dependents: RelationFact[]; relevant_tests: FactRef[]; build_surfaces: FactRef[]; package_surfaces: FactRef[]; runtime_entrypoints: FactRef[]; applicable_governance: FactRef[]; navigation_hints: NavigationHint[]; }
+export type OrientOutcome =
+  | ({ outcome: "resolved" } & OrientResult)
+  | { outcome: "ambiguous"; candidates: FactRef[] }
+  | { outcome: "not_found" };
+
+export interface QueryEnvelope<T> { query_contract_version: number; graph_schema_version: number; graph_fingerprint: string; status: EffectiveGraphStatus; warnings: string[]; truncated: boolean; returned_nodes: number; returned_edges: number; next_cursor?: string | null; result: T; }
+
+// The one typed request shape the desktop boundary accepts
+// (repopact_desktop_api::GraphQueryRequest) -- mirrors the engine
+// protocol's per-operation params exactly.
+export type GraphQueryRequest =
+  | { operation: "resolve"; selector: NodeSelector; bounds?: QueryBounds }
+  | { operation: "context"; node_id: string; bounds?: QueryBounds }
+  | { operation: "neighbors"; node_id: string; direction?: Direction; bounds?: QueryBounds }
+  | { operation: "path"; from: string; to: string; bounds?: QueryBounds }
+  | { operation: "dependencies"; node_id: string; transitive?: boolean; bounds?: QueryBounds }
+  | { operation: "dependents"; node_id: string; bounds?: QueryBounds }
+  | { operation: "tests"; node_id: string; bounds?: QueryBounds }
+  | { operation: "governance"; node_id: string; bounds?: QueryBounds }
+  | { operation: "impact"; node_id: string; bounds?: QueryBounds }
+  | { operation: "orient"; selector: NodeSelector; bounds?: QueryBounds };
 "#;
 
 fn main() {

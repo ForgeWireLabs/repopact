@@ -194,26 +194,34 @@
     {
       "id": "ROG-023",
       "text": "Expose a typed agent/query API from the canonical Rust engine covering graph status, target resolution, context/orientation, neighbors, path, dependencies, reverse dependencies, impact, tests, governance, and other narrowly justified operations. Results include stable IDs, relation kinds, source references, freshness, and provenance/derivation metadata.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-bounded-query-orientation-checkpoint"
+      ]
     },
     {
       "id": "ROG-024",
       "text": "Implement a bounded orientation query for a work item, path, package, module, type, or symbol that can return identity, containment, direct dependencies/dependents, relevant tests, build/runtime/package surfaces, applicable RepoPact governance, coverage/freshness warnings, and a small source-backed list of files or nodes to inspect first. Facts are distinguished from heuristic recommendations.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-bounded-query-orientation-checkpoint"
+      ]
     },
     {
       "id": "ROG-025",
       "text": "Graph query outputs support explicit bounds such as maximum nodes/edges, depth, relation filters, pagination/cursors, output byte/token budget, and source-reference-only modes. Truncation is explicit and resumable rather than silently dropping graph neighborhoods.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-bounded-query-orientation-checkpoint"
+      ]
     },
     {
       "id": "ROG-026",
       "text": "Add practical public CLI and versioned engine-protocol operations for graph build/status/verify plus orientation/context/impact/tests/governance queries. Python compatibility clients, Workbench, agents, and future clients use typed protocol results rather than scraping presentation strings.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-bounded-query-orientation-checkpoint"
+      ]
     },
     {
       "id": "ROG-027",

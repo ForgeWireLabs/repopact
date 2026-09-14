@@ -1577,3 +1577,260 @@ directive rather than an incidental side effect of the query-API
 phase. This checkpoint stops here per its own explicit instruction --
 ROG-023-026 work does not begin.
 
+## 2026-09-14 bounded-query-and-orientation checkpoint
+
+Starting SHA `2157494aa28527b753bb46a3d1b5a87c905f20b4` (the accepted
+operational-surface-completion checkpoint). Primary targets: ROG-023,
+ROG-024, ROG-025, ROG-026, per Decision 0050.
+
+### Query kernel architecture
+
+One canonical module, `repopact_graph::query`, implements every
+operation. It is a pure function of an already-materialized
+`RepositoryGraph` (durable or `SessionGraphState::effective_graph()`)
+plus a disposable, in-memory, `BTreeMap`-based index
+(`GraphQueryIndex`) rebuilt fresh per call -- non-durable, non-
+authoritative, never `rog/`-adjacent. No traversal logic is duplicated
+in the engine binary, the CLI, or the desktop API; all three are thin
+adapters that resolve typed params, call into the kernel, and forward
+its typed result.
+
+```text
+                    RepositoryGraph
+                         +
+               graph state / coverage
+                         |
+                         v
+                 pure query kernel
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+  durable engine    session overlay    desktop API
+      queries            queries            queries
+        |                |                |
+        +----------------+----------------+
+                         |
+                         v
+               typed bounded results
+```
+
+### Target resolution
+
+`NodeSelector`: `NodeId`, `RepositoryPath` (validated -- an absolute
+host path or a `..` component is rejected as malformed, never
+normalized), `WorkItemId`, `Package` (matched against a manifest's own
+ecosystem-prefixed identity label, e.g. `cargo:name`/`npm:name`/
+`python-project:name`, never a substring match), `Module` (a `Symbol`
+node with `symbol_kind=Module`), and `Symbol` (name plus optional
+path/symbol_kind/container disambiguation -- container is a best-
+effort substring match against the symbol's own stable ID, disclosed
+as such, not a claim of exact structural parsing). The AC's "type"
+selector clause is satisfied via `Symbol{symbol_kind: Some(Type)}`,
+not a seventh selector variant. Resolution always returns exactly one
+of `Exact`/`Ambiguous(candidates)`/`NotFound` -- proven against a real,
+previously-unknown case: RepoPact's own `repopact-desktop` name is
+genuinely ambiguous between a real npm `package.json` and a real Cargo
+`src-tauri` crate that happen to share it.
+
+### Bounds, pagination, and cursors
+
+One `QueryBounds` type (`max_nodes`, `max_edges`, `max_depth`, layer/
+relation-kind filters, `max_output_bytes`, `estimated_token_budget`,
+`page_size`, `cursor`, `compact`, `allow_stale`) is shared by every
+operation. Every hard bound is proven to trigger (a dedicated test per
+bound) rather than silently drop content -- an operation exceeding a
+bound emits an explicit warning naming which bound fired. Pagination
+uses an opaque, length-bounded, base64url-encoded cursor (implemented
+without adding a new dependency) binding `query_contract_version` +
+graph fingerprint + operation name + a SHA-256 hash of the normalized
+request + a continuation position; a cursor minted under a different
+fingerprint, operation, target, or filter set is rejected with a
+specific typed reason, never silently continued against different
+graph state. A dedicated test proves paging through a bounded result
+set reconstructs the same content as the unpaginated call, with no
+duplicates or gaps.
+
+### Freshness and coverage policy
+
+`open_durable_graph` is the single durable-graph query entry point:
+absent returns a typed `graph_absent` result with build guidance;
+unsupported/corrupt fail closed; stale is refused by default with a
+typed result callers can branch on, openable only via an explicit
+`allow_stale`, which still always discloses `durable_freshness=stale`
+-- no presentation layer may drop that warning (proven by a dedicated
+test that mutates source after a build). Every query envelope carries
+the same three-axis `EffectiveGraphStatus` (`basis`/`durable_freshness`/
+`coverage`) Decision 0047 already established for the desktop
+`GraphView` -- not a fourth, flattened status. A session query against
+`SessionGraphState::effective_graph()` discloses `basis=working_overlay`
+whenever dirty working-tree state contributed (proven by a desktop-api
+test resolving a file added after the session opened, before any
+durable graph existed at all).
+
+### Fact vs. navigation-hint separation and structural impact
+
+`graph.orient`'s `navigation_hints` are a separately-typed, reason-
+coded (`target_source`/`owning_manifest`/`direct_dependency`/
+`direct_dependent`/`relevant_test`/`runtime_entrypoint`/
+`applicable_governance`), deterministically rank-ordered list -- never
+mixed with the `facts` a resolved target's containment/dependency/
+test/governance sections carry, and never model-scored. `graph.impact`
+explicitly labels its result `impact_semantics: "structural_only"`:
+reverse dependencies, known test targets, and build/package/runtime
+surfaces are structural graph facts, never a claim of proven runtime
+behavior or compile/test outcome.
+
+### ROG-019 fixture-coverage disclosure (unchanged, still pending)
+
+`graph.tests` and `graph.impact` always emit the fixture-topology
+coverage warning this checkpoint's own directive requires; `graph.
+orient` includes it whenever the resolved target's neighborhood could
+plausibly include fixtures. No fixture node or role was fabricated to
+manufacture ROG-019 satisfaction -- it remains pending on exactly the
+one gap named in the prior checkpoint.
+
+### Legacy `graph` operation
+
+Audited: `RepoPactCore::graph_snapshot` performs an unbounded, fresh
+`RepositoryGraph::build` on every call, with no freshness/coverage
+envelope, and has zero callers anywhere in this codebase (not the
+Python CLI, not the desktop API). Classified per Decision 0050 section
+12 as a frozen, pre-ROG compatibility surface (option A): left exactly
+as-is, explicitly excluded from the new typed query contract.
+
+### Engine protocol, CLI, and desktop plumbing
+
+`graph.resolve`/`context`/`neighbors`/`path`/`dependencies`/
+`dependents`/`tests`/`governance`/`impact`/`orient` are registered in
+engine dispatch (`query_ops.rs`) and `capabilities()`. `repopact graph
+resolve|context|neighbors|path|dependencies|dependents|impact|tests|
+governance|orient` use explicit, mutually-exclusive typed target flags
+(`--id`/`--path`/`--work-item`/`--package`/`--module`/`--symbol[+
+--symbol-path]`) that map directly into the engine's `NodeSelector` --
+never a bare positional string the CLI has to guess the meaning of;
+commands other than resolve/orient first call `graph.resolve` client-
+side and print an honest ambiguous/not-found result rather than
+guessing. `DesktopSession::graph_query(GraphQueryRequest)` runs the
+identical kernel against the session overlay; `GraphQueryRequest`
+mirrors the engine's own per-operation params so the CLI, engine, and
+desktop boundary all agree on one wire shape. Generated TypeScript
+bindings for the full query surface were added and verified (`tsc
+--noEmit`, full vitest suite) -- the pre-existing `GraphNode`/
+`GraphEdge` TS staleness from before this checkpoint was disclosed,
+not fixed (out of scope).
+
+### Authority and safety proofs
+
+`GraphQueryEngine` borrows `&RepositoryGraph`, never `&mut` -- no
+method it exposes can mutate the graph by construction; a dedicated
+test runs `orient`/`dependencies` and asserts the graph is unchanged
+(`PartialEq`) before and after. `DesktopSession::graph_query` requires
+an open session (no ambient graph access). Path selectors reject
+absolute host paths and `..` escapes. A `CountingGitRunner`-backed
+test proves 8 different query operations issue zero additional Git
+invocations beyond the graph's own construction (WI057 preserved). A
+dedicated test deletes every source file after `graph.build` and
+confirms `resolve`/`orient` still succeed purely from the loaded
+graph -- the query kernel needs nothing beyond what is already in
+memory.
+
+### Cross-platform determinism and real RepoPact evidence
+
+A 7-file fixture (a 3-item governance dependency chain plus a Cargo
+crate with explicit `[[bin]]`/`[[test]]`), hash-verified byte-
+identical, produced byte-identical `graph.build`/`resolve`/
+`dependencies`/`path`/`orient` output on native Windows and a freshly
+re-synced Linux-native WSL2 Debian checkout. Against RepoPact's own
+live repository (8,491 nodes): `graph.orient(work_item_id=063)`
+returned 3 real dependencies (054/056/058) and 16 rank-ordered
+navigation hints; `graph.orient` against `rust/crates/repopact-graph/
+src/lib.rs` and the `repopact-graph` package both resolved exactly
+(the package result carrying 11 real package_surfaces);
+`graph.resolve(symbol=SessionGraphState)` resolved uniquely; and
+`graph.resolve(package=repopact-desktop)` genuinely disclosed
+`Ambiguous` between the repository's real npm `package.json` and its
+real Cargo `src-tauri` crate, both named `repopact-desktop` -- a real
+naming collision this checkpoint discovered and correctly disclosed
+rather than silently resolving.
+
+### Performance evidence (engineering validation only, not ROG-032 closeout)
+
+On a synthetic fixture: cold graph-open (durable load + the pre-
+existing freshness projection walk) ~55ms, query-index build ~0.4ms,
+warm per-operation queries (resolve/dependencies/dependents/tests/
+governance) all under 150us, `orient` (composing several sub-queries)
+~340us. A real-repo round trip through the engine binary is ~3.1s,
+attributable almost entirely to the pre-existing freshness-check
+projection walk over ~800 files, not this checkpoint's query kernel --
+cold and warm timings are reported separately, never combined into one
+misleading number.
+
+### Test results
+
+199 `repopact-graph` tests (147 pre-existing + 52 new). `repopact-
+desktop-api`: 17 (14 pre-existing + 3 new). Full `cargo test
+--workspace` green. `cargo fmt --check`/`cargo check --workspace`
+clean. `tsc --noEmit` and the full frontend vitest suite (16/16) pass;
+`npm run types:check` confirms generated bindings are fresh.
+`tests/test_graph_cli.py`/`tests/test_engine_client.py`: 20/20 (8 new
+query-command tests). Canonical `repopact validate` reports only the
+two pre-existing, unrelated diagnostics already disclosed in the prior
+checkpoint (unregistered research-claim documents, `CITATION.cff`
+ownership) plus a dashboard staleness this checkpoint's own changes
+caused and then fixed by regenerating it. Broad Python regression
+suite: 280 passed, 2 skipped, 18 subtests passed, 14 failed, 836.40s.
+13 of the 14 failures are the same two previously-disclosed pre-
+existing conditions. The 14th,
+`test_takeover_refuses_dir_with_audit_scope_inside`, is newly observed
+this checkpoint but confirmed (via a `git worktree` checkout to
+`2157494`, this checkpoint's own starting commit, not a working-tree
+mutation) to already fail there too -- an unrelated, apparently
+date-sensitive subsystem (`test_validate_repo.py`'s takeover/audit-
+scope registry test hardcodes `next_review: '2026-09-13'`; today is
+2026-09-14) this checkpoint never touched. Disclosed as a third
+pre-existing condition, not silently folded into the other two, not
+fixed. See the evidence record's `closeout.python_regression` for the
+full detail.
+
+### AC assessment
+
+**Newly satisfied:** ROG-023 (typed query coverage for status/
+resolution/context/neighbors/path/dependencies/reverse-dependencies/
+impact/tests/governance, every result carrying stable IDs/relation
+kinds/source references/freshness/provenance), ROG-024 (`graph.orient`
+handles work item/path/package/module/symbol directly and type via
+`Symbol{symbol_kind: Type}`, with facts and navigation hints kept
+structurally separate), ROG-025 (explicit, tested bounds/pagination/
+cursors/output budget/compact mode with no silent dropping), ROG-026
+(practical public CLI plus versioned engine-protocol operations,
+consumed as typed structured results by Python/desktop -- never
+presentation-string scraping; rich Workbench UI remains ROG-027).
+
+**Still pending, with the exact gap named:**
+
+- **ROG-019** -- unchanged: the one remaining named clause (test-
+  fixture topology) stays intentionally unclosed, per this
+  checkpoint's own directive not to touch `IGNORED_PARTS` or fabricate
+  a fixture fact. The query API discloses this limitation wherever
+  relevant (`graph.tests`/`graph.impact`/`graph.orient`).
+- **ROG-014-016, 027-029, 033-040** -- not attempted, explicitly out
+  of scope for this checkpoint.
+- **ROG-031/032** -- gained further genuine evidence (this
+  checkpoint's cross-platform proof and query-latency measurements)
+  but were not audited/benchmarked as their AC's full text requires.
+- **ROG-037/040** -- this checkpoint's read-only-by-construction proof
+  and the desktop session-authority test are evidence toward these
+  criteria, not a claim of their full closeout, which spans mutation/
+  admission/Tauri-capability surfaces this checkpoint did not touch.
+
+### Next recommended WI063 phase
+
+Either ROG-014-016 (adoption/backfill/clean-clone) or ROG-027-029
+(the Workbench repository-map UI plus branch/merge workflow) is the
+natural next phase now that a real, bounded, typed query surface
+exists for a future UI or adoption tooling to consume. This checkpoint
+stops here per its own explicit instruction -- neither begins, nor
+does S8 R1, a persistent parser cache, or a SQLite/local graph
+database.
+

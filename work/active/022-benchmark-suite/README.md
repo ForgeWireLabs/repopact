@@ -71,15 +71,19 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 - **RealRunner:** `repopact.real-runner.v1` is provider-neutral and rejects malformed or
   incomplete telemetry instead of turning it into zeroes. A failed/incomplete response is
   retained as an explicit non-reportable failure.
+- **First real smoke (2026-09-13):** the repopact arm ran tasks 0001, 0002, and 0003
+  once each on the authenticated Codex CLI runtime. Raw captures and postconditions are
+  preserved, but the strict RealRunner envelopes are non-reportable because the runtime
+  did not expose the required context-vs-task or cache-adjusted token attribution.
 - **Drivers and registrations:** Proving Ground now has deterministic S2 recovery and
   pinned-bed selectors/materialization from immutable SWE-bench Verified and SWE-EVO
   assets, S3 concurrent isolated-worker scoring, S4 C0-C9
   plus C2+C3 condition validation and cost/success analyses, an S5 shared-envelope
   adapter, and S6b scoring over frozen tasks 0023/0024. Mock/fake outputs are explicitly
   illustrative/non-empirical.
-- **Still gated:** S2/S3/S4/S6b live execution, full applicable-study telemetry, results
-  across ≥2 model families, and the three-task RealRunner smoke. No row in any harness
-  report is a finding.
+- **Still gated:** S2/S3/S4/S6b live execution, complete applicable-study telemetry,
+  and results across ≥2 model families. The AC-5 smoke is captured but non-reportable;
+  no row in any harness report is a finding.
 - **S5 dependency:** WI037 repaired the drift harness's removed flat imports. The
   packaged RepoPact 3.0.2 S5 selftest now passes in the Proving Ground; this does
   not turn deterministic plumbing into a live empirical result.
@@ -96,14 +100,16 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
   reproducible acquisition, source-schema validation, model/evaluation projection,
   base-commit preflight, and offline verification path. Live study execution remains
   separately gated.
-- [ ] **AC-2** — pending. Common telemetry validation and S4/S5/S6b metrics exist, and
-  the deterministic S5 metrics now execute from the packaged dependency, but complete
-  applicable-study instrumentation has not been demonstrated with live runs.
+- [ ] **AC-2** — pending. The smoke exposed real input/output/cached usage and an explicit
+  subscription pricing policy, but not accurate `context_tokens`, `task_tokens`, or
+  `cache_adjusted_input_tokens`; the missing attribution is recorded rather than inferred.
 - [ ] **AC-3** — pending and operator-gated. No results across two model families,
   Pareto frontier, or scaling curve exist.
 - [x] **AC-4** — satisfied. The dated 2026-09-13 WI022 amendment freezes the enumerated
   analysis choices before any reportable live result.
-- [ ] **AC-5** — pending and operator-gated. No three-task RealRunner smoke exists.
+- [ ] **AC-5** — pending. Three real task attempts completed with prompts, outputs, raw event
+  captures, postconditions, and failures, but all three envelopes are non-reportable due
+  to the missing required telemetry attribution.
 
 The 2026-07-26 live check also found that Proving Ground's S5 selftest fails
 against the current package boundary because it imports removed flat module
@@ -120,3 +126,5 @@ and
 [`20260913-wi022-s5-package-boundary-reconciliation`](../../../evidence/runs/20260913-wi022-s5-package-boundary-reconciliation.json).
 and
 [`20260913-wi022-s2-deterministic-materialization`](../../../evidence/runs/20260913-wi022-s2-deterministic-materialization.json).
+and
+[`20260913-wi022-ac5-realrunner-smoke`](../../../evidence/runs/20260913-wi022-ac5-realrunner-smoke.json).

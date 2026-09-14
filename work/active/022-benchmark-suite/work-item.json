@@ -31,7 +31,8 @@
         "20260624-pactbench-harness-selftest",
         "20260726-semantic-ledger-freshness-reconciliation",
         "20260913-wi022-deterministic-benchmark-tranche",
-        "20260913-wi022-s5-package-boundary-reconciliation"
+        "20260913-wi022-s5-package-boundary-reconciliation",
+        "20260913-wi022-ac5-realrunner-smoke"
       ]
     },
     {
@@ -57,7 +58,8 @@
       "text": "RealRunner completes a documented smoke run on at least three pre-registered tasks with one real model before full studies begin; raw command, provider/model version, prompts, outputs, token/cost telemetry, grader results, and failures are captured, and no MockRunner output is presented as empirical evidence.",
       "state": "pending",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-wi022-ac5-realrunner-smoke"
       ]
     }
   ],

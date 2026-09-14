@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use RepoPact in research or engineering work, please cite the software and, when available, the accompanying paper."
+title: "RepoPact"
+type: software
+authors:
+  - family-names: Shows
+    given-names: Jeremy
+repository-code: "https://github.com/ForgeWireLabs/repopact"
+url: "https://github.com/ForgeWireLabs/repopact"
+license: Apache-2.0
+version: "3.0.2"
+date-released: 2026-09-02
+abstract: "RepoPact is a repository-native governance system for durable human-agent software engineering. It keeps load-bearing project state such as intent, authority, work lifecycle, invariants, decisions, provenance, and evidence in version-controlled repository records."
+keywords:
+  - agentic software engineering
+  - human-agent collaboration
+  - repository governance
+  - governance continuity
+  - coding agents

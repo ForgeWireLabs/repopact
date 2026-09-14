@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -990,6 +991,76 @@ class RepositoryValidationTests(unittest.TestCase):
         self.assertTrue(any("evidence/runs/" in r for r in rep.gitignored),
                         f"expected an evidence record flagged as gitignored, got {rep.gitignored}")
 
+    # --- ROG-014: explicit graph-enabled adoption ---------------------------
+
+    def test_adopt_default_leaves_graph_off(self) -> None:
+        repo = self._seed_existing_repo()
+        rep = adopt_repo.adopt(repo)
+        self.assertFalse(rep.graph_requested)
+        self.assertFalse((repo / "rog").exists())
+        self.assertFalse((repo / "governance" / "rog-capability.json").exists())
+
+    def test_adopt_graph_orchestrates_discovery_through_orientation(self) -> None:
+        repo = self._seed_existing_repo()
+        rep = adopt_repo.adopt(repo, graph=True)
+        self.assertTrue(rep.graph_requested)
+        self.assertIsNone(rep.graph_error)
+        self.assertEqual(rep.graph_capability, "explicit_enabled")
+        self.assertIsNotNone(rep.graph_build)
+        self.assertGreater(rep.graph_build["node_count"], 0)
+        self.assertIsNotNone(rep.orientation_summary)
+        self.assertEqual(rep.orientation_summary["result"]["outcome"], "resolved")
+        self.assertIn("status", rep.orientation_summary)
+        self.assertIn("warnings", rep.orientation_summary)
+        self.assertTrue((repo / "rog" / "manifest.json").exists())
+        self.assertTrue((repo / "governance" / "rog-capability.json").exists())
+        # Governance facts are never fabricated by graph generation: the
+        # CODEOWNERS-derived scopes are exactly what a graph-off adopt
+        # would have produced.
+        owners = json.loads((repo / "governance" / "owners.json").read_text(encoding="utf-8"))
+        scope_ids = {s["id"] for s in owners["scopes"]}
+        self.assertIn("backend-team", scope_ids)
+        self.assertIn("docs-team", scope_ids)
+
+    def test_adopt_dry_run_graph_writes_nothing_graph_related(self) -> None:
+        repo = self._seed_existing_repo()
+        rep = adopt_repo.adopt(repo, dry_run=True, graph=True)
+        self.assertTrue(rep.graph_requested)
+        self.assertIsNone(rep.graph_build)
+        self.assertIsNone(rep.graph_verify)
+        self.assertFalse((repo / "governance").exists())
+        self.assertFalse((repo / "rog").exists())
+
+    def test_adopt_graph_bootstrap_failure_does_not_fabricate_or_rollback_governance(self) -> None:
+        from repopact import engine_client as engine_client_module
+        from repopact.engine_client import EngineUnavailableError
+
+        repo = self._seed_existing_repo()
+
+        class _AlwaysFailsClient:
+            def call(self, *args, **kwargs):
+                raise EngineUnavailableError("simulated engine failure for this test")
+
+        real_client_cls = engine_client_module.EngineClient
+        engine_client_module.EngineClient = _AlwaysFailsClient
+        try:
+            rep = adopt_repo.adopt(repo, graph=True)
+        finally:
+            engine_client_module.EngineClient = real_client_cls
+
+        self.assertTrue(rep.graph_requested)
+        self.assertIsNotNone(rep.graph_error)
+        self.assertFalse((repo / "rog").exists())
+        self.assertFalse((repo / "governance" / "rog-capability.json").exists())
+        # Governance adoption succeeded despite the graph failure -- it
+        # is never rolled back to hide the graph failure. This is also
+        # the exact condition (`graph_requested and graph_error`)
+        # `adopt_repo.main()` checks to decide its non-zero exit code
+        # when --graph was explicitly requested and bootstrap failed.
+        self.assertTrue((repo / "governance" / "owners.json").exists())
+        self.assertEqual([], validate_repo.validate(repo))
+        self.assertTrue(rep.graph_requested and rep.graph_error)
+
     # --- plan import (011) --------------------------------------------------
 
     def _seed_adopted_repo_with_plans(self) -> Path:
@@ -1240,6 +1311,39 @@ class RepositoryValidationTests(unittest.TestCase):
         repo = self.temp_dir / "clean"
         init_repo.bootstrap(repo)
         self.assertEqual([], [f for f in doctor.diagnose(repo) if f.severity == "error"])
+
+    # --- WI063 adoption/backfill/clean-clone checkpoint: ROG capability -----
+
+    def test_doctor_never_auto_enables_rog_on_a_legacy_absent_repo(self) -> None:
+        repo = self.temp_dir / "rog-legacy-absent"
+        init_repo.bootstrap(repo)
+        findings = doctor.diagnose(repo)
+        self.assertFalse(any(f.code.startswith("rog-") for f in findings))
+        doctor.fix(repo)
+        self.assertFalse((repo / "rog").exists())
+        self.assertFalse((repo / "governance" / "rog-capability.json").exists())
+
+    def test_doctor_reports_enabled_but_missing_and_never_repairs_it(self) -> None:
+        from repopact.engine_client import EngineClient
+
+        repo = self.temp_dir / "rog-enabled-missing"
+        init_repo.bootstrap(repo)
+        EngineClient().call("graph.build", root=repo)
+        shutil.rmtree(repo / "rog")
+
+        findings = doctor.diagnose(repo)
+        codes = {f.code for f in findings}
+        self.assertIn("rog-enabled-missing", codes)
+        enabled_missing = next(f for f in findings if f.code == "rog-enabled-missing")
+        self.assertFalse(enabled_missing.fixable)
+
+        # doctor must never silently rebuild/re-enable ROG on the
+        # caller's behalf -- the repository must still report the exact
+        # same drift after fix() runs.
+        doctor.fix(repo)
+        self.assertFalse((repo / "rog").exists())
+        post_fix_codes = {f.code for f in doctor.diagnose(repo)}
+        self.assertIn("rog-enabled-missing", post_fix_codes)
 
     # --- orphan work directories & dead source_of_truth pointers -------------
 

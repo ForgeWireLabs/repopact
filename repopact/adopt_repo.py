@@ -42,6 +42,17 @@ class Report:
         self.created: list[str] = []
         self.skipped: list[str] = []
         self.gitignored: list[str] = []  # created records an existing .gitignore would swallow (F-008)
+        # WI063 adoption/backfill/clean-clone checkpoint (ROG-014,
+        # Decision 0051): graph bootstrap is opt-in and reported
+        # distinctly from governance-adoption success. `graph_requested`
+        # is true whenever `--graph` was passed, even in dry-run (where
+        # nothing is actually built) or on failure.
+        self.graph_requested: bool = False
+        self.graph_capability: str | None = None
+        self.graph_build: dict | None = None
+        self.graph_verify: dict | None = None
+        self.orientation_summary: dict | None = None
+        self.graph_error: str | None = None
 
     def write(self, path: Path, text: str, root: Path) -> None:
         rel = str(path.relative_to(root)).replace("\\", "/")
@@ -187,9 +198,59 @@ def _detect_version(root: Path) -> str:
     return "0.1.0"
 
 
+# --- graph bootstrap (ROG-014, Decision 0051) --------------------------------
+
+def _run_graph_bootstrap(target: Path, rep: Report) -> None:
+    """Explicit, opt-in graph enablement after governance adoption:
+    graph.build -> graph.verify -> a bounded graph.orient orientation
+    summary. Graph truth comes exclusively from these canonical Rust
+    engine operations -- this function never parses source or builds a
+    second graph implementation. A failure here is reported on `rep`
+    and never fabricates or rolls back governance records; the caller
+    (`main`) decides the process exit code.
+    """
+    try:
+        from .engine_client import EngineClient, EngineError
+    except Exception as exc:  # pragma: no cover - import-shape defensive
+        rep.graph_error = f"engine client unavailable: {exc}"
+        return
+
+    client = EngineClient()
+    try:
+        build_response = client.call("graph.build", root=target)
+    except EngineError as exc:
+        rep.graph_error = f"graph build failed: {exc}"
+        return
+    rep.graph_build = build_response.get("result")
+
+    try:
+        verify_response = client.call("graph.verify", root=target)
+    except EngineError as exc:
+        rep.graph_error = f"graph verify failed: {exc}"
+        return
+    rep.graph_verify = verify_response.get("result")
+    rep.graph_capability = (rep.graph_verify or {}).get("capability_state")
+
+    try:
+        orient_response = client.call(
+            "graph.orient",
+            root=target,
+            params={"selector": {"type": "work_item_id", "value": "000"}},
+        )
+    except EngineError as exc:
+        rep.graph_error = f"graph orient failed: {exc}"
+        return
+    rep.orientation_summary = orient_response.get("result")
+
+
 # --- adoption ---------------------------------------------------------------
 
-def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Report:
+def adopt(
+    target: Path,
+    today: date | None = None,
+    dry_run: bool = False,
+    graph: bool = False,
+) -> Report:
     today = today or date.today()
     next_review = (today + timedelta(days=90)).isoformat()
     rep = Report(dry_run)
@@ -355,6 +416,20 @@ def adopt(target: Path, today: date | None = None, dry_run: bool = False) -> Rep
     rep.write(target / "audits" / "reports" / "dashboard.md", dashboard_text, target)
 
     rep.gitignored = gitignored_records(target, rep.created)
+
+    # ROG-014: graph bootstrap is explicit opt-in, and runs only after
+    # governance adoption above has already produced its records --
+    # never before, and never in a way that could make graph results
+    # influence what governance records were written. `--dry-run
+    # --graph` performs no durable write of any kind: not the
+    # capability record, not rog/, not governance (already guaranteed
+    # by every `rep.write`/`rep.json` call above being a no-op in
+    # dry-run) -- only the request itself is recorded as planned.
+    if graph:
+        rep.graph_requested = True
+        if not dry_run:
+            _run_graph_bootstrap(target, rep)
+
     return rep
 
 
@@ -371,15 +446,34 @@ def _print_report(rep: Report) -> None:
         for rel in sorted({f"!/{r.rsplit('/', 1)[0]}/" for r in rep.gitignored if "/" in r}):
             print(f"  {rel}")
         print("  (then re-include the files, e.g. `!/evidence/runs/*.json`).")
+    if rep.graph_requested:
+        if rep.dry_run:
+            print("\nGraph bootstrap requested (--graph): would run graph.build -> graph.verify -> "
+                  "a bounded graph.orient orientation summary after governance adoption. "
+                  "Nothing graph-related is written during a dry run.")
+        elif rep.graph_error:
+            print(f"\nGraph bootstrap FAILED: {rep.graph_error}")
+            print("Governance adoption above is unaffected; re-run `repopact graph build` once resolved.")
+        else:
+            capability = rep.graph_capability or "unknown"
+            node_count = (rep.graph_build or {}).get("node_count")
+            edge_count = (rep.graph_build or {}).get("edge_count")
+            print(f"\nGraph bootstrap: capability={capability} nodes={node_count} edges={edge_count}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Adopt RepoPact into an existing repository")
     parser.add_argument("--target", type=Path, required=True)
     parser.add_argument("--dry-run", action="store_true", help="Report the plan without writing files")
+    parser.add_argument(
+        "--graph",
+        action="store_true",
+        help="After governance adoption, explicitly bootstrap the durable orientation graph "
+             "(graph.build -> graph.verify -> a bounded orientation summary). Off by default.",
+    )
     args = parser.parse_args()
     target = args.target.resolve()
-    rep = adopt(target, dry_run=args.dry_run)
+    rep = adopt(target, dry_run=args.dry_run, graph=args.graph)
     _print_report(rep)
     if args.dry_run:
         print("\nDry run: nothing written. Re-run without --dry-run to apply.")
@@ -393,6 +487,12 @@ def main() -> int:
         print(f"\nAdoption produced {len(problems)} validation error(s) to resolve.")
         return 1
     print("\nAdopted repository validates as a conformant RepoPact.")
+    # A graph bootstrap failure is distinct from governance-adoption
+    # success: the repository is still a valid RepoPact repository, but
+    # the CLI must exit non-zero when --graph was explicitly requested
+    # and bootstrap failed, so callers/scripts notice.
+    if rep.graph_requested and rep.graph_error:
+        return 1
     return 0
 
 

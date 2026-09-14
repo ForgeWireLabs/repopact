@@ -118,6 +118,70 @@ def _gitignored_records(root: Path) -> list[Finding]:
     return [Finding("warn", "gitignored-record", f"governance record is git-ignored (missing on clone/CI): {r}", True) for r in swallowed]
 
 
+def _rog_capability_drift(root: Path) -> list[Finding]:
+    """WI063 adoption/backfill/clean-clone checkpoint (Decision 0051,
+    ROG-039/015): report ROG capability drift -- never repair it. This
+    mirrors the WI050 admission precedent exactly: an absent/legacy-
+    absent repository that never opted into ROG gets no finding at all,
+    while a repository that declared `enabled` (explicitly or legacy)
+    gets its real graph state surfaced. `doctor fix()` never acts on any
+    finding this returns -- there is deliberately no corresponding
+    repair step, since enabling or rebuilding ROG is always the
+    operator's own explicit `repopact graph build` call, never a side
+    effect of running `doctor`.
+    """
+    try:
+        from .engine_client import EngineClient
+    except Exception:
+        return []
+    try:
+        response = EngineClient().call("graph.status", root=root)
+    except Exception:
+        # Best-effort: an unavailable engine must not break every other
+        # doctor diagnostic. `repopact graph status` surfaces the same
+        # failure directly for a caller who cares about it.
+        return []
+    result = response.get("result", {}) or {}
+    capability_state = result.get("capability_state")
+    freshness = result.get("freshness")
+    diagnostics = result.get("diagnostics") or []
+
+    if any(d.get("code") == "graph.capability-malformed" for d in diagnostics):
+        return [
+            Finding(
+                "error",
+                "rog-capability-malformed",
+                "governance/rog-capability.json is not valid JSON matching its schema; fix or remove it",
+                False,
+            )
+        ]
+    if capability_state == "enabled_missing":
+        return [
+            Finding(
+                "error",
+                "rog-enabled-missing",
+                "ROG capability declares 'enabled' but no durable graph exists "
+                "(clone/checkout may have dropped rog/); run `repopact graph build`",
+                False,
+            )
+        ]
+    if capability_state in ("explicit_enabled", "legacy_enabled") and freshness in (
+        "stale",
+        "corrupt",
+        "unsupported",
+    ):
+        return [
+            Finding(
+                "warn",
+                "rog-graph-drift",
+                f"ROG capability is enabled but the durable graph is {freshness}; "
+                "run `repopact graph build` (or `graph update`)",
+                False,
+            )
+        ]
+    return []
+
+
 def _dead_source_of_truth(root: Path) -> list[Finding]:
     """Warn when a record's `source_of_truth` frontmatter points at a missing path.
 
@@ -174,6 +238,7 @@ def diagnose(root: Path) -> list[Finding]:
     findings += _schema_skew(root)
     findings += _gitignored_records(root)
     findings += _dead_source_of_truth(root)
+    findings += _rog_capability_drift(root)
     # WI050 is opt-in.  The diagnostic API is consulted for every repository so
     # status/doctor can expose an explicit ``not-required`` baseline, while an
     # absent policy still contributes no warning or error to legacy adopters.

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-path-escapes",
+  "framework": {
+    "id": "example-framework",
+    "source_authority": "adopter-extension"
+  },
+  "requirement": {
+    "id": "AC-7"
+  },
+  "applicability": {
+    "status": "unassessed"
+  },
+  "implementation_refs": [
+    {"kind": "source", "ref": "../outside-the-repository/secret.txt"}
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-not-applicable",
+  "framework": {
+    "id": "example-framework",
+    "source_authority": "internal-assurance-profile"
+  },
+  "requirement": {
+    "id": "AC-99"
+  },
+  "applicability": {
+    "status": "not_applicable",
+    "rationale": "This repository has no processing surface the requirement addresses.",
+    "determined_by": "example-reviewer",
+    "determined_at": "2026-09-14T00:00:00Z"
+  },
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

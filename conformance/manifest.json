@@ -123,6 +123,24 @@
       "source": "decisions/0014-readme-checkbox-parity.md",
       "enforced_by": "repopact/validate_repo.py:validate_readme_checkbox_parity",
       "description": "Where a work-item README uses the checklist convention, every manifest criterion checkbox state must match the manifest (decision 0014)."
+    },
+    {
+      "id": "SPEC-4-assurance-mapping-validity",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_assurance_mappings",
+      "description": "Optional assurance/control mapping records satisfy their schema and their id matches the filename (decision 0054)."
+    },
+    {
+      "id": "SPEC-4-assurance-applicability",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_assurance_mappings",
+      "description": "A non-'unassessed' applicability conclusion carries a rationale and a reviewer (decision 0054)."
+    },
+    {
+      "id": "SPEC-4-assurance-reference-resolution",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_assurance_mappings",
+      "description": "Assurance mapping control/implementation/evidence references resolve to canonical records or contained, existing repository-relative paths (decision 0054)."
     }
   ],
   "cases": [
@@ -372,6 +390,104 @@
         "SPEC-4-readme-checkbox-parity"
       ],
       "description": "A README checklist marking a satisfied criterion unchecked is rejected (decision 0014)."
+    },
+    {
+      "id": "valid-assurance-mapping-minimal",
+      "path": "valid-assurance-minimal",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": [
+        "SPEC-4-assurance-mapping-validity"
+      ],
+      "description": "A minimal assurance mapping (unassessed applicability, no evidence) is a valid optional record (decision 0054)."
+    },
+    {
+      "id": "valid-assurance-mapping-full",
+      "path": "valid-assurance-full",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": [
+        "SPEC-4-assurance-mapping-validity",
+        "SPEC-4-assurance-applicability",
+        "SPEC-4-assurance-reference-resolution"
+      ],
+      "description": "A full assurance mapping exercising control/implementation/evidence references, responsibility, a third-party dependency, a gap, review metadata, and an attestation reference remains valid and distinguishes those states rather than collapsing them into 'passed' (decision 0054)."
+    },
+    {
+      "id": "valid-assurance-mapping-not-applicable",
+      "path": "valid-assurance-not-applicable",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": [
+        "SPEC-4-assurance-applicability"
+      ],
+      "description": "A 'not_applicable' conclusion with rationale and a reviewer, and no evidence at all, is a valid adopter conclusion, not RepoPact legal advice (decision 0054)."
+    },
+    {
+      "id": "assurance-schema-invalid",
+      "path": "invalid/assurance-schema-invalid",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "is not one of",
+      "rules": [
+        "SPEC-4-assurance-mapping-validity"
+      ],
+      "description": "An assurance mapping with an unrecognized applicability status is rejected by its schema."
+    },
+    {
+      "id": "assurance-applicability-rationale-missing",
+      "path": "invalid/assurance-applicability-rationale-missing",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "requires a rationale",
+      "rules": [
+        "SPEC-4-assurance-applicability"
+      ],
+      "description": "An 'applicable' conclusion with no rationale is rejected (decision 0054)."
+    },
+    {
+      "id": "assurance-unknown-decision",
+      "path": "invalid/assurance-unknown-decision",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "references unknown decision",
+      "rules": [
+        "SPEC-4-assurance-reference-resolution"
+      ],
+      "description": "A control reference naming a decision id that does not exist is rejected as a dangling canonical reference."
+    },
+    {
+      "id": "assurance-implementation-path-escapes",
+      "path": "invalid/assurance-implementation-path-escapes",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "escapes the repository",
+      "rules": [
+        "SPEC-4-assurance-reference-resolution"
+      ],
+      "description": "An implementation reference path that escapes the repository is rejected; repository-relative paths are required."
+    },
+    {
+      "id": "assurance-implementation-reference-missing",
+      "path": "invalid/assurance-implementation-reference-missing",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "does not exist",
+      "rules": [
+        "SPEC-4-assurance-reference-resolution"
+      ],
+      "description": "An implementation reference naming a repository-relative path that does not exist is rejected."
+    },
+    {
+      "id": "assurance-unknown-evidence-run",
+      "path": "invalid/assurance-unknown-evidence-run",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "references unknown evidence run",
+      "rules": [
+        "SPEC-4-assurance-reference-resolution"
+      ],
+      "description": "An evidence reference naming an evidence-run id that does not exist is rejected as a dangling canonical reference."
     }
   ]
 }

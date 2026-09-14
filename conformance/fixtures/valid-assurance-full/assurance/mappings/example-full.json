@@ -1,0 +1,106 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-full",
+  "framework": {
+    "id": "example-framework",
+    "version": "2026",
+    "source_authority": "industry-standard",
+    "source_ref": "https://example.invalid/example-framework/2026"
+  },
+  "requirement": {
+    "id": "AC-7",
+    "title": "Access review"
+  },
+  "applicability": {
+    "status": "applicable",
+    "rationale": "The reviewed system processes adopter-defined access-controlled records.",
+    "determined_by": "example-reviewer",
+    "determined_at": "2026-09-14T00:00:00Z"
+  },
+  "control_refs": [
+    {"kind": "invariant", "ref": "INV-1", "description": "State recoverability invariant."},
+    {"kind": "work_item", "ref": "001", "description": "Seed work item exercising the control."},
+    {"kind": "contract", "ref": "AGENTS.md", "description": "Root authority contract."}
+  ],
+  "implementation_refs": [
+    {"kind": "source", "ref": "AGENTS.md", "description": "Authority boundary implementation."},
+    {"kind": "configuration", "ref": "VERSION", "description": "Pinned version configuration."}
+  ],
+  "evidence_refs": [
+    {"kind": "evidence_run", "sensitivity": "ordinary", "evidence_run_id": "20260101-seed", "description": "Seed validation run."},
+    {
+      "kind": "hash",
+      "sensitivity": "sensitive",
+      "description": "Digest of a bounded access-review export, retained outside Git.",
+      "hash": {
+        "algorithm": "sha256",
+        "digest": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+        "count": 42,
+        "content_descriptor": "access-review-records"
+      }
+    },
+    {
+      "kind": "external_reference",
+      "sensitivity": "restricted",
+      "description": "Pointer to a controlled external evidence system; no payload retained in Git.",
+      "external": {
+        "system": "example-grc-system",
+        "identifier": "EXAMPLE-CTRL-7-2026Q3",
+        "reference": "https://grc.example.invalid/controls/EXAMPLE-CTRL-7-2026Q3",
+        "observed_at": "2026-09-01"
+      }
+    },
+    {
+      "kind": "repository_artifact",
+      "sensitivity": "ordinary",
+      "description": "Bounded, redacted control review summary.",
+      "path": "assurance/reports/redacted-summary.md"
+    }
+  ],
+  "responsibility": [
+    {"role": "adopter_owned", "description": "Access review execution and sign-off."},
+    {"role": "shared", "description": "Identity provider supplies the underlying access log."}
+  ],
+  "third_party_dependencies": [
+    {
+      "name": "example-identity-provider",
+      "description": "Supplies the access log the control reviews.",
+      "evidence_refs": [
+        {
+          "kind": "external_reference",
+          "sensitivity": "restricted",
+          "description": "Provider's own SOC-style report reference; not retained in Git.",
+          "external": {
+            "system": "example-identity-provider",
+            "identifier": "EXAMPLE-IDP-REPORT-2026",
+            "reference": "https://idp.example.invalid/reports/EXAMPLE-IDP-REPORT-2026"
+          }
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "not_yet_evidenced",
+      "description": "Q4 review evidence not yet captured.",
+      "opened_at": "2026-09-14",
+      "target_resolution_at": "2026-12-31"
+    }
+  ],
+  "review": {
+    "reviewed_at": "2026-09-14T00:00:00Z",
+    "reviewed_by": "example-reviewer",
+    "review_due_at": "2027-03-14T00:00:00Z",
+    "framework_version_reviewed": "2026"
+  },
+  "attestation": {
+    "issuer": "example-independent-auditor",
+    "type": "example-assessment",
+    "date": "2026-06-01",
+    "reference": "https://audit.example.invalid/reports/EXAMPLE-2026"
+  },
+  "notes": "Synthetic fixture proving expressiveness; not a real framework or organization.",
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

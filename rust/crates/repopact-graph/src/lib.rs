@@ -11,6 +11,7 @@ pub mod capability;
 mod clean_clone_tests;
 pub mod durable;
 pub mod incremental;
+pub mod merge_reconcile;
 pub mod metadata;
 pub mod overlay;
 pub mod physical;

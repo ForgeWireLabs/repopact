@@ -116,6 +116,7 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.disable" => graph_disable(&request),
         "graph.resolve" => query_ops::graph_resolve(&request),
         "graph.search" => query_ops::graph_search(&request),
+        "graph.reconcile-merge" => graph_reconcile_merge(&request),
         "graph.context" => query_ops::graph_context(&request),
         "graph.neighbors" => query_ops::graph_neighbors(&request),
         "graph.path" => query_ops::graph_path(&request),
@@ -380,6 +381,64 @@ fn graph_disable(request: &EngineRequest) -> EngineResponse {
             json!({"disabled": true}),
         ),
         Err(error) => semantic_failure(request, error.code, error.message),
+    }
+}
+
+/// ROG-029, Decision 0052 section 4: the explicit, never-automatic
+/// derived-graph merge repair command. Refuses closed on any unresolved
+/// authoritative source/configuration path (including
+/// `governance/rog-capability.json` itself); regenerates and stages
+/// `rog/**` only when every unresolved path is confined to it.
+fn graph_reconcile_merge(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let core = RepoPactCore::open(root);
+    let snapshot = core.snapshot();
+    match repopact_graph::merge_reconcile::reconcile_merge(core.repository(), &snapshot) {
+        Ok(repopact_graph::merge_reconcile::ReconcileOutcome::NothingToReconcile) => {
+            EngineResponse::success(
+                request.request_id.clone(),
+                ENGINE_VERSION,
+                json!({"outcome": "nothing_to_reconcile"}),
+            )
+        }
+        Ok(repopact_graph::merge_reconcile::ReconcileOutcome::Repaired {
+            staged_paths,
+            manifest,
+        }) => EngineResponse::success(
+            request.request_id.clone(),
+            ENGINE_VERSION,
+            json!({
+                "outcome": "repaired",
+                "staged_paths": staged_paths,
+                "manifest": manifest,
+            }),
+        ),
+        Err(error) => {
+            let code = match &error {
+                repopact_graph::merge_reconcile::ReconcileError::AuthoritativeConflict {
+                    ..
+                } => "graph.reconcile-merge.authoritative-conflict",
+                repopact_graph::merge_reconcile::ReconcileError::CapabilityConflict => {
+                    "graph.reconcile-merge.capability-conflict"
+                }
+                repopact_graph::merge_reconcile::ReconcileError::GitQueryFailed(_) => {
+                    "graph.reconcile-merge.git-query-failed"
+                }
+                repopact_graph::merge_reconcile::ReconcileError::CapabilityUnreadable(_) => {
+                    "graph.reconcile-merge.capability-unreadable"
+                }
+                repopact_graph::merge_reconcile::ReconcileError::RebuildFailed(_) => {
+                    "graph.reconcile-merge.rebuild-failed"
+                }
+                repopact_graph::merge_reconcile::ReconcileError::StageFailed(_) => {
+                    "graph.reconcile-merge.stage-failed"
+                }
+            };
+            semantic_failure(request, code.to_owned(), error.to_string())
+        }
     }
 }
 

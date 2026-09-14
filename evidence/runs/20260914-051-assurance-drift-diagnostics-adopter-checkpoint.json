@@ -1,0 +1,90 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-051-assurance-drift-diagnostics-adopter-checkpoint",
+  "timestamp": "2026-09-14T00:00:00Z",
+  "work_item": "051",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git fetch origin && git rev-parse HEAD origin/main",
+      "exit_code": 0,
+      "summary": "Synchronized starting SHA 4f85b5e3dfac7fb994c262039854389b30f68f08 (accepted WI051 foundation checkpoint); fast-forward, no divergence at session start."
+    },
+    {
+      "command": "cargo check --workspace",
+      "exit_code": 0,
+      "summary": "Whole Rust workspace compiles after adding the repopact-validation::assurance module (sensitive-evidence guardrails, canonical review projection/digest, review snapshot computation, drift/claim diagnostics), the engine assurance.snapshot operation, and Diagnostic::warning/info constructors."
+    },
+    {
+      "command": "cargo fmt --check",
+      "exit_code": 0,
+      "summary": "Rust surfaces formatted."
+    },
+    {
+      "command": "cargo test --workspace --exclude repopact-desktop",
+      "exit_code": 0,
+      "summary": "All Rust workspace tests pass (75 in repopact-validation alone, up from 52), including 17 new phase-2 integration tests covering restricted-artifact warning, private-key/credential-URI error, binary/oversize coverage info, review-overdue, framework-version-stale, documentation claim-basis error/accept, mapping drift, reference drift for a dirty uncommitted edit, and reference-missing after deletion. repopact-desktop (Tauri) excluded only because its full build is slow; `cargo check --workspace` already proved it compiles with these changes."
+    },
+    {
+      "command": "python -m pytest tests/test_validate_repo.py -k <phase-2 assurance keywords> -q",
+      "exit_code": 0,
+      "summary": "35 new Python unit tests pass, mirroring the Rust integration-test matrix, including a direct byte-for-byte cross-engine parity check: Rust and Python compute an identical mapping_digest and identical per-reference digests for the same fixture."
+    },
+    {
+      "command": "python -m repopact.run_conformance (35 cases via repopact.cli validate, Rust engine)",
+      "exit_code": 0,
+      "summary": "All 35 conformance cases pass (31 from the foundation checkpoint plus 4 new): a ForgeWire-shaped adopter mapping accepted through the unmodified generic engine path (ACM-007), a restricted-artifact warning that does not block validity (severity contract), a private-key-marker evidence artifact rejected as a blocking error, and a documentation claim-basis declaration without corresponding support rejected as a blocking error."
+    },
+    {
+      "command": "repopact assurance snapshot <mapping-id> --root <fixture> (twice; Rust engine and Python compute_review_snapshot both)",
+      "exit_code": 0,
+      "summary": "Snapshot computation is deterministic across repeated runs (byte-identical JSON) and cross-engine identical (Rust and Python produced the exact same mapping_digest and reference digests for the same fixture, though Decision 0055 only requires each engine's own determinism)."
+    },
+    {
+      "command": "repopact spec --root . && repopact dashboard --root . && repopact validate --root .",
+      "exit_code": 0,
+      "summary": "SPEC.md #4 rule 16 and the dashboard regenerated canonically after this checkpoint's schema/evidence/work-item changes; repository validates clean."
+    },
+    {
+      "command": "grep -in 'forgewire|hipaa|pci_dss|soc2|soc 2' repopact/validate_repo.py rust/crates/repopact-validation/src/{assurance,lib}.rs repopact/schemas/assurance-mapping.schema.json",
+      "exit_code": 1,
+      "summary": "Zero matches (grep exit 1 = no match), confirming no framework-specific branch or named-regime hardcoding exists anywhere in the kernel validators or schema (ACM-006/ACM-007 neutrality)."
+    }
+  ],
+  "artifacts": [
+    "decisions/0055-assurance-guardrails-review-snapshot-drift-and-claim-safety-contract.md",
+    "work/active/051-assurance-control-mapping-and-sensitive-evidence-boundary/README.md",
+    "repopact/schemas/assurance-mapping.schema.json",
+    "rust/crates/repopact-validation/src/assurance.rs",
+    "rust/crates/repopact-validation/src/lib.rs",
+    "rust/crates/repopact-types/src/lib.rs",
+    "rust/crates/repopact-core/src/lib.rs",
+    "rust/apps/repopact-engine/src/main.rs",
+    "rust/crates/repopact-protocol/src/lib.rs",
+    "repopact/validate_repo.py",
+    "repopact/cli.py",
+    "repopact/doctor.py",
+    "repopact/adopt_repo.py",
+    "repopact/init_repo.py",
+    "repopact/plan_import.py",
+    "repopact/takeover.py",
+    "repopact/engine_client.py",
+    "repopact/run_conformance.py",
+    "SPEC.md",
+    "governance/record-types.md",
+    "conformance/manifest.json",
+    "conformance/fixtures/valid-assurance-forgewire/",
+    "conformance/fixtures/valid-assurance-restricted-artifact-warning/",
+    "conformance/fixtures/invalid/assurance-private-key-evidence/",
+    "conformance/fixtures/invalid/assurance-documentation-claim-basis-unsupported/",
+    "tests/test_validate_repo.py"
+  ],
+  "environment": {
+    "python": "3.12.4",
+    "cargo": "1.96.0",
+    "rustc": "1.96.0",
+    "platform": "windows",
+    "engine": "REPOPACT_ENGINE dev override -> rust/target/debug/repopact-engine.exe"
+  }
+}

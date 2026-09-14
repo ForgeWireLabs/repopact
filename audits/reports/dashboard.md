@@ -13,19 +13,19 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 54 |
+| Decision records | 55 |
 | Policy records | 2 |
-| Evidence runs | 116 |
+| Evidence runs | 117 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 3 |
-| active | 7 |
+| active | 6 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 54 |
+| completed | 55 |
 
 ## Audit freshness
 
@@ -38,6 +38,5 @@ All audit scopes are within their review cadence.
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
-- 051: Assurance Control Mapping and Sensitive Evidence Boundary (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

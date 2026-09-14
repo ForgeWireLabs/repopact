@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "051",
   "title": "Assurance Control Mapping and Sensitive Evidence Boundary",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "work",
   "affected_scopes": [
     "work",
@@ -40,14 +40,14 @@
     {
       "id": "ACM-004",
       "text": "Add guardrails or validator guidance sufficient to flag obvious evidence-policy violations involving secrets, credentials, PHI/health records, cardholder data, passports/financial identity, or equivalent restricted payloads without pretending pattern matching can fully classify all sensitive data.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-drift-diagnostics-adopter-checkpoint"]
     },
     {
       "id": "ACM-005",
       "text": "Use RepoPact provenance/review semantics to surface stale framework mappings, stale control review, evidence/source drift, implementation changes that invalidate mappings, and documentation claims stronger than the stored evidence supports.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-drift-diagnostics-adopter-checkpoint"]
     },
     {
       "id": "ACM-006",
@@ -58,8 +58,8 @@
     {
       "id": "ACM-007",
       "text": "Provide a conformance/example path using the ForgeWire assurance program as one adopter while proving the feature remains generic and optional for repositories with no regulated/compliance mapping needs.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-drift-diagnostics-adopter-checkpoint"]
     }
   ],
   "created": "2026-09-05",

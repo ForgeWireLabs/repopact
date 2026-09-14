@@ -1834,3 +1834,146 @@ stops here per its own explicit instruction -- neither begins, nor
 does S8 R1, a persistent parser cache, or a SQLite/local graph
 database.
 
+## 2026-09-14 -- ROG capability, brownfield adoption, backfill, and clean-clone lifecycle checkpoint
+
+Starting point: `6d47ec5` (synchronized to live `origin/main`, 12 commits
+ahead of the prior checkpoint's `40ca4dc` end state; those 12 commits
+include the upstream fix for the date-sensitive
+`test_takeover_refuses_dir_with_audit_scope_inside` test, which is no
+longer carried forward as an accepted baseline failure).
+
+### Capability state model (Decision 0051)
+
+Introduced the smallest possible committed capability declaration
+outside `rog/`: `governance/rog-capability.json`, schema-validated
+against `repopact/schemas/rog-capability.schema.json`,
+`{"version": 1, "capabilities": {"rog": "enabled"|"disabled"}}`.
+Deliberately not a general settings system, not indexed as a graph
+node, and excluded from the source-projection fingerprint for the same
+self-referential-churn reason `rog/` itself is excluded.
+
+A pure, five-state `CapabilityState` (`LegacyAbsent`, `LegacyEnabled`,
+`ExplicitDisabled`, `ExplicitEnabled`, `EnabledMissing`) is computed
+from (declaration on disk, `rog/manifest.json` existence) and threaded
+through `GraphStatus`, `GraphQueryContext`, `SessionGraphState::query_
+context`, and the desktop-api call site. `EnabledMissing` is a hard
+validation failure everywhere it can be observed and never silently
+reinterpreted as `absent`.
+
+### Enable-after-proof-good ordering and explicit disable
+
+`durable::write()` persists `capabilities.rog=enabled` only after the
+atomic build-then-swap has already succeeded. `repopact graph disable`
+removes `rog/` (if present) then persists `disabled`, is idempotent,
+and never touches anything outside `rog/`. Read-only query commands
+have zero enablement side effect; `repopact doctor` reports capability
+drift but never auto-enables or auto-rebuilds.
+
+### Ignored-artifact guard
+
+Before reporting enablement success, one bounded `git check-ignore --
+rog/` (trailing slash required -- a bare `rog` pathspec falsely reports
+"not ignored" against a directory-anchored `.gitignore` pattern, per
+manual reproduction) gates enablement. Never rewrites `.gitignore`.
+
+### ROG-014: brownfield adoption opt-in
+
+`repopact adopt --graph` runs discovery -> governance adoption ->
+governance validation -> `graph.build` -> `graph.verify` -> a bounded
+`graph.orient` orientation summary -> final validation, entirely
+through the canonical Rust engine. Default adoption remains graph-off.
+`--dry-run --graph` writes nothing graph-related. A bootstrap failure
+never fabricates or rolls back valid governance and exits nonzero only
+when `--graph` was explicitly requested.
+
+Proven against a realistic disposable brownfield fixture (package.json,
+src/, tests/, a GitHub Actions workflow, CODEOWNERS, a nested
+AGENTS.md): adoption produced 38 governance records plus a bootstrapped
+graph (132 nodes, 166 edges), and `repopact validate` passed.
+
+### ROG-015: backfill for already-governed repositories
+
+An explicit `graph build`/`status`/`verify`/`orient` path is the entire
+supported backfill migration -- no doctor step required. A legacy
+`rog/`-without-capability repository is proven to report
+`LegacyEnabled`/binding/queryable, migrating to `ExplicitEnabled` on
+the next `graph build` with no manual deletion step.
+
+### ROG-016: clean-clone proof, and two real defects found and fixed
+
+Six new tests in `clean_clone_tests.rs` use an actual `git init`/`add`/
+`commit`/`clone` subprocess sequence to prove byte-identical state
+after a clone, fresh status with zero rebuild, bounded queries from the
+committed graph, zero additional Git invocations, a damaged-clone hard
+failure (never silent absent), and an ignored-`rog/` enablement
+refusal.
+
+Proving this surfaced two genuine defects, both fixed rather than
+routed around:
+
+1. **Windows Git `core.autocrlf=true` corrupting the durable graph on
+   clone**, from a system-scoped `core.autocrlf=true` silently
+   rewriting LF to CRLF on checkout -- first corrupting shard hashes
+   (`Corrupt`), then after a narrow fix, shifting the whole projection
+   fingerprint via ordinary source files (`Stale`). Fixed with a repo-
+   wide `.gitattributes` protection written non-destructively before
+   the fingerprint is computed.
+2. **A linked worktree's own `.git` pointer file leaking into the
+   source projection** -- `walk_files_inner`'s ignored-name check
+   applied only to directories, never files, so a worktree's plain
+   `.git` pointer file was indexed as an ordinary graph node. Fixed by
+   applying the same check to file entries.
+
+**Cross-platform result:** identical fixture built/committed/cloned on
+native Windows and Linux-native WSL2 Debian produced byte-identical
+fingerprint, manifest hash, and `graph.orient` JSON on both platforms.
+
+**RepoPact-scale result:** a disposable `git worktree` of RepoPact
+(detached HEAD, never `main`) built a real graph -- 8577 nodes, 10459
+edges -- committed locally (never pushed), and a second clone of that
+disposable copy reproduced the byte-identical manifest hash and
+reported `Fresh` without any rebuild.
+
+### ROG-031: conformance matrix
+
+Every named clause in the AC text now maps to at least one dedicated
+executable test -- see the evidence record's `rog_031_matrix` for the
+exact mapping.
+
+### Full regression
+
+`cargo fmt --check`/`cargo check --workspace` clean. Full `cargo test
+--workspace` green on Windows and Linux-native WSL2 Debian. Broad
+Python regression suite: 303 passed, 2 skipped, 18 subtests passed, 1
+failed, 998.81s -- the single failure is the pre-existing isolated-
+`python -I`-missing-`cryptography` condition, re-verified present
+against this checkpoint's synchronized baseline. The previously-
+disclosed date-sensitive takeover test and research-freshness
+conditions did not reproduce this run. Canonical `repopact validate
+--root .` passes.
+
+### Acceptance criteria this checkpoint
+
+**Satisfied:** ROG-014, ROG-015, ROG-016, ROG-039, ROG-031.
+
+**Still pending, with the exact gap named:**
+
+- **ROG-019** -- unchanged: the test-fixture topology clause remains
+  intentionally open per this checkpoint's own instruction.
+- **ROG-027-029** -- Workbench repository-map UI and branch/merge
+  workflow -- not attempted, explicitly out of scope.
+- **ROG-032** -- clean-clone-adjacent numbers were gathered informally,
+  but the AC's full dedicated larger-fixture benchmark matrix was not
+  independently completed and is not claimed satisfied.
+- **ROG-033-040 (except 039)** -- S8/research/closeout-scope items --
+  not attempted, explicitly out of scope.
+
+### Next recommended WI063 phase
+
+ROG-027-029 (the Workbench repository-map UI plus branch/merge
+workflow) is the natural next phase now that adoption, backfill, and
+clean-clone are all proven. This checkpoint stops here per its own
+explicit instruction -- no Workbench UI, no branch/merge, no S8 R1, no
+persistent Tree-sitter cache, no SQLite/local graph database, no broad
+performance closeout.
+

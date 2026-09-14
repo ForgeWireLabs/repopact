@@ -130,20 +130,26 @@
     {
       "id": "ROG-014",
       "text": "Integrate graph bootstrap with brownfield adoption after governance discovery/import: repository discovery -> governance adoption -> orientation discovery -> graph build -> graph validation/materialization -> orientation summary -> final validation. Graph generation does not fabricate governance facts to make adoption pass.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-adoption-backfill-clean-clone-checkpoint"
+      ]
     },
     {
       "id": "ROG-015",
       "text": "Provide an explicit deterministic backfill path for already-governed repositories, such as `repopact graph build` plus status/verify operations and, only if separately justified, doctor migration. Existing adopters are not silently forced to accept a large persistent artifact without a versioned capability contract.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-adoption-backfill-clean-clone-checkpoint"
+      ]
     },
     {
       "id": "ROG-016",
       "text": "Prove the clean-clone success path: a fresh client can clone a graph-enabled repository, verify graph schema/fingerprint, load the durable graph or rebuild a local acceleration cache, and answer bounded orientation queries without first performing a full repository text search or reparsing the entire repository.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-adoption-backfill-clean-clone-checkpoint"
+      ]
     },
     {
       "id": "ROG-017",
@@ -252,8 +258,10 @@
     {
       "id": "ROG-031",
       "text": "Add graph validation/conformance coverage for manifest/shard schema, hashes, duplicate node IDs, dangling edges, canonical sort/serialization, source-fingerprint match, self-exclusion, deterministic rebuild, incremental/full equivalence, clean clone, corruption, staleness, partial coverage, unsupported language behavior, path normalization, symlink/nested-repo boundaries, and graph-disabled compatibility.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-adoption-backfill-clean-clone-checkpoint"
+      ]
     },
     {
       "id": "ROG-032",
@@ -300,8 +308,10 @@
     {
       "id": "ROG-039",
       "text": "Define a backward-compatible capability contract: repositories without the ROG or with it explicitly disabled remain valid RepoPact repositories unless a later governed version decision changes that rule; when the ROG capability is declared enabled, its durable manifest/freshness/validation requirements become binding and may not silently degrade to an absent graph.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-adoption-backfill-clean-clone-checkpoint"
+      ]
     },
     {
       "id": "ROG-040",

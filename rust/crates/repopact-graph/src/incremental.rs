@@ -541,9 +541,26 @@ pub(crate) fn read_semantic_contributions_by_file(
     let mut by_file: BTreeMap<String, (Vec<crate::GraphNode>, Vec<crate::GraphEdge>)> =
         BTreeMap::new();
 
+    // Governance and Physical are the only two layers exclusively
+    // produced by the always-global rebuild (never by
+    // `semantic::build_file_contribution`); every other layer (Semantic,
+    // and, since the metadata/operational-topology checkpoint, Package/
+    // Build/Test/Runtime) is per-file contribution content that must be
+    // reusable here. Filtering by "is per-file contribution content"
+    // rather than by a single named layer avoids silently dropping a
+    // future contribution layer the same way an earlier version of this
+    // function dropped WI063 metadata facts (Package/Build layers) by
+    // filtering for `GraphLayer::Semantic` only.
+    let is_contribution_layer = |layer: crate::GraphLayer| {
+        !matches!(
+            layer,
+            crate::GraphLayer::Governance | crate::GraphLayer::Physical
+        )
+    };
+
     for shard in &manifest.node_shards {
         for node in durable::read_node_shard(root, &shard.shard)? {
-            if node.layer != crate::GraphLayer::Semantic {
+            if !is_contribution_layer(node.layer) {
                 continue;
             }
             if let Some(source) = &node.source {
@@ -553,7 +570,7 @@ pub(crate) fn read_semantic_contributions_by_file(
     }
     for shard in &manifest.edge_shards {
         for edge in durable::read_edge_shard(root, &shard.shard)? {
-            if edge.layer != crate::GraphLayer::Semantic {
+            if !is_contribution_layer(edge.layer) {
                 continue;
             }
             by_file

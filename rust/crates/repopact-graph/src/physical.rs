@@ -101,6 +101,7 @@ pub fn extend(
             kind,
             label: basename(directory),
             symbol_kind: None,
+            manifest_kind: None,
             location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(
@@ -133,6 +134,7 @@ pub fn extend(
             kind,
             label: basename(&file.relative_path),
             symbol_kind: None,
+            manifest_kind: None,
             location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(

@@ -8,6 +8,7 @@ use serde_json::Value;
 
 pub mod durable;
 pub mod incremental;
+pub mod metadata;
 pub mod overlay;
 pub mod physical;
 pub mod projection;
@@ -81,6 +82,32 @@ pub enum GraphNodeKind {
     // GraphNodeKind variant per language/symbol-category -- see Decision
     // 0045 section 3 for why.
     Symbol,
+    // Structured metadata / operational topology (WI063 ROG-018/019,
+    // Decision 0048; schema v3). A single Manifest kind plus a typed
+    // ManifestKind field, the same "generic node + typed sub-kind"
+    // pattern as Symbol/SymbolKind above -- see Decision 0048 section 1.
+    Manifest,
+}
+
+/// Structured-metadata/operational category (Decision 0048). New
+/// ordinary metadata categories are added here, not as new
+/// `GraphNodeKind` variants -- mirroring the `SymbolKind` precedent
+/// (Decision 0045 section 3), with the same caveat disclosed in Decision
+/// 0048's Consequences: adding a variant here still requires a schema-
+/// major bump for readers compiled before it existed, exactly like
+/// `SymbolKind` does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ManifestKind {
+    CargoPackage,
+    PythonProject,
+    NodePackage,
+    TypeScriptConfig,
+    CiWorkflow,
+    JsonDocument,
+    TomlDocument,
+    YamlDocument,
+    MarkdownDocument,
 }
 
 /// Language-neutral symbol category (Decision 0045 section 3). New
@@ -130,6 +157,8 @@ pub struct GraphNode {
     pub symbol_kind: Option<SymbolKind>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<GraphSourceLocation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manifest_kind: Option<ManifestKind>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -249,6 +278,7 @@ impl RepositoryGraph {
             kind: GraphNodeKind::Repository,
             label: "RepoPact repository".to_owned(),
             symbol_kind: None,
+            manifest_kind: None,
             location: None,
             layer: GraphLayer::Governance,
             source: Some(repository_source.clone()),
@@ -264,6 +294,7 @@ impl RepositoryGraph {
                 kind: GraphNodeKind::WorkItem,
                 label: item.title.clone(),
                 symbol_kind: None,
+                manifest_kind: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
@@ -275,6 +306,7 @@ impl RepositoryGraph {
                     kind: GraphNodeKind::AcceptanceCriterion,
                     label: criterion.text.clone(),
                     symbol_kind: None,
+                    manifest_kind: None,
                     location: None,
                     layer: GraphLayer::Governance,
                     source: Some(RecordRef::new(
@@ -305,6 +337,7 @@ impl RepositoryGraph {
                             kind: GraphNodeKind::EvidenceRun,
                             label: evidence_id.clone(),
                             symbol_kind: None,
+                            manifest_kind: None,
                             location: None,
                             layer: GraphLayer::Governance,
                             source: Some(evidence.reference.clone()),
@@ -358,6 +391,7 @@ impl RepositoryGraph {
                 kind: GraphNodeKind::Scope,
                 label: item.owner_scope.clone(),
                 symbol_kind: None,
+                manifest_kind: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(owner_source.clone()),
@@ -378,6 +412,7 @@ impl RepositoryGraph {
                     kind: GraphNodeKind::Scope,
                     label: scope.clone(),
                     symbol_kind: None,
+                    manifest_kind: None,
                     location: None,
                     layer: GraphLayer::Governance,
                     source: Some(owner_source.clone()),
@@ -402,6 +437,7 @@ impl RepositoryGraph {
                         kind: GraphNodeKind::Contract,
                         label: contract.reference.id.clone(),
                         symbol_kind: None,
+                        manifest_kind: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(contract.reference.clone()),
@@ -431,6 +467,7 @@ impl RepositoryGraph {
                 kind: GraphNodeKind::EvidenceRun,
                 label: evidence.reference.id.clone(),
                 symbol_kind: None,
+                manifest_kind: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(evidence.reference.clone()),
@@ -465,6 +502,7 @@ impl RepositoryGraph {
                 kind,
                 label: record.reference.id.clone(),
                 symbol_kind: None,
+                manifest_kind: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
@@ -500,6 +538,7 @@ impl RepositoryGraph {
                         kind: GraphNodeKind::Scope,
                         label: id.to_owned(),
                         symbol_kind: None,
+                        manifest_kind: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(owners.reference.clone()),
@@ -511,6 +550,7 @@ impl RepositoryGraph {
                             kind: GraphNodeKind::Role,
                             label: owner.to_owned(),
                             symbol_kind: None,
+                            manifest_kind: None,
                             location: None,
                             layer: GraphLayer::Governance,
                             source: Some(owners.reference.clone()),
@@ -544,6 +584,7 @@ impl RepositoryGraph {
                         kind: GraphNodeKind::Invariant,
                         label: id.to_owned(),
                         symbol_kind: None,
+                        manifest_kind: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(invariants.reference.clone()),
@@ -580,6 +621,7 @@ impl RepositoryGraph {
                         kind: GraphNodeKind::FrozenSurface,
                         label: glob.to_owned(),
                         symbol_kind: None,
+                        manifest_kind: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(frozen.reference.clone()),
@@ -604,6 +646,7 @@ impl RepositoryGraph {
                 kind: GraphNodeKind::AuditFinding,
                 label: finding.reference.id.clone(),
                 symbol_kind: None,
+                manifest_kind: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(finding.reference.clone()),
@@ -619,6 +662,7 @@ impl RepositoryGraph {
                         kind: GraphNodeKind::Scope,
                         label: scope.to_owned(),
                         symbol_kind: None,
+                        manifest_kind: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(finding.reference.clone()),
@@ -1043,12 +1087,79 @@ mod tests {
             rebuilt.graph_schema_version,
             durable::CURRENT_GRAPH_SCHEMA_VERSION
         );
-        assert_eq!(rebuilt.graph_schema_version, 2);
+        assert_eq!(rebuilt.graph_schema_version, 3);
 
         let diagnostics = validate::validate_structure(&root);
         assert!(
             diagnostics.is_empty(),
             "rebuilt v2 graph must validate cleanly: {diagnostics:?}"
+        );
+        let status = status::status(&repository);
+        assert_eq!(status.freshness, status::Freshness::Fresh);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_genuine_v2_semantic_graph_remains_readable_and_valid() {
+        // Mirrors a_genuine_v1_physical_only_graph_remains_readable_and_valid
+        // one major up: a schema-v2-declared graph containing only
+        // Decision 0045 semantic vocabulary (no metadata/ManifestKind
+        // content) must remain structurally valid and Fresh under the
+        // schema-v3-aware validator.
+        let root = seeded_repo("v2-remains-readable");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("build");
+
+        let manifest_path = durable::manifest_path(&root);
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        manifest["graph_schema_version"] = serde_json::Value::from(2);
+        std::fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let diagnostics = validate::validate_structure(&root);
+        assert!(
+            diagnostics.is_empty(),
+            "a schema-v2-declared graph containing only Decision 0045 \
+             semantic vocabulary must remain structurally valid under \
+             the schema-v3-aware validator: {diagnostics:?}"
+        );
+        let status = status::status(&repository);
+        assert_eq!(status.freshness, status::Freshness::Fresh);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_v2_graph_rebuilds_deterministically_into_a_valid_v3_graph() {
+        let root = seeded_repo("v2-to-v3-rebuild");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("initial build");
+
+        let manifest_path = durable::manifest_path(&root);
+        let mut manifest: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(&manifest_path).unwrap()).unwrap();
+        manifest["graph_schema_version"] = serde_json::Value::from(2);
+        std::fs::write(
+            &manifest_path,
+            serde_json::to_string_pretty(&manifest).unwrap(),
+        )
+        .unwrap();
+
+        let snapshot = repository.session().snapshot();
+        let rebuilt = build_and_write(&snapshot).expect("rebuild");
+        assert_eq!(rebuilt.graph_schema_version, 3);
+
+        let diagnostics = validate::validate_structure(&root);
+        assert!(
+            diagnostics.is_empty(),
+            "rebuilt v3 graph must validate cleanly: {diagnostics:?}"
         );
         let status = status::status(&repository);
         assert_eq!(status.freshness, status::Freshness::Fresh);

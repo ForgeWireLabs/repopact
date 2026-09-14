@@ -747,15 +747,17 @@ mod tests {
 
     #[test]
     fn unsupported_file_change_updates_inventory_without_fabricating_semantics() {
+        // `.md` is now a recognized metadata language -- use a genuinely
+        // unrecognized extension for this fixture instead.
         let root = temp_root("overlay-unsupported");
         base_fixture(&root);
         let snapshot0 = snapshot_of(&root);
         crate::build_and_write(&snapshot0).expect("baseline build");
         let mut overlay = SessionGraphState::open(&snapshot0);
 
-        write(&root, "README.md", "# fixture\nmore notes\n");
+        write(&root, "notes.xyz", "# fixture\nmore notes\n");
         let snapshot = snapshot_of(&root);
-        let outcome = overlay.reconcile(&snapshot, &["README.md".to_owned()]);
+        let outcome = overlay.reconcile(&snapshot, &["notes.xyz".to_owned()]);
         assert!(outcome.changed);
         assert_eq!(
             outcome.semantic_reparsed, 1,

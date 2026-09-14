@@ -300,6 +300,191 @@ fn resolve_rejects_a_traversal_path_selector_as_not_found_not_a_crash() {
     std::fs::remove_dir_all(root).unwrap();
 }
 
+// ---- graph.search tests (Decision 0052, operator search box) ------------
+
+#[test]
+fn search_exact_stable_id_ranks_first() {
+    let root = full_fixture("search-exact-id");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("work:100", &QueryBounds::default());
+    assert!(!outcome.result.matches.is_empty());
+    let top = &outcome.result.matches[0];
+    assert_eq!(top.node.id, "work:100");
+    assert_eq!(top.rank, SearchRank::Exact);
+    assert_eq!(top.matched_field, SearchField::StableId);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_is_case_insensitive_normalized_exact() {
+    let root = full_fixture("search-normalized");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("WORK:100", &QueryBounds::default());
+    let top = outcome
+        .result
+        .matches
+        .iter()
+        .find(|m| m.node.id == "work:100")
+        .expect("normalized match expected");
+    assert_eq!(top.rank, SearchRank::ExactNormalized);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_prefix_and_substring_are_ranked_below_exact() {
+    let root = full_fixture("search-prefix-substring");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    // "work:10" is a prefix of work:100/101/102/103, never an exact id.
+    let outcome = engine.search("work:10", &QueryBounds::default());
+    assert!(outcome
+        .result
+        .matches
+        .iter()
+        .all(|m| m.rank == SearchRank::Prefix || m.rank == SearchRank::Substring));
+    assert!(outcome
+        .result
+        .matches
+        .iter()
+        .any(|m| m.node.id == "work:100"));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_matches_repository_relative_path() {
+    let root = full_fixture("search-path");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("src/lib.rs", &QueryBounds::default());
+    assert!(outcome.result.matches.iter().any(|m| {
+        m.matched_field == SearchField::RepositoryRelativePath
+            && m.node
+                .source
+                .as_ref()
+                .is_some_and(|s| s.path == "src/lib.rs")
+    }));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_result_order_is_deterministic_across_repeated_calls() {
+    let root = full_fixture("search-deterministic");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let first = engine.search("work:", &QueryBounds::default());
+    let second = engine.search("work:", &QueryBounds::default());
+    assert_eq!(first.result.matches, second.result.matches);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_no_match_returns_empty_not_an_error() {
+    let root = full_fixture("search-no-match");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("nothing-matches-this-token-xyz", &QueryBounds::default());
+    assert!(outcome.result.matches.is_empty());
+    assert!(!outcome.truncated);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_empty_text_matches_nothing_and_warns() {
+    let root = full_fixture("search-empty");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("   ", &QueryBounds::default());
+    assert!(outcome.result.matches.is_empty());
+    assert!(!outcome.warnings.is_empty());
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_respects_layer_filter() {
+    let root = full_fixture("search-layer-filter");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let mut bounds = QueryBounds::default();
+    bounds.layers = Some(vec![GraphLayer::Physical]);
+    let outcome = engine.search("work:100", &bounds);
+    assert!(outcome.result.matches.is_empty());
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_pagination_uses_the_shared_cursor_contract() {
+    let root = full_fixture("search-pagination");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let mut bounds = QueryBounds::default();
+    bounds.page_size = 2;
+    let first = engine.search("work:2", &bounds);
+    assert_eq!(first.result.matches.len(), 2);
+    assert!(first.truncated);
+    let cursor = first.next_cursor.clone().expect("cursor expected");
+
+    bounds.cursor = Some(cursor);
+    let second = engine.search("work:2", &bounds);
+    assert!(!second.result.matches.is_empty());
+    let first_ids: Vec<&str> = first
+        .result
+        .matches
+        .iter()
+        .map(|m| m.node.id.as_str())
+        .collect();
+    let second_ids: Vec<&str> = second
+        .result
+        .matches
+        .iter()
+        .map(|m| m.node.id.as_str())
+        .collect();
+    assert!(first_ids.iter().all(|id| !second_ids.contains(id)));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_rejects_a_cursor_from_a_different_query() {
+    let root = full_fixture("search-cursor-mismatch");
+    let (graph, context) = build_engine(&root);
+    let engine = GraphQueryEngine::new(&graph, context);
+    let mut bounds = QueryBounds::default();
+    bounds.page_size = 1;
+    let first = engine.search("work:2", &bounds);
+    let cursor = first.next_cursor.expect("cursor expected");
+
+    bounds.cursor = Some(cursor);
+    let mismatched = engine.search("work:100", &bounds);
+    assert!(mismatched.result.matches.is_empty());
+    assert!(mismatched
+        .warnings
+        .iter()
+        .any(|w| w.contains("invalid cursor")));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn search_never_reads_source_or_invokes_git() {
+    // Reuses the same `full_fixture` real-repository graph; search runs
+    // purely against the already-built in-memory `RepositoryGraph` and
+    // its disposable index (see the WI057 no-additional-Git test group
+    // below for a dedicated CountingGitRunner proof on the broader query
+    // surface). This test proves the narrower claim that deleting the
+    // source tree after the graph is built does not affect a search
+    // result -- i.e. search never touches disk again after graph.build.
+    let root = full_fixture("search-no-source-read");
+    let (graph, context) = build_engine(&root);
+    std::fs::remove_dir_all(&root).unwrap();
+    let engine = GraphQueryEngine::new(&graph, context);
+    let outcome = engine.search("work:100", &QueryBounds::default());
+    assert!(outcome
+        .result
+        .matches
+        .iter()
+        .any(|m| m.node.id == "work:100"));
+}
+
 // ---- dependency tests (step 43) ----------------------------------------
 
 #[test]

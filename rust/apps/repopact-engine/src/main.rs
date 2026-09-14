@@ -115,6 +115,7 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.update" => graph_update(&request),
         "graph.disable" => graph_disable(&request),
         "graph.resolve" => query_ops::graph_resolve(&request),
+        "graph.search" => query_ops::graph_search(&request),
         "graph.context" => query_ops::graph_context(&request),
         "graph.neighbors" => query_ops::graph_neighbors(&request),
         "graph.path" => query_ops::graph_path(&request),

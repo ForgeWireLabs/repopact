@@ -259,6 +259,46 @@ pub struct OrientResult {
     pub navigation_hints: Vec<NavigationHint>,
 }
 
+/// `graph.search`'s deterministic ranking tier (Decision 0052 section
+/// 3): exact match on a searchable field, then an exact match after
+/// case/whitespace normalization, then a prefix match, then a substring
+/// match. Never a fuzzy/embedding/semantic-similarity score -- search
+/// results are navigation candidates over deterministic graph fields
+/// only, never a new graph fact.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchRank {
+    Exact,
+    ExactNormalized,
+    Prefix,
+    Substring,
+}
+
+/// Which deterministic field a [`SearchMatch`] matched on -- disclosed
+/// so an operator (or the UI) can tell *why* a candidate matched, never
+/// hidden inside an opaque score.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SearchField {
+    StableId,
+    RepositoryRelativePath,
+    Label,
+    NodeRole,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchMatch {
+    pub node: FactRef,
+    pub rank: SearchRank,
+    pub matched_field: SearchField,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub query: String,
+    pub matches: Vec<SearchMatch>,
+}
+
 /// Every query response envelope: graph state disclosure plus the
 /// operation's own typed result. `T` is never allowed to hide freshness/
 /// coverage information behind an opaque success (Decision 0050 sections

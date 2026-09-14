@@ -16,7 +16,7 @@ use super::dto::{
     ContextResult, DependenciesResult, DependentsResult, Direction, FactRef, GovernanceResult,
     HintReason, ImpactResult, NavigationHint, NeighborsResult, OrientOutcome, OrientResult,
     PathOutcome, PathResult, QueryEnvelope, RelationFact, RelationProvenance, ResolutionOutcome,
-    TestsResult,
+    SearchField, SearchMatch, SearchRank, SearchResult, TestsResult,
 };
 use super::index::GraphQueryIndex;
 use super::open::GraphQueryContext;
@@ -216,6 +216,188 @@ impl<'a> GraphQueryEngine<'a> {
             ResolutionOutcome::Exact { fact } => Ok(fact),
             other => Err(other),
         }
+    }
+
+    // ---- graph.search (Decision 0052 section 3) ------------------------
+    //
+    // A bounded, deterministic, in-memory search over already-indexed
+    // graph fields -- never a repository scan, never a source read,
+    // never a Git invocation, never a fuzzy/embedding/LLM similarity
+    // search. `graph.resolve` requires an exact typed selector; this
+    // exists for an operator search box where the input is free text
+    // and multiple plausible matches are expected and legitimate (they
+    // are navigation candidates, not a new graph fact).
+
+    /// Deterministic ranking: exact match on the raw field, then exact
+    /// match after ASCII-lowercase + trim normalization, then a
+    /// normalized prefix match, then a normalized substring match.
+    /// Returns `None` when none of those apply. `field` order below
+    /// (id, path, label, role) is itself the tie-break precedence for a
+    /// node that matches on more than one field at the same rank -- the
+    /// first satisfied field wins, since a node emits at most one
+    /// `SearchMatch`.
+    fn best_match_for_node(
+        node: &FactRef,
+        query: &str,
+        normalized_query: &str,
+    ) -> Option<(SearchRank, SearchField)> {
+        let candidates: [(Option<&str>, SearchField); 4] = [
+            (Some(node.id.as_str()), SearchField::StableId),
+            (
+                node.source.as_ref().map(|source| source.path.as_str()),
+                SearchField::RepositoryRelativePath,
+            ),
+            (Some(node.label.as_str()), SearchField::Label),
+            (
+                node.role.as_ref().map(|role| role.as_str()),
+                SearchField::NodeRole,
+            ),
+        ];
+        let mut best: Option<(SearchRank, SearchField)> = None;
+        for (value, field) in candidates {
+            let Some(value) = value else { continue };
+            if value.is_empty() {
+                continue;
+            }
+            let normalized_value = value.to_ascii_lowercase();
+            let rank = if value == query {
+                SearchRank::Exact
+            } else if normalized_value == normalized_query {
+                SearchRank::ExactNormalized
+            } else if normalized_value.starts_with(normalized_query) {
+                SearchRank::Prefix
+            } else if normalized_value.contains(normalized_query) {
+                SearchRank::Substring
+            } else {
+                continue;
+            };
+            match &best {
+                Some((best_rank, _)) if *best_rank <= rank => {}
+                _ => best = Some((rank, field)),
+            }
+        }
+        best
+    }
+
+    pub fn search(&self, text: &str, bounds: &QueryBounds) -> QueryEnvelope<SearchResult> {
+        let query = text.trim();
+        if query.is_empty() {
+            return self.envelope(
+                SearchResult {
+                    query: query.to_owned(),
+                    matches: Vec::new(),
+                },
+                vec!["empty search text matches nothing".to_owned()],
+                false,
+                0,
+                0,
+                None,
+            );
+        }
+        let normalized_query = query.to_ascii_lowercase();
+
+        let mut scored: Vec<(SearchRank, SearchField, FactRef)> = self
+            .graph
+            .nodes
+            .values()
+            .filter(|node| bounds.allows_layer(node.layer))
+            .filter_map(|node| {
+                let fact = FactRef::from_node(node);
+                Self::best_match_for_node(&fact, query, &normalized_query)
+                    .map(|(rank, field)| (rank, field, fact))
+            })
+            .collect();
+        // Deterministic order: rank ascending (best first), then stable
+        // node ID ascending as the tie-break -- never insertion/hash
+        // order.
+        scored.sort_by(|left, right| {
+            left.0
+                .cmp(&right.0)
+                .then_with(|| left.2.id.cmp(&right.2.id))
+        });
+
+        let mut warnings = Vec::new();
+        let total = scored.len();
+        if total > bounds.max_nodes {
+            warnings.push(format!(
+                "search matched more than max_nodes bound ({}); results are paginated from the same deterministic order",
+                bounds.max_nodes
+            ));
+        }
+        let bounded: Vec<(SearchRank, SearchField, FactRef)> =
+            scored.into_iter().take(bounds.max_nodes).collect();
+
+        let request_key = (query, &bounds.layers);
+        let request_hash = cursor::request_identity(&request_key);
+        let start = match &bounds.cursor {
+            Some(raw) => match cursor::decode_and_validate_cursor(
+                raw,
+                QUERY_CONTRACT_VERSION,
+                &self.context.graph_fingerprint,
+                "graph.search",
+                &request_hash,
+            ) {
+                Ok(position) => position as usize,
+                Err(error) => return self.invalid_search_cursor_envelope(query, error),
+            },
+            None => 0,
+        };
+        let page_size = bounds.page_size.max(1);
+        let end = (start + page_size).min(bounded.len());
+        let page: Vec<(SearchRank, SearchField, FactRef)> = if start < bounded.len() {
+            bounded[start..end].to_vec()
+        } else {
+            Vec::new()
+        };
+        let has_more = end < bounded.len();
+        let next_cursor = has_more.then(|| {
+            cursor::encode_cursor(
+                QUERY_CONTRACT_VERSION,
+                &self.context.graph_fingerprint,
+                "graph.search",
+                &request_hash,
+                end as u64,
+            )
+        });
+
+        let returned_nodes = page.len();
+        let matches: Vec<SearchMatch> = page
+            .into_iter()
+            .map(|(rank, matched_field, node)| SearchMatch {
+                node,
+                rank,
+                matched_field,
+            })
+            .collect();
+        self.envelope(
+            SearchResult {
+                query: query.to_owned(),
+                matches,
+            },
+            warnings,
+            has_more,
+            returned_nodes,
+            0,
+            next_cursor,
+        )
+    }
+
+    fn invalid_search_cursor_envelope(
+        &self,
+        query: &str,
+        error: CursorError,
+    ) -> QueryEnvelope<SearchResult> {
+        self.envelope(
+            SearchResult {
+                query: query.to_owned(),
+                matches: Vec::new(),
+            },
+            vec![format!("invalid cursor: {error}")],
+            false,
+            0,
+            0,
+            None,
+        )
     }
 
     // ---- graph.neighbors ----------------------------------------------

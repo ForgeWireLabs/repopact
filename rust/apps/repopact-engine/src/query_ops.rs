@@ -31,6 +31,13 @@ struct NodeParams {
 }
 
 #[derive(Debug, Deserialize)]
+struct SearchParams {
+    text: String,
+    #[serde(default)]
+    bounds: QueryBounds,
+}
+
+#[derive(Debug, Deserialize)]
 struct NeighborsParams {
     node_id: String,
     #[serde(default = "default_direction")]
@@ -150,6 +157,29 @@ pub fn graph_resolve(request: &EngineRequest) -> EngineResponse {
         Opened::Ready(loaded) => {
             let engine = GraphQueryEngine::new(&loaded.graph, loaded.context);
             respond(request, engine.resolve(&params.selector, &params.bounds))
+        }
+        Opened::ShortCircuit(response) => response,
+    }
+}
+
+/// `graph.search` (Decision 0052 section 3): a bounded, deterministic,
+/// in-memory search over already-indexed graph fields for an operator
+/// search box -- never a repository scan, never a fuzzy/embedding/LLM
+/// search. Additive to query contract version 1: existing operations'
+/// wire semantics are unchanged.
+pub fn graph_search(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let params: SearchParams = match parse_params(request) {
+        Ok(params) => params,
+        Err(response) => return response,
+    };
+    match open_for_query(request, root, params.bounds.allow_stale) {
+        Opened::Ready(loaded) => {
+            let engine = GraphQueryEngine::new(&loaded.graph, loaded.context);
+            respond(request, engine.search(&params.text, &params.bounds))
         }
         Opened::ShortCircuit(response) => response,
     }

@@ -1019,4 +1019,89 @@ mod tests {
         );
         std::fs::remove_dir_all(root).unwrap();
     }
+
+    /// WI063 operational-surface-completion checkpoint (ROG-013 for the
+    /// new operational mutation classes): `refresh` runs a full
+    /// `plan_reconciliation`, which now includes
+    /// `semantic::operational::apply` -- an operational role fact added
+    /// on disk must become visible in the effective (working-overlay)
+    /// graph via `refresh`, never requiring a durable `rog/` write.
+    #[test]
+    fn refresh_surfaces_a_new_operational_role_fact_without_a_durable_write() {
+        let root = temp_root("overlay-operational-refresh");
+        base_fixture(&root);
+        write(&root, "Cargo.toml", "[package]\nname = \"fixture\"\n");
+        write(&root, "src/main.rs", "fn main() {}\n");
+        let snapshot0 = snapshot_of(&root);
+        crate::build_and_write(&snapshot0).expect("baseline build");
+        let mut overlay = SessionGraphState::open(&snapshot0);
+        let before_shards = all_shard_bytes(&root);
+
+        // src/main.rs already existed at open() time; the implicit-binary
+        // pass should already have tagged it. Now genuinely mutate: add a
+        // sibling test target under tests/, an operational fact that
+        // requires the orchestrator's cross-file pass, not a per-file
+        // adapter alone.
+        write(&root, "tests/integration.rs", "#[test]\nfn it_works() {}\n");
+        let snapshot = snapshot_of(&root);
+        let outcome = overlay.refresh(&snapshot);
+
+        assert!(outcome.changed);
+        let test_node = overlay
+            .effective_graph()
+            .nodes
+            .get("file:tests/integration.rs")
+            .expect("tests/integration.rs should be a physical node after refresh");
+        assert_eq!(
+            test_node
+                .node_role
+                .as_ref()
+                .map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET),
+            "refresh must run the orchestrator's Cargo integration-test tagging pass"
+        );
+
+        let after_shards = all_shard_bytes(&root);
+        assert_eq!(
+            before_shards, after_shards,
+            "refresh must never write the durable rog/ graph"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Documents the disclosed, bounded scope of the targeted watcher fast
+    /// path (`reconcile`): unlike `refresh`/`open`, it never re-runs
+    /// `semantic::operational::apply` (module-level doc comment on
+    /// `semantic::operational`) -- an operational cross-file fact from a
+    /// single-path reconcile becomes visible on the next full reconcile,
+    /// not immediately. This is a deliberate, bounded limitation, not a
+    /// silent gap: this test locks in that exact boundary so a future
+    /// change to `reconcile`'s scope must consciously update it.
+    #[test]
+    fn targeted_reconcile_does_not_yet_surface_a_new_operational_role_fact() {
+        let root = temp_root("overlay-operational-reconcile-boundary");
+        base_fixture(&root);
+        write(&root, "Cargo.toml", "[package]\nname = \"fixture\"\n");
+        let snapshot0 = snapshot_of(&root);
+        crate::build_and_write(&snapshot0).expect("baseline build");
+        let mut overlay = SessionGraphState::open(&snapshot0);
+
+        write(&root, "tests/integration.rs", "#[test]\nfn it_works() {}\n");
+        let snapshot = snapshot_of(&root);
+        let outcome = overlay.reconcile(&snapshot, &["tests/integration.rs".to_owned()]);
+
+        assert!(outcome.changed);
+        let test_node = overlay
+            .effective_graph()
+            .nodes
+            .get("file:tests/integration.rs")
+            .expect("the file node itself must still exist");
+        assert_eq!(
+            test_node.node_role, None,
+            "a targeted reconcile does not re-run the orchestrator's \
+             cross-file operational passes -- this is the disclosed \
+             boundary, not a regression"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }

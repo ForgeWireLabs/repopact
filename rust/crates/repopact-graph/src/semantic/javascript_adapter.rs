@@ -33,7 +33,7 @@ use crate::{
     DerivationClass, GraphEdge, GraphEdgeKind, GraphLayer, GraphNode, GraphNodeKind, SymbolKind,
 };
 
-pub const ADAPTER_VERSION: &str = "javascript-typescript-adapter-0.1.0";
+pub const ADAPTER_VERSION: &str = "javascript-typescript-adapter-0.2.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
 /// ROG-022: a maliciously or accidentally deeply nested AST must not
 /// overflow this walker\'s own recursion stack. Exceeding this depth

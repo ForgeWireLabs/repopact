@@ -14,7 +14,7 @@ use crate::{
     DerivationClass, GraphEdge, GraphEdgeKind, GraphLayer, GraphNode, GraphNodeKind, ManifestKind,
 };
 
-pub const ADAPTER_VERSION: &str = "json-metadata-adapter-0.1.0";
+pub const ADAPTER_VERSION: &str = "json-metadata-adapter-0.2.0";
 
 pub struct JsonAdapter;
 

@@ -101,6 +101,17 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 - **Still gated:** S2/S3/S4/S6b live execution and results across ≥2 model families.
   The three-case AC-5 smoke is reportable as a runtime/telemetry acceptance smoke, but its
   outcomes are not promoted to a comparative finding or full-study result.
+- **AC-3 execution checkpoint (2026-09-14):** the exact pre-registered S2-S6 matrix was
+  counted before inference from current proving-ground `master@99b34d8` and current
+  RepoPact `origin/main@7c04d02`. It is 678 logical cells across two resolved candidate
+  families (`gpt-5.6/openai/gpt-5.6-luna` and `gpt-6/openai/gpt-6-astra`), with 432 live
+  model turns and 270 deterministic S5 observation cells. The AC-5 telemetry-based point
+  estimate for live turns is 3,888 requests, 92.47M input tokens, 2.12M output tokens,
+  and 13.39 hours; no new model call was made. Execution stopped before family admission
+  because the published live adapter is intentionally limited to the three-case AC-5
+  smoke, while the S2/S3/S4/S6b boundaries require a supplied full runner and S5 remains
+  explicitly illustrative. Evidence: [`20260914-wi022-ac3-execution-manifest`](../../../evidence/runs/20260914-wi022-ac3-execution-manifest.json)
+  and [`20260914-wi022-ac3-budget-checkpoint`](../../../evidence/runs/20260914-wi022-ac3-budget-checkpoint.json).
 - **S5 dependency:** WI037 repaired the drift harness's removed flat imports. The
   packaged RepoPact 3.0.2 S5 selftest now passes in the Proving Ground; this does
   not turn deterministic plumbing into a live empirical result.
@@ -120,8 +131,10 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 - [x] **AC-2** — satisfied. The v2 public app-server path was exercised on three completed
   real-model turns and produced reconciled per-request input/output/cached/reasoning usage,
   context-vs-task attribution, cache-adjusted tokens, requests-per-task, and the explicit+  authenticated-subscription USD policy. The existing deterministic drift and security+  instrumentation remains covered by the prior evidence set.
-- [ ] **AC-3** — pending and operator-gated. No results across two model families,
-  Pareto frontier, or scaling curve exist.
+- [ ] **AC-3** — pending. The 2026-09-14 pre-inference checkpoint resolved two candidate
+  public model IDs and recorded the exact matrix and budget, but stopped before admission
+  or full inference because no published full S2-S6 live runner is provisioned. No Pareto
+  frontier, scaling curve, effect estimate, or comparative finding exists.
 - [x] **AC-4** — satisfied. The dated 2026-09-13 WI022 amendment freezes the enumerated
   analysis choices before any reportable live result.
 - [x] **AC-5** — satisfied. Exactly one fresh v2 real-model invocation completed for each
@@ -148,3 +161,7 @@ and
 [`20260913-wi022-telemetry-v2-checkpoint`](../../../evidence/runs/20260913-wi022-telemetry-v2-checkpoint.json).
 and
 [`20260914-wi022-ac5-realrunner-smoke-v2`](../../../evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json).
+and
+[`20260914-wi022-ac3-execution-manifest`](../../../evidence/runs/20260914-wi022-ac3-execution-manifest.json).
+and
+[`20260914-wi022-ac3-budget-checkpoint`](../../../evidence/runs/20260914-wi022-ac3-budget-checkpoint.json).

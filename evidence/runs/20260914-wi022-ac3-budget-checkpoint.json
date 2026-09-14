@@ -1,0 +1,81 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-budget-checkpoint",
+  "timestamp": "2026-09-14T17:47:44Z",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "checkpoint": "Pre-inference AC-3 budget estimate; not a charge estimate or empirical result",
+  "basis": {
+    "source_evidence": "20260914-wi022-ac5-realrunner-smoke-v2",
+    "source_model": {
+      "family": "gpt-5.6",
+      "provider": "openai",
+      "version": "gpt-5.6-luna"
+    },
+    "source_case_count": 3,
+    "source_requests": 27,
+    "source_input_tokens": 642127,
+    "source_cached_input_tokens": 548608,
+    "source_output_tokens": 14722,
+    "source_reasoning_output_tokens": 8773,
+    "source_context_tokens": 642046,
+    "source_task_tokens": 81,
+    "source_cache_adjusted_input_tokens": 93519,
+    "source_tool_calls": 24,
+    "source_elapsed_ms": 334851.179,
+    "source_usd": 0.0,
+    "source_pricing_id": "chatgpt-subscription-unmetered-2026-09-13",
+    "estimator": "mean per AC-5 case as point estimate; minimum and maximum observed case totals scaled as a deliberately broad bound; not a claim of equal task complexity"
+  },
+  "planned_matrix": {
+    "logical_cells": 678,
+    "live_model_turns": 432,
+    "deterministic_S5_observation_cells": 270,
+    "candidate_families": 2,
+    "repetitions": 3,
+    "conditions": 2
+  },
+  "live_model_turn_estimate": {
+    "requests": {"point": 3888, "observed_case_scaled_range": [3024, 4752]},
+    "input_tokens": {"point": 92466288, "observed_case_scaled_range": [52485408, 131452848]},
+    "cached_input_tokens": {"point": 78999552, "observed_case_scaled_range": [42246144, 118222848]},
+    "output_tokens": {"point": 2119968, "observed_case_scaled_range": [1792368, 2769552]},
+    "reasoning_output_tokens": {"point": 1263312, "observed_case_scaled_range": [921456, 1687392]},
+    "context_tokens": {"point": 92454624, "observed_case_scaled_range": [52472016, 131443344]},
+    "task_tokens": {"point": 11664, "observed_case_scaled_range": [9504, 13392]},
+    "cache_adjusted_input_tokens": {"point": 13466736, "observed_case_scaled_range": [10239264, 16930944]},
+    "tool_calls": {"point": 3456, "observed_case_scaled_range": [1728, 5184]},
+    "elapsed_ms": {"point": 48218569.776, "observed_case_scaled_range": [37385926.272, 59971431.888]},
+    "elapsed_hours": {"point": 13.394, "observed_case_scaled_range": [10.385, 16.659]}
+  },
+  "provider_charge_and_quota": {
+    "pricing_id": "chatgpt-subscription-unmetered-2026-09-13",
+    "marginal_provider_charge_usd": 0.0,
+    "charge_interpretation": "The accepted AC-5 policy is USD 0 per request for the authenticated ChatGPT subscription; this is a policy value, not an unavailable price.",
+    "token_and_time_burden": "The point estimate is approximately 92.47M provider input tokens, 2.12M output tokens, 3,888 requests, and 13.39 wall-clock hours for live turns. These remain quota/time burdens despite USD 0 provider charge.",
+    "quota_limit_status": "not queried in this checkpoint; no reset was consumed",
+    "full_matrix_start_authorized": false
+  },
+  "commands": [
+    {
+      "command": "read 20260914-wi022-ac5-realrunner-smoke-v2.json and scale accepted per-case telemetry to 432 live model turns",
+      "exit_code": 0,
+      "summary": "Point estimate and observed-case scaled bounds calculated before any new inference."
+    }
+  ],
+  "artifacts": [
+    "evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json",
+    "evidence/runs/20260914-wi022-ac3-execution-manifest.json"
+  ],
+  "environment": {
+    "repopact_main": "7c04d02c87b268562bd5959830879581d7a0e1e8",
+    "proving_ground_master": "99b34d866b6cf15bdb2b8f6271ce748c9a3ef7dc",
+    "frozen_task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54",
+    "new_model_calls": 0
+  },
+  "notes": [
+    "No calls were made from this checkpoint. Admission probes and the full matrix remain stopped by the missing general live-runner contract.",
+    "The bounds are intentionally labeled as observed-case scaled bounds and must not be presented as confidence intervals or study results."
+  ]
+}

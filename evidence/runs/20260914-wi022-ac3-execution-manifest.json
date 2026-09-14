@@ -1,0 +1,195 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-execution-manifest",
+  "timestamp": "2026-09-14T17:47:44Z",
+  "work_item": "022",
+  "result": "blocked",
+  "provenance": "concrete",
+  "phase": "AC-3 pre-inference execution checkpoint",
+  "repository_refs": {
+    "repopact_main": "7c04d02c87b268562bd5959830879581d7a0e1e8",
+    "proving_ground_master": "99b34d866b6cf15bdb2b8f6271ce748c9a3ef7dc",
+    "frozen_task_set_version": "pactbench-2026-09-14-materialized-v2",
+    "frozen_task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54"
+  },
+  "scope": {
+    "ac3_started": false,
+    "full_matrix_started": false,
+    "live_inference_started": false,
+    "inference_calls_since_checkpoint": 0,
+    "admission_probes_completed": 0,
+    "repetitions_per_cell": 3,
+    "conditions": ["baseline", "repopact"],
+    "model_families_required": 2,
+    "matrix_counting_rule": "Three repetitions for every registered task, mutation, or coordination case per condition and model/version; S3 logical cells retain two concurrent worker executions."
+  },
+  "registrations": {
+    "S2": {
+      "task_set_version": "2026-09-13.s2.2",
+      "task_set_sha256": "98d06f1983e3c8bd91e9077bc1d8f388646e8bc00b6a1a3c48173bbd1c17d9d9",
+      "cases": 6,
+      "conditions": 2,
+      "repetitions": 3,
+      "logical_cells_per_model": 36,
+      "live_model_turns_per_model": 36,
+      "scorer": "s2-recovery-rubric.v1"
+    },
+    "S3": {
+      "task_set_version": "2026-09-13.s3.1",
+      "task_set_sha256": "3cdb20c413632930dd543e3e45d72fa3cdbf8319e875380335c4a39e9cfee1",
+      "cases": 2,
+      "workers_per_case": 2,
+      "conditions": 2,
+      "repetitions": 3,
+      "logical_cells_per_model": 12,
+      "live_model_turns_per_model": 24,
+      "scorer": "s3-coordination-rubric.v1"
+    },
+    "S4": {
+      "task_set_version": "2026-09-13.s4.tasks.1",
+      "task_set_sha256": "9a0d596f6f528e24062add8172ca6232059074f07b6053ad43ec320c98eb78c0",
+      "conditions_version": "2026-09-13.s4.1",
+      "conditions_sha256": "2d59219fb6975508d91ab51841f23ea17065bee0995ae9727b145ef1937ae1e3",
+      "cases": 3,
+      "runnable_conditions": ["C0", "C1", "C2", "C2+C3", "C3", "C4", "C5", "C6", "C7", "C8"],
+      "registered_out_of_scope_conditions": ["C9"],
+      "conditions": 10,
+      "repetitions": 3,
+      "logical_cells_per_model": 90,
+      "live_model_turns_per_model": 90,
+      "scorer": "s4-token-economy.v1"
+    },
+    "S5": {
+      "mutation_set_version": "drift-mutations.json",
+      "mutation_set_sha256": "458572e420306ac8c83cf2c8a01d6d6be2968f67d20a2582912eec8fa6bae6f",
+      "mutations": 15,
+      "conditions": ["C2", "C2+C3", "C7"],
+      "repetitions": 3,
+      "logical_cells_per_model": 135,
+      "live_model_turns_per_model": 0,
+      "deterministic_observation_cells_per_model": 135,
+      "registered_blind_spots": ["M4", "M5", "M7", "M9"],
+      "scorer": "s5-drift-adapter.v1",
+      "classification": "illustrative_until_a_live_runner_is_provisioned"
+    },
+    "S6a": {
+      "source": "PactBench security-invariant slice excluding the separately registered S6b context-injection cases 0023 and 0024",
+      "source_task_set_version": "pactbench-2026-09-14-materialized-v2",
+      "source_task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54",
+      "cases": ["0002", "0007", "0008->0029", "0009", "0010->0030", "0011", "0016", "0017", "0019"],
+      "conditions": 2,
+      "repetitions": 3,
+      "logical_cells_per_model": 54,
+      "live_model_turns_per_model": 54,
+      "scorer": "pactbench-grader.v2",
+      "registration_note": "The S6a case count is derived from the protocol's security-invariant versus S6b distinction; no task file was changed."
+    },
+    "S6b": {
+      "source_task_set_version": "pactbench-2026-09-14-materialized-v2",
+      "source_task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54",
+      "cases": ["0023", "0024"],
+      "conditions": 2,
+      "repetitions": 3,
+      "logical_cells_per_model": 12,
+      "live_model_turns_per_model": 12,
+      "scorer": "s6b-injection-rubric.v1"
+    }
+  },
+  "exact_matrix": {
+    "logical_cells_per_model": 339,
+    "logical_cells_all_models": 678,
+    "live_model_turns_per_model": 216,
+    "live_model_turns_all_models": 432,
+    "deterministic_S5_cells_all_models": 270,
+    "worker_or_observation_slots_all_models": 702,
+    "breakdown_per_model": {
+      "S2": 36,
+      "S3": 12,
+      "S4": 90,
+      "S5": 135,
+      "S6a": 54,
+      "S6b": 12
+    }
+  },
+  "model_resolution": {
+    "source": "public Codex app-server model/list; no inference performed",
+    "family_1": {
+      "family": "gpt-5.6",
+      "provider": "openai",
+      "version": "gpt-5.6-luna",
+      "status": "resolved_candidate",
+      "preferred": true,
+      "admission_probe": "not_run"
+    },
+    "family_2": {
+      "family": "gpt-6",
+      "provider": "openai",
+      "version": "gpt-6-astra",
+      "status": "resolved_candidate",
+      "genuine_family_difference": "major family identifier differs from gpt-5.6",
+      "admission_probe": "not_run"
+    }
+  },
+  "runtime_discovery": {
+    "codex_version": "codex-cli 0.154.0-alpha.6.2",
+    "public_app_server_model_list": "passed; gpt-5.6-luna and gpt-6-astra listed",
+    "provider_sdk_packages": {
+      "google.genai": "not_found",
+      "anthropic": "not_found",
+      "openai": "not_found",
+      "ollama": "not_found",
+      "tiktoken": "available",
+      "jsonschema": "available"
+    },
+    "published_live_adapter": "codex_real_runner_v2.py; narrow AC-5 smoke selection only",
+    "published_general_runner": "provider-neutral contract boundary; no provisioned full S2-S6 app-server adapter"
+  },
+  "blockers": [
+    "The published AC-5 app-server adapter is intentionally limited to the corrected three-case smoke and cannot execute the registered S2, S3, S4, S5, or S6 full matrix.",
+    "S2, S3, S4, and S6b drivers require a supplied live runner; their fixture/fake paths are explicitly illustrative. S5 emits deterministic-validator/local/fixture-selftest output and is explicitly non-empirical.",
+    "Because the full live-runner contract is not provisioned, family admission probes would not establish reportable AC-3 execution for the registered studies; no AC-3 inference was started."
+  ],
+  "commands": [
+    {
+      "command": "git fetch origin; git rev-parse origin/main",
+      "exit_code": 0,
+      "summary": "Bookkeeping branch was created from current RepoPact origin/main at 7c04d02c87b268562bd5959830879581d7a0e1e8."
+    },
+    {
+      "command": "codex app-server --stdio: initialize; initialized; model/list",
+      "exit_code": 0,
+      "summary": "Non-inference discovery listed the two candidate model versions and returned no benchmark output."
+    },
+    {
+      "command": "read-only registration, adapter, and AC-5 telemetry inspection",
+      "exit_code": 0,
+      "summary": "Exact matrix and bounded budget inputs were derived without changing the proving-ground corpus."
+    }
+  ],
+  "artifacts": [
+    "proving-ground:master@99b34d866b6cf15bdb2b8f6271ce748c9a3ef7dc",
+    "proving-ground:benchmarks/s2/task-set.json",
+    "proving-ground:benchmarks/s3/task-set.json",
+    "proving-ground:benchmarks/s4/task-set.json",
+    "proving-ground:benchmarks/s4/conditions.json",
+    "proving-ground:benchmarks/drift/mutations.json",
+    "proving-ground:benchmarks/pactbench/task-set.v2.json",
+    "evidence/runs/20260914-wi022-ac3-budget-checkpoint.json"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "codex": "0.154.0-alpha.6.2",
+    "public_model_provider": "openai",
+    "temperature_policy": "provider-default pending family admission",
+    "full_matrix_model_calls": 0,
+    "private_rollout_files_used": false,
+    "frozen_corpus_modified": false,
+    "concurrent_WI063_preserved": true
+  },
+  "notes": [
+    "This is an execution checkpoint, not an AC-3 result and not a comparative finding.",
+    "The 432 live-turn budget excludes the 270 deterministic S5 observation cells; S5 cannot be promoted to empirical evidence without a live model-aware execution path.",
+    "No Pareto frontier, scaling curve, effect estimate, p-value, or disconfirming result is claimed from this checkpoint."
+  ]
+}

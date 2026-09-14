@@ -22,20 +22,20 @@
     {
       "id": "ACM-001",
       "text": "Define a provider-neutral assurance/control mapping record or extension model that can express framework/version/source authority, requirement identifier, applicability status and rationale, adopter control/invariant/policy owner, implementation references, evidence references, responsibilities, third-party dependencies, gaps/exceptions, review freshness, and any independent attestation reference.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-mapping-foundation-checkpoint"]
     },
     {
       "id": "ACM-002",
       "text": "The model makes implemented control, evidence that a control operated, framework mapping, applicability conclusion, and independent audit/certification distinct states; RepoPact never infers legal compliance or certification from control/evidence presence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-mapping-foundation-checkpoint"]
     },
     {
       "id": "ACM-003",
       "text": "Define and validate a sensitive-evidence boundary that prefers hashes, counts, redacted/synthetic fixtures, bounded metadata, run identifiers, controlled external references, and non-secret configuration snapshots over raw regulated/customer payloads in Git evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-mapping-foundation-checkpoint"]
     },
     {
       "id": "ACM-004",
@@ -52,8 +52,8 @@
     {
       "id": "ACM-006",
       "text": "Framework content and legal interpretations remain adopter-owned inputs/extensions rather than hard-coded SOC 2, HIPAA, PCI DSS, GDPR, KYC/AML, FERPA, COPPA, FDA, or other jurisdiction-specific conclusions in the RepoPact kernel.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-051-assurance-mapping-foundation-checkpoint"]
     },
     {
       "id": "ACM-007",

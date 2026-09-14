@@ -4,7 +4,8 @@
 
 Jeremy Shows  
 ForgeWire Labs  
-Draft, 2026-06-25; revised 2026-09-12  
+Draft, 2026-06-25; revised 2026-09-13
+Implementation/evidence snapshot: `542cd5c01a79942ecb78040b19deb4e82f4f9068` (development `main` at reconciliation)
 Target: arXiv cs.SE preprint, then software engineering or agentic systems workshop submission
 
 ## Abstract
@@ -42,10 +43,12 @@ We evaluate RepoPact reflexively and adversarially using its packaged implementa
 conformance suite, recorded findings, naturalistic case studies, and a pre-registered
 comparative benchmark program. The implementation has evolved from a Python reference
 system into a canonical Rust semantic engine consumed by compatibility tooling and a Tauri
-2 Workbench, while preserving repository-level interoperability. Windows, Linux, and
-Android bring-up evidence exists for the Workbench; macOS and iOS remain intended targets
-that still require platform-specific validation. Comparative cross-model results remain
-forthcoming and will be reported whether they confirm or challenge the claims.
+2 Workbench, while preserving repository-level interoperability. The stable public boundary
+is 3.0.2; the reconciled development `main` snapshot adds active graph and launch-readiness
+work that must not be presented as stable-release capability. Windows, Linux, and Android
+bring-up evidence exists for the Workbench; macOS and iOS remain intended targets that still
+require platform-specific validation. Comparative cross-model results remain forthcoming
+and will be reported whether they confirm or challenge the claims.
 
 **Keywords:** agentic software engineering; human-agent collaboration; repository
 governance; governance continuity; software invariants; durable project state;
@@ -111,8 +114,9 @@ in.
 
 The practical distinction is still useful:
 
-> `AGENTS.md` tells an agent how to behave. RepoPact records and enforces whether the work
-> respected the contract.
+> `AGENTS.md` and similar instruction files tell an agent how it should behave. RepoPact
+> records durable project state around that behavior and validates, and where enforceable
+> can enforce, whether the repository still respects its declared contract.
 
 This paper makes six contributions.
 
@@ -138,9 +142,10 @@ This paper makes six contributions.
    machine-checkable conformance suite, naturalistic field observations, and
    pre-registered comparative benchmarks. Disconfirming results are in scope by design.
 
-RepoPact is open source under Apache-2.0. As of this revision, the current public release
-is 3.0.2. It is part of the ForgeWire Labs inspectable-infrastructure stack, but the system
-and model described here are independently useful.
+RepoPact is open source under Apache-2.0. The current stable public release is 3.0.2;
+development `main` is a separately reconciled implementation snapshot and is not itself a
+stable release. It is part of the ForgeWire Labs inspectable-infrastructure stack, but the
+system and model described here are independently useful.
 
 ## 2. Background and Related Work
 
@@ -542,10 +547,12 @@ The current RepoPact release line is no longer accurately described as only a Py
 The architecture has evolved while preserving one important rule: there should be **one
 semantic authority** for the governance model.
 
-As of this revision, the current public release is 3.0.2. The implementation includes a
-canonical Rust semantic engine, a compatibility-oriented Python command surface, a Tauri 2
-Workbench, schemas, templates, a conformance suite, migration tools, evidence records, and
-the research corpus.
+The current stable public release is 3.0.2. The reconciled development `main` snapshot at
+`542cd5c01a79942ecb78040b19deb4e82f4f9068` includes a canonical Rust semantic engine, a
+compatibility-oriented Python command surface, a Tauri 2 Workbench, schemas, templates, a
+conformance suite, migration tools, evidence records, and the research corpus. The snapshot
+also contains active Repository Orientation Graph implementation work and launch-readiness
+records; those development-state claims are not retroactively attributed to 3.0.2.
 
 ### 4.1 Canonical Rust semantic engine
 
@@ -607,6 +614,12 @@ The public command surface includes operations such as:
 | `spec` | generate or check specification projections |
 | `check-frozen` | enforce frozen-surface changes against a base |
 | `doctor` | diagnose, repair, and migrate drift |
+
+The development `main` snapshot also exposes newer operational surfaces, including
+`verify ci`, grouped `release` verification/build/inspect commands, and graph operations.
+Those commands are documented here to identify the current implementation boundary; their
+presence on development `main` does not imply that the stable 3.0.2 release has the same
+surface or that every release gate has closed.
 
 Mandatory preflight makes intent visible before implementation begins. Existing repositories
 use migration and grandfathering semantics rather than pretending historical work was
@@ -730,8 +743,10 @@ registered governance or context condition.
 | S8 | H15 | governance continuity and clean-clone orientation | governance recovery, violation recall, false-clean rate, orientation cost | pre-registered 2026-09-12; no runs performed |
 
 The current benchmark maturity should be described precisely. The program is
-pre-registered and partially implemented. Deterministic mock runs validate plumbing, not
-agent behavior. Cross-model findings should not be claimed until real runs are complete.
+pre-registered and partially implemented: deterministic task materialization, the driver,
+scoring, and harness infrastructure exist, but deterministic mock runs validate plumbing,
+not agent behavior, and no comparative cross-model results are claimed. Cross-model findings
+should not be claimed until real runs are complete.
 
 S8 is intentionally distinct from S2. S2 asks whether durable state improves downstream
 task recovery. S8 asks whether the represented governed substrate itself survives a change
@@ -759,7 +774,7 @@ selftests, a subprocess interface for real agents, and drift experiments.
 
 ## 6. Results to Date
 
-The reflexive findings register currently contains fourteen entries. Severity reflects
+The reflexive findings register currently contains nineteen entries. Severity reflects
 impact on an adopter rather than implementation effort. "Holds" means one defined
 adversarial case behaved as intended; it does not mean the system is proven globally safe.
 
@@ -779,6 +794,11 @@ adversarial case behaved as intended; it does not mean the system is proven glob
 | F-012 | H7 | holds | full lifecycle worked on a different-domain application | shipped |
 | F-013 | H7 | holds | governance-folder planning migrated without data loss | shipped |
 | F-014 | H6, H7 | holds | downstream adoption exposed a missing authority state and the full resolution trace remained recoverable | shipped |
+| F-015 | H7 | major | linked-worktree validation produced false errors | fixed in 3.0.2 and re-verified |
+| F-016 | H6, H12 | minor | README and canonical JSON identity drifted | open; canonical-source reconciliation remains required |
+| F-017 | H12 | minor | doctor documentation pointed at a stale source-of-truth path | fixed and re-verified |
+| F-018 | H6, H7 | major | evidence chronology depended on drifting wall-clock timestamps | fixed with deterministic Git-recording basis |
+| F-019 | H14 | major | mandatory preflight and post-change validation did not mechanically prevent an autonomous worker's first runtime write before admission | architecture accepted in WI050/decision 0038; executable guard and cross-platform proof pending |
 
 ### 6.1 Failures that changed the design
 
@@ -804,6 +824,31 @@ legacy planning into the governed work ledger without inventing evidence.
 **F-011, longitudinal drift.** An older adopter fell out of conformance as the standard
 evolved. Validation could detect the problem when invoked, but the adopter had no guided
 repair path. This motivated `doctor` as an upgrade and repair mechanism.
+
+**F-015, linked-worktree false errors.** Validation of repositories opened through linked
+worktrees produced false errors because the physical checkout topology was not handled
+deterministically. The implementation was corrected and re-verified in the stable 3.0.2
+line; the case remains in the register because it changed the release evidence boundary.
+
+**F-016, identity drift.** A README identity statement and canonical JSON records diverged.
+This is an open documentation/source-of-truth reconciliation item rather than evidence that
+the semantic engine accepted an invalid record. Canonical metadata remains authoritative.
+
+**F-017, doctor source-of-truth drift.** The repair-path documentation referenced a stale
+source-of-truth location. The documentation and its validation path were corrected and
+re-verified.
+
+**F-018, chronology drift.** Evidence ordering that relied on wall-clock timestamps could
+drift across machines and time settings. Evidence chronology now uses a deterministic
+Git-recording basis so the ordering claim is reproducible rather than merely plausible.
+
+**F-019, admission boundary.** A later field case exposed a stronger boundary than
+enforcement closure alone. RepoPact could durably require preflight and detect an invalid
+sequence after the fact while still lacking a mechanism that prevented an autonomous
+worker's first write before admission. This became F-019 and motivated WI050. The result
+narrows the claim: repository governance and post-change verification are not equivalent to
+pre-execution containment. Protected admission requires a distinct runtime or OS-backed
+enforcement boundary.
 
 These failures matter because they show that evaluation can change the architecture. They
 were not edited out of the story once fixed.
@@ -871,7 +916,11 @@ happens. Deployment therefore needs checkpoint coverage, checkpoint invocation, 
 checkpoint effectiveness.
 
 These properties motivate **enforcement closure** and H14. The field observation motivated
-the hypothesis. It does not confirm it. S7 remains the prospective test.
+the hypothesis. It does not confirm it. A later F-019 case provides negative evidence against
+equating local preflight/post-change validation with protected admission: the repository can
+record and detect an invalid sequence without preventing the first autonomous runtime write.
+S7 remains the prospective test, and protected admission remains incomplete. Local
+verification success is not remote enforcement closure.
 
 ## 7. Discussion
 
@@ -988,9 +1037,13 @@ S8 therefore records orientation cost separately from correctness, including tok
 calls, file reads, bytes read, and repository-wide search operations. Those measures were
 registered before design of any future orientation mechanism.
 
-A durable repository graph is one possible mechanism and is future work at the time of
-this revision. If implemented, it should be treated as a derived, provenance-bearing view
-of repository reality rather than a new source of truth. Its value should be measured
+A durable Repository Orientation Graph is now under active implementation. The current
+development implementation provides a derived, versioned graph substrate with deterministic
+rebuild, incremental convergence, language-aware semantic extraction, working-tree overlays,
+and explicit freshness and coverage state. It remains non-authoritative: source and
+governance records remain the source of truth. Higher-level orientation queries, adoption
+integration, broader topology, performance closeout, operator-facing graph workflows, and
+the pre-registered S8 graph-enabled evaluation remain incomplete. Its value must be measured
 against the already-registered S8 baseline instead of assumed from architectural appeal.
 
 ## 8. Threats to Validity
@@ -1070,10 +1123,11 @@ visible as release work rather than being hidden by overall visual quality.
 
 ### T12: Orientation mechanism bias
 
-A future repository graph could be designed around the same tasks later used to evaluate
-it. S8 reduces this risk by registering correctness and orientation-cost measures before
-graph design and by requiring any graph-enabled condition to be added through a new dated
-amendment before graph-condition runs.
+The active Repository Orientation Graph could be designed around the same tasks later used
+to evaluate it. S8 reduces this risk by registering correctness and orientation-cost
+measures before graph design and by requiring any graph-enabled condition to be added through
+a new dated amendment before graph-condition runs. The graph remains a derived view, not a
+replacement for source records.
 
 ## 9. Conclusion and Future Work
 
@@ -1117,10 +1171,14 @@ Future work includes:
 3. running the pre-registered enforcement-closure study outside ForgeWire Labs controlled repositories;
 4. running the pre-registered S8 governance-continuity study across clean worker, machine, and client handoffs;
 5. obtaining genuine third-party reproduction and adoption evidence;
-6. finishing human operator control parity across the Workbench's core governance lifecycle;
+6. maintaining operator-control parity as repository-orientation, verification, and
+   admission capabilities are added, and validating equivalent native behavior on macOS and
+   iOS;
 7. validating macOS and iOS platform behavior before claiming support;
 8. expanding external ingestion while preserving provenance and authority;
-9. designing and testing a durable repository-orientation graph against the frozen S8 no-graph baseline;
+9. completing higher-level Repository Orientation Graph queries, adoption integration,
+   performance closeout, and graph-enabled evaluation against the frozen S8 no-graph
+   baseline;
 10. mechanizing more temporal and relational invariants and hardening repair semantics;
 11. encouraging independent conformance implementations.
 

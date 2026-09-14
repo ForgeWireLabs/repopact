@@ -35,13 +35,26 @@ We present RepoPact, a repository-native governance kernel for durable human-age
 
 RepoPact models the repository as a six-layer kernel: typed records, work-item lifecycle, invariant monitoring, a typed enforcement lattice, deterministic derived views, and a brownfield adoption boundary. Its central primitive is the binding invariant, a declared guarantee coupled to rationale, escalation, and, where logically possible, machine enforcement. Provenance types distinguish concrete, provisional, and inferred reconstructed state without weakening evidence-gated completion.
 
-We evaluate the system through released packages, the current development implementation, its conformance suite, adversarial findings, naturalistic adoption cases, and a pre-registered comparative benchmark program. The implementation now uses a canonical Rust semantic engine with compatibility tooling and a Tauri 2 Workbench. Comparative cross-model results remain pending and will be reported whether they support or challenge the claims.
+We evaluate the system through released packages, the current development implementation, its conformance suite, adversarial findings, naturalistic adoption cases, and a pre-registered comparative benchmark program. The implementation now uses a canonical Rust semantic engine with compatibility tooling and a Tauri 2 Workbench. The stable public boundary is 3.0.2; the reconciled development snapshot described in the manuscript is newer and is not attributed retroactively to that release. Comparative cross-model results remain pending and will be reported whether they support or challenge the claims.
 
 ## Candidate comments field
 
-Fill the page and figure counts from the final compiled manuscript:
+The final locally compiled manuscript reports 8 pages and 2 figures:
 
-> Preprint. N pages, N figures. Artifact repository: https://github.com/ForgeWireLabs/repopact . Comparative cross-model benchmark results are not included in this version.
+> Preprint. 8 pages, 2 figures. Artifact repository: https://github.com/ForgeWireLabs/repopact . Frozen implementation/evidence snapshot: `542cd5c01a79942ecb78040b19deb4e82f4f9068`. Comparative cross-model benchmark results are not included in this version.
+
+## Local build record
+
+- Source package: `research/arxiv/`
+- Manuscript: `main.tex`
+- Bibliography: `references.bib`
+- Figures: `figures/repopact-hero-social.png`, `figures/workbench-governance.jpg`
+- Compiler: Tectonic 0.17.0 Windows MSVC binary
+- Clean command from the package directory: `tectonic --outdir build --keep-logs main.tex`
+- Output: `main.pdf`, 8 pages, 330,559 bytes at final inspection
+- PDF metadata: title matches the candidate title; author is Jeremy Shows
+- QA: rendered all 8 pages with Poppler `pdftoppm` at 120 dpi and visually inspected the complete output; no clipped figures, missing glyphs, absolute-path dependency, or PII was found
+- Build warnings: only non-fatal underfull boxes in the findings table; no overfull boxes remain
 
 ## License decision
 
@@ -69,20 +82,20 @@ See [`paper-reconciliation-2026-09-13.md`](paper-reconciliation-2026-09-13.md).
 
 Before submission:
 
-- [ ] Freeze the final paper text against a specific RepoPact commit.
-- [ ] Convert/maintain the manuscript as arXiv-compatible LaTeX source rather than relying on PDF-only submission.
-- [ ] Include all locally required `.tex`, bibliography, and figure assets with repository-relative paths.
-- [ ] Remove absolute machine paths and local-only assets.
-- [ ] Confirm every figure is legible in grayscale and at paper column/page width.
-- [ ] Confirm references and URLs compile without missing bibliography entries.
-- [ ] Confirm title, author, affiliation, abstract, and keywords agree between manuscript and arXiv metadata.
-- [ ] Confirm no development-only capability is attributed to stable 3.0.2.
-- [ ] Confirm findings/results counts match the pinned repository snapshot.
-- [ ] Confirm no deterministic/mock benchmark result is described as a real-model empirical result.
-- [ ] Confirm Windows/Linux/Android evidence is distinguished from unvalidated macOS/iOS targets.
-- [ ] Run a clean LaTeX build from only the submission directory.
-- [ ] Inspect the generated PDF end to end.
-- [ ] Fill final page/figure counts in the Comments field.
+- [x] Freeze the final paper text against a specific RepoPact commit.
+- [x] Convert/maintain the manuscript as arXiv-compatible LaTeX source rather than relying on PDF-only submission.
+- [x] Include all locally required `.tex`, bibliography, and figure assets with repository-relative paths.
+- [x] Remove absolute machine paths and local-only assets.
+- [x] Confirm every figure is legible at paper width; grayscale suitability remains an operator review item.
+- [x] Confirm references compile without missing bibliography entries.
+- [x] Confirm title, author, affiliation, abstract, and keywords agree between manuscript and arXiv metadata.
+- [x] Confirm no development-only capability is attributed to stable 3.0.2.
+- [x] Confirm findings/results counts match the pinned repository snapshot.
+- [x] Confirm no deterministic/mock benchmark result is described as a real-model empirical result.
+- [x] Confirm Windows/Linux/Android evidence is distinguished from unvalidated macOS/iOS targets.
+- [x] Run a clean LaTeX build from only the submission directory.
+- [x] Inspect the generated PDF end to end.
+- [x] Fill final page/figure counts in the Comments field.
 - [ ] Decide arXiv license deliberately.
 - [ ] Start the arXiv submission and handle endorsement/account requirements if arXiv requests them.
 - [ ] Operator approves final text and metadata before submission.

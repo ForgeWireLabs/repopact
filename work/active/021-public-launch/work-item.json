@@ -18,7 +18,8 @@
       "text": "RepoPact launch assets drafted and operator-approved: a README hero that leads with governance discontinuity and durable shared engineering state, explains the repository as the rendezvous point for humans and agents, keeps the AGENTS.md comparison as a subordinate differentiator, uses real product screenshots/visuals rather than generic AI imagery, and is consistent with the 'AGENTS.md is not a contract' essay plus RepoPact launch/social copy. The public README must distinguish stable-release features from active main-development surfaces.",
       "state": "pending",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-021-launch-readiness-reconciliation"
       ]
     },
     {
@@ -26,7 +27,8 @@
       "text": "The architecture paper (research/paper-outline.md expanded to a full draft) is posted to arXiv (cs.SE). [Operator-gated: arXiv account, cs.SE endorsement if required, final-text approval, submission.]",
       "state": "pending",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-021-launch-readiness-reconciliation"
       ]
     },
     {
@@ -34,7 +36,8 @@
       "text": "RepoPact published/refreshed on PyPI at the launch version with the positioning-aligned README; the conformance suite (019) is green and linked from the launch. [Operator-gated: PyPI release.]",
       "state": "pending",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-021-launch-readiness-reconciliation"
       ]
     },
     {
@@ -42,7 +45,8 @@
       "text": "Show HN posted and launch-day response handled per the playbook timing/anti-abuse rules. [Operator-gated: account karma warm-up, approval, posting.]",
       "state": "pending",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-021-launch-readiness-reconciliation"
       ]
     }
   ],

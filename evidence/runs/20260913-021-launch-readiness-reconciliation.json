@@ -1,0 +1,78 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-021-launch-readiness-reconciliation",
+  "timestamp": "2026-09-14T04:31:00Z",
+  "work_item": "021",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "Launch-readiness reconciliation is pinned to 542cd5c01a79942ecb78040b19deb4e82f4f9068, synchronized with origin/main before local documentation and evidence work."
+    },
+    {
+      "command": "repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "Generated audits/reports/dashboard.md after the current work-item and research-record updates."
+    },
+    {
+      "command": "npm test -- --run (rust/apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "Workbench frontend test suite passed 16/16."
+    },
+    {
+      "command": "npm run typecheck (rust/apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "Workbench TypeScript type-check completed successfully."
+    },
+    {
+      "command": "npm run build (rust/apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "Workbench production frontend build completed successfully."
+    },
+    {
+      "command": "Windows Tauri Workbench capture and visual inspection",
+      "exit_code": 0,
+      "summary": "Real Windows Workbench loaded C:/Projects/repopact, showed VALIDATED repository state and active work records, and was inspected for PII before being saved as the README screenshot."
+    },
+    {
+      "command": "GitHub repository metadata inspection",
+      "exit_code": 0,
+      "summary": "Read-only inspection confirmed the public repository description and topics; no public metadata or social-preview mutation was performed because the available connector exposes no write operation and the browser action remains operator-confirmed."
+    }
+  ],
+  "artifacts": [
+    "README.md",
+    "docs/assets/readme/repopact-hero.svg",
+    "docs/assets/readme/repopact-hero-social.png",
+    "docs/assets/readme/workbench-governance.jpg",
+    "docs/assets/README.md",
+    "docs/launch/repopact-public-copy.md",
+    "research/paper.md",
+    "research/paper-reconciliation-2026-09-13.md",
+    "research/arxiv-submission-prep.md",
+    "research/arxiv/main.tex",
+    "research/arxiv/references.bib",
+    "research/arxiv/figures/repopact-hero-social.png",
+    "research/arxiv/figures/workbench-governance.jpg",
+    "work/active/021-public-launch/work-item.json"
+  ],
+  "environment": {
+    "date": "2026-09-13",
+    "snapshot": "542cd5c01a79942ecb78040b19deb4e82f4f9068",
+    "host": "Windows 10 x64, C:\\Projects\\repopact",
+    "workbench": "Tauri 2 development build; screenshot is current development main, not a stable 3.0.2 claim",
+    "arxiv": "preparation only; not submitted",
+    "github": "read-only metadata inspection; public mutation not performed",
+    "macos": "not available; not claimed",
+    "ios": "not available; not claimed"
+  },
+  "closeout": {
+    "AC-1": "Machine execution work is complete for this pass: deterministic hero, generated social preview, real Workbench screenshot, README/public-copy reconciliation, and frontend checks. Criterion remains pending for human/operator visual approval where required.",
+    "AC-2": "LaTeX source-package preparation is in progress and remains operator-gated. No arXiv submission, endorsement, account action, or license selection was performed.",
+    "AC-3": "No PyPI publication or clean-install release claim was performed; criterion remains pending.",
+    "AC-4": "No Show HN or social launch post was performed; criterion remains pending.",
+    "stable_release_decision": "No stable release or publication claim is made from this pass. Development main still has active graph/launch-readiness work, protected admission is incomplete, and external publish gates are not closed."
+  }
+}

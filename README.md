@@ -16,7 +16,9 @@ It is a **repository-native governance system for durable human-agent software e
 
 [Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
 
-<!-- README VISUAL SLOT: add a concise hero image here. Prefer a real RepoPact/Workbench composition, not a generic AI stock illustration. -->
+![RepoPact turns fragmented session context into durable repository state: humans, agents, and tools rendezvous through a repository that preserves intent, authority, decisions, work state, invariants, evidence, and provenance.](docs/assets/readme/repopact-hero.svg)
+
+*RepoPact addresses governance discontinuity by making the repository the durable rendezvous point between workers and sessions.*
 
 ## Why RepoPact exists
 
@@ -99,7 +101,9 @@ Native bring-up and operator evidence currently exist for **Windows, Linux, and 
 
 Workbench source: [`rust/apps/repopact-desktop/`](rust/apps/repopact-desktop/)
 
-<!-- README VISUAL SLOT: primary Workbench screenshot. Use a real installed Windows or Linux build showing meaningful governed state, not an empty shell. -->
+![RepoPact Workbench on Windows showing the validated Work lifecycle view with proposed, active, deferred, and complete counts, a blocked record, active work, and the selected repository session.](docs/assets/readme/workbench-governance.jpg)
+
+*Current development `main` Workbench capture: a real validated repository session, not an empty shell. The screenshot reflects the development tree and is not a claim that every Workbench surface ships in stable PyPI 3.0.2.*
 
 ## Use it with `AGENTS.md`, `CLAUDE.md`, and coding agents
 

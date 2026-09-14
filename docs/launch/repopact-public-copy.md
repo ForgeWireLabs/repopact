@@ -75,7 +75,7 @@ The GitHub connector used for this preparation pass does not expose repository-d
 
 ## Social preview handoff
 
-Use the public-facing hero visual being prepared for the README as the GitHub social preview when it is complete. Prefer a 1280 x 640 composition with a solid background, readable RepoPact branding, and the repository/rendezvous concept rather than generic AI imagery. The social preview should not encode release numbers or mutable benchmark claims.
+Use `docs/assets/readme/repopact-hero-social.png` as the GitHub social preview. It is a 1280 x 640 composition with a solid background, readable RepoPact branding, and the repository/rendezvous concept rather than generic AI imagery. It does not encode release numbers or mutable benchmark claims.
 
 ## Posting boundaries
 

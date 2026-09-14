@@ -2853,6 +2853,7 @@ dependencies = [
  "repopact-desktop-api",
  "repopact-types",
  "serde",
+ "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",

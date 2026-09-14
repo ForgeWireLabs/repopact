@@ -22,6 +22,7 @@ repopact-analysis.workspace = true
 repopact-desktop-api.workspace = true
 repopact-types.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-dialog = "2.7.3"
 

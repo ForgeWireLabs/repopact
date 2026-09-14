@@ -127,6 +127,8 @@ pub fn capabilities() -> Capabilities {
             "graph.update".to_owned(),
             "graph.disable".to_owned(),
             "graph.resolve".to_owned(),
+            "graph.search".to_owned(),
+            "graph.reconcile-merge".to_owned(),
             "graph.context".to_owned(),
             "graph.neighbors".to_owned(),
             "graph.path".to_owned(),

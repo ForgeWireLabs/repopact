@@ -122,6 +122,85 @@ class GraphCliTests(unittest.TestCase):
         self.assertFalse((self.root / "governance" / "rog-capability.json").exists())
 
 
+class GraphReconcileMergeCliTests(unittest.TestCase):
+    """ROG-029, Decision 0052 section 4: `repopact graph reconcile-merge`
+    through the real Python CLI. The deep branch/merge/authoritative-
+    conflict/capability-conflict proofs live in
+    rust/crates/repopact-graph/src/merge_reconcile.rs (real git
+    subprocess tests); this class proves the CLI itself is wired
+    correctly end to end."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory(prefix="repopact-reconcile-cli-")
+        self.root = Path(self._tmp.name)
+        import subprocess
+
+        self._git_available = (
+            subprocess.run(["git", "--version"], capture_output=True).returncode == 0
+        )
+        if not self._git_available:
+            return
+        (self.root / "src").mkdir()
+        (self.root / "src" / "lib.rs").write_text("pub fn x() {}\n", encoding="utf-8")
+        (self.root / "Cargo.toml").write_text(
+            '[package]\nname = "fixture"\n', encoding="utf-8"
+        )
+
+        def git(*args: str) -> None:
+            subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True)
+
+        self._git = git
+        git("init", "--quiet")
+        git("config", "user.email", "test@example.invalid")
+        git("config", "user.name", "Test")
+        git("add", "-A")
+        git("commit", "--quiet", "-m", "source")
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def run_cli(self, *args: str) -> int:
+        return graph_cli.main([*args, "--root", str(self.root), "--json"])
+
+    def capture(self, *args: str) -> tuple[int, dict]:
+        import io
+        import contextlib
+
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            code = self.run_cli(*args)
+        return code, json.loads(buffer.getvalue())
+
+    def test_no_conflicts_reports_nothing_to_reconcile(self) -> None:
+        if not self._git_available:
+            self.skipTest("git unavailable")
+        code, result = self.capture("reconcile-merge")
+        self.assertEqual(code, 0)
+        self.assertEqual(result["outcome"], "nothing_to_reconcile")
+
+    def test_authoritative_conflict_is_refused_with_a_nonzero_exit(self) -> None:
+        if not self._git_available:
+            self.skipTest("git unavailable")
+        import subprocess
+
+        self._git("checkout", "-b", "branch-a")
+        (self.root / "src" / "lib.rs").write_text("pub fn x() { /* a */ }\n", encoding="utf-8")
+        self._git("commit", "-a", "--quiet", "-m", "a")
+        if subprocess.run(["git", "checkout", "main"], cwd=self.root, capture_output=True).returncode != 0:
+            self._git("checkout", "master")
+        self._git("checkout", "-b", "branch-b")
+        (self.root / "src" / "lib.rs").write_text("pub fn x() { /* b */ }\n", encoding="utf-8")
+        self._git("commit", "-a", "--quiet", "-m", "b")
+        self._git("checkout", "branch-a")
+        import subprocess
+
+        subprocess.run(
+            ["git", "merge", "--no-edit", "branch-b"], cwd=self.root, capture_output=True
+        )
+        code = self.run_cli("reconcile-merge")
+        self.assertEqual(code, 1)
+
+
 class GraphQueryCliTests(unittest.TestCase):
     """WI063 bounded-query-and-orientation checkpoint (ROG-023/024/026):
     the Python CLI is a thin typed-selector-to-engine-JSON adapter -- it

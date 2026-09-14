@@ -15,6 +15,11 @@ use repopact_core::RepoPactCore;
 use repopact_graph::overlay::{EffectiveGraphStatus, SessionGraphState};
 use repopact_graph::query::{Direction, GraphQueryEngine, NodeSelector, QueryBounds};
 use repopact_graph::{GraphEdge, GraphNode};
+
+/// Re-exported so the Tauri command boundary (which does not depend on
+/// `repopact-graph` directly) can name the Workbench Verify/status
+/// result type without a new workspace dependency (ROG-027).
+pub type GraphStatusView = repopact_graph::status::GraphStatus;
 use repopact_mutation::{
     CreateWorkItem, EditWorkItem, GeneratedImpact, MutationDiagnostic, MutationPlan,
     MutationRequest, MutationResult, TransitionWorkItem, WorkItemEdits,
@@ -201,6 +206,11 @@ pub struct GraphView {
 pub enum GraphQueryRequest {
     Resolve {
         selector: NodeSelector,
+        #[serde(default)]
+        bounds: QueryBounds,
+    },
+    Search {
+        text: String,
         #[serde(default)]
         bounds: QueryBounds,
     },
@@ -776,6 +786,9 @@ impl DesktopService {
             GraphQueryRequest::Resolve { selector, bounds } => {
                 serde_json::to_value(engine.resolve(&selector, &bounds))
             }
+            GraphQueryRequest::Search { text, bounds } => {
+                serde_json::to_value(engine.search(&text, &bounds))
+            }
             GraphQueryRequest::Context { node_id, bounds } => {
                 serde_json::to_value(engine.context(&node_id, &bounds))
             }
@@ -809,6 +822,87 @@ impl DesktopService {
             }
         };
         value.map_err(|error| DesktopError::new("graph.query-encoding", error.to_string()))
+    }
+
+    /// Read-only durable graph status (Workbench Verify/status disclosure,
+    /// ROG-027, Decision 0052 section 2): the exact same
+    /// `repopact_graph::status::status` the engine's `graph.status`/
+    /// `graph.verify` operations use, run against this session's
+    /// repository. Performs no write of any kind -- capability bytes and
+    /// `rog/` are never touched by this call, proven by
+    /// `verify_never_mutates_capability_or_durable_graph`.
+    pub fn graph_status(&self) -> Result<repopact_graph::status::GraphStatus, DesktopError> {
+        let state = self.lock()?;
+        let active = state
+            .active
+            .as_ref()
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?;
+        Ok(repopact_graph::status::status(active.snapshot.repository()))
+    }
+
+    /// The authorized Workbench Verify control (ROG-027): read-only by
+    /// construction (delegates to the identical status/verify call the
+    /// engine's `graph.verify` operation uses). It must never build,
+    /// update, enable, disable, or repair as a side effect -- there is no
+    /// code path here that writes `rog/` or `governance/rog-capability
+    /// .json`.
+    pub fn graph_verify(&self) -> Result<repopact_graph::status::GraphStatus, DesktopError> {
+        self.graph_status()
+    }
+
+    /// The authorized Workbench Build/Rebuild control (ROG-027): a
+    /// deliberate durable write, reached only through this explicit Rust
+    /// call -- never by shelling out to the CLI from JavaScript. Delegates
+    /// entirely to the canonical `repopact_graph::build_and_write`
+    /// (the same function `graph.build`/`repopact graph build` use), so
+    /// capability enablement only happens after the atomic build-then-
+    /// swap has already succeeded (Decision 0051). On success, refreshes
+    /// this session's `RepositorySession`/`SessionGraphState` exactly like
+    /// an explicit `refresh_repository` (Decision 0047 section 9) so a
+    /// subsequent query reflects the freshly built graph. On failure, the
+    /// session is left completely untouched and the typed error is
+    /// returned -- this method never fabricates an enabled/fresh state.
+    pub fn graph_build(&self) -> Result<RepositoryOverview, DesktopError> {
+        let (id, generation, core, watcher_running, snapshot) = {
+            let state = self.lock()?;
+            let active = state.active.as_ref().ok_or_else(|| {
+                DesktopError::new("session.not-open", "select a repository first")
+            })?;
+            (
+                active.id.clone(),
+                active.generation,
+                RepoPactCore::open_repository(active.core.repository().clone()),
+                active.watcher.is_some(),
+                active.snapshot.clone(),
+            )
+        };
+        repopact_graph::build_and_write(&snapshot)
+            .map_err(|error| DesktopError::new(error.code, error.message))?;
+
+        let refreshed_snapshot = Arc::new(core.snapshot());
+        let next_generation = generation + 1;
+        let mut state = self.lock()?;
+        let active = active_mut(&mut state)?;
+        if active.id != id || active.generation != generation {
+            return Err(DesktopError::new(
+                "session.stale",
+                "the repository session changed during graph build",
+            ));
+        }
+        active.overlay = SessionGraphState::open(&refreshed_snapshot);
+        let overview = overview_from_snapshot(
+            &id,
+            next_generation,
+            watcher_running,
+            &refreshed_snapshot,
+            active.overlay.effective_graph().nodes.len(),
+            active.overlay.effective_graph().edges.len(),
+        );
+        active.generation = next_generation;
+        active.snapshot = refreshed_snapshot;
+        active.overview = overview.clone();
+        active.pending_self_paths.clear();
+        Ok(overview)
     }
 
     pub fn analyze(&self, query: AnalysisQuery) -> Result<AnalysisView, DesktopError> {
@@ -1478,6 +1572,7 @@ fn is_ignored_path(path: &str) -> bool {
 mod tests {
     use super::*;
     use std::fs;
+    use std::process::Command;
     use std::sync::{Condvar, Mutex};
     use std::thread;
     use tempfile::tempdir;
@@ -2114,5 +2209,115 @@ mod tests {
             })
             .unwrap_err();
         assert_eq!(error.code, "session.not-open");
+    }
+
+    // ---- ROG-027 operator-map plumbing: graph.search, verify, build --------
+
+    #[test]
+    fn graph_query_search_resolves_against_the_session_overlay() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+
+        let result = service
+            .graph_query(GraphQueryRequest::Search {
+                text: "src/lib.rs".to_owned(),
+                bounds: QueryBounds::default(),
+            })
+            .unwrap();
+        let matches = result["result"]["matches"].as_array().unwrap();
+        assert!(matches.iter().any(|m| m["node"]["id"] == "file:src/lib.rs"));
+    }
+
+    #[test]
+    fn graph_verify_never_mutates_capability_or_durable_graph() {
+        // ROG-027 authorized Verify control: read-only by construction.
+        // Pressing Verify on a legacy-absent repository must never
+        // create rog/ or a capability record as a side effect.
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+
+        let before = fs_snapshot_exists(dir.path());
+        let status = service.graph_verify().unwrap();
+        assert_eq!(
+            status.capability_state,
+            repopact_graph::capability::CapabilityState::LegacyAbsent
+        );
+        let after = fs_snapshot_exists(dir.path());
+        assert_eq!(
+            before, after,
+            "verify must not write rog/ or the capability record"
+        );
+    }
+
+    fn fs_snapshot_exists(root: &std::path::Path) -> (bool, bool) {
+        (
+            root.join("rog").exists(),
+            root.join("governance/rog-capability.json").exists(),
+        )
+    }
+
+    #[test]
+    fn graph_build_enables_capability_and_refreshes_the_session() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        let overview_before = service.open_repository(dir.path()).unwrap();
+
+        let overview_after = service.graph_build().unwrap();
+        assert!(dir.path().join("rog/manifest.json").is_file());
+        assert!(dir.path().join("governance/rog-capability.json").is_file());
+        assert!(overview_after.generation > overview_before.generation);
+
+        let status = service.graph_status().unwrap();
+        assert_eq!(
+            status.capability_state,
+            repopact_graph::capability::CapabilityState::ExplicitEnabled
+        );
+        assert!(matches!(
+            status.freshness,
+            repopact_graph::status::Freshness::Fresh
+        ));
+    }
+
+    #[test]
+    fn graph_build_failure_leaves_the_session_untouched() {
+        // A repository whose .gitignore excludes rog/ refuses enablement
+        // success (Decision 0051 section 6 ignored-artifact guard) -- the
+        // session must show the same generation/overview afterward, and
+        // must never fabricate an enabled/fresh state.
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        fs::write(dir.path().join(".gitignore"), "rog/\n").unwrap();
+        assert!(Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(dir.path())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false));
+        assert!(Command::new("git")
+            .args(["add", "-A"])
+            .current_dir(dir.path())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false));
+        let service = DesktopService::new();
+        let overview_before = service.open_repository(dir.path()).unwrap();
+
+        let result = service.graph_build();
+        assert!(result.is_err());
+        let overview_after = service.repository_overview().unwrap();
+        assert_eq!(
+            overview_before.generation, overview_after.generation,
+            "a failed build must not advance the session generation"
+        );
+        assert!(!dir.path().join("governance/rog-capability.json").is_file());
     }
 }

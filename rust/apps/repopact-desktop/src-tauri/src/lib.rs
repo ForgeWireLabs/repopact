@@ -16,11 +16,12 @@ use std::time::Duration;
 use repopact_analysis::AnalysisQuery;
 use repopact_desktop_api::{
     AnalysisView, DecisionSummaryView, DesktopError, DesktopService, EvidenceSummaryView,
-    GraphView, MutationApplyView, MutationIntent, MutationPlanView, RecordDetailView,
-    RepositoryChangedEvent, RepositoryOverview, ValidationView, WorkItemDetailView,
-    WorkItemSummaryView,
+    GraphQueryRequest, GraphStatusView, GraphView, MutationApplyView, MutationIntent,
+    MutationPlanView, RecordDetailView, RepositoryChangedEvent, RepositoryOverview, ValidationView,
+    WorkItemDetailView, WorkItemSummaryView,
 };
 use serde::Deserialize;
+use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 #[cfg(not(target_os = "android"))]
 use tauri_plugin_dialog::DialogExt;
@@ -151,6 +152,47 @@ fn relationship_graph(service: State<'_, DesktopService>) -> Result<GraphView, D
     service.graph()
 }
 
+/// The one typed Workbench operator-map query boundary (ROG-027, Decision
+/// 0052 section 2): a tagged `GraphQueryRequest` in, a structured
+/// `QueryEnvelope<...>` JSON value out -- never a presentation string to
+/// re-parse in React. Delegates entirely to `DesktopSession::graph_query`,
+/// which runs the canonical `GraphQueryEngine` against this session's
+/// `SessionGraphState::effective_graph()`, so dirty working-tree state is
+/// always reflected and the result always discloses `status.basis`.
+#[tauri::command]
+fn graph_query(
+    request: GraphQueryRequest,
+    service: State<'_, DesktopService>,
+) -> Result<Value, DesktopError> {
+    service.graph_query(request)
+}
+
+/// The authorized Workbench Verify control (ROG-027): read-only by
+/// construction. Reports the canonical graph verification result; never
+/// builds/updates/enables/disables/repairs as a side effect.
+#[tauri::command]
+fn graph_verify(service: State<'_, DesktopService>) -> Result<GraphStatusView, DesktopError> {
+    service.graph_verify()
+}
+
+/// Read-only durable graph status, used by the operator map's freshness/
+/// coverage/capability disclosure (ROG-027, Decision 0052 section 2).
+#[tauri::command]
+fn graph_status(service: State<'_, DesktopService>) -> Result<GraphStatusView, DesktopError> {
+    service.graph_status()
+}
+
+/// The authorized Workbench Build/Rebuild control (ROG-027): a deliberate
+/// durable write, reached only through this Rust command -- never by
+/// shelling out to the CLI from JavaScript. On success, the session's
+/// `RepositoryOverview`/`SessionGraphState` are refreshed so a subsequent
+/// query reflects the freshly built graph; on failure, the session is
+/// left untouched.
+#[tauri::command]
+fn graph_build(service: State<'_, DesktopService>) -> Result<RepositoryOverview, DesktopError> {
+    service.graph_build()
+}
+
 #[tauri::command]
 fn analyze_work_item(
     request: Option<AnalyzeRequest>,
@@ -220,6 +262,10 @@ pub fn run() {
             list_evidence,
             get_evidence,
             relationship_graph,
+            graph_query,
+            graph_verify,
+            graph_status,
+            graph_build,
             analyze_work_item,
             plan_mutation,
             apply_mutation_plan,

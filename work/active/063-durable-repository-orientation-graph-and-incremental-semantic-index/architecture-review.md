@@ -993,3 +993,65 @@ capability is read directly rather than represented as a graph node or
 a new `RecordKind` variant. See `implementation-progress.md`'s
 adoption-backfill-clean-clone-checkpoint section for the full
 implementation, test matrix, and evidence.
+
+## 2026-09-14 Workbench operator map and derived-graph branch/merge refresh
+
+```text
+coding agent = Claude Code
+architecture reviewer = GPT-5.6 Sol High
+```
+
+Starting SHA for this refresh: `7c04d02c87b268562bd5959830879581d7a0e1e8`
+(the accepted capability/adoption/backfill/clean-clone checkpoint).
+ROG-023 through ROG-026, ROG-014/015/016/031/039 are accepted; the
+query/capability stack is mature enough to support two further
+integrations: an operator-oriented Workbench repository map
+(ROG-027/028) and a defined branch/merge contract for derived graph
+files (ROG-029).
+
+The key architecture decision, recorded in full in Decision 0052:
+
+```text
+ROG data/query kernel
+        |
+        v
+typed desktop query boundary
+        |
+        v
+operator repository map
+
+NOT
+
+raw graph dump
+        |
+frontend invents traversal/search/impact semantics
+```
+
+The frontend must consume the canonical bounded query system. It must
+not become a second graph engine. The pre-existing `relationship_graph`
+Tauri command (a full, unbounded `GraphView` dump backing the ROG-010/
+013 status-disclosure table) is retained unchanged -- it is not this
+checkpoint's concern and deleting it would put the already-accepted
+ROG-010/013 evidence at risk for no benefit. The new operator map is
+additive: a second view inside the existing Graph tab, reached through
+exactly one new typed Tauri command, `graph_query(GraphQueryRequest) ->
+QueryEnvelope<...>`, backed by the identical `GraphQueryEngine` the
+engine binary and CLI already use against
+`SessionGraphState::effective_graph()`.
+
+Two further architectural additions, both detailed in Decision 0052:
+
+- `graph.search`, a new bounded, deterministic, in-memory search
+  operation in `repopact_graph::query` for the operator search box
+  (never a repository scan, never fuzzy/embedding/LLM search) --
+  additive to query contract version 1.
+- `repopact graph reconcile-merge`, an explicit, never-automatic Git/
+  index-mutating command that regenerates `rog/**` from already-merged
+  authoritative source after a Git merge leaves derived-only
+  conflicts, while treating `governance/rog-capability.json` as
+  authoritative configuration a merge conflict in which is never
+  auto-resolved in either direction.
+
+See `implementation-progress.md`'s Workbench-operator-map-and-branch-
+merge-checkpoint section for the full implementation, test matrix, and
+evidence.

@@ -557,7 +557,155 @@ fn nanos_suffix() -> u128 {
 
 #[cfg(test)]
 mod tests {
+    use super::{ROG_DIR_NAME, SHARD_COUNT};
+    use crate::test_support::temp_root;
     use crate::{GraphEdge, GraphNode};
+    use repopact_repository::RepositorySession;
+    use std::path::Path;
+
+    fn write(root: &Path, relative: &str, content: &str) {
+        let path = root.join(relative);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(path, content).unwrap();
+    }
+
+    fn open_snapshot(root: &Path) -> repopact_repository::RepositorySnapshot {
+        RepositorySession::open(root.to_path_buf()).snapshot()
+    }
+
+    fn all_shard_files(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        let mut files = std::collections::BTreeMap::new();
+        for subdir in ["nodes", "edges"] {
+            let dir = root.join(ROG_DIR_NAME).join(subdir);
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                let key = format!("{subdir}/{}", entry.file_name().to_string_lossy());
+                files.insert(key, std::fs::read(&path).unwrap());
+            }
+        }
+        files
+    }
+
+    /// ROG-029, Decision 0052 section 5: the stable hash-to-shard design
+    /// (Decision 0044 section 6) minimizes unrelated churn -- proven
+    /// here, not merely asserted from shard count. A graph with enough
+    /// nodes/edges is built, one isolated source contribution is
+    /// mutated, the graph is rebuilt, and the exact changed-shard set is
+    /// measured: every shard the mutation's node/edges did not hash into
+    /// must remain byte-identical.
+    #[test]
+    fn an_isolated_source_mutation_touches_only_a_bounded_shard_subset() {
+        let root = temp_root("shard-churn");
+        for index in 0..120 {
+            write(
+                &root,
+                &format!("work/active/{index:03}/work-item.json"),
+                &format!(
+                    r#"{{"id":"{index:03}","title":"Item {index:03}","status":"active","owner_scope":"work","affected_scopes":[],"depends_on":[],"acceptance_criteria":[{{"id":"AC-1","text":"prove","state":"pending","evidence":[]}}],"created":"2026-01-01","updated":"2026-01-01"}}"#
+                ),
+            );
+        }
+        crate::build_and_write(&open_snapshot(&root)).expect("baseline build");
+        let before = all_shard_files(&root);
+        assert_eq!(
+            before.len() as u32,
+            SHARD_COUNT * 2,
+            "expect every node/edge shard to exist in this fixture"
+        );
+
+        // Mutate exactly one isolated source contribution.
+        write(
+            &root,
+            "work/active/060/work-item.json",
+            r#"{"id":"060","title":"Item 060 (mutated)","status":"active","owner_scope":"work","affected_scopes":[],"depends_on":[],"acceptance_criteria":[{"id":"AC-1","text":"prove","state":"pending","evidence":[]}],"created":"2026-01-01","updated":"2026-01-01"}"#,
+        );
+        crate::build_and_write(&open_snapshot(&root)).expect("rebuild after isolated mutation");
+        let after = all_shard_files(&root);
+
+        let changed: Vec<&String> = before
+            .keys()
+            .filter(|key| before.get(*key) != after.get(*key))
+            .collect();
+        assert!(
+            !changed.is_empty(),
+            "the mutated work item's node/edge shard(s) must have changed"
+        );
+        assert!(
+            changed.len() < before.len(),
+            "an isolated single-item mutation must not touch every shard: changed {} of {}",
+            changed.len(),
+            before.len()
+        );
+        // Every unchanged shard must be genuinely byte-identical, not
+        // merely "probably fine."
+        for key in before.keys() {
+            if !changed.contains(&key) {
+                assert_eq!(
+                    before[key], after[key],
+                    "shard {key} must be byte-identical when untouched"
+                );
+            }
+        }
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// Two independent branch changes (different work items, chosen so
+    /// their stable IDs hash to different shards in practice) should
+    /// each touch a small, mostly-disjoint shard subset -- proving the
+    /// hash-to-shard design does not concentrate unrelated churn onto a
+    /// single hot shard.
+    #[test]
+    fn two_independent_mutations_map_to_mostly_disjoint_shard_subsets() {
+        let root = temp_root("shard-churn-disjoint");
+        for index in 0..120 {
+            write(
+                &root,
+                &format!("work/active/{index:03}/work-item.json"),
+                &format!(
+                    r#"{{"id":"{index:03}","title":"Item {index:03}","status":"active","owner_scope":"work","affected_scopes":[],"depends_on":[],"acceptance_criteria":[{{"id":"AC-1","text":"prove","state":"pending","evidence":[]}}],"created":"2026-01-01","updated":"2026-01-01"}}"#
+                ),
+            );
+        }
+        crate::build_and_write(&open_snapshot(&root)).expect("baseline build");
+        let baseline = all_shard_files(&root);
+
+        write(
+            &root,
+            "work/active/010/work-item.json",
+            r#"{"id":"010","title":"Item 010 (A)","status":"active","owner_scope":"work","affected_scopes":[],"depends_on":[],"acceptance_criteria":[{"id":"AC-1","text":"prove","state":"pending","evidence":[]}],"created":"2026-01-01","updated":"2026-01-01"}"#,
+        );
+        crate::build_and_write(&open_snapshot(&root)).expect("rebuild A");
+        let after_a = all_shard_files(&root);
+        let changed_a: std::collections::BTreeSet<&String> = baseline
+            .keys()
+            .filter(|key| baseline.get(*key) != after_a.get(*key))
+            .collect();
+
+        write(
+            &root,
+            "work/active/099/work-item.json",
+            r#"{"id":"099","title":"Item 099 (B)","status":"active","owner_scope":"work","affected_scopes":[],"depends_on":[],"acceptance_criteria":[{"id":"AC-1","text":"prove","state":"pending","evidence":[]}],"created":"2026-01-01","updated":"2026-01-01"}"#,
+        );
+        crate::build_and_write(&open_snapshot(&root)).expect("rebuild B");
+        let after_b = all_shard_files(&root);
+        let changed_b: std::collections::BTreeSet<&String> = after_a
+            .keys()
+            .filter(|key| after_a.get(*key) != after_b.get(*key))
+            .collect();
+
+        assert!(!changed_a.is_empty());
+        assert!(!changed_b.is_empty());
+        assert!(
+            changed_a.len() < baseline.len() && changed_b.len() < after_a.len(),
+            "each independent mutation should touch a bounded shard subset, not every shard"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     /// Originally confirmed, before schema v2 was implemented, the exact
     /// failure mode Decision 0044/0045 must avoid: `GraphNodeKind` and

@@ -3,8 +3,8 @@ export type Severity = "error" | "warning" | "info";
 export type WatcherState = "running" | "unavailable" | "stopped";
 export type ChangeOrigin = "external" | "self_apply";
 export type RecordKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "audit_registry" | "dashboard" | "template" | "adopter_manifest" | "research_metadata";
-export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding";
-export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows";
+export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" | "evidence_run" | "scope" | "role" | "decision" | "policy" | "contract" | "invariant" | "frozen_surface" | "audit_finding" | "directory" | "file" | "workspace" | "configuration_file" | "nested_repository" | "symbol" | "manifest";
+export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows" | "belongs_to_workspace" | "configured_by" | "defines" | "imports" | "exports" | "implements" | "extends" | "references" | "calls" | "uses_type";
 export type AnalysisKind = "next_work_id" | "scope" | "dependency" | "evidence" | "finding" | "contract" | "frozen_surface" | "provenance" | "related_work";
 export type FindingClassification = "fact" | "constraint" | "suggestion";
 export type GraphBasis = "durable" | "working_overlay";
@@ -25,8 +25,8 @@ export interface WorkItemDetailView { summary: WorkItemSummaryView; work_item: W
 export interface DecisionSummaryView { reference: RecordRef; readable: boolean; title: string | null; status: string | null; date: string | null; supersedes: string[]; }
 export interface EvidenceSummaryView { reference: RecordRef; readable: boolean; timestamp: string | null; work_item: string | null; result: string | null; provenance: string | null; }
 export interface RecordDetailView { reference: RecordRef; value: unknown | null; text: string | null; readable: boolean; }
-export interface GraphNode { id: string; kind: GraphNodeKind; label: string; source: RecordRef | null; }
-export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; source: RecordRef; }
+export interface GraphNode { id: string; kind: GraphNodeKind; label: string; layer: GraphLayer; source: RecordRef | null; symbol_kind?: SymbolKind | null; location?: GraphSourceLocation | null; manifest_kind?: ManifestKind | null; node_role?: GraphNodeRole | null; }
+export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; layer: GraphLayer; derivation: string; source: RecordRef; location?: GraphSourceLocation | null; relation_role?: GraphRelationRole | null; }
 export interface EffectiveGraphStatus { basis: GraphBasis; durable_freshness: DurableFreshness; coverage: GraphCoverageState; baseline_fingerprint: string | null; effective_fingerprint: string; changed_path_count: number; overlay_generation: number; }
 export interface GraphView { nodes: GraphNode[]; edges: GraphEdge[]; status: EffectiveGraphStatus; }
 export interface AnalysisFindingView { kind: AnalysisKind; classification: FindingClassification; code: string; message: string; basis: RecordRef[]; related_records: string[]; remediation: string | null; }
@@ -114,11 +114,20 @@ export type OrientOutcome =
 
 export interface QueryEnvelope<T> { query_contract_version: number; graph_schema_version: number; graph_fingerprint: string; status: EffectiveGraphStatus; warnings: string[]; truncated: boolean; returned_nodes: number; returned_edges: number; next_cursor?: string | null; result: T; }
 
+// Decision 0052 section 3 (operator search box, ROG-027): a bounded,
+// deterministic search over already-indexed graph fields. Never a
+// fuzzy/embedding/semantic-similarity score.
+export type SearchRank = "exact" | "exact_normalized" | "prefix" | "substring";
+export type SearchField = "stable_id" | "repository_relative_path" | "label" | "node_role";
+export interface SearchMatch { node: FactRef; rank: SearchRank; matched_field: SearchField; }
+export interface SearchResult { query: string; matches: SearchMatch[]; }
+
 // The one typed request shape the desktop boundary accepts
 // (repopact_desktop_api::GraphQueryRequest) -- mirrors the engine
 // protocol's per-operation params exactly.
 export type GraphQueryRequest =
   | { operation: "resolve"; selector: NodeSelector; bounds?: QueryBounds }
+  | { operation: "search"; text: string; bounds?: QueryBounds }
   | { operation: "context"; node_id: string; bounds?: QueryBounds }
   | { operation: "neighbors"; node_id: string; direction?: Direction; bounds?: QueryBounds }
   | { operation: "path"; from: string; to: string; bounds?: QueryBounds }
@@ -128,3 +137,15 @@ export type GraphQueryRequest =
   | { operation: "governance"; node_id: string; bounds?: QueryBounds }
   | { operation: "impact"; node_id: string; bounds?: QueryBounds }
   | { operation: "orient"; selector: NodeSelector; bounds?: QueryBounds };
+
+// Decision 0051 (ROG-039 five-state capability model) + Decision 0052
+// section 2 (Workbench freshness/coverage disclosure). The exact same
+// `repopact_graph::status::GraphStatus`/`durable::Manifest` shape the
+// engine's `graph.status`/`graph.verify` operations return.
+export type CapabilityState = "legacy_absent" | "legacy_enabled" | "explicit_disabled" | "explicit_enabled" | "enabled_missing";
+export type Freshness = "absent" | "fresh" | "partial" | "stale" | "unsupported" | "corrupt";
+export interface ShardEntry { shard: string; sha256: string; count: number; }
+export interface GraphCoverage { nodes_by_layer: Record<string, number>; edges_by_layer: Record<string, number>; }
+export interface GraphManifest { graph_schema_version: number; generator_version: string; source_projection_fingerprint: string; node_count: number; edge_count: number; shard_count: number; node_shards: ShardEntry[]; edge_shards: ShardEntry[]; coverage: GraphCoverage; excluded_policy_id: string; semantic_coverage?: unknown; semantic_compatibility?: unknown; }
+export interface GraphDiagnosticView { code: string; message: string; }
+export interface GraphStatusView { freshness: Freshness; capability_state: CapabilityState; manifest: GraphManifest | null; diagnostics: GraphDiagnosticView[]; }

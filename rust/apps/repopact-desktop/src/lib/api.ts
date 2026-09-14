@@ -5,6 +5,8 @@ import type {
   AnalyzeRequest,
   DecisionSummaryView,
   EvidenceSummaryView,
+  GraphQueryRequest,
+  GraphStatusView,
   GraphView,
   MutationApplyView,
   MutationIntent,
@@ -32,6 +34,14 @@ export const desktopApi = {
   evidence: () => invoke<EvidenceSummaryView[]>("list_evidence"),
   evidenceRecord: (id: string) => invoke<RecordDetailView>("get_evidence", { id }),
   graph: () => invoke<GraphView>("relationship_graph"),
+  // ROG-027 (Decision 0052 section 2): the operator map's single typed
+  // query boundary -- one tagged request in, one structured
+  // QueryEnvelope<...> JSON value out. React never invents a second
+  // traversal/search implementation on top of this.
+  graphQuery: (request: GraphQueryRequest) => invoke<Record<string, unknown>>("graph_query", { request }),
+  graphStatus: () => invoke<GraphStatusView>("graph_status"),
+  graphVerify: () => invoke<GraphStatusView>("graph_verify"),
+  graphBuild: () => invoke<RepositoryOverview>("graph_build"),
   analyze: (request?: AnalyzeRequest) => invoke<AnalysisView>("analyze_work_item", { request }),
   plan: (intent: MutationIntent) => invoke<MutationPlanView>("plan_mutation", { intent }),
   apply: (sessionId: string, planHandle: string) =>

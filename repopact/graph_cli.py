@@ -120,6 +120,43 @@ def _update(args: argparse.Namespace) -> int:
     return _FRESHNESS_EXIT_CODES.get(result.get("freshness"), 2)
 
 
+def _reconcile_merge(args: argparse.Namespace) -> int:
+    # ROG-029, Decision 0052 section 4: explicit, never-automatic
+    # derived-graph merge repair. Never invoked by a Git hook -- an
+    # operator runs this deliberately after `git merge` leaves rog/**
+    # conflicted.
+    try:
+        response = EngineClient().call("graph.reconcile-merge", root=args.root)
+    except EngineSemanticError as error:
+        print(f"RepoPact graph reconcile-merge refused: {error}", file=sys.stderr)
+        return 1
+    result = response["result"]
+    if result.get("success") is False:
+        # A refused reconciliation (an unresolved authoritative/
+        # capability conflict, or a rebuild/stage failure) is disclosed
+        # as typed data, not an exception -- see semantic_failure in the
+        # engine binary.
+        if args.json:
+            print(json.dumps(result, indent=2, sort_keys=True))
+        else:
+            for diagnostic in result.get("diagnostics", []):
+                print(f"RepoPact graph reconcile-merge refused: {diagnostic.get('message')}", file=sys.stderr)
+        return 1
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+    else:
+        outcome = result.get("outcome")
+        if outcome == "nothing_to_reconcile":
+            print("No unresolved rog/** conflicts found; nothing to reconcile.")
+        else:
+            staged = result.get("staged_paths", [])
+            print(
+                f"RepoPact derived graph repaired: {len(staged)} path(s) regenerated "
+                "and staged from the merged authoritative source."
+            )
+    return 0
+
+
 def _disable(args: argparse.Namespace) -> int:
     try:
         response = EngineClient().call("graph.disable", root=args.root)
@@ -339,6 +376,19 @@ def main(argv: list[str] | None = None) -> int:
     p_disable.add_argument("--root", type=Path, default=Path.cwd())
     p_disable.add_argument("--json", action="store_true")
     p_disable.set_defaults(handler=_disable)
+
+    p_reconcile = sub.add_parser(
+        "reconcile-merge",
+        help=(
+            "Repair a Git merge that left derived rog/** conflicts: regenerates and stages "
+            "the graph from already-merged authoritative source. Refuses if any authoritative "
+            "source/configuration path (including governance/rog-capability.json) is still "
+            "unresolved. Never run automatically by git merge itself."
+        ),
+    )
+    p_reconcile.add_argument("--root", type=Path, default=Path.cwd())
+    p_reconcile.add_argument("--json", action="store_true")
+    p_reconcile.set_defaults(handler=_reconcile_merge)
 
     # ---- ROG-023/024/025/026 typed bounded query/orientation commands ----
 

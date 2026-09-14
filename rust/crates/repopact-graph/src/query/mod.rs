@@ -32,7 +32,7 @@ pub use dto::{
     ContextResult, DependenciesResult, DependentsResult, Direction, FactRef, GovernanceResult,
     HintReason, ImpactResult, NavigationHint, NeighborsResult, OrientOutcome, OrientResult,
     PathOutcome, PathResult, QueryEnvelope, RelationFact, RelationProvenance, ResolutionOutcome,
-    TestsResult,
+    SearchField, SearchMatch, SearchRank, SearchResult, TestsResult,
 };
 pub use engine::GraphQueryEngine;
 pub use open::{open_durable_graph, GraphQueryContext, LoadedGraph, QueryOpenError};

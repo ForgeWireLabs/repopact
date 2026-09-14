@@ -1977,3 +1977,145 @@ explicit instruction -- no Workbench UI, no branch/merge, no S8 R1, no
 persistent Tree-sitter cache, no SQLite/local graph database, no broad
 performance closeout.
 
+## 2026-09-14 -- Workbench operator map and derived-graph branch/merge checkpoint
+
+Starting point: `7c04d02` (the accepted capability/adoption/backfill/
+clean-clone checkpoint, synchronized exactly -- no drift on origin).
+
+### `graph.search`: a new bounded query operation (Decision 0052)
+
+Added to `repopact_graph::query`: a bounded, deterministic, in-memory
+search over the existing query index (stable ID, repository-relative
+path, label, node role), ranked exact > exact-normalized > prefix >
+substring with stable-ID tie-breaking. No repository scan, source
+read, Git invocation, or fuzzy/embedding/LLM search -- proven by a
+dedicated test that deletes the source tree after the graph is built
+and confirms search still works. Additive to query contract version 1.
+Wired through the engine protocol and desktop query plumbing.
+
+### Typed Tauri graph-query/verify/build plumbing
+
+`DesktopSession::graph_query` already reached the canonical
+`GraphQueryEngine` against `SessionGraphState::effective_graph()`, but
+had no Tauri command. Added `graph_query(GraphQueryRequest) ->
+QueryEnvelope<...>` (one typed request/response boundary, never a
+presentation string), plus `graph_status`/`graph_verify` (read-only by
+construction -- proven to write nothing) and `graph_build` (the sole
+durable-write control: refreshes `RepositoryOverview`/
+`SessionGraphState` on success, leaves the session untouched on
+failure).
+
+### Generated TypeScript reconciliation
+
+`GraphNode`/`GraphEdge` -- explicitly disclosed stale by the prior
+query checkpoint -- now carry every current Rust field
+(layer/symbol_kind/location/manifest_kind/node_role and
+layer/derivation/location/relation_role respectively), and
+`GraphNodeKind`/`GraphEdgeKind` gained the physical/semantic/
+operational variants the hand-written union was missing. Added
+`GraphStatusView`/`CapabilityState`/`Freshness`/`SearchMatch`/
+`SearchRank`/`SearchField` and the `graph.search` request variant. A
+new executable drift guard (7 tests in `generate-types.rs`) serializes
+real Rust instances and asserts every JSON key is declared in the
+matching TypeScript interface, so a future field/variant drift fails
+loudly instead of shipping silently stale.
+
+### Workbench operator repository map (ROG-027)
+
+`GraphOperatorMap.tsx` is a new, additive view inside the existing
+Graph tab (a toggle switches between it and the pre-existing ROG-010/
+013 relationship table, left unchanged -- its accepted evidence is not
+put at risk). It consumes the typed query boundary exclusively: no
+traversal, search, or impact/test/governance logic exists in React.
+Workflow: search -> select (stable node ID as selection identity,
+never a display label) -> identity/containment -> bounded neighbor
+drill-in with layer/direction filters -> impact/tests/governance ->
+source navigation. Truncation and cursor-based load-more are always
+visible. Freshness/capability/coverage renders as distinguishable
+text covering every ROG-039 state, never color alone. Verify is
+read-only; Rebuild requires an explicit confirmation step. A
+repository-generation change (branch checkout, watcher-driven refresh)
+invalidates the current selection and re-resolves it via
+`graph.resolve`, surfacing a typed stale-selection state rather than
+silently continuing a stale cursor or swapping in a different
+same-named node.
+
+12 focused component tests prove the whole workflow, including
+compact-layout parity with zero hover/contextmenu-dependent
+interactions.
+
+### `repopact graph reconcile-merge` (ROG-029, Decision 0052 section 4)
+
+A new, explicit, never-automatic command
+(`repopact_graph::merge_reconcile`), bounded by construction (one
+`git diff --diff-filter=U`, one scoped `git add -A -- rog/` -- never a
+per-file subprocess). Source/configuration is authoritative for Git
+merge purposes; `rog/**` is derived and repaired by regenerating from
+the already-merged authoritative source via the canonical
+`build_and_write`, then verifying, then staging -- a failed rebuild
+leaves the merge unresolved. `governance/rog-capability.json` is
+authoritative *configuration*: a conflict in it always blocks repair,
+and RepoPact never infers "enabled beats disabled" or its converse. A
+resolved explicit-disabled capability removes conflicting `rog/**`
+without re-enabling; a legacy-enabled repository migrates to
+Decision 0051's explicit-enabled declaration through the identical
+enable-after-proof-good path every other build uses.
+
+5 Rust tests use real `git` subprocesses (init/branch/commit/merge) to
+prove: a clean repo is a no-op; a derived-only `rog/**` conflict is
+repaired and its regenerated manifest is byte-equal to a clean full
+rebuild of the merged source; a real conflicting source-file edit
+blocks repair and unblocks once responsibly resolved; a real
+capability-record conflict blocks repair; a resolved-disabled
+capability removes `rog/**` without re-enabling. 2 further tests
+measure real sharding-churn evidence: an isolated single-item mutation
+on a 120-item fixture changes exactly 1 of 32 shards (every other
+shard proven byte-identical), and two independent mutations each touch
+a bounded, largely disjoint shard subset.
+
+### Cross-platform and performance evidence
+
+Full `cargo test --workspace` (identical counts) on native Windows and
+Linux-native WSL2 Debian, including the real-git-subprocess merge
+tests. macOS execution genuinely did not occur (no macOS CI/hardware
+available) and none was fabricated -- this is ROG-028's one named
+residual gap.
+
+In-process query-kernel latency (the actual Workbench path, not the
+Python CLI's per-call subprocess spawn) against a real ~8.7k-node/
+10.6k-edge disposable RepoPact-scale graph: cold resolve 20ms/837B,
+search 27ms/30.6KB, orient 17ms/23KB, neighbors 17ms/42KB, impact
+17ms/4.9KB, warm resolve 17ms. Session-open/status costs (~0.9-1.7s)
+remain dominated by the pre-existing full source-projection freshness
+walk, consistent with the prior checkpoint's disclosure -- not this
+checkpoint's query kernel, and not claimed as ROG-032 closeout.
+
+### Acceptance criteria this checkpoint
+
+**Satisfied:** ROG-027, ROG-029.
+
+**Left pending, with the exact gap named:**
+
+- **ROG-028** -- every clause except macOS runtime execution is
+  proven (wide/compact usability, no hover/right-click dependency,
+  Windows/Linux portable graph semantics, mobile boundary
+  composition). macOS execution evidence is the sole residual gap;
+  per this checkpoint's own instruction, the criterion is left
+  pending rather than weakened.
+- **ROG-019** -- unchanged: the test-fixture topology clause remains
+  intentionally open.
+- **ROG-032** -- engineering query/payload evidence was gathered
+  against a real RepoPact-scale graph, but the AC's full dedicated
+  larger-fixture benchmark matrix remains unattempted.
+- **ROG-033-038, 040** -- S8/research/documentation/authority/core-
+  guarantee/final-closeout items -- not attempted, explicitly out of
+  scope.
+
+### Next recommended WI063 phase
+
+The remaining performance/research/documentation/closeout block
+(ROG-032/033-038/040), with ROG-019's fixture-topology limitation and
+ROG-028's macOS-execution gap explicitly resolved or dispositioned
+before final WI063 completion. This checkpoint stops here per its own
+explicit instruction -- no S8 R1, no final WI063 closure.
+

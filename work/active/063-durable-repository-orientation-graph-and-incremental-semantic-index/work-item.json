@@ -232,8 +232,10 @@
     {
       "id": "ROG-027",
       "text": "Extend the Workbench's existing graph surface into an operator-oriented repository map with node resolution/search, layer/relation filters, bounded neighborhood drill-in, source navigation, impact/test/governance views, freshness/coverage state, and authorized rebuild/verify controls. A force-directed visual canvas is optional and is not the primary acceptance criterion.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-workbench-map-branch-merge-checkpoint"
+      ]
     },
     {
       "id": "ROG-028",
@@ -244,8 +246,10 @@
     {
       "id": "ROG-029",
       "text": "Define branch/merge/conflict behavior for derived graph files. Source merge resolution remains authoritative; graph conflicts can be repaired by deterministic regeneration; the sharding strategy minimizes unrelated churn; no workflow requires humans to hand-merge graph semantics that can be rederived from source.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-workbench-map-branch-merge-checkpoint"
+      ]
     },
     {
       "id": "ROG-030",

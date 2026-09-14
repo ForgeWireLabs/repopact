@@ -1061,6 +1061,65 @@ fn queries_succeed_after_source_files_are_deleted_post_build() {
     std::fs::remove_dir_all(&root).ok();
 }
 
+/// Step 50: engineering query-latency evidence (not ROG-032 closeout).
+/// Separates cold graph-load/index-build time from warm in-memory query
+/// time -- combining them into one number would misleadingly attribute
+/// disk/deserialization cost to the query kernel itself. Run against a
+/// synthetic fixture sized like this checkpoint's other fixtures (not
+/// the live RepoPact repository, which this test suite must not depend
+/// on existing on the machine); the real-repo numbers are captured
+/// separately via the raw engine binary and recorded in the evidence
+/// record. `--nocapture` reveals the printed timings; the test itself
+/// only asserts the operations succeed, never a specific latency (no
+/// machine-specific performance contract is asserted here).
+#[test]
+fn query_latency_evidence_cold_load_vs_warm_query() {
+    let root = full_fixture("latency-evidence");
+    let snapshot = RepositorySession::open(root.clone()).snapshot();
+    crate::build_and_write(&snapshot).expect("build");
+
+    let cold_start = std::time::Instant::now();
+    let loaded = open_durable_graph(&root, false).expect("fresh graph opens");
+    let cold_open_elapsed = cold_start.elapsed();
+
+    let index_start = std::time::Instant::now();
+    let engine = GraphQueryEngine::new(&loaded.graph, loaded.context);
+    let index_build_elapsed = index_start.elapsed();
+
+    let bounds = QueryBounds {
+        max_depth: 10,
+        max_edges: 50,
+        ..QueryBounds::default()
+    };
+    let warm_start = std::time::Instant::now();
+    let _ = engine.resolve(&NodeSelector::WorkItemId("100".to_owned()), &bounds);
+    let resolve_elapsed = warm_start.elapsed();
+    let start = std::time::Instant::now();
+    let _ = engine.dependencies("work:100", true, &bounds);
+    let dependencies_elapsed = start.elapsed();
+    let start = std::time::Instant::now();
+    let _ = engine.dependents("work:100", &bounds);
+    let dependents_elapsed = start.elapsed();
+    let start = std::time::Instant::now();
+    let _ = engine.tests("manifest:Cargo.toml", &bounds);
+    let tests_elapsed = start.elapsed();
+    let start = std::time::Instant::now();
+    let _ = engine.governance("work:100", &bounds);
+    let governance_elapsed = start.elapsed();
+    let start = std::time::Instant::now();
+    let orient_envelope = engine.orient(&NodeSelector::WorkItemId("100".to_owned()), &bounds);
+    let orient_elapsed = start.elapsed();
+
+    eprintln!(
+        "query-latency-evidence: cold_open={cold_open_elapsed:?} index_build={index_build_elapsed:?} \
+         warm[resolve={resolve_elapsed:?} dependencies={dependencies_elapsed:?} \
+         dependents={dependents_elapsed:?} tests={tests_elapsed:?} governance={governance_elapsed:?} \
+         orient={orient_elapsed:?}]"
+    );
+    assert!(matches!(orient_envelope.result, OrientOutcome::Resolved(_)));
+    std::fs::remove_dir_all(root).unwrap();
+}
+
 // A tiny private helper module so a test above can classify governance
 // edge kinds without duplicating the engine's own constant.
 mod engine_test_support {

@@ -3,6 +3,7 @@ import { onBackButtonPress } from "@tauri-apps/api/app";
 import type {
   AnalysisView,
   DecisionSummaryView,
+  EffectiveGraphStatus,
   EvidenceSummaryView,
   GraphView,
   MutationApplyView,
@@ -644,6 +645,21 @@ function RecordDetail({ detail, label }: { detail: RecordDetailView; label: stri
   return <div><p className="eyebrow">{label}</p><h3>{detail.reference.id}</h3><p className="muted breakable">{detail.reference.path}</p><pre className="record-content">{detail.value ? JSON.stringify(detail.value, null, 2) : detail.text ?? "Record is not readable."}</pre></div>;
 }
 
+// WI063 ROG-010/013: minimal status disclosure so this workbench never
+// silently presents working-overlay or partial graph output as a
+// current, complete durable map. Status text/derivation only -- no graph
+// correctness is computed here.
+function graphStatusLabel(status: EffectiveGraphStatus): string {
+  if (status.durable_freshness === "corrupt") return "Corrupt";
+  if (status.durable_freshness === "unsupported") return "Unsupported";
+  if (status.basis === "working_overlay") {
+    return status.coverage === "partial" ? "Working overlay · Partial" : "Working overlay";
+  }
+  if (status.durable_freshness === "stale") return "Durable · Stale";
+  if (status.durable_freshness === "absent") return "Durable · Absent";
+  return status.coverage === "partial" ? "Durable · Partial" : "Durable · Fresh";
+}
+
 function GraphPage({ graph, value, onChange, page, onPageChange, compact }: { graph: GraphView | null; value: GraphTab; onChange: (value: GraphTab) => void; page: number; onPageChange: (page: number) => void; compact: boolean }) {
   const edges = graph?.edges ?? [];
   const categories: Record<GraphTab, typeof edges> = { dependencies: edges.filter((edge) => edge.kind === "depends_on" || edge.kind === "reverse_dependency"), evidence: edges.filter((edge) => edge.kind === "supported_by" || edge.kind === "supports_work_item"), governance: edges.filter((edge) => !["depends_on", "reverse_dependency", "supported_by", "supports_work_item"].includes(edge.kind)), all: edges };
@@ -651,7 +667,7 @@ function GraphPage({ graph, value, onChange, page, onPageChange, compact }: { gr
   const selected = categories[value];
   const pageSize = compact ? 6 : 10;
   const visible = pageSlice(selected, page, pageSize);
-  return <section className="page-stack"><SectionTabs tabs={tabs} value={value} onChange={onChange} label="Graph relationship views" panelId="graph-page-panel" /><section id="graph-page-panel" className="panel" role="tabpanel" aria-labelledby={`graph-page-panel-tab-${value}`} aria-label={`${value} graph view`}><div className="panel-heading"><div><p className="eyebrow">RELATIONSHIP MODEL</p><h3>Repository graph</h3></div><span className="tag">{compact ? "Stacked accessible view" : "Table alternative"}</span></div>{!graph ? <p className="muted">Loading graph…</p> : <><div className="table-wrap wide-only"><table><caption className="sr-only">Repository relationship edges</caption><thead><tr><th>From</th><th>Relationship</th><th>To</th><th>Source</th></tr></thead><tbody>{visible.map((edge, index) => <tr key={`${edge.from}-${edge.to}-${index}`}><td>{edge.from}</td><td>{edge.kind}</td><td>{edge.to}</td><td>{edge.source.path}</td></tr>)}</tbody></table></div><div className="graph-cards compact-only">{visible.map((edge, index) => <article className="relationship-card" key={`${edge.from}-${edge.to}-${index}`}><strong>{edge.kind}</strong><dl><div><dt>From</dt><dd>{edge.from}</dd></div><div><dt>To</dt><dd>{edge.to}</dd></div><div><dt>Source</dt><dd>{edge.source.path}</dd></div></dl></article>)}</div>{selected.length === 0 && <p className="muted empty-inline">No relationships in this view.</p>}<LocalPager page={page} pageSize={pageSize} total={selected.length} compact={compact} onPageChange={onPageChange} /></>}</section></section>;
+  return <section className="page-stack"><SectionTabs tabs={tabs} value={value} onChange={onChange} label="Graph relationship views" panelId="graph-page-panel" /><section id="graph-page-panel" className="panel" role="tabpanel" aria-labelledby={`graph-page-panel-tab-${value}`} aria-label={`${value} graph view`}><div className="panel-heading"><div><p className="eyebrow">RELATIONSHIP MODEL</p><h3>Repository graph</h3></div><span className="tag">{compact ? "Stacked accessible view" : "Table alternative"}</span></div>{graph && <p className="muted graph-status-line" data-testid="graph-status">Graph state: <strong>{graphStatusLabel(graph.status)}</strong></p>}{!graph ? <p className="muted">Loading graph…</p> : <><div className="table-wrap wide-only"><table><caption className="sr-only">Repository relationship edges</caption><thead><tr><th>From</th><th>Relationship</th><th>To</th><th>Source</th></tr></thead><tbody>{visible.map((edge, index) => <tr key={`${edge.from}-${edge.to}-${index}`}><td>{edge.from}</td><td>{edge.kind}</td><td>{edge.to}</td><td>{edge.source.path}</td></tr>)}</tbody></table></div><div className="graph-cards compact-only">{visible.map((edge, index) => <article className="relationship-card" key={`${edge.from}-${edge.to}-${index}`}><strong>{edge.kind}</strong><dl><div><dt>From</dt><dd>{edge.from}</dd></div><div><dt>To</dt><dd>{edge.to}</dd></div><div><dt>Source</dt><dd>{edge.source.path}</dd></div></dl></article>)}</div>{selected.length === 0 && <p className="muted empty-inline">No relationships in this view.</p>}<LocalPager page={page} pageSize={pageSize} total={selected.length} compact={compact} onPageChange={onPageChange} /></>}</section></section>;
 }
 
 function ValidationPage({ validation, value, onChange, page, onPageChange, compact }: { validation: ValidationView | null; value: ValidationTab; onChange: (value: ValidationTab) => void; page: number; onPageChange: (page: number) => void; compact: boolean }) {

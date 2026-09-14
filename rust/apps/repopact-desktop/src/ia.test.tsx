@@ -87,7 +87,19 @@ const evidence: EvidenceSummaryView[] = [{
 }];
 
 const validation: ValidationView = { valid: true, diagnostics: [], error_count: 0, warning_count: 0 };
-const graph: GraphView = { nodes: [], edges: [] };
+const graph: GraphView = {
+  nodes: [],
+  edges: [],
+  status: {
+    basis: "durable",
+    durable_freshness: "fresh",
+    coverage: "complete",
+    baseline_fingerprint: "test-fingerprint",
+    effective_fingerprint: "test-fingerprint",
+    changed_path_count: 0,
+    overlay_generation: 0,
+  },
+};
 const analysis: AnalysisView = { findings: [] };
 const workDetail: WorkItemDetailView = {
   summary: workItems[0],
@@ -222,5 +234,52 @@ describe("adaptive workbench information architecture", () => {
     await screen.findByRole("heading", { name: "Blocked item" });
     expect(screen.getByRole("button", { name: /Back to Active/ })).toBeInTheDocument();
     expect(vi.mocked(desktopApi.workItems)).toHaveBeenCalledTimes(1);
+  });
+
+  it("discloses working-overlay and partial-coverage graph state, never as a plain durable map", async () => {
+    // WI063 ROG-010/013: a supported client must not silently flatten
+    // basis/coverage/durable-freshness into "current complete."
+    vi.mocked(desktopApi.graph).mockResolvedValue({
+      ...graph,
+      status: {
+        basis: "working_overlay",
+        durable_freshness: "fresh",
+        coverage: "partial",
+        baseline_fingerprint: "test-fingerprint",
+        effective_fingerprint: "different-fingerprint",
+        changed_path_count: 1,
+        overlay_generation: 2,
+      },
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose repository" }));
+    await screen.findByRole("heading", { name: "Dashboard" });
+    fireEvent.click(screen.getByRole("button", { name: "Graph" }));
+    await screen.findByRole("heading", { name: "Repository graph" });
+    const status = await screen.findByTestId("graph-status");
+    expect(status).toHaveTextContent("Working overlay");
+    expect(status).toHaveTextContent("Partial");
+  });
+
+  it("discloses a stale durable baseline distinctly from a fresh one", async () => {
+    vi.mocked(desktopApi.graph).mockResolvedValue({
+      ...graph,
+      status: {
+        basis: "durable",
+        durable_freshness: "stale",
+        coverage: "complete",
+        baseline_fingerprint: "old-fingerprint",
+        effective_fingerprint: "old-fingerprint",
+        changed_path_count: 0,
+        overlay_generation: 0,
+      },
+    });
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose repository" }));
+    await screen.findByRole("heading", { name: "Dashboard" });
+    fireEvent.click(screen.getByRole("button", { name: "Graph" }));
+    await screen.findByRole("heading", { name: "Repository graph" });
+    const status = await screen.findByTestId("graph-status");
+    expect(status).toHaveTextContent("Stale");
   });
 });

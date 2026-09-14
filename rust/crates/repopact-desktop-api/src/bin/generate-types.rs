@@ -11,6 +11,9 @@ export type GraphNodeKind = "repository" | "work_item" | "acceptance_criterion" 
 export type GraphEdgeKind = "depends_on" | "reverse_dependency" | "contains" | "supported_by" | "supports_work_item" | "owned_by" | "affects" | "supersedes" | "concerns" | "constrained_by" | "intersects" | "applies_to" | "allows";
 export type AnalysisKind = "next_work_id" | "scope" | "dependency" | "evidence" | "finding" | "contract" | "frozen_surface" | "provenance" | "related_work";
 export type FindingClassification = "fact" | "constraint" | "suggestion";
+export type GraphBasis = "durable" | "working_overlay";
+export type GraphCoverageState = "complete" | "partial";
+export type DurableFreshness = "absent" | "fresh" | "stale" | "unsupported" | "corrupt";
 export const LIFECYCLE_STATUSES = __LIFECYCLE_STATUSES__ as const;
 
 export interface RepositoryIdentity { root: string; git_common_dir: string | null; git_worktree_root: string | null; linked_worktree: boolean; }
@@ -28,7 +31,8 @@ export interface EvidenceSummaryView { reference: RecordRef; readable: boolean; 
 export interface RecordDetailView { reference: RecordRef; value: unknown | null; text: string | null; readable: boolean; }
 export interface GraphNode { id: string; kind: GraphNodeKind; label: string; source: RecordRef | null; }
 export interface GraphEdge { from: string; to: string; kind: GraphEdgeKind; source: RecordRef; }
-export interface GraphView { nodes: GraphNode[]; edges: GraphEdge[]; }
+export interface EffectiveGraphStatus { basis: GraphBasis; durable_freshness: DurableFreshness; coverage: GraphCoverageState; baseline_fingerprint: string | null; effective_fingerprint: string; changed_path_count: number; overlay_generation: number; }
+export interface GraphView { nodes: GraphNode[]; edges: GraphEdge[]; status: EffectiveGraphStatus; }
 export interface AnalysisFindingView { kind: AnalysisKind; classification: FindingClassification; code: string; message: string; basis: RecordRef[]; related_records: string[]; remediation: string | null; }
 export interface AnalysisView { findings: AnalysisFindingView[]; }
 export interface CreateWorkItemIntent { title: string; status: string; date: string; owner_scope: string; affected_scopes: string[]; depends_on: string[]; provenance: string; acceptance_criteria: AcceptanceCriterion[]; }

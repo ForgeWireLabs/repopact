@@ -768,7 +768,9 @@ impl DesktopService {
             .active
             .as_ref()
             .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?;
-        let context = active.overlay.query_context();
+        let context = active
+            .overlay
+            .query_context(active.snapshot.repository().root());
         let engine = GraphQueryEngine::new(active.overlay.effective_graph(), context);
         let value = match request {
             GraphQueryRequest::Resolve { selector, bounds } => {

@@ -125,6 +125,7 @@ fn build_engine(root: &Path) -> (crate::RepositoryGraph, GraphQueryContext) {
             overlay_generation: 0,
         },
         semantic_coverage: crate::semantic::SemanticCoverage::default(),
+        capability_state: crate::capability::CapabilityState::ExplicitEnabled,
     };
     (graph, context)
 }
@@ -905,6 +906,29 @@ fn stale_durable_graph_is_refused_by_default_and_allowed_with_flag() {
 }
 
 #[test]
+fn enabled_but_missing_graph_fails_closed_never_absent() {
+    // ROG-039: capability=enabled with rog/ deleted must never be
+    // openable as though it were "no graph, valid" -- even with
+    // allow_stale, since this is not a staleness question at all.
+    let root = temp_root("open-enabled-missing");
+    write(&root, "src/lib.rs", "pub fn f() {}\n");
+    let snapshot = RepositorySession::open(root.clone()).snapshot();
+    crate::build_and_write(&snapshot).expect("build");
+    std::fs::remove_dir_all(crate::durable::rog_root(&root)).unwrap();
+
+    assert_eq!(
+        open_durable_graph(&root, false).unwrap_err(),
+        QueryOpenError::EnabledButMissing
+    );
+    assert_eq!(
+        open_durable_graph(&root, true).unwrap_err(),
+        QueryOpenError::EnabledButMissing,
+        "allow_stale must not paper over a missing enabled graph"
+    );
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn fresh_durable_graph_opens_normally_and_queries_succeed() {
     let root = temp_root("open-fresh");
     write(&root, "src/lib.rs", "pub fn f() {}\n");
@@ -936,7 +960,7 @@ fn overlay_query_discloses_working_overlay_basis() {
     let snapshot = RepositorySession::open(root.clone()).snapshot();
     let mut overlay = crate::overlay::SessionGraphState::open(&snapshot);
     overlay.refresh(&snapshot);
-    let context = overlay.query_context();
+    let context = overlay.query_context(&root);
     assert_eq!(context.status.basis, GraphBasis::WorkingOverlay);
     let engine = GraphQueryEngine::new(overlay.effective_graph(), context);
     let envelope = engine.resolve(
@@ -1002,6 +1026,7 @@ fn query_operations_never_invoke_git() {
             overlay_generation: 0,
         },
         semantic_coverage: crate::semantic::SemanticCoverage::default(),
+        capability_state: crate::capability::CapabilityState::ExplicitEnabled,
     };
     let engine = GraphQueryEngine::new(&graph, context);
     let bounds = QueryBounds::default();

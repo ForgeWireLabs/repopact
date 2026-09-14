@@ -6,6 +6,7 @@ use std::path::Path;
 
 use repopact_repository::Repository;
 
+use crate::capability::CapabilityState;
 use crate::overlay::{DurableFreshness, EffectiveGraphStatus, GraphBasis, GraphCoverageState};
 use crate::semantic::SemanticCoverage;
 use crate::status::{self, Freshness};
@@ -13,7 +14,8 @@ use crate::{durable, RepositoryGraph};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum QueryOpenError {
-    /// No durable graph exists yet.
+    /// No durable graph exists yet (`LegacyAbsent` or `ExplicitDisabled`
+    /// capability -- both mean "no graph, valid").
     Absent,
     /// The durable graph declares a schema major this build does not
     /// support.
@@ -23,6 +25,10 @@ pub enum QueryOpenError {
     /// The durable graph is stale (source has changed since the last
     /// build) and the caller did not pass `allow_stale`.
     Stale { graph_fingerprint: String },
+    /// ROG-039: capability declares `rog=enabled` but no durable graph
+    /// exists. Never conflated with [`Self::Absent`] -- this is a hard,
+    /// binding failure, not "no graph, valid."
+    EnabledButMissing,
 }
 
 impl std::fmt::Display for QueryOpenError {
@@ -42,6 +48,11 @@ impl std::fmt::Display for QueryOpenError {
                 "durable graph (fingerprint {graph_fingerprint}) is stale; \
                  pass allow_stale=true to query it anyway, or run `repopact graph update`"
             ),
+            Self::EnabledButMissing => write!(
+                f,
+                "capability declares rog=enabled but no durable graph exists; \
+                 run `repopact graph build` or `repopact graph disable`"
+            ),
         }
     }
 }
@@ -56,8 +67,10 @@ pub struct GraphQueryContext {
     pub graph_fingerprint: String,
     pub status: EffectiveGraphStatus,
     pub semantic_coverage: SemanticCoverage,
+    pub capability_state: CapabilityState,
 }
 
+#[derive(Debug)]
 pub struct LoadedGraph {
     pub graph: RepositoryGraph,
     pub context: GraphQueryContext,
@@ -71,6 +84,9 @@ pub struct LoadedGraph {
 pub fn open_durable_graph(root: &Path, allow_stale: bool) -> Result<LoadedGraph, QueryOpenError> {
     let repository = Repository::open(root);
     let graph_status = status::status(&repository);
+    if graph_status.capability_state == CapabilityState::EnabledMissing {
+        return Err(QueryOpenError::EnabledButMissing);
+    }
     match graph_status.freshness {
         Freshness::Absent => return Err(QueryOpenError::Absent),
         Freshness::Unsupported => return Err(QueryOpenError::Unsupported),
@@ -118,6 +134,7 @@ pub fn open_durable_graph(root: &Path, allow_stale: bool) -> Result<LoadedGraph,
             overlay_generation: 0,
         },
         semantic_coverage: manifest.semantic_coverage.clone().unwrap_or_default(),
+        capability_state: graph_status.capability_state,
     };
     Ok(LoadedGraph { graph, context })
 }

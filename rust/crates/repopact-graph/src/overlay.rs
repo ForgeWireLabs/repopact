@@ -523,12 +523,18 @@ impl SessionGraphState {
     /// Decision 0050 section 8). The in-memory effective graph is always
     /// built by the current build code -- never loaded from an old durable
     /// shard -- so it is always reported at the current schema major.
-    pub fn query_context(&self) -> crate::query::GraphQueryContext {
+    pub fn query_context(
+        &self,
+        repository_root: &std::path::Path,
+    ) -> crate::query::GraphQueryContext {
+        let capability_state = crate::capability::current_state(repository_root)
+            .unwrap_or(crate::capability::CapabilityState::LegacyAbsent);
         crate::query::GraphQueryContext {
             graph_schema_version: crate::durable::CURRENT_GRAPH_SCHEMA_VERSION,
             graph_fingerprint: self.effective_fingerprint.clone(),
             status: self.status(),
             semantic_coverage: self.coverage(),
+            capability_state,
         }
     }
 }

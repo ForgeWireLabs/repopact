@@ -109,6 +109,15 @@ fn open_for_query(request: &EngineRequest, root: PathBuf, allow_stale: bool) -> 
             "graph.corrupt",
             "durable graph failed structural validation",
         )),
+        // ROG-039: capability=enabled but rog/ missing is a hard,
+        // binding failure -- fail closed exactly like Unsupported/
+        // Corrupt, never a typed "absent, therefore valid" result.
+        Err(QueryOpenError::EnabledButMissing) => Opened::ShortCircuit(semantic_failure_closed(
+            request,
+            "graph.capability-enabled-but-missing",
+            "capability declares rog=enabled but no durable graph exists; \
+             run `repopact graph build` or `repopact graph disable`",
+        )),
     }
 }
 

@@ -51,7 +51,7 @@ impl SourceProjection {
             .into_iter()
             .filter_map(|path| {
                 let relative = repository.relative_path(&path);
-                if is_under_rog_root(&relative) {
+                if is_under_rog_root(&relative) || is_capability_declaration(&relative) {
                     return None;
                 }
                 let digest = match repository.path_state(&path) {
@@ -95,6 +95,19 @@ impl SourceProjection {
 
 fn is_under_rog_root(relative_path: &str) -> bool {
     relative_path == ROG_ROOT || relative_path.starts_with(&format!("{ROG_ROOT}/"))
+}
+
+/// The ROG capability declaration (Decision 0051) is graph-lifecycle
+/// metadata, not semantic source content -- excluded from the source
+/// projection for exactly the same self-referential-churn reason `rog/`
+/// itself is excluded. Without this, a fresh `graph build` on a
+/// legacy-absent repository would write the capability record *after*
+/// computing the fingerprint the manifest records, making the very next
+/// `graph status`/`verify` call see a "new" file the manifest's own
+/// fingerprint never accounted for and falsely report `stale`
+/// immediately after a successful build.
+fn is_capability_declaration(relative_path: &str) -> bool {
+    relative_path == crate::capability::CAPABILITY_RECORD_RELATIVE_PATH
 }
 
 /// Minimal hex encoder so this crate does not take on a dependency purely

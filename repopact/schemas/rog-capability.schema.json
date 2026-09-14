@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "rog-capability.schema.json",
+  "title": "RepoPact Repository Orientation Graph capability declaration",
+  "description": "Explicit, committed capability declaration for the durable Repository Orientation Graph (WI063, Decision 0051). Absence of this file is not an error at any schema version -- a repository with no declaration and no rog/ directory remains a fully valid, graph-disabled RepoPact repository; a repository with no declaration and an existing rog/ directory remains a fully valid, legacy-enabled repository. This record is read directly by the graph subsystem and is never represented as a graph node.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "version", "capabilities"],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "version": {"const": 1},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rog"],
+      "properties": {
+        "rog": {"enum": ["enabled", "disabled"]}
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ use repopact_types::{RecordKind, RecordRef, SourceRef, WorkItem};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub mod capability;
 pub mod durable;
 pub mod incremental;
 pub mod metadata;

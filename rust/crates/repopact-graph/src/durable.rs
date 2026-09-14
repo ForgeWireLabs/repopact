@@ -240,6 +240,17 @@ pub fn write(
         &backup_path,
     )?;
 
+    // WI063 adoption/backfill/clean-clone checkpoint, Decision 0051
+    // section 3: capability is persisted `enabled` only *after* the
+    // graph has already been proven installed by the swap above --
+    // never before. A failure here (a near-impossible plain local file
+    // write) does not roll back the already-good graph install; the
+    // repository simply lands in `LegacyEnabled` -- still valid and
+    // binding, since `rog/` demonstrably exists -- rather than
+    // `ExplicitEnabled`.
+    crate::capability::persist_enabled(repository_root)
+        .map_err(|error| DurableError::new("graph.capability-io", error.to_string()))?;
+
     Ok(manifest)
 }
 

@@ -12,6 +12,7 @@ pub mod metadata;
 pub mod overlay;
 pub mod physical;
 pub mod projection;
+pub mod query;
 pub mod semantic;
 pub mod status;
 pub mod validate;

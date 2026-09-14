@@ -965,7 +965,7 @@ def _validate_records(root: Path, directory: Path, pattern: str, statuses: tuple
     return seen
 
 
-def validate_decisions(root: Path, problems: list[Problem]) -> None:
+def validate_decisions(root: Path, problems: list[Problem]) -> set[str]:
     directory = root / "decisions"
     ids = _validate_records(root, directory, r"[0-9]{4,}", DECISION_STATUSES,
                             ("id", "title", "status", "date"), problems)
@@ -980,11 +980,150 @@ def validate_decisions(root: Path, problems: list[Problem]) -> None:
         for target in front.get("supersedes", []) if isinstance(front.get("supersedes"), list) else []:
             if target not in ids:
                 problems.append(Problem(path, f"supersedes unknown decision '{target}'"))
+    return set(ids)
 
 
-def validate_policies(root: Path, problems: list[Problem]) -> None:
-    _validate_records(root, root / "governance" / "policies", r"[0-9]{3,}", POLICY_STATUSES,
-                      ("id", "title", "status", "applies_to"), problems)
+def validate_policies(root: Path, problems: list[Problem]) -> set[str]:
+    ids = _validate_records(root, root / "governance" / "policies", r"[0-9]{3,}", POLICY_STATUSES,
+                            ("id", "title", "status", "applies_to"), problems)
+    return set(ids)
+
+
+def _collect_invariant_ids(root: Path) -> set[str]:
+    try:
+        data = load_json(root / "governance" / "invariants.json")
+    except (OSError, ValueError, json.JSONDecodeError):
+        return set()
+    return {str(entry.get("id", "")) for entry in data.get("invariants", []) if entry.get("id")}
+
+
+# --- assurance/control mapping (WI051, Decision 0054) ----------------------
+
+_ASSURANCE_APPLICABILITY_NEEDING_RATIONALE = {"applicable", "not_applicable", "conditional", "partial"}
+_ASSURANCE_PATH_IMPLEMENTATION_KINDS = {"source", "configuration", "workflow", "test", "runtime_surface"}
+
+
+def _resolve_repo_relative(root: Path, relative: str) -> Path | None:
+    """Resolve *relative* against *root*, returning it only if provably
+    contained within *root*. Mirrors the Rust ``resolve_within_root``/Python
+    ``validate_research._resolve_local`` containment idiom (WI059): an
+    absolute host path or an escaping ``../`` reference is never accepted,
+    and the target's content is never read to make this decision."""
+    if not relative or Path(relative).is_absolute():
+        return None
+    try:
+        resolved = (root / relative).resolve()
+        resolved.relative_to(root.resolve())
+    except (OSError, ValueError):
+        return None
+    return resolved
+
+
+def _validate_evidence_ref(
+    ref: dict, path: Path, root: Path, evidence_ids: set[str], problems: list[Problem]
+) -> None:
+    kind = ref.get("kind")
+    if kind == "evidence_run":
+        evidence_run_id = str(ref.get("evidence_run_id", ""))
+        if evidence_run_id not in evidence_ids:
+            problems.append(Problem(path, f"assurance mapping references unknown evidence run '{evidence_run_id}'"))
+    elif kind == "repository_artifact":
+        relative = str(ref.get("path", ""))
+        resolved = _resolve_repo_relative(root, relative)
+        if resolved is None:
+            problems.append(Problem(path, f"assurance evidence artifact path escapes the repository: {relative}"))
+        elif not resolved.is_file():
+            problems.append(Problem(path, f"assurance evidence artifact does not exist: {relative}"))
+
+
+def validate_assurance_mappings(
+    root: Path,
+    decision_ids: set[str],
+    policy_ids: set[str],
+    invariant_ids: set[str],
+    work_ids: set[str],
+    problems: list[Problem],
+) -> None:
+    """Validate optional assurance/control mapping records (WI051).
+
+    A repository with no ``assurance/mappings`` directory is fully valid and
+    produces no problems. RepoPact validates mapping shape and that its
+    canonical references resolve; it never derives compliance, certification,
+    or audit conclusions from a mapping's presence (Decision 0054)."""
+    directory = root / "assurance" / "mappings"
+    if not directory.is_dir():
+        return
+    schema = load_schema(root, "assurance-mapping.schema.json")
+    evidence_ids = discover_evidence_ids(root)
+    seen: dict[str, Path] = {}
+    for path in sorted(directory.glob("*.json")):
+        try:
+            data = load_json(path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            problems.append(Problem(path, str(exc)))
+            continue
+        check_schema(data, schema, path, problems)
+
+        mapping_id = str(data.get("id", ""))
+        if mapping_id != path.stem:
+            problems.append(Problem(path, "assurance mapping id must match filename"))
+        if mapping_id in seen:
+            problems.append(Problem(path, f"duplicate assurance mapping id also used by {seen[mapping_id]}"))
+        seen[mapping_id] = path
+
+        applicability = data.get("applicability", {})
+        if isinstance(applicability, dict) and applicability.get("status") in _ASSURANCE_APPLICABILITY_NEEDING_RATIONALE:
+            if not str(applicability.get("rationale", "")).strip():
+                problems.append(Problem(path, f"applicability '{applicability.get('status')}' requires a rationale"))
+            if not str(applicability.get("determined_by", "")).strip():
+                problems.append(Problem(path, f"applicability '{applicability.get('status')}' requires determined_by"))
+
+        for control_ref in data.get("control_refs", []) if isinstance(data.get("control_refs"), list) else []:
+            if not isinstance(control_ref, dict):
+                continue
+            kind = control_ref.get("kind")
+            ref = str(control_ref.get("ref", ""))
+            if kind == "decision" and ref not in decision_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown decision '{ref}'"))
+            elif kind == "policy" and ref not in policy_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown policy '{ref}'"))
+            elif kind == "invariant" and ref not in invariant_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown invariant '{ref}'"))
+            elif kind == "work_item" and ref not in work_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown work item '{ref}'"))
+            elif kind == "contract":
+                resolved = _resolve_repo_relative(root, ref)
+                if resolved is None:
+                    problems.append(Problem(path, f"assurance mapping contract reference escapes the repository: {ref}"))
+                elif not resolved.is_file():
+                    problems.append(Problem(path, f"assurance mapping references unknown contract '{ref}'"))
+
+        for impl_ref in data.get("implementation_refs", []) if isinstance(data.get("implementation_refs"), list) else []:
+            if not isinstance(impl_ref, dict):
+                continue
+            kind = impl_ref.get("kind")
+            ref = str(impl_ref.get("ref", ""))
+            if kind == "decision" and ref not in decision_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown decision '{ref}'"))
+            elif kind == "work_item" and ref not in work_ids:
+                problems.append(Problem(path, f"assurance mapping references unknown work item '{ref}'"))
+            elif kind in _ASSURANCE_PATH_IMPLEMENTATION_KINDS:
+                resolved = _resolve_repo_relative(root, ref)
+                if resolved is None:
+                    problems.append(Problem(path, f"assurance implementation reference escapes the repository: {ref}"))
+                elif not resolved.is_file():
+                    problems.append(Problem(path, f"assurance implementation reference does not exist: {ref}"))
+
+        for evidence_ref in data.get("evidence_refs", []) if isinstance(data.get("evidence_refs"), list) else []:
+            if isinstance(evidence_ref, dict):
+                _validate_evidence_ref(evidence_ref, path, root, evidence_ids, problems)
+
+        for dependency in data.get("third_party_dependencies", []) if isinstance(data.get("third_party_dependencies"), list) else []:
+            if not isinstance(dependency, dict):
+                continue
+            for evidence_ref in dependency.get("evidence_refs", []) if isinstance(dependency.get("evidence_refs"), list) else []:
+                if isinstance(evidence_ref, dict):
+                    _validate_evidence_ref(evidence_ref, path, root, evidence_ids, problems)
 
 
 def validate_orphan_work_dirs(root: Path, problems: list[Problem]) -> None:
@@ -1090,8 +1229,10 @@ def validate(root: Path) -> list[Problem]:
     validate_orphan_work_dirs(root, problems)
     validate_evidence(root, work_ids, problems)
     validate_audit_registry(root, problems)
-    validate_decisions(root, problems)
-    validate_policies(root, problems)
+    decision_ids = validate_decisions(root, problems)
+    policy_ids = validate_policies(root, problems)
+    invariant_ids = _collect_invariant_ids(root)
+    validate_assurance_mappings(root, decision_ids, policy_ids, invariant_ids, work_ids, problems)
     validate_dashboard(root, problems)
     validate_research_records(root, problems)
     validate_admission_records(root, problems)

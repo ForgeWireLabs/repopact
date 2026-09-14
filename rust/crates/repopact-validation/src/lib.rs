@@ -10,8 +10,8 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use repopact_repository::{
-    path_string, IndexedRecord, RecordIndex, Repository, RepositorySnapshot, RepositoryTopology,
-    STATUSES,
+    path_string, resolve_within_root, IndexedRecord, RecordIndex, Repository, RepositorySnapshot,
+    RepositoryTopology, STATUSES,
 };
 use repopact_schema::SchemaStore;
 use repopact_types::{Diagnostic, LifecycleStatus, ValidationReport, WorkItem};
@@ -142,6 +142,7 @@ impl Validator {
         self.validate_work(&owner_scopes, enforce_disjoint);
         self.validate_orphan_work_dirs();
         self.validate_evidence();
+        self.validate_assurance_mappings();
         self.validate_audit_registry();
         self.validate_verification();
         self.validate_dashboard();
@@ -1136,6 +1137,331 @@ impl Validator {
         }
     }
 
+    /// Validate optional assurance/control mapping records (WI051, Decision
+    /// 0054). A repository with no `assurance/mappings` directory is fully
+    /// valid and produces no diagnostics. RepoPact validates mapping shape
+    /// and that its canonical references resolve; it never derives
+    /// compliance, certification, or audit conclusions from a mapping's
+    /// presence.
+    fn validate_assurance_mappings(&mut self) {
+        if self.index.assurance_mappings.is_empty() {
+            return;
+        }
+        const APPLICABILITY_NEEDING_RATIONALE: [&str; 4] =
+            ["applicable", "not_applicable", "conditional", "partial"];
+        const PATH_IMPLEMENTATION_KINDS: [&str; 5] = [
+            "source",
+            "configuration",
+            "workflow",
+            "test",
+            "runtime_surface",
+        ];
+
+        let decision_ids: BTreeSet<String> = self
+            .index
+            .decisions
+            .iter()
+            .map(|record| record.reference.id.clone())
+            .collect();
+        let policy_ids: BTreeSet<String> = self
+            .index
+            .policies
+            .iter()
+            .map(|record| record.reference.id.clone())
+            .collect();
+        let invariant_ids: BTreeSet<String> = self
+            .index
+            .invariants
+            .as_ref()
+            .and_then(|record| record.value.as_ref().ok())
+            .and_then(|value| value.get("invariants"))
+            .and_then(Value::as_array)
+            .map(|entries| {
+                entries
+                    .iter()
+                    .filter_map(|entry| entry.get("id").and_then(Value::as_str).map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+        let evidence_ids = self.evidence_ids.clone();
+        let work_ids = self.work_ids.clone();
+        let root = self.repository.root().to_path_buf();
+
+        let mut seen = HashMap::new();
+        for record in self.index.assurance_mappings.clone() {
+            let data = match record.value {
+                Ok(value) => value,
+                Err(error) => {
+                    self.push(self.at("assurance.json-invalid", error, &record.path));
+                    continue;
+                }
+            };
+            let Some(object) = data.as_object() else {
+                self.push(self.at(
+                    "assurance.json-invalid",
+                    "expected a JSON object",
+                    &record.path,
+                ));
+                continue;
+            };
+            self.extend_schema(&data, "assurance-mapping.schema.json", &record.path);
+
+            let id = object
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or("")
+                .to_owned();
+            if id
+                != record
+                    .path
+                    .file_stem()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("")
+            {
+                self.push(self.at(
+                    "assurance.id-filename-mismatch",
+                    "assurance mapping id must match filename",
+                    &record.path,
+                ));
+            }
+            if let Some(previous) = seen.insert(id.clone(), record.path.clone()) {
+                self.push(self.at(
+                    "assurance.duplicate-id",
+                    format!(
+                        "duplicate assurance mapping id also used by {}",
+                        self.rel(&previous)
+                    ),
+                    &record.path,
+                ));
+            }
+
+            if let Some(applicability) = object.get("applicability").and_then(Value::as_object) {
+                let status = applicability
+                    .get("status")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if APPLICABILITY_NEEDING_RATIONALE.contains(&status) {
+                    let rationale = applicability
+                        .get("rationale")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .trim();
+                    if rationale.is_empty() {
+                        self.push(self.at(
+                            "assurance.applicability-rationale-missing",
+                            format!("applicability '{status}' requires a rationale"),
+                            &record.path,
+                        ));
+                    }
+                    let determined_by = applicability
+                        .get("determined_by")
+                        .and_then(Value::as_str)
+                        .unwrap_or("")
+                        .trim();
+                    if determined_by.is_empty() {
+                        self.push(self.at(
+                            "assurance.applicability-determined-by-missing",
+                            format!("applicability '{status}' requires determined_by"),
+                            &record.path,
+                        ));
+                    }
+                }
+            }
+
+            for control_ref in object
+                .get("control_refs")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                let Some(control_ref) = control_ref.as_object() else {
+                    continue;
+                };
+                let kind = control_ref
+                    .get("kind")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                let reference = control_ref.get("ref").and_then(Value::as_str).unwrap_or("");
+                match kind {
+                    "decision" if !decision_ids.contains(reference) => {
+                        self.push(self.at(
+                            "assurance.unknown-decision",
+                            format!("assurance mapping references unknown decision '{reference}'"),
+                            &record.path,
+                        ));
+                    }
+                    "policy" if !policy_ids.contains(reference) => {
+                        self.push(self.at(
+                            "assurance.unknown-policy",
+                            format!("assurance mapping references unknown policy '{reference}'"),
+                            &record.path,
+                        ));
+                    }
+                    "invariant" if !invariant_ids.contains(reference) => {
+                        self.push(self.at(
+                            "assurance.unknown-invariant",
+                            format!("assurance mapping references unknown invariant '{reference}'"),
+                            &record.path,
+                        ));
+                    }
+                    "work_item" if !work_ids.contains(reference) => {
+                        self.push(self.at(
+                            "assurance.unknown-work-item",
+                            format!("assurance mapping references unknown work item '{reference}'"),
+                            &record.path,
+                        ));
+                    }
+                    "contract" => match resolve_within_root(&root, reference) {
+                        None => self.push(self.at(
+                            "assurance.contract-reference-escapes",
+                            format!("assurance mapping contract reference escapes the repository: {reference}"),
+                            &record.path,
+                        )),
+                        Some(resolved) if !resolved.is_file() => self.push(self.at(
+                            "assurance.unknown-contract",
+                            format!("assurance mapping references unknown contract '{reference}'"),
+                            &record.path,
+                        )),
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
+
+            for impl_ref in object
+                .get("implementation_refs")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                let Some(impl_ref) = impl_ref.as_object() else {
+                    continue;
+                };
+                let kind = impl_ref.get("kind").and_then(Value::as_str).unwrap_or("");
+                let reference = impl_ref.get("ref").and_then(Value::as_str).unwrap_or("");
+                if kind == "decision" && !decision_ids.contains(reference) {
+                    self.push(self.at(
+                        "assurance.unknown-decision",
+                        format!("assurance mapping references unknown decision '{reference}'"),
+                        &record.path,
+                    ));
+                } else if kind == "work_item" && !work_ids.contains(reference) {
+                    self.push(self.at(
+                        "assurance.unknown-work-item",
+                        format!("assurance mapping references unknown work item '{reference}'"),
+                        &record.path,
+                    ));
+                } else if PATH_IMPLEMENTATION_KINDS.contains(&kind) {
+                    match resolve_within_root(&root, reference) {
+                        None => self.push(self.at(
+                            "assurance.implementation-reference-escapes",
+                            format!("assurance implementation reference escapes the repository: {reference}"),
+                            &record.path,
+                        )),
+                        Some(resolved) if !resolved.is_file() => self.push(self.at(
+                            "assurance.implementation-reference-missing",
+                            format!("assurance implementation reference does not exist: {reference}"),
+                            &record.path,
+                        )),
+                        _ => {}
+                    }
+                }
+            }
+
+            for evidence_ref in object
+                .get("evidence_refs")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                self.validate_assurance_evidence_ref(
+                    evidence_ref,
+                    &record.path,
+                    &root,
+                    &evidence_ids,
+                );
+            }
+            for dependency in object
+                .get("third_party_dependencies")
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+            {
+                let Some(dependency) = dependency.as_object() else {
+                    continue;
+                };
+                for evidence_ref in dependency
+                    .get("evidence_refs")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    self.validate_assurance_evidence_ref(
+                        evidence_ref,
+                        &record.path,
+                        &root,
+                        &evidence_ids,
+                    );
+                }
+            }
+        }
+    }
+
+    fn validate_assurance_evidence_ref(
+        &mut self,
+        evidence_ref: &Value,
+        path: &Path,
+        root: &Path,
+        evidence_ids: &BTreeSet<String>,
+    ) {
+        let Some(evidence_ref) = evidence_ref.as_object() else {
+            return;
+        };
+        let kind = evidence_ref
+            .get("kind")
+            .and_then(Value::as_str)
+            .unwrap_or("");
+        match kind {
+            "evidence_run" => {
+                let evidence_run_id = evidence_ref
+                    .get("evidence_run_id")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                if !evidence_ids.contains(evidence_run_id) {
+                    self.push(self.at(
+                        "assurance.unknown-evidence-run",
+                        format!(
+                            "assurance mapping references unknown evidence run '{evidence_run_id}'"
+                        ),
+                        path,
+                    ));
+                }
+            }
+            "repository_artifact" => {
+                let relative = evidence_ref
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .unwrap_or("");
+                match resolve_within_root(root, relative) {
+                    None => self.push(self.at(
+                        "assurance.evidence-artifact-escapes",
+                        format!(
+                            "assurance evidence artifact path escapes the repository: {relative}"
+                        ),
+                        path,
+                    )),
+                    Some(resolved) if !resolved.is_file() => self.push(self.at(
+                        "assurance.evidence-artifact-missing",
+                        format!("assurance evidence artifact does not exist: {relative}"),
+                        path,
+                    )),
+                    _ => {}
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn validate_audit_registry(&mut self) {
         let path = self.repository.root().join("audits/registry.json");
         let Some(record) = self.index.audit_registry.as_ref() else {
@@ -1686,6 +2012,107 @@ mod tests {
         let before = snapshot(&root);
         let _ = validate(&root);
         assert_eq!(before, snapshot(&root));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn minimal_root(name: &str) -> PathBuf {
+        let root = temp_root(name);
+        fs::create_dir_all(root.join("governance")).unwrap();
+        fs::create_dir_all(root.join("audits/reports")).unwrap();
+        fs::write(root.join("VERSION"), "0.1.0\n").unwrap();
+        fs::write(root.join("AGENTS.md"), "# root\n").unwrap();
+        fs::write(
+            root.join("governance/invariants.json"),
+            r#"{"version":1,"invariants":[]}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("governance/frozen-surface.json"),
+            r#"{"version":1,"protected":[]}"#,
+        )
+        .unwrap();
+        fs::write(
+            root.join("governance/owners.json"),
+            r#"{"scopes":[],"roles":[]}"#,
+        )
+        .unwrap();
+        fs::write(root.join("audits/registry.json"), r#"{"scopes":[]}"#).unwrap();
+        root
+    }
+
+    #[test]
+    fn assurance_mapping_absent_directory_produces_no_diagnostics() {
+        let root = minimal_root("assurance-absent");
+        let report = validate(&root);
+        assert!(
+            !report
+                .diagnostics
+                .iter()
+                .any(|d| d.code.starts_with("assurance.")),
+            "expected no assurance diagnostics: {:?}",
+            report.diagnostics
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn assurance_mapping_unknown_decision_reference_is_rejected() {
+        let root = minimal_root("assurance-unknown-decision");
+        fs::create_dir_all(root.join("assurance/mappings")).unwrap();
+        fs::write(
+            root.join("assurance/mappings/example.json"),
+            r#"{
+                "$schema": "assurance-mapping.schema.json",
+                "version": 1,
+                "id": "example",
+                "framework": {"id": "example-framework", "source_authority": "adopter-extension"},
+                "requirement": {"id": "AC-7"},
+                "applicability": {"status": "unassessed"},
+                "control_refs": [{"kind": "decision", "ref": "9999"}],
+                "created": "2026-09-14",
+                "updated": "2026-09-14"
+            }"#,
+        )
+        .unwrap();
+        let report = validate(&root);
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|d| d.message.contains("references unknown decision '9999'")),
+            "expected an unknown-decision diagnostic: {:?}",
+            report.diagnostics
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn assurance_mapping_minimal_record_is_accepted() {
+        let root = minimal_root("assurance-minimal-valid");
+        fs::create_dir_all(root.join("assurance/mappings")).unwrap();
+        fs::write(
+            root.join("assurance/mappings/example.json"),
+            r#"{
+                "$schema": "assurance-mapping.schema.json",
+                "version": 1,
+                "id": "example",
+                "framework": {"id": "example-framework", "source_authority": "adopter-extension"},
+                "requirement": {"id": "AC-7"},
+                "applicability": {"status": "unassessed"},
+                "created": "2026-09-14",
+                "updated": "2026-09-14"
+            }"#,
+        )
+        .unwrap();
+        let report = validate(&root);
+        assert!(
+            !report
+                .diagnostics
+                .iter()
+                .any(|d| d.code.starts_with("assurance.")),
+            "expected no assurance diagnostics: {:?}",
+            report.diagnostics
+        );
         fs::remove_dir_all(root).unwrap();
     }
 

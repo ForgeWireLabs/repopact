@@ -1,6 +1,6 @@
 # Work Item 051 — Assurance Control Mapping and Sensitive Evidence Boundary
 
-**Status:** Proposed
+**Status:** Active
 
 ## Intent
 

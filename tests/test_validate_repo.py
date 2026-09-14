@@ -507,6 +507,143 @@ class RepositoryValidationTests(unittest.TestCase):
         path.write_text("# no front matter\n", encoding="utf-8")
         self.assertTrue(any("front-matter" in v or "front matter" in v for v in self.problems()))
 
+    # --- assurance/control mapping (WI051, decision 0054) ------------------
+
+    def _write_assurance_mapping(self, mapping_id: str, data: dict) -> Path:
+        directory = self.root / "assurance" / "mappings"
+        directory.mkdir(parents=True, exist_ok=True)
+        path = directory / f"{mapping_id}.json"
+        path.write_text(json.dumps({"id": mapping_id, **data}), encoding="utf-8")
+        return path
+
+    def _minimal_mapping_fields(self) -> dict:
+        return {
+            "$schema": "assurance-mapping.schema.json",
+            "version": 1,
+            "framework": {"id": "example-framework", "source_authority": "adopter-extension"},
+            "requirement": {"id": "AC-7"},
+            "applicability": {"status": "unassessed"},
+            "created": "2026-09-14",
+            "updated": "2026-09-14",
+        }
+
+    def test_no_assurance_directory_is_valid(self) -> None:
+        self.assertFalse((self.root / "assurance").exists())
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_minimal_assurance_mapping_is_accepted(self) -> None:
+        self._write_assurance_mapping("example", self._minimal_mapping_fields())
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_assurance_mapping_id_must_match_filename(self) -> None:
+        self._write_assurance_mapping("example", {**self._minimal_mapping_fields(), "id": "different"})
+        self.assertTrue(any("assurance mapping id must match filename" in v for v in self.problems()))
+
+    def test_assurance_mapping_duplicate_id(self) -> None:
+        fields = self._minimal_mapping_fields()
+        self._write_assurance_mapping("example-one", {**fields, "id": "same-id"})
+        self._write_assurance_mapping("example-two", {**fields, "id": "same-id"})
+        self.assertTrue(any("duplicate assurance mapping id" in v for v in self.problems()))
+
+    def test_assurance_mapping_unknown_decision_reference_is_rejected(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "decision", "ref": "9999"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("references unknown decision '9999'" in v for v in self.problems()))
+
+    def test_assurance_mapping_known_decision_reference_is_accepted(self) -> None:
+        decision_id = next((self.root / "decisions").glob("0001-*.md")).name.split("-", 1)[0]
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "decision", "ref": decision_id}]
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_assurance_mapping_unknown_policy_reference_is_rejected(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "policy", "ref": "999"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("references unknown policy '999'" in v for v in self.problems()))
+
+    def test_assurance_mapping_unknown_invariant_reference_is_rejected(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "invariant", "ref": "INV-999"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("references unknown invariant 'INV-999'" in v for v in self.problems()))
+
+    def test_assurance_mapping_contract_reference_must_exist(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "contract", "ref": "no/such/AGENTS.md"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("references unknown contract" in v for v in self.problems()))
+
+    def test_assurance_mapping_known_contract_reference_is_accepted(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "contract", "ref": "AGENTS.md"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_assurance_implementation_reference_rejects_escaping_path(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["implementation_refs"] = [{"kind": "source", "ref": "../outside/secret.txt"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("escapes the repository" in v for v in self.problems()))
+
+    def test_assurance_implementation_reference_rejects_missing_path(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["implementation_refs"] = [{"kind": "source", "ref": "does/not/exist.txt"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("does not exist" in v for v in self.problems()))
+
+    def test_assurance_implementation_reference_accepts_real_path(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["implementation_refs"] = [{"kind": "source", "ref": "AGENTS.md"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_assurance_mapping_unknown_evidence_run_is_rejected(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "evidence_run", "sensitivity": "ordinary", "evidence_run_id": "does-not-exist"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("references unknown evidence run" in v for v in self.problems()))
+
+    def test_assurance_mapping_evidence_artifact_must_exist(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "does/not/exist.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("assurance evidence artifact does not exist" in v for v in self.problems()))
+
+    def test_assurance_mapping_not_applicable_requires_rationale(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["applicability"] = {"status": "not_applicable", "determined_by": "reviewer"}
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("requires a rationale" in v for v in self.problems()))
+
+    def test_assurance_mapping_not_applicable_requires_determined_by(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["applicability"] = {"status": "not_applicable", "rationale": "No applicable surface."}
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("requires determined_by" in v for v in self.problems()))
+
+    def test_assurance_mapping_not_applicable_with_rationale_is_accepted(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["applicability"] = {
+            "status": "not_applicable",
+            "rationale": "No applicable surface.",
+            "determined_by": "reviewer",
+        }
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("assurance" in v for v in self.problems()))
+
+    def test_assurance_mapping_schema_invalid_status_is_rejected(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["applicability"] = {"status": "bogus"}
+        self._write_assurance_mapping("example", fields)
+        self.assertTrue(any("is not one of" in v for v in self.problems()))
+
     # --- optional disjoint-scope rule --------------------------------------
 
     def test_disjoint_scopes_off_by_default(self) -> None:

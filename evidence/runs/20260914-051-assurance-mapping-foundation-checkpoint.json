@@ -1,0 +1,88 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-051-assurance-mapping-foundation-checkpoint",
+  "timestamp": "2026-09-14T00:00:00Z",
+  "work_item": "051",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git fetch origin && git rev-parse HEAD origin/main",
+      "exit_code": 0,
+      "summary": "Synchronized starting SHA 24fd84c4d51a58f3ecb383d4eb2fb87ac51eb39b (WI022 evidence commit); fast-forward, no divergence."
+    },
+    {
+      "command": "git mv work/proposed/051-... work/active/051-...",
+      "exit_code": 0,
+      "summary": "Activated WI051 (proposed -> active); preserved all seven canonical ACM-001..ACM-007 acceptance criteria unchanged."
+    },
+    {
+      "command": "cargo check --workspace",
+      "exit_code": 0,
+      "summary": "Whole Rust workspace compiles after adding RecordKind::AssuranceMapping, repopact-repository discovery, embedded schema, and repopact-validation cross-reference checks."
+    },
+    {
+      "command": "cargo fmt --check",
+      "exit_code": 0,
+      "summary": "Rust surfaces formatted (one fmt pass applied and re-verified clean)."
+    },
+    {
+      "command": "cargo test --workspace",
+      "exit_code": 0,
+      "summary": "All Rust workspace tests pass, including 3 new assurance-mapping tests in repopact-validation and the embedded-schema byte-identity test."
+    },
+    {
+      "command": "python -m pytest tests/test_validate_repo.py -k assurance -q",
+      "exit_code": 0,
+      "summary": "19 new Python unit tests for validate_assurance_mappings pass (minimal/full acceptance, id-filename mismatch, duplicate id, dangling decision/policy/invariant/contract/evidence-run references, path containment escape/missing, applicability rationale/determined_by requirement, schema-invalid status)."
+    },
+    {
+      "command": "python -m pytest tests/ -q",
+      "exit_code": 0,
+      "summary": "Full existing suite (301 passed, 2 skipped at baseline) plus the 19 new assurance tests remain green; a mid-run failure set observed on an intermediate run was caused by editing SPEC.md/decisions/work-item concurrently with a long-running background suite invocation against the live checkout, not by the new code -- resolved by regenerating the dashboard/SPEC and re-running cleanly."
+    },
+    {
+      "command": "python -m repopact.run_conformance (31 cases via repopact.cli validate, Rust engine)",
+      "exit_code": 0,
+      "summary": "All 31 conformance cases pass, including 9 new assurance-mapping cases (3 accept: minimal, full, not-applicable; 6 reject: schema-invalid, rationale-missing, unknown-decision, path-escapes, path-missing, unknown-evidence-run). Both the Rust canonical engine and the Python legacy_validate comparator agree on every case."
+    },
+    {
+      "command": "repopact spec --root . && repopact dashboard --root . && repopact validate --root .",
+      "exit_code": 0,
+      "summary": "SPEC.md derived catalog/rule blocks and the dashboard regenerated canonically after WI051 lifecycle and evidence changes; repository validates clean."
+    }
+  ],
+  "artifacts": [
+    "decisions/0054-provider-neutral-assurance-mapping-and-sensitive-evidence-contract.md",
+    "repopact/schemas/assurance-mapping.schema.json",
+    "repopact/repo_model.py",
+    "repopact/validate_repo.py",
+    "repopact/generate_spec.py",
+    "SPEC.md",
+    "governance/record-types.md",
+    "rust/crates/repopact-types/src/lib.rs",
+    "rust/crates/repopact-schema/src/lib.rs",
+    "rust/crates/repopact-repository/src/lib.rs",
+    "rust/crates/repopact-validation/src/lib.rs",
+    "conformance/manifest.json",
+    "conformance/fixtures/valid-assurance-minimal/assurance/mappings/example-minimal.json",
+    "conformance/fixtures/valid-assurance-full/assurance/mappings/example-full.json",
+    "conformance/fixtures/valid-assurance-full/assurance/reports/redacted-summary.md",
+    "conformance/fixtures/valid-assurance-not-applicable/assurance/mappings/example-not-applicable.json",
+    "conformance/fixtures/invalid/assurance-schema-invalid/assurance/mappings/example-schema-invalid.json",
+    "conformance/fixtures/invalid/assurance-applicability-rationale-missing/assurance/mappings/example-rationale-missing.json",
+    "conformance/fixtures/invalid/assurance-unknown-decision/assurance/mappings/example-unknown-decision.json",
+    "conformance/fixtures/invalid/assurance-implementation-path-escapes/assurance/mappings/example-path-escapes.json",
+    "conformance/fixtures/invalid/assurance-implementation-reference-missing/assurance/mappings/example-reference-missing.json",
+    "conformance/fixtures/invalid/assurance-unknown-evidence-run/assurance/mappings/example-unknown-evidence-run.json",
+    "tests/test_validate_repo.py",
+    "work/active/051-assurance-control-mapping-and-sensitive-evidence-boundary/work-item.json"
+  ],
+  "environment": {
+    "python": "3.12.4",
+    "cargo": "1.96.0",
+    "rustc": "1.96.0",
+    "platform": "windows",
+    "engine": "REPOPACT_ENGINE dev override -> rust/target/debug/repopact-engine.exe"
+  }
+}

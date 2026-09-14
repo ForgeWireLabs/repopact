@@ -231,3 +231,15 @@ def discover_evidence_ids(root: Path) -> set[str]:
     for path in sorted((root / "evidence" / "runs").glob("*.json")):
         result.add(str(load_json(path).get("id", "")))
     return result
+
+
+def discover_assurance_mappings(root: Path) -> list[tuple[Path, dict[str, Any]]]:
+    """Discover assurance/control mapping records (WI051, Decision 0054).
+
+    A repository with no ``assurance/mappings`` directory is fully valid;
+    this returns an empty list rather than treating absence as an error.
+    """
+    directory = root / "assurance" / "mappings"
+    if not directory.is_dir():
+        return []
+    return [(path, load_json(path)) for path in sorted(directory.glob("*.json"))]

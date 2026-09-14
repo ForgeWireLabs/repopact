@@ -13,6 +13,7 @@
 | Audit registry | Coverage, ownership, review cadence | Implementation plans |
 | Audit finding (`audits/findings/`) | Observed drift, risk, reconciliation | Canonical architecture |
 | Dashboard | Derived overview | Source-of-truth state |
+| Assurance/control mapping (`assurance/mappings/`) | Framework/requirement identity, applicability, control/implementation/evidence references, gaps, review freshness (Decision 0054) | Certification, legal compliance conclusions, raw regulated evidence payloads |
 
 Derived reports may be regenerated. Source records must be edited intentionally.
 

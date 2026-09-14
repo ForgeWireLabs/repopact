@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-unknown-evidence-run",
+  "framework": {
+    "id": "example-framework",
+    "source_authority": "adopter-extension"
+  },
+  "requirement": {
+    "id": "AC-7"
+  },
+  "applicability": {
+    "status": "unassessed"
+  },
+  "evidence_refs": [
+    {"kind": "evidence_run", "sensitivity": "ordinary", "evidence_run_id": "does-not-exist"}
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

@@ -14,12 +14,13 @@
     {
       "id": "AC-1",
       "text": "Implement the shared multi-arm benchmark harness covering S2 (recovery + efficiency), S3 (multi-agent coordination), S4 (context-provisioning token economy incl. C0-C9 and the C2+C3 hybrid), S5 (drift detection/staleness), and S6 (security enforcement + injection resistance) per research/benchmark-protocol.md. Task sets and per-task expected outcomes are pre-registered before runs (threats T5, T6, T8).",
-      "state": "pending",
+      "state": "satisfied",
       "evidence": [
         "20260624-pactbench-harness-selftest",
         "20260726-semantic-ledger-freshness-reconciliation",
         "20260913-wi022-deterministic-benchmark-tranche",
-        "20260913-wi022-s5-package-boundary-reconciliation"
+        "20260913-wi022-s5-package-boundary-reconciliation",
+        "20260913-wi022-s2-deterministic-materialization"
       ]
     },
     {

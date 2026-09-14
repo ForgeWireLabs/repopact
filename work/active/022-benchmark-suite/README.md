@@ -72,7 +72,8 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
   incomplete telemetry instead of turning it into zeroes. A failed/incomplete response is
   retained as an explicit non-reportable failure.
 - **Drivers and registrations:** Proving Ground now has deterministic S2 recovery and
-  pinned-bed selectors/materialization, S3 concurrent isolated-worker scoring, S4 C0-C9
+  pinned-bed selectors/materialization from immutable SWE-bench Verified and SWE-EVO
+  assets, S3 concurrent isolated-worker scoring, S4 C0-C9
   plus C2+C3 condition validation and cost/success analyses, an S5 shared-envelope
   adapter, and S6b scoring over frozen tasks 0023/0024. Mock/fake outputs are explicitly
   illustrative/non-empirical.
@@ -90,10 +91,11 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
 
 ## Criterion state
 
-- [ ] **AC-1** — pending. S2-S6 driver boundaries and pre-registrations now exist, but
-  the full wording is not claimed while external S2 materialization and the complete
-  live study execution path remain unverified. The packaged S5 executable harness is
-  now green.
+- [x] **AC-1** — satisfied for the deterministic benchmark tranche. S2-S6 driver
+  boundaries and pre-registrations exist, and the pinned S2 task beds now have a
+  reproducible acquisition, source-schema validation, model/evaluation projection,
+  base-commit preflight, and offline verification path. Live study execution remains
+  separately gated.
 - [ ] **AC-2** — pending. Common telemetry validation and S4/S5/S6b metrics exist, and
   the deterministic S5 metrics now execute from the packaged dependency, but complete
   applicable-study instrumentation has not been demonstrated with live runs.
@@ -116,3 +118,5 @@ and
 [`20260913-wi022-deterministic-benchmark-tranche`](../../../evidence/runs/20260913-wi022-deterministic-benchmark-tranche.json),
 and
 [`20260913-wi022-s5-package-boundary-reconciliation`](../../../evidence/runs/20260913-wi022-s5-package-boundary-reconciliation.json).
+and
+[`20260913-wi022-s2-deterministic-materialization`](../../../evidence/runs/20260913-wi022-s2-deterministic-materialization.json).

@@ -1,0 +1,86 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-s2-deterministic-materialization",
+  "timestamp": "2026-09-13T18:15:30-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git ls-remote https://github.com/ForgeWireLabs/repopact-proving-ground.git refs/heads/master",
+      "exit_code": 0,
+      "summary": "Verified the Proving Ground default branch contains the implementation and evidence at e871b44b930d14b8fc9da31e11c88f92c1254ca9."
+    },
+    {
+      "command": "python benchmarks/s2/materialize.py --bed swe-bench-verified --out .s2-materialized",
+      "exit_code": 0,
+      "summary": "The default-branch Proving Ground run materialized four registered SWE-bench Verified tasks from the exact Hugging Face revision and verified SHA-256 a45b1fe4e2f0c8390b2b2938ac83e92ed5979000856808f3679c07812e9e6dcd; fingerprint 6fb042bfeb85d8886b55b6ee7faa6872426a1c9a6cc20efddae33fcdb7473144."
+    },
+    {
+      "command": "python benchmarks/s2/materialize.py --bed swe-bench-verified --out .s2-materialized --verify",
+      "exit_code": 0,
+      "summary": "Offline verification passed for the SWE-bench Verified materialization."
+    },
+    {
+      "command": "python benchmarks/s2/materialize.py --bed swe-evo --out .s2-materialized",
+      "exit_code": 0,
+      "summary": "The default-branch Proving Ground run re-verified the exact SWE-EVO commit 9b83d5af943ba7a17567336f5b18239f73960219, Arrow Git blob ab6c97407ef800bb2bac8660ba9ef45f77a85e53, and SHA-256 74e7c63160ada4ceba71d5d89a9bb7c9794f4574b384458d546eb65cdb730520 for the two registered tasks; fingerprint a0b7d326dde79fe4e076783ce1bd74f57141475737163ff51248ea1adc293353."
+    },
+    {
+      "command": "python benchmarks/s2/materialize.py --bed swe-evo --out .s2-materialized --verify",
+      "exit_code": 0,
+      "summary": "Offline verification passed for the SWE-EVO materialization."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "The Proving Ground default-branch suite passed all 40 tests, including 18 S2 materializer tests."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Installed the RepoPact editable package and development dependencies for repository validation."
+    },
+    {
+      "command": "repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected."
+    },
+    {
+      "command": "repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "Regenerated the canonical RepoPact dashboard after adding the linked S2 evidence."
+    },
+    {
+      "command": "repopact validate",
+      "exit_code": 0,
+      "summary": "RepoPact governance validation passed."
+    },
+    {
+      "command": "git ls-files .s2-materialized",
+      "exit_code": 0,
+      "summary": "No output: the downloaded source assets, sparse checkout, projections, and manifests are ignored local materialization output and no model payload is committed."
+    }
+  ],
+  "artifacts": [
+    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/e871b44b930d14b8fc9da31e11c88f92c1254ca9",
+    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/evidence/runs/20260913-004-s2-deterministic-materialization.json",
+    "work/active/022-benchmark-suite/"
+  ],
+  "environment": {
+    "repository": "ForgeWireLabs/repopact-proving-ground",
+    "default_branch_commit": "e871b44b930d14b8fc9da31e11c88f92c1254ca9",
+    "python": "3.13",
+    "repopact_version": "3.0.2",
+    "classification": "deterministic/non-empirical materialization; no model execution",
+    "model_execution": "not run",
+    "third_party_payload_committed": false,
+    "remaining_operator_gates": [
+      "AC-2 remains pending until complete applicable-study instrumentation is demonstrated",
+      "AC-3 requires runs across at least two model families",
+      "AC-5 requires the three-task RealRunner smoke"
+    ],
+    "cross_platform_execution": "not claimed",
+    "hosted_ci": "not run"
+  }
+}

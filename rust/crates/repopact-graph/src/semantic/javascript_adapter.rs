@@ -381,7 +381,9 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
-        node_role: None,
+        node_role: (symbol_kind == SymbolKind::Test)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_TARGET))
+            .flatten(),
         location: Some(location),
     });
     edges.push(GraphEdge {
@@ -445,6 +447,27 @@ mod tests {
         assert_eq!(by_label.get("bar"), Some(&Some(SymbolKind::Function)));
         assert_eq!(by_label.get("Baz"), Some(&Some(SymbolKind::Type)));
         assert_eq!(by_label.get("method"), Some(&Some(SymbolKind::Method)));
+        let bar = output.nodes.iter().find(|n| n.label == "bar").unwrap();
+        assert_eq!(bar.node_role, None);
+    }
+
+    #[test]
+    fn test_named_functions_are_tagged_test_target() {
+        let output = extract(
+            SourceLanguage::JavaScript,
+            "src/index.test.js",
+            "function testAddition() {}\n",
+        );
+        let symbol = output
+            .nodes
+            .iter()
+            .find(|n| n.label == "testAddition")
+            .unwrap();
+        assert_eq!(symbol.symbol_kind, Some(SymbolKind::Test));
+        assert_eq!(
+            symbol.node_role.as_ref().map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET)
+        );
     }
 
     #[test]

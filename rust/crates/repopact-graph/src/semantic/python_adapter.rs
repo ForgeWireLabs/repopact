@@ -283,7 +283,9 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
-        node_role: None,
+        node_role: (symbol_kind == SymbolKind::Test)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_TARGET))
+            .flatten(),
         location: Some(location),
     });
     edges.push(GraphEdge {
@@ -355,6 +357,17 @@ mod tests {
             .find(|n| n.label == "test_addition")
             .unwrap();
         assert_eq!(symbol.symbol_kind, Some(SymbolKind::Test));
+        assert_eq!(
+            symbol.node_role.as_ref().map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET)
+        );
+    }
+
+    #[test]
+    fn non_test_symbols_carry_no_test_target_role() {
+        let output = extract("def top():\n    pass\n");
+        let symbol = output.nodes.iter().find(|n| n.label == "top").unwrap();
+        assert_eq!(symbol.node_role, None);
     }
 
     #[test]

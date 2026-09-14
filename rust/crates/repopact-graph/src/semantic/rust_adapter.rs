@@ -457,7 +457,9 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
-        node_role: None,
+        node_role: (symbol_kind == SymbolKind::Test)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_TARGET))
+            .flatten(),
         location: Some(location),
     });
     if is_public {
@@ -581,12 +583,20 @@ mod tests {
         let output = extract("#[test]\nfn it_works() {}\nfn not_a_test() {}\n");
         let test_symbol = output.nodes.iter().find(|n| n.label == "it_works").unwrap();
         assert_eq!(test_symbol.symbol_kind, Some(SymbolKind::Test));
+        assert_eq!(
+            test_symbol
+                .node_role
+                .as_ref()
+                .map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET)
+        );
         let plain_symbol = output
             .nodes
             .iter()
             .find(|n| n.label == "not_a_test")
             .unwrap();
         assert_eq!(plain_symbol.symbol_kind, Some(SymbolKind::Function));
+        assert_eq!(plain_symbol.node_role, None);
     }
 
     #[test]

@@ -18,9 +18,9 @@
     }
   ],
   "artifacts": [
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/40e33fc",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/benchmarks/pactbench/task-set.v2.json",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/evidence/audits/20260914-pactbench-executability.json",
+    "proving-ground branch codex/wi022-integrity-telemetry @ 40e33fc: PactBench integrity audit",
+    "proving-ground:benchmarks/pactbench/task-set.v2.json",
+    "proving-ground:evidence/audits/20260914-pactbench-executability.json",
     "work/active/020-pactbench/"
   ],
   "environment": {

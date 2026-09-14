@@ -43,11 +43,11 @@
     }
   ],
   "artifacts": [
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/40e33fc",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/commit/6eff689d5101b77d922b344030624497a75b3aa2",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/benchmarks/harness/codex_app_server.py",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/benchmarks/harness/codex_real_runner_v2.py",
-    "https://github.com/ForgeWireLabs/repopact-proving-ground/blob/master/evidence/audits/20260914-pactbench-executability.json",
+    "proving-ground branch codex/wi022-integrity-telemetry @ 40e33fc: PactBench integrity audit",
+    "proving-ground branch codex/wi022-integrity-telemetry @ 6eff689d5101b77d922b344030624497a75b3aa2: public Codex telemetry v2",
+    "proving-ground:benchmarks/harness/codex_app_server.py",
+    "proving-ground:benchmarks/harness/codex_real_runner_v2.py",
+    "proving-ground:evidence/audits/20260914-pactbench-executability.json",
     "research/benchmark-protocol.md",
     "work/active/022-benchmark-suite/"
   ],

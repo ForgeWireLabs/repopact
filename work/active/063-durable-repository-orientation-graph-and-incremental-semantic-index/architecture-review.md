@@ -919,3 +919,77 @@ full query-authority, resolution, bounds, pagination, freshness, and
 legacy-`graph`-operation contract, and
 `implementation-progress.md`'s bounded-query-orientation-checkpoint
 section for the operation list, DTO shapes, test matrix, and evidence.
+
+## 2026-09-14 adoption/backfill/clean-clone-lifecycle refresh
+
+Actual starting SHA `6d47ec5aa17c536e66ee1194318cd25aa557e58c` (12
+commits ahead of the bounded-query checkpoint's own end state --
+WI020/021/022 bookkeeping, dashboard reconciliation, research/public
+docs, and a fix to the date-sensitive `test_takeover_refuses_dir_
+with_audit_scope_inside` test; none touch the WI063 graph/query
+implementation, confirmed by inspection). Coding agent: Claude Code.
+Architecture reviewer: GPT-5.6 Sol High.
+
+Accepted going in: ROG-023 through ROG-026 (the bounded typed query
+kernel, reused identically by the engine, CLI, and desktop overlay).
+The graph/query stack is now mature enough to integrate with
+RepoPact's repository lifecycle -- brownfield adoption, backfill for
+already-governed repositories, and the clean-clone success path.
+
+Two invariants govern this checkpoint absolutely:
+
+- **Legacy repositories must remain valid without ROG.** A repository
+  that has never enabled ROG, and one that explicitly disabled it,
+  are both fully valid RepoPact repositories -- this checkpoint adds a
+  capability signal, it does not add a requirement.
+- **Graph enablement must be explicit and durable, and can never
+  fabricate governance facts.** Enabling ROG is always a deliberate
+  act (`graph build`, or adoption's explicit `--graph` opt-in), never
+  an automatic side effect of `doctor` or any read-only operation, and
+  a graph fact is never promoted into an owner, approval, frozen-
+  surface acknowledgement, or evidence record.
+
+```text
+brownfield repository
+        |
+        v
+repository discovery
+        |
+        v
+governance adoption/import
+        |
+        v
+canonical governance validation
+        |
+        +---------------------------+
+        |                           |
+        | no graph requested        | graph requested
+        v                           v
+graph-disabled valid repo     orientation discovery
+                                    |
+                                    v
+                               graph build
+                                    |
+                                    v
+                             graph verification
+                                    |
+                                    v
+                           persist graph capability
+                                    |
+                                    v
+                            bounded orientation
+                                    |
+                                    v
+                            final validation
+```
+
+Enablement happens strictly *after* a valid graph exists -- capability
+is the last thing written, never the first (Decision 0051 section 3).
+See Decision 0051 for the full five-state capability model
+(`LegacyAbsent`/`LegacyEnabled`/`ExplicitDisabled`/`ExplicitEnabled`/
+`EnabledMissing`), the `governance/rog-capability.json` declaration
+contract, enable/disable ordering, the ignored-artifact guard, and why
+capability is read directly rather than represented as a graph node or
+a new `RecordKind` variant. See `implementation-progress.md`'s
+adoption-backfill-clean-clone-checkpoint section for the full
+implementation, test matrix, and evidence.

@@ -1,0 +1,101 @@
+{
+  "generator_version": "rog-benchmark-fixture-gen-v1",
+  "scale": "large_10000",
+  "composition": {
+    "rust_files": 4004,
+    "python_files": 2000,
+    "ts_files": 1500,
+    "manifests": 29,
+    "packages": 26,
+    "test_files": 1500,
+    "ci_files": 1,
+    "generated_boundary_files": 1,
+    "fixture_boundary_present": true,
+    "dependency_edges_declared": 1292
+  },
+  "platform": "windows",
+  "full_build": {
+    "wall_ms": 5229.8954,
+    "node_count": 22215,
+    "edge_count": 39257,
+    "shard_count": 16,
+    "graph_schema_version": 3,
+    "peak_working_set_bytes": 47382528
+  },
+  "storage": {
+    "durable_bytes": 21260568,
+    "source_bytes": 502432,
+    "graph_source_ratio": 42.31531431119037,
+    "local_cache_bytes": 0,
+    "local_cache_note": "no persistent local acceleration cache exists in this architecture; the durable Git-tracked graph plus a disposable in-memory query index are the only two representations"
+  },
+  "clean_load": {
+    "status_ms": 4043.1517000000003,
+    "durable_load_ms": 10940.3702,
+    "query_index_build_ms": 105.1053,
+    "durable_freshness": "Fresh"
+  },
+  "representative_query_latency_ms": {
+    "resolve_ms": 0.0171,
+    "search_ms": 60.8324,
+    "orient_ms": 0.1357,
+    "neighbors_ms": 0.0209,
+    "dependencies_ms": 0.0121,
+    "dependents_ms": 0.009300000000000001,
+    "impact_ms": 0.012,
+    "tests_ms": 0.0034000000000000002,
+    "governance_ms": 0.0026
+  },
+  "incremental_by_change_class": {
+    "ci_metadata_edit": {
+      "wall_ms": 4305.6054,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 9061,
+      "files_added": 0,
+      "files_modified": 1,
+      "files_deleted": 0
+    },
+    "manifest_dependency_edit": {
+      "wall_ms": 4379.8425,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 9061,
+      "files_added": 0,
+      "files_modified": 1,
+      "files_deleted": 0
+    },
+    "non_semantic_text_edit": {
+      "wall_ms": 4396.582600000001,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 9061,
+      "files_modified": 1
+    },
+    "semantic_symbol_edit": {
+      "wall_ms": 4544.318300000001,
+      "mode": "Incremental",
+      "semantic_reparsed": 1,
+      "semantic_reused": 9061,
+      "files_modified": 1
+    },
+    "single_new_source_file": {
+      "wall_ms": 4205.9956999999995,
+      "mode": "Incremental",
+      "semantic_reparsed": 2,
+      "semantic_reused": 9061,
+      "files_added": 1,
+      "files_modified": 1,
+      "files_deleted": 0
+    }
+  },
+  "working_overlay": {
+    "single_file_watcher_edit_ms": 116.43130000000001,
+    "explicit_full_session_refresh_ms": 3446.6859
+  },
+  "branch_merge": {
+    "reconcile_wall_ms": 5750.8414999999995,
+    "outcome": "Ok(Repaired { staged_paths: [\"rog/edges/shard-0000.jsonl\", \"rog/edges/shard-0001"
+  },
+  "peak_memory_methodology": "Windows: Get-Process -Id <pid>.PeakWorkingSet64 (OS-reported peak working set of this process, not a hard allocator limit)"
+}

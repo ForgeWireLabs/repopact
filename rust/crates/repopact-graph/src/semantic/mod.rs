@@ -479,7 +479,16 @@ pub fn adapter_metadata() -> (BTreeMap<String, String>, BTreeMap<String, Vec<Str
 /// two paths would depend on bookkeeping happening to stay in sync rather
 /// than on this single shared computation.
 pub fn aggregate_coverage(per_file: Vec<FileCoverageEntry>) -> SemanticCoverage {
-    let (adapter_versions, relations_supported) = adapter_metadata();
+    let (mut adapter_versions, mut relations_supported) = adapter_metadata();
+    // WI063 metadata/operational-topology checkpoint: metadata adapter
+    // identity/version and supported-relation disclosure belongs in the
+    // same durable coverage record a client already reads for source-
+    // language adapters -- merged here rather than only in the reuse-
+    // compatibility identity (`incremental::current_semantic_compatibility`),
+    // which tracks a different concern (safe-to-reuse) from this one
+    // (what actually ran and what it claims to support).
+    adapter_versions.extend(crate::metadata::adapter_versions());
+    relations_supported.extend(crate::metadata::relations_supported());
     let mut coverage = SemanticCoverage {
         adapter_versions,
         relations_supported,

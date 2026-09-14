@@ -50,8 +50,10 @@
     {
       "id": "ROG-004",
       "text": "Define an explicit edge taxonomy for physical containment, definitions/imports/exports, dependencies/reverse dependencies, selected references/calls/implementation relations where supported, build/package/test/runtime relations, and governance applicability. Unsupported or low-certainty relationships are not presented as exact facts.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-operational-surface-completion-checkpoint"
+      ]
     },
     {
       "id": "ROG-005",

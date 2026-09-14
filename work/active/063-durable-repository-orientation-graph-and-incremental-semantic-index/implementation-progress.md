@@ -1284,3 +1284,296 @@ test-target/fixture/generated-boundary/installer-surface/runtime-
 entrypoint nodes) first. A fresh architecture review should decide
 between the two.
 
+## 2026-09-14 operational-surface-completion checkpoint
+
+Starting SHA `bae9c66a212e6f9a67338006e968037f278e4acc` (this
+checkpoint's own commits through the ROG-012/013 equivalence proofs).
+Primary targets: ROG-019, ROG-004, per Decision 0049.
+
+### The compatibility-trap avoidance (Decision 0049)
+
+Rather than adding new closed `GraphEdgeKind`/`ManifestKind` variants
+for test/runtime/generated/installer surfaces -- which would recreate
+the exact old-reader-hard-fails hazard Decision 0048 just fixed --
+this checkpoint adds `GraphNodeRole`/`GraphRelationRole`: open,
+syntax-validated (not closed-list-validated), string-backed newtypes,
+carried as new additive `#[serde(default, skip_serializing_if =
+"Option::is_none")]` optional fields on `GraphNode`/`GraphEdge`. Schema
+stays v3 -- no major bump. The required load-bearing proof
+(`durable::tests::an_old_v3_reader_shape_still_deserializes_a_node_edge_carrying_new_role_metadata`)
+confirms a pre-0049 reader shape still deserializes new-v3 data
+carrying role metadata, silently ignoring it, recovering a coarse
+`kind`/`layer` that remains independently true -- exactly Decision
+0049 section 2's precondition for adopting this design at all.
+
+### Per-file adapter extensions
+
+- Rust/Python/JavaScript adapters tag `SymbolKind::Test` symbols with
+  `node_role=test_target`.
+- TOML adapter: Cargo `[[bin]]`/`[[test]]` array-of-tables extraction
+  (role=runtime_entrypoint/test_target, with `DependsOn+Test`/
+  `Contains+Runtime` edges role=tests/entry_point_for); pyproject.toml
+  `[tool.maturin]` recognition (role=installer_surface); `[project.
+  scripts]` now tagged role=runtime_entrypoint (previously untagged).
+- JSON adapter: `tauri.conf.json` recognized, reusing the existing
+  `ManifestKind::JsonDocument` (not a new closed variant) with
+  role=installer_surface, extracting productName/identifier/
+  bundle.targets; `package.json` `workspaces` glob array recorded as
+  raw, unresolved local facts (resolution against the repository's
+  actual directory listing is deliberately deferred to the
+  orchestrator, which alone has full projection access).
+
+### Orchestrator-level cross-file passes (`semantic::operational`)
+
+A new module holding every fact that requires knowing about *other*
+files, which no per-file adapter is allowed to do: npm workspace glob
+resolution (bounded to an exact-path or single `dir/*` wildcard shape,
+matched against `package.json` paths the `SourceProjection` already
+lists, never executing npm or touching the network, never descending
+into `node_modules`), generated-boundary tagging (reusing the existing
+ROG-022 `SkipReason::GeneratedContent` signal rather than re-reading
+file content -- composing with, not replacing, the content-skip
+policy), a small explicit known-generator-contract table (RepoPact's
+own `types.ts`<-`generate-types.rs` and `dashboard.md`<-
+`generate_dashboard.py`, emitting an edge only when both real files are
+present in the graph), Rust implicit-default-binary detection
+(`Cargo.toml` with no `[[bin]]` but a sibling `src/main.rs`), Cargo's
+sibling `tests/*.rs` integration-test convention, and frontend/Python
+test-file naming conventions.
+
+Wired into both `semantic::extend` (full build) and
+`incremental::plan_reconciliation` (the single delta-reconciliation
+algorithm shared by `graph.update` and the session working-tree
+overlay) -- the same shared contribution pipeline, not a second graph
+builder (Decision 0049 section 6). It is *not* re-run by
+`overlay::SessionGraphState::reconcile`'s targeted single-file watcher
+fast path -- a disclosed, bounded limitation (locked in by
+`overlay::tests::targeted_reconcile_does_not_yet_surface_a_new_operational_role_fact`),
+not a silent gap: an operational cross-file fact from a single-path
+watcher event becomes visible on the next full `refresh`/`open`, not
+immediately.
+
+### Compatibility identity bump
+
+Every touched adapter's identity string bumped (rust/python/javascript
+0.1.0->0.2.0, toml/json 0.1.0->0.2.0) and
+`CURRENT_SEMANTIC_PIPELINE_VERSION` bumped to `semantic-pipeline-2`:
+this checkpoint's per-file role tagging and new orchestrator passes
+change what the same bytes produce, so a durable baseline written
+before this checkpoint correctly falls back to a full rebuild rather
+than silently reusing contributions that predate these operational
+facts (proven generically by the pre-existing
+`compatibility_mismatch_forces_a_full_semantic_rebuild` test, which
+exercises the same equality check any pipeline-version bump relies on).
+
+### ROG-012/013 proofs for the new mutation classes
+
+Three new incremental-equivalence tests
+(`npm_workspace_glob_addition_is_equivalent_to_full_rebuild`,
+`cargo_bin_target_addition_is_equivalent_to_full_rebuild`,
+`generated_marker_addition_is_equivalent_to_full_rebuild`) prove a
+`graph.update` incremental path converges byte-for-byte with a clean
+full rebuild for every new operational mutation class. Two new overlay
+tests prove `refresh` surfaces a new orchestrator-derived operational
+fact without ever writing `rog/`, and lock in the disclosed boundary
+that a targeted `reconcile` does not (yet) re-run the cross-file
+passes.
+
+### Cross-platform determinism proof
+
+A 12-file synthetic fixture covering every new operational surface
+(npm workspace root + one glob-matched member, a Cargo crate with
+explicit `[[bin]]`+`[[test]]`, a pyproject.toml with `[project.
+scripts]`+`[tool.maturin]`, a `tauri.conf.json`, a file carrying a
+recognized generated-content marker, a frontend `*.test.ts` file, a
+Python `test_*.py` file, and a `fixtures/` directory containing a file
+-- included specifically to prove that directory stays invisible to
+the graph, per the pre-existing `IGNORED_PARTS` exclusion), hash-
+verified byte-identical, was built independently via the raw engine
+stdio protocol on native Windows and a freshly re-synced Linux-native
+WSL2 Debian checkout (`~/repopact-linux`, synced via a git bundle of
+this checkpoint's own commits, never `/mnt/c/...`). Result: identical
+fingerprint (`def1387e02d5e8e8406d2f34ffff7ef3773a338dc17f4b66a458f29cb930f180`),
+identical node_count/edge_count (34/46), and all 31 node+edge shard
+SHA-256 hashes byte-identical between platforms (confirmed after
+normalizing the CRLF/LF line-ending artifact introduced by shell
+redirection on Windows, which is not part of the durable graph
+content itself). The `fixtures/` file produced zero graph nodes on
+both platforms, confirmed by direct grep of every shard -- the
+directory-name exclusion from Decision 0044 is untouched by this
+checkpoint. No macOS execution occurred or is claimed.
+
+### Real RepoPact self-build (ROG-019 disclosure)
+
+A real build against RepoPact's own live checkout (~8s wall-clock,
+8,230 nodes / 10,071 edges including a temporary scratch fixture
+present at build time; removed afterward) produced genuine, real
+operational facts, not fixture-only evidence:
+
+- `manifest:rust/apps/repopact-engine/Cargo.toml` ->
+  `file:rust/apps/repopact-engine/src/main.rs` (Contains, layer=Runtime,
+  role=entry_point_for) -- a real Rust implicit-default-binary
+  detection, since `repopact-engine/Cargo.toml` declares no `[[bin]]`.
+- `manifest:rust/apps/repopact-desktop/src-tauri/Cargo.toml` ->
+  `file:rust/apps/repopact-desktop/src-tauri/src/main.rs` (same shape).
+- `manifest:rust/apps/repopact-cli/Cargo.toml` ->
+  `manifest-fact:...:bin_target:repopact-cli` (Contains, Runtime,
+  entry_point_for) -- the *explicit* `[[bin]]` path, proving the
+  implicit-binary pass correctly does not double-tag a crate that
+  already declares one.
+- `file:audits/reports/dashboard.md` ->
+  `file:repopact/generate_dashboard.py` and
+  `file:rust/apps/repopact-desktop/src/generated/types.ts` ->
+  `file:rust/crates/repopact-desktop-api/src/bin/generate-types.rs`
+  (DependsOn, Build, generated_by) -- both entries in the known-
+  generator-contract table fired against real files.
+- `manifest:rust/crates/repopact-mutation/Cargo.toml` ->
+  `file:rust/crates/repopact-mutation/tests/verification_post_validation.rs`
+  and `manifest:rust/crates/repopact-desktop-api/Cargo.toml` ->
+  `file:rust/crates/repopact-desktop-api/tests/verification_validation_parity.rs`
+  (DependsOn, Test, tests) -- Cargo's own sibling-`tests/`-directory
+  convention, against the two real integration-test directories this
+  repository actually has.
+
+**Honest disclosure, not silently omitted:** RepoPact's own single
+`package.json` (`rust/apps/repopact-desktop/package.json`) does not
+declare `workspaces`, so npm workspace-member resolution has no real
+self-repo instance to prove against this checkpoint -- it is proven
+only via the synthetic fixture and unit tests above, per this
+checkpoint's own instruction to disclose wherever RepoPact has no
+self-instance rather than fabricate one. Similarly, no `test_fixture`
+node role exists: RepoPact's own `fixtures/`-named directories
+(`conformance/fixtures`) are architecturally invisible to the entire
+graph via the pre-existing `IGNORED_PARTS` exclusion (Decision 0044),
+and no other on-repo fixture convention (e.g. a `conftest.py`) was
+found to ground a real instance -- Decision 0049's alternatives
+section records this as a deliberate deferral, not an oversight.
+
+### Performance evidence (engineering validation only, not ROG-032 closeout)
+
+- Full build of RepoPact's own repository: 7.9-8.2s wall-clock (two
+  runs), 8,230 nodes / 10,071 edges (including the temporary scratch
+  fixture noted above).
+- No-op `graph.update` immediately after a full build: 4.1s wall-clock
+  (dominated by the bounded WI057 git invocation and re-walking the
+  source projection to compute the fingerprint match, not by semantic
+  reparsing -- zero files reparsed).
+- Single-file operational-metadata edit (`package.json` `scripts`
+  addition) via `graph.update`: 7.7s wall-clock, 1 file modified, 1
+  file reparsed, 774 files reused unparsed -- consistent with the
+  existing ROG-012 contribution-reuse behavior, now proven to hold for
+  this checkpoint's new metadata shape too.
+- Real-repo operational role/edge density: 586 node roles
+  (test_target=565 dominated by real pytest/Vitest/Cargo test symbols
+  and files; generated_surface=6; installer_surface=10;
+  runtime_entrypoint=5) and 12 relation-role edges (tests=4,
+  workspace_member=1 [from the temporary scratch fixture --
+  RepoPact itself has none], entry_point_for=5, generated_by=2) across
+  the real repository plus the temporary fixture.
+
+This is engineering measurement on one developer machine, not a
+claimed benchmark contract and not ROG-032 closeout -- ROG-032's full
+dedicated benchmark suite (local-cache size, clean-clone load time,
+query latency, branch/merge rebuild cost) remains unattempted, exactly
+as the prior checkpoint disclosed.
+
+### ROG-004 relation matrix
+
+| Relation category | Status | Evidence |
+|---|---|---|
+| Physical containment | Emitted | `GraphEdgeKind::Contains`, layer=Physical (`physical.rs`) |
+| Definitions | Emitted | `GraphEdgeKind::Defines` (all four source adapters) |
+| Imports | Emitted | `GraphEdgeKind::Imports` (all four source adapters, fact not resolved target) |
+| Exports | Emitted | `GraphEdgeKind::Exports` (Rust bare-pub items, prior checkpoint) |
+| Dependencies | Emitted | `GraphEdgeKind::DependsOn`, layer=Package (TOML/JSON adapters) |
+| Reverse dependencies | Emitted (governance) / Query-derived (package) | `GraphEdgeKind::ReverseDependency` emitted for governance work-item deps (`lib.rs`); package-level reverse lookups are inbound traversal over the same `DependsOn` edges by deliberate design (Decision 0048 section 7, Decision 0049 section 5) -- never a duplicate inverse edge |
+| References (exact) | Unsupported at current tier | `GraphEdgeKind::References` predeclared (Decision 0045), never emitted; disclosed via `relations_supported` coverage metadata, never presented as a fact |
+| Calls (where supported) | Unsupported at current tier | `GraphEdgeKind::Calls` predeclared, never emitted; same disclosure |
+| Implementation relations (where supported) | Unsupported at current tier | `Implements`/`Extends`/`UsesType` predeclared, never emitted; same disclosure |
+| Build relations | Emitted | `GraphEdgeKind::DependsOn`, layer=Build, role=generated_by (this checkpoint, `semantic::operational::emit_known_generator_contracts`) |
+| Package relations | Emitted | `Contains`/`DependsOn`/`BelongsToWorkspace`, layer=Package (TOML/JSON adapters, npm workspace resolution) |
+| Test relations | Emitted | `GraphEdgeKind::DependsOn`, layer=Test, role=tests (this checkpoint: Cargo `[[test]]`, sibling `tests/*.rs` convention) |
+| Runtime relations | Emitted | `GraphEdgeKind::Contains`, layer=Runtime, role=entry_point_for (this checkpoint: Cargo `[[bin]]`, implicit binary, `pyproject.toml` scripts) |
+| Governance applicability | Emitted | `SupportedBy`/`SupportsWorkItem`/`OwnedBy`/`Affects`/`Supersedes`/`Concerns`/`ConstrainedBy`/`Intersects`/`AppliesTo`/`Allows` (pre-existing WI054 governance graph) |
+
+Every emitted relation's coarse `GraphEdgeKind`/`GraphLayer` remains
+independently true with its `relation_role` ignored (Decision 0049
+section 3) -- none of the newly-emitted build/package/test/runtime
+relations are presented with more certainty than the coarse edge
+alone actually carries.
+
+### Regression matrix
+
+`cargo fmt --check` clean. `cargo check --workspace` / `cargo build
+--workspace` clean. `cargo test -p repopact-graph`: 147/147 (133 at
+this checkpoint's start + 2 role-tagging tests + 9 operational-pass
+tests + 1 compatibility proof + 3 ROG-012 equivalence tests -- overlay
+ROG-013 tests counted separately below). `cargo test -p
+repopact-desktop-api`: 14/14 unaffected (no DTO/protocol surface
+change this checkpoint beyond the additive `GraphNode`/`GraphEdge`
+fields already used internally). Overlay module: 17/17 including the
+two new ROG-013 tests. `cargo test --workspace`: green, zero failures.
+`tests/test_graph_cli.py`/`tests/test_engine_client.py`: 12/12 (via
+`REPOPACT_ENGINE` pointed at the freshly built debug binary). Broad
+Python regression suite: 273 passed, 2 skipped, 18 subtests passed, 13
+failed, 897.19s. All 13 failures are pre-existing and unrelated to
+this checkpoint: 12 trace to one root cause
+(`research.freshness-coverage-incomplete` for two unregistered
+research documents, `research/arxiv-submission-prep.md`/
+`research/paper-reconciliation-2026-09-13.md`, added by commits
+`f6de78a`/`f1b7800` which land between the prior working-overlay
+checkpoint and this one's actual starting commit `542cd5c` -- verified
+by reproducing the identical failures with every commit from this
+checkpoint stashed out) and 1 is the identical pre-existing
+`cryptography`-module gap already disclosed in both prior WI063
+checkpoints' evidence records. Neither touches WI050; neither was
+worked around. `repopact validate --root .` independently reproduces
+both root causes plus a third pre-existing, unrelated issue
+(`owners.unowned-tracked-path` for `CITATION.cff`) -- the dashboard
+staleness this checkpoint's own `work-item.json`/evidence changes
+triggered was regenerated (`repopact dashboard --root .`) and is the
+only validation issue this checkpoint caused or fixed.
+
+### AC assessment
+
+**Newly satisfied:** ROG-004 (the edge taxonomy's full conjunctive
+list -- physical containment, definitions/imports/exports,
+dependencies/reverse-dependencies, references/calls/implementation
+relations *where supported* (none, disclosed), build/package/test/
+runtime relations, governance applicability -- is now genuinely
+complete per the matrix above; the test/runtime gap that blocked this
+AC at the prior checkpoint is closed).
+
+**Still pending, with the exact gap named:**
+
+- **ROG-019** -- Cargo workspace/dependency, Python package/project,
+  npm package/workspace, tsconfig, CI workflow, test-target, generated-
+  boundary, installer/package-surface, and runtime/application-
+  entrypoint facts are now all real and tested. The one remaining named
+  clause is **fixtures**: RepoPact's own `fixtures/`-named directories
+  are architecturally invisible to the entire graph via the
+  pre-existing `IGNORED_PARTS` exclusion (Decision 0044), and no other
+  on-repo fixture convention exists to ground a real instance --
+  Decision 0049 deliberately deferred a `test_fixture` role rather than
+  fabricate one. Left pending on this one named, exact gap; not marked
+  satisfied on a partial conjunctive list.
+- **ROG-014-016, 023-029, 033-040** -- not attempted, explicitly out of
+  scope for this checkpoint.
+- **ROG-031/032** -- gained further genuine evidence (this checkpoint's
+  self-build stats and timing) but were not audited/measured as their
+  AC's full text requires.
+
+### Next recommended WI063 phase
+
+The typed bounded query/orientation surface (ROG-023 through ROG-026)
+is the natural next phase now that the graph carries real test/build/
+runtime operational facts alongside package/CI/source metadata.
+Closing ROG-019's one remaining named gap (a `fixtures/`-directory
+convention, which would require either relaxing the `IGNORED_PARTS`
+exclusion for that one name or introducing a distinct, narrower
+fixture-visibility mechanism) is a real architectural decision, not a
+small addition, and should be a deliberate choice by a future
+directive rather than an incidental side effect of the query-API
+phase. This checkpoint stops here per its own explicit instruction --
+ROG-023-026 work does not begin.
+

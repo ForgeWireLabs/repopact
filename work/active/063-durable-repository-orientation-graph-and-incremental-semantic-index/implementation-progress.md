@@ -2246,3 +2246,16 @@ over. Once either or both are resolved, produce the final ROG-038
 closeout record and transition WI063 through canonical lifecycle
 tooling. No further WI063 architecture work remains.
 
+### 2026-09-14 -- Closeout-readiness count correction
+
+The historical `c5a9ffa` commit message incorrectly states that 33 of
+40 WI063 acceptance criteria were satisfied. The canonical
+`work-item.json` has 37 satisfied and 3 pending acceptance criteria.
+
+Pending:
+- ROG-028
+- ROG-034
+- ROG-038
+
+The historical commit is intentionally not rewritten.
+

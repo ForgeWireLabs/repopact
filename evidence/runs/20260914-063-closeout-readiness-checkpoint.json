@@ -112,6 +112,10 @@
     },
     "python_regression": "see the checkpoint's final report for the exact re-verified count against this checkpoint's synchronized baseline",
     "wi050_result": "see the checkpoint's final report",
-    "next_phase": "WI063 remains active. The only two remaining blockers are external: an authorized macOS execution environment (ROG-028) and an authorized, potentially funded, multi-agent S8 benchmark execution (ROG-034). Once either or both are authorized by the operator, complete that evidence, then produce the final ROG-038 closeout record and transition WI063 through canonical lifecycle tooling. No other WI063 architecture work remains."
+    "next_phase": "WI063 remains active. The only two remaining blockers are external: an authorized macOS execution environment (ROG-028) and an authorized, potentially funded, multi-agent S8 benchmark execution (ROG-034). Once either or both are authorized by the operator, complete that evidence, then produce the final ROG-038 closeout record and transition WI063 through canonical lifecycle tooling. No other WI063 architecture work remains.",
+    "corrected_ac_count": "37/40",
+    "pending_count": 3,
+    "pending_ids": ["ROG-028", "ROG-034", "ROG-038"],
+    "historical_commit_message_correction": "c5a9ffa865c3308b3df3cfcedd8723024f978a26's commit message incorrectly states '33 of 40 acceptance criteria are now satisfied'; the canonical work-item.json at that commit and at this correction both count 37 satisfied / 3 pending. History is not rewritten; this field is an additive, non-destructive correction."
   }
 }

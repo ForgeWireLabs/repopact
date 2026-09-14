@@ -867,6 +867,175 @@ mod tests {
         root
     }
 
+    // WI063 ROG-021: explicit graph-level boundary/exclusion evidence,
+    // not merely inherited-and-trusted walker behavior. Each test builds
+    // a real graph and inspects its actual nodes/edges rather than
+    // asserting on `repopact-repository`'s own internal exclusion logic
+    // (already tested at that layer separately).
+
+    #[test]
+    fn excluded_build_dependency_and_venv_trees_produce_no_graph_nodes() {
+        let root = seeded_repo("rog021-excluded-trees");
+        std::fs::create_dir_all(root.join("target/debug")).unwrap();
+        std::fs::write(root.join("target/debug/output.bin"), "binary").unwrap();
+        std::fs::create_dir_all(root.join("node_modules/pkg")).unwrap();
+        std::fs::write(
+            root.join("node_modules/pkg/index.js"),
+            "module.exports = {};\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(root.join(".venv/lib")).unwrap();
+        std::fs::write(root.join(".venv/lib/site.py"), "def vendored(): pass\n").unwrap();
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+        for node in graph.nodes.values() {
+            let path = node
+                .source
+                .as_ref()
+                .map(|source| source.path.as_str())
+                .unwrap_or("");
+            assert!(
+                !path.contains("target/")
+                    && !path.contains("node_modules/")
+                    && !path.contains(".venv/"),
+                "excluded-tree path leaked into the graph: {path} (node {})",
+                node.id
+            );
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn git_internals_are_never_indexed_as_source() {
+        let root = seeded_repo("rog021-git-internals");
+        std::fs::create_dir_all(root.join(".git/objects")).unwrap();
+        std::fs::write(root.join(".git/HEAD"), "ref: refs/heads/main\n").unwrap();
+        std::fs::write(
+            root.join(".git/objects/pretend-object"),
+            "not real git data",
+        )
+        .unwrap();
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+        for node in graph.nodes.values() {
+            let path = node
+                .source
+                .as_ref()
+                .map(|source| source.path.as_str())
+                .unwrap_or("");
+            assert!(
+                !path.contains(".git/"),
+                ".git internals must never be indexed as source: {path}"
+            );
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_secret_looking_file_is_never_content_ingested_into_a_fact() {
+        // A `.env`-shaped file is not excluded by name (only directory
+        // patterns are excluded), so it is still physically listed (a
+        // File node with a content digest) -- but that digest is never
+        // reversible to the secret value, and no adapter ever parses a
+        // plain `.env` file's key=value content into a fact (it has no
+        // recognized extension), so the actual secret text must never
+        // appear as any node's label anywhere in the graph.
+        let root = seeded_repo("rog021-secret-file");
+        let secret_value = "SUPER_SECRET_TOKEN_VALUE_9f8e7d6c5b4a";
+        std::fs::write(root.join(".env"), format!("API_KEY={secret_value}\n")).unwrap();
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+        assert!(
+            !graph.nodes.values().any(|node| node.label.contains(secret_value)),
+            "a secret value must never appear as a node label merely because the file exists locally"
+        );
+        // The file is still truthfully listed as a physical fact (a
+        // digest, not the content) -- confirming this is a containment
+        // boundary decision, not an accidental omission.
+        assert!(graph.nodes.contains_key("file:.env"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_nested_repository_is_classified_and_its_contents_are_bounded() {
+        let root = seeded_repo("rog021-nested-repo");
+        std::fs::create_dir_all(root.join("vendor/nested/.git")).unwrap();
+        std::fs::write(
+            root.join("vendor/nested/.git/HEAD"),
+            "ref: refs/heads/main\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("vendor/nested/inner.rs"), "pub fn inner() {}\n").unwrap();
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+        let nested_node = graph
+            .nodes
+            .get("dir:vendor/nested")
+            .expect("the nested repository's own directory must still be classified");
+        assert_eq!(nested_node.kind, GraphNodeKind::NestedRepository);
+        for node in graph.nodes.values() {
+            let path = node
+                .source
+                .as_ref()
+                .map(|source| source.path.as_str())
+                .unwrap_or("");
+            assert!(
+                !path.contains("vendor/nested/.git/"),
+                "a nested repository's own .git internals must never be indexed: {path}"
+            );
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn a_symlink_pointing_outside_the_repository_is_not_traversed() {
+        let root = temp_root("rog021-symlink-outside");
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::write(root.join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let outside = temp_root("rog021-symlink-outside-target");
+        let secret_marker = "outside_repository_marker_fn";
+        let outside_file = outside.join("secret.rs");
+        std::fs::write(&outside_file, format!("pub fn {secret_marker}() {{}}\n")).unwrap();
+        let link = root.join("linked.rs");
+
+        #[cfg(windows)]
+        fn make_symlink(target: &Path, link: &Path) -> bool {
+            std::os::windows::fs::symlink_file(target, link).is_ok()
+        }
+        #[cfg(not(windows))]
+        fn make_symlink(target: &Path, link: &Path) -> bool {
+            std::os::unix::fs::symlink(target, link).is_ok()
+        }
+
+        if !make_symlink(&outside_file, &link) {
+            eprintln!(
+                "skipping symlink boundary test: platform/permissions do not allow \
+                 creating a file symlink in this environment"
+            );
+            std::fs::remove_dir_all(root).unwrap();
+            std::fs::remove_dir_all(outside).unwrap();
+            return;
+        }
+
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+        assert!(
+            !graph
+                .nodes
+                .values()
+                .any(|node| node.label.contains(secret_marker)),
+            "content reached only through a symlink pointing outside the repository \
+             must never appear in the graph"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+        std::fs::remove_dir_all(outside).unwrap();
+    }
+
     #[test]
     fn physical_node_ids_are_stable_and_platform_independent() {
         let root = seeded_repo("stable-ids");

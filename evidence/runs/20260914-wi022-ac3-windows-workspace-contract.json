@@ -1,0 +1,278 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-windows-workspace-contract",
+  "timestamp": "2026-09-14T00:00:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022.windows-workspace-diagnostic.v1",
+  "classification": "deterministic_repair_evidence",
+  "acceptance_criterion": "AC-3",
+  "repository_refs": {
+    "repopact_main_before_bookkeeping": "24fd84c4d51a58f3ecb383d4eb2fb87ac51eb39b",
+    "proving_ground_repository": "ForgeWireLabs/repopact-proving-ground",
+    "proving_ground_master": "817ac722dafd3784a8eb4821b2a0dcf1b5d68940",
+    "historical_admission_evidence_preserved": [
+      "20260914-wi022-ac3-admission-probes",
+      "20260914-wi022-ac3-admission-v2"
+    ]
+  },
+  "inference_boundary": {
+    "model_calls": 0,
+    "admission_probes_executed": 0,
+    "registered_ac3_cells_executed": 0,
+    "statement": "No registered AC-3 benchmark cell has been executed."
+  },
+  "identity": {
+    "cli_version": "codex-cli 0.154.0-alpha.6.2",
+    "direct_sandbox_syntax": "codex sandbox -- <command>",
+    "direct_sandbox_powershell_language_mode": "ConstrainedLanguage",
+    "host": {
+      "role": "parent_host_user",
+      "sid": "S-1-5-21-361125661-1506306715-2206555334-1001",
+      "integrity_sid": "S-1-16-8192",
+      "elevated": false
+    },
+    "sandbox": {
+      "role": "codex_sandbox_user",
+      "sid": "S-1-5-21-361125661-1506306715-2206555334-1003",
+      "group_sid": "S-1-5-21-361125661-1506306715-2206555334-1002",
+      "integrity_sid": "S-1-16-8192",
+      "elevated": false
+    },
+    "path_context": {
+      "cwd_volume": "C:",
+      "python_default_temp_equals_percent_TEMP": true,
+      "raw_usernames_and_personal_paths_published": false
+    }
+  },
+  "acl_root_cause": {
+    "legacy_roots": {
+      "temp_profile": {
+        "dacl_protected": false,
+        "dacl_canonical": true,
+        "deny_ace_count": 0,
+        "reparse_point": false,
+        "owner_sid": "S-1-5-21-361125661-1506306715-2206555334-1001",
+        "integrity_sddl": null,
+        "inheritance": "enabled; all listed ACEs inherited",
+        "sddl": "O:S-1-5-21-361125661-1506306715-2206555334-1001G:S-1-5-21-361125661-1506306715-2206555334-1001D:AI(A;OICIID;0x1301bf;;;S-1-5-21-361125661-1506306715-2206555334-1002)(A;OICIID;0x1301bf;;;S-1-5-21-853680873-2134616700-2618111376-160773877)(A;OICIID;FA;;;SY)(A;OICIID;FA;;;BA)(A;OICIID;FA;;;S-1-5-21-361125661-1506306715-2206555334-1001)",
+        "normalized_acl_digest": "ece8f9e94f1ff9e35f7f9a1d3c092e9ba52f9861422c18d9190ec8a399d45464",
+        "sandbox_authorization": "inherited/group ACE only",
+        "aces": [
+          {"role": "codex_sandbox_group", "sid": "S-1-5-21-361125661-1506306715-2206555334-1002", "rights": "Modify", "control": "Allow", "inherited": true},
+          {"role": "external_inherited_modify_principal", "sid": "S-1-5-21-853680873-2134616700-2618111376-160773877", "rights": "Modify", "control": "Allow", "inherited": true},
+          {"role": "system", "sid": "S-1-5-18", "rights": "FullControl", "control": "Allow", "inherited": true},
+          {"role": "administrators", "sid": "S-1-5-32-544", "rights": "FullControl", "control": "Allow", "inherited": true},
+          {"role": "parent_host_user", "sid": "S-1-5-21-361125661-1506306715-2206555334-1001", "rights": "FullControl", "control": "Allow", "inherited": true}
+        ]
+      },
+      "project_volume_profile": {
+        "dacl_protected": false,
+        "dacl_canonical": true,
+        "deny_ace_count": 0,
+        "reparse_point": false,
+        "owner_sid": "S-1-5-21-361125661-1506306715-2206555334-1001",
+        "integrity_sddl": null,
+        "inheritance": "enabled; all listed ACEs inherited",
+        "sddl": "O:S-1-5-21-361125661-1506306715-2206555334-1001G:S-1-5-21-361125661-1506306715-2206555334-1001D:AI(A;OICIID;FA;;;BA)(A;OICIID;FA;;;SY)(A;OICIID;0x1200a9;;;BU)(A;ID;0x1301bf;;;AU)(A;OICIIOID;SDGXGWGR;;;AU)",
+        "normalized_acl_digest": "10ebd88dbfbd528a30f1b6a8dad458e323ddcd35163aec9d1517750f37221747",
+        "sandbox_authorization": "inherited/group ACE only",
+        "aces": [
+          {"role": "administrators", "sid": "S-1-5-32-544", "rights": "FullControl", "control": "Allow", "inherited": true},
+          {"role": "system", "sid": "S-1-5-18", "rights": "FullControl", "control": "Allow", "inherited": true},
+          {"role": "builtin_users", "sid": "S-1-5-32-545", "rights": "ReadAndExecute", "control": "Allow", "inherited": true},
+          {"role": "authenticated_users", "sid": "S-1-5-11", "rights": "Modify", "control": "Allow", "inherited": true}
+        ]
+      }
+    },
+    "principal_probe": [
+      {
+        "target_role": "codex_sandbox_group",
+        "target_sid": "S-1-5-21-361125661-1506306715-2206555334-1002",
+        "dacl_profile": "protected explicit group allow",
+        "sandbox_create": "FAIL_ACCESS_DENIED"
+      },
+      {
+        "target_role": "codex_sandbox_user",
+        "target_sid": "S-1-5-21-361125661-1506306715-2206555334-1003",
+        "dacl_profile": "protected explicit user allow",
+        "sandbox_create": "PASS",
+        "host_read": "PASS"
+      }
+    ],
+    "finding": "The defect is restricted-token authorization through inherited/group-only ACL entries. It is not explained by temp-versus-project location, a deny ACE, owner mismatch, reparse point, or transient sharing lock."
+  },
+  "location_matrix": [
+    {
+      "label": "A_python_default_temp",
+      "acl_profile_ref": "acl_root_cause.legacy_roots.temp_profile",
+      "root_acl_digest": "ece8f9e94f1ff9e35f7f9a1d3c092e9ba52f9861422c18d9190ec8a399d45464",
+      "sandbox_modify_host_file": "FAIL_ACCESS_DENIED",
+      "sandbox_create_file": "FAIL_ACCESS_DENIED",
+      "host_read_host_file_after_modify_attempt": "PASS",
+      "host_read_sandbox_created_file": "NOT_APPLICABLE_FILE_NOT_CREATED"
+    },
+    {
+      "label": "B_explicit_percent_TEMP",
+      "acl_profile_ref": "acl_root_cause.legacy_roots.temp_profile",
+      "root_acl_digest": "ece8f9e94f1ff9e35f7f9a1d3c092e9ba52f9861422c18d9190ec8a399d45464",
+      "sandbox_modify_host_file": "FAIL_ACCESS_DENIED",
+      "sandbox_create_file": "FAIL_ACCESS_DENIED",
+      "host_read_host_file_after_modify_attempt": "PASS",
+      "host_read_sandbox_created_file": "NOT_APPLICABLE_FILE_NOT_CREATED"
+    },
+    {
+      "label": "C_dedicated_repo_project_volume",
+      "acl_profile_ref": "acl_root_cause.legacy_roots.project_volume_profile",
+      "root_acl_digest": "10ebd88dbfbd528a30f1b6a8dad458e323ddcd35163aec9d1517750f37221747",
+      "sandbox_modify_host_file": "FAIL_ACCESS_DENIED",
+      "sandbox_create_file": "FAIL_ACCESS_DENIED",
+      "host_read_host_file_after_modify_attempt": "PASS",
+      "host_read_sandbox_created_file": "NOT_APPLICABLE_FILE_NOT_CREATED"
+    },
+    {
+      "label": "D_dedicated_benchmark_workspace_candidate",
+      "acl_profile_ref": "acl_root_cause.legacy_roots.project_volume_profile",
+      "root_acl_digest": "10ebd88dbfbd528a30f1b6a8dad458e323ddcd35163aec9d1517750f37221747",
+      "sandbox_modify_host_file": "FAIL_ACCESS_DENIED",
+      "sandbox_create_file": "FAIL_ACCESS_DENIED",
+      "host_read_host_file_after_modify_attempt": "PASS",
+      "host_read_sandbox_created_file": "NOT_APPLICABLE_FILE_NOT_CREATED"
+    }
+  ],
+  "chosen_repair": {
+    "allocator": "benchmarks.harness.empirical_workspace.EmpiricalWorkspace",
+    "default_root": "repository-volume/.repopact-bench-workspaces",
+    "configuration": "REPOPACT_BENCH_WORK_ROOT",
+    "allocation": "unique random child per run; no Python default TEMP allocation for live empirical Windows work",
+    "acl_profile": {
+      "owner_sid": "S-1-5-21-361125661-1506306715-2206555334-1001",
+      "dacl_protected": true,
+      "dacl_canonical": true,
+      "deny_ace_count": 0,
+      "reparse_point": false,
+      "integrity_sddl": null,
+      "sddl": "O:S-1-5-21-361125661-1506306715-2206555334-1001G:S-1-5-21-361125661-1506306715-2206555334-1001D:PAI(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)(A;OICI;FA;;;S-1-5-21-361125661-1506306715-2206555334-1001)(A;OICI;FA;;;S-1-5-21-361125661-1506306715-2206555334-1003)",
+      "inheritance": "directory ACEs inherit to prepared descendants",
+      "explicit_allow_aces": [
+        {"role": "system", "sid": "S-1-5-18", "rights": "FullControl", "control": "Allow", "inherited": false},
+        {"role": "administrators", "sid": "S-1-5-32-544", "rights": "FullControl", "control": "Allow", "inherited": false},
+        {"role": "parent_host_user", "sid": "S-1-5-21-361125661-1506306715-2206555334-1001", "rights": "FullControl", "control": "Allow", "inherited": false},
+        {"role": "codex_sandbox_user", "sid": "S-1-5-21-361125661-1506306715-2206555334-1003", "rights": "FullControl", "control": "Allow", "inherited": false}
+      ],
+      "explicit_allow_roles": ["system", "administrators", "parent_host_user", "codex_sandbox_user"],
+      "normalized_acl_digest": "9c5b13ef1c7499ce13556248fd47b92659d2438a22563b047b508a20f54cba52"
+    },
+    "workspace_security_fingerprint": "07e59a22ffdc29304ecb6f83f85b7027ad94da25625087fed4fa16549085531f",
+    "preflight": {
+      "host_write_seed": true,
+      "host_read_seed": true,
+      "sandbox_create_file": true,
+      "host_read_sandbox_file": true,
+      "sandbox_modify_host_file": true,
+      "host_read_modified_file": true
+    },
+    "global_acl_changes": false
+  },
+  "executor_integration": {
+    "pre_inference_guard": "EmpiricalExecutor validates configured-root containment, reparse safety, approved DACL profile, and six host/direct-sandbox file checks before CodexAppServer.run.",
+    "provenance_field": "provenance.workspace_security",
+    "required_version": "repopact.windows-empirical-workspace.v1",
+    "required_fingerprint": true,
+    "admission_adapter": "uses EmpiricalWorkspace.allocate",
+    "s3_empirical_adapter": "uses allocator-backed isolated worker roots and recursive ACL preparation",
+    "s2_s4_s6a_s6b": "use the shared EmpiricalExecutor guard; unproven paths fail before inference",
+    "deterministic_s5_changed": false,
+    "path_controls": ["configured-root containment", "component-by-component symlink/reparse rejection", "single-component child names", "no path escape"]
+  },
+  "validation": {
+    "direct_acl_matrix": "PASS; all four legacy roots reproduced access denial and disposable cleanup succeeded",
+    "allocator_direct_sandbox_regression": "PASS",
+    "allocator_child_recursive_acl_regression": "PASS",
+    "pg_full_suite": "86 tests passed, 1 pre-existing platform-specific symlink skip",
+    "pg_targeted_workspace_tests": "14 passed",
+    "manifest_counts_unchanged": {
+      "logical_cells": 543,
+      "execution_slots": 567,
+      "live_model_or_worker_turns": 432,
+      "shared_deterministic_s5_cells": 135,
+      "model_dependent_cells": 408
+    },
+    "s5_model_independent": true,
+    "codex_logs": {
+      "matching_runtime_acl_diagnostic_files": 0,
+      "matching_ui_reasoning_summary_files": 1,
+      "raw_logs_committed": false
+    }
+  },
+  "commands": [
+    {
+      "command": "codex --version",
+      "exit_code": 0,
+      "summary": "Direct sandbox CLI version identified as codex-cli 0.154.0-alpha.6.2."
+    },
+    {
+      "command": "codex sandbox -- whoami /user",
+      "exit_code": 0,
+      "summary": "Direct sandbox identity captured with role SID classification; usernames were not published."
+    },
+    {
+      "command": "powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/wi022_acl_matrix.ps1",
+      "exit_code": 0,
+      "summary": "Four disposable legacy-root ACL matrix locations were exercised; expected access-denied results and cleanup were recorded."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Complete published Proving Ground suite passed 86 tests with 1 pre-existing platform-specific symlink skip."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "RepoPact editable development installation completed successfully."
+    },
+    {
+      "command": "repopact check-frozen --root . --base main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected."
+    },
+    {
+      "command": "repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "Derived dashboard regenerated from governed records."
+    },
+    {
+      "command": "repopact validate",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Full RepoPact suite passed 309 tests with 2 pre-existing formal-model skips."
+    }
+  ],
+  "artifacts": [
+    "proving-ground:master@817ac722dafd3784a8eb4821b2a0dcf1b5d68940:evidence/runs/20260914-wi022-ac3-windows-workspace-contract.json",
+    "proving-ground:master@817ac722dafd3784a8eb4821b2a0dcf1b5d68940:benchmarks/harness/empirical_workspace.py",
+    "proving-ground:master@817ac722dafd3784a8eb4821b2a0dcf1b5d68940:tests/test_empirical_workspace.py",
+    "proving-ground:master@817ac722dafd3784a8eb4821b2a0dcf1b5d68940:scripts/wi022_acl_matrix.ps1",
+    "evidence/runs/20260914-wi022-ac3-admission-probes.json",
+    "evidence/runs/20260914-wi022-ac3-admission-v2.json"
+  ],
+  "environment": {
+    "os": "Windows 11",
+    "python": "3.13.15",
+    "codex": "0.154.0-alpha.6.2",
+    "registered_benchmark_inference_started": false,
+    "model_comparison_started": false,
+    "historical_admission_captures_unchanged": true
+  },
+  "acceptance_boundary": {
+    "wi022_ac3": "pending",
+    "readiness": "Deterministic Windows empirical workspace contract repaired and published; both model-family admissions still require one fresh operator-authorized attempt each.",
+    "comparative_results": "none",
+    "registered_cells": "none executed"
+  }
+}

@@ -39,7 +39,8 @@
       "state": "pending",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
-        "20260913-021-launch-readiness-reconciliation"
+        "20260913-021-launch-readiness-reconciliation",
+        "20260914-021-release-preparation"
       ]
     },
     {

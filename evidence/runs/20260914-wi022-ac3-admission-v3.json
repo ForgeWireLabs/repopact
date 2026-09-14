@@ -1,0 +1,212 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-admission-v3",
+  "timestamp": "2026-09-14T16:48:25-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-admission-attestation.v3",
+  "classification": "empirical-admission-only",
+  "study_id": "WI022-AC3-admission",
+  "repository_refs": {
+    "repopact_main_before_bookkeeping": "13d5c8fac084b032d6a4284263828551b454894e",
+    "repopact_concurrent_remote_head_reconciled": "4f85b5e3dfac7fb994c262039854389b30f68f08",
+    "proving_ground_master_before_admission": "817ac722dafd3784a8eb4821b2a0dcf1b5d68940",
+    "proving_ground_master_after_admission": "9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c",
+    "proving_ground_admission_evidence": "20260914-wi022-ac3-admission-v3",
+    "historical_admission_evidence_preserved": [
+      "20260914-wi022-ac3-admission-probes",
+      "20260914-wi022-ac3-admission-v2"
+    ],
+    "deterministic_workspace_evidence": "20260914-wi022-ac3-windows-workspace-contract"
+  },
+  "scope": {
+    "registered_benchmark_cells_executed": 0,
+    "ac3_started": false,
+    "comparative_results": 0,
+    "admission_probe_calls": 2,
+    "gpt_5_6_calls": 1,
+    "gpt_6_calls": 1,
+    "retries": 0,
+    "auxiliary_model_calls": 0,
+    "model_calls": 2
+  },
+  "identity": {
+    "cli_version": "codex-cli 0.154.0-alpha.6.2",
+    "runtime_version": "codex-cli-public-app-server-v2",
+    "app_server_command": "codex app-server --stdio",
+    "sandbox_command": "codex sandbox -- <command>",
+    "sandbox_enabled": true,
+    "host_principal": {
+      "role": "parent_host_user",
+      "sid": "S-1-5-21-361125661-1506306715-2206555334-1001",
+      "integrity_sid": "S-1-16-8192",
+      "elevated": false
+    },
+    "sandbox_principal": {
+      "role": "codex_sandbox_user",
+      "sid": "S-1-5-21-361125661-1506306715-2206555334-1003",
+      "group_sid": "S-1-5-21-361125661-1506306715-2206555334-1002",
+      "integrity_sid": "S-1-16-8192",
+      "elevated": false
+    },
+    "usernames_and_personal_paths_published": false
+  },
+  "workspace_security": {
+    "version": "repopact.windows-empirical-workspace.v1",
+    "fingerprint": "07e59a22ffdc29304ecb6f83f85b7027ad94da25625087fed4fa16549085531f",
+    "normalized_acl_digest": "9c5b13ef1c7499ce13556248fd47b92659d2438a22563b047b508a20f54cba52",
+    "dacl_protected": true,
+    "dacl_canonical": true,
+    "deny_ace_count": 0,
+    "explicit_principals": ["parent_host_user", "codex_sandbox_user"],
+    "sandbox_mode": "codex sandbox -- <command>",
+    "configured_root": "repository-volume/.repopact-bench-workspaces",
+    "preflight": {
+      "host_write_seed": true,
+      "host_read_seed": true,
+      "sandbox_create_file": true,
+      "host_read_sandbox_file": true,
+      "sandbox_modify_host_file": true,
+      "host_read_modified_file": true
+    }
+  },
+  "results": [
+    {
+      "family": "gpt-5.6",
+      "model": {"family": "gpt-5.6", "provider": "openai", "version": "gpt-5.6-luna"},
+      "status": "PASS",
+      "thread_id": "01a0a1df-e05f-7611-9d5e-e460b532bb80",
+      "turn_id": "01a0a1df-e0e6-7160-aa23-d3d4cf884e2c",
+      "aggregate_telemetry": {
+        "requests": 7,
+        "input_tokens": 108566,
+        "cached_input_tokens": 88576,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2848,
+        "reasoning_output_tokens": 1817,
+        "context_tokens": 108493,
+        "task_tokens": 73,
+        "cache_adjusted_input_tokens": 19990,
+        "tool_calls": 4,
+        "elapsed_ms": 62508.586,
+        "turn_elapsed_ms": 62521.771600004286,
+        "usd": 0.0,
+        "pricing_id": "chatgpt-subscription-unmetered-2026-09-14"
+      },
+      "runtime": {"turn_completed_observed": true, "final_usage_reconciled": true, "owned_process_terminated": true, "public_command_processes_terminated": true},
+      "structured_output": {"status": "pass", "schema_validation": "PASS", "tool_postcondition": true},
+      "host_objective_postcondition": {
+        "status": "PASS",
+        "operation": "read_bytes_after_quiescence",
+        "result_file": "admission-result.txt",
+        "expected_content": "probe tool operation complete",
+        "expected_byte_length": 29,
+        "exact_bytes_match": true,
+        "attempts_required": 1,
+        "transient_errors": [],
+        "is_file": true,
+        "is_symlink": false
+      },
+      "workspace_security_fingerprint": "07e59a22ffdc29304ecb6f83f85b7027ad94da25625087fed4fa16549085531f",
+      "normalized_acl_digest": "9c5b13ef1c7499ce13556248fd47b92659d2438a22563b047b508a20f54cba52",
+      "capture_artifact": "proving-ground:evidence/captures/20260914-wi022-ac3-admission-v3/gpt-5.6.json",
+      "capture_digest": "4d0a6cdec835ae6a06e0a0a445af4b388ef7be6567591ba335d82718935a871a",
+      "capture_file_sha256": "104d37d36decb58798fb67527c84aeee5d0c52f145dcb6a2dfc330f97e154e1d",
+      "secret_scan": "PASS"
+    },
+    {
+      "family": "gpt-6",
+      "model": {"family": "gpt-6", "provider": "openai", "version": "gpt-6-astra"},
+      "status": "PASS",
+      "thread_id": "01a0a1e1-b56b-7530-bbb0-bde9b2675f48",
+      "turn_id": "01a0a1e1-b604-7e10-aa62-de1a8c6de2f2",
+      "aggregate_telemetry": {
+        "requests": 3,
+        "input_tokens": 51031,
+        "cached_input_tokens": 33408,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 442,
+        "reasoning_output_tokens": 74,
+        "context_tokens": 50958,
+        "task_tokens": 73,
+        "cache_adjusted_input_tokens": 17623,
+        "tool_calls": 1,
+        "elapsed_ms": 30711.313,
+        "turn_elapsed_ms": 30720.834500039928,
+        "usd": 0.0,
+        "pricing_id": "chatgpt-subscription-unmetered-2026-09-14"
+      },
+      "runtime": {"turn_completed_observed": true, "final_usage_reconciled": true, "owned_process_terminated": true, "public_command_processes_terminated": true},
+      "structured_output": {"status": "pass", "schema_validation": "PASS", "tool_postcondition": true},
+      "host_objective_postcondition": {
+        "status": "PASS",
+        "operation": "read_bytes_after_quiescence",
+        "result_file": "admission-result.txt",
+        "expected_content": "probe tool operation complete",
+        "expected_byte_length": 29,
+        "exact_bytes_match": true,
+        "attempts_required": 1,
+        "transient_errors": [],
+        "is_file": true,
+        "is_symlink": false
+      },
+      "workspace_security_fingerprint": "07e59a22ffdc29304ecb6f83f85b7027ad94da25625087fed4fa16549085531f",
+      "normalized_acl_digest": "9c5b13ef1c7499ce13556248fd47b92659d2438a22563b047b508a20f54cba52",
+      "capture_artifact": "proving-ground:evidence/captures/20260914-wi022-ac3-admission-v3/gpt-6.json",
+      "capture_digest": "0149dbb7814d85f981d1c13e64bdb4c6cce55119cb31f5804e33cf417e800c8c",
+      "capture_file_sha256": "ff98a9acc24cb38115be76aff4fc3e316b6f3cce4f1fc150ad1904e9998107ca",
+      "secret_scan": "PASS"
+    }
+  ],
+  "capture_history": {
+    "new_capture_namespace": "evidence/captures/20260914-wi022-ac3-admission-v3",
+    "historical_failed_capture_namespace_unchanged": true,
+    "historical_gpt_5_6_blob": "1fc00220354046f8fcc356dc7d082fbd98801819",
+    "historical_gpt_6_blob": "6e5caac6ad18b89ae1707b0fc2ed353ecbb2c2e6",
+    "prior_evidence_records_unchanged": true
+  },
+  "matrix_integrity": {
+    "logical_cells": 543,
+    "execution_slots": 567,
+    "live_model_or_worker_turns": 432,
+    "shared_deterministic_s5_cells": 135,
+    "model_dependent_cells": 408,
+    "registered_cells_executed": 0,
+    "manifest_changed": false
+  },
+  "acceptance_boundary": {
+    "wi022_ac3": "pending",
+    "admitted_families": ["gpt-5.6", "gpt-6"],
+    "readiness": "The frozen AC-3 programme is technically executable for both admitted model families. No comparative benchmark cell has yet been run.",
+    "statement": "No registered AC-3 benchmark cell has been executed."
+  },
+  "commands": [
+    {"command": "git fetch origin main; git rev-parse origin/main", "exit_code": 0, "summary": "RepoPact main was fetched at 13d5c8fac084b032d6a4284263828551b454894e immediately after the two admissions."},
+    {"command": "git fetch origin main; git merge --no-ff origin/main", "exit_code": 0, "summary": "Concurrent RepoPact head 4f85b5e3dfac7fb994c262039854389b30f68f08 was merged without overwriting concurrent WI051 work."},
+    {"command": "python -m pip install -e \".[dev]\"", "exit_code": 0, "summary": "RepoPact editable development installation completed successfully."},
+    {"command": "repopact check-frozen --root . --base main", "exit_code": 0, "summary": "No frozen-surface changes detected."},
+    {"command": "repopact dashboard --root .", "exit_code": 0, "summary": "Derived dashboard regenerated from governed records."},
+    {"command": "repopact validate", "exit_code": 0, "summary": "Repository governance validation passed after admission bookkeeping."},
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "Full merged-tree RepoPact suite passed 328 tests with 2 pre-existing formal-model skips."}
+  ],
+  "artifacts": [
+    "proving-ground:master@9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c:evidence/runs/20260914-wi022-ac3-admission-v3.json",
+    "proving-ground:master@9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c:evidence/captures/20260914-wi022-ac3-admission-v3/gpt-5.6.json",
+    "proving-ground:master@9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c:evidence/captures/20260914-wi022-ac3-admission-v3/gpt-6.json",
+    "evidence/runs/20260914-wi022-ac3-admission-probes.json",
+    "evidence/runs/20260914-wi022-ac3-admission-v2.json",
+    "evidence/runs/20260914-wi022-ac3-windows-workspace-contract.json",
+    "work/active/022-benchmark-suite/work-item.json"
+  ],
+  "environment": {
+    "os": "Windows 11",
+    "python": "3.13.15",
+    "provider": "openai",
+    "registered_benchmark_inference_started": false,
+    "model_comparison_started": false,
+    "historical_captures_overwritten": false,
+    "concurrent_work_preserved": true,
+    "raw_user_specific_logs_committed": false
+  }
+}

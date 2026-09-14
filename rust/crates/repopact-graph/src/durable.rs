@@ -8,6 +8,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
+use repopact_repository::Repository;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -252,6 +253,75 @@ pub fn write(
         .map_err(|error| DurableError::new("graph.capability-io", error.to_string()))?;
 
     Ok(manifest)
+}
+
+/// Decision 0051 section 7 / step 12: before an enable operation may
+/// report success, check whether Git would ignore the durable graph
+/// directory or the capability declaration -- a graph that validates
+/// locally but disappears on clone is not a successful enabled graph.
+/// One bounded, batched `git check-ignore` invocation (never per-shard,
+/// the exact precedent already established by Python's
+/// `adopt_repo.gitignored_records`, ported here using `--` positional
+/// paths instead of `--stdin` since the shared [`repopact_repository::
+/// GitRunner`] trait always pipes `/dev/null` to a child's stdin).
+/// Fails open (assumes nothing is ignored) when Git is unavailable or
+/// the repository is not a Git checkout at all -- consistent with the
+/// existing best-effort precedent -- but fails closed (refuses to
+/// report success) when Git positively confirms an ignore match.
+pub fn check_enablement_not_ignored(repository: &Repository) -> Result<(), DurableError> {
+    let runner = repository.git_runner();
+    // A trailing slash is required: `git check-ignore` treats a bare
+    // name as ambiguous (could be a file or a directory) and refuses to
+    // match a directory-anchored pattern like `rog/` against a path
+    // that does not yet exist on disk -- exactly the case that matters
+    // here, since this check must catch the problem *before* `rog/` is
+    // written.
+    let rog_dir_pathspec = format!("{ROG_DIR_NAME}/");
+    let args = [
+        "check-ignore",
+        "--",
+        rog_dir_pathspec.as_str(),
+        crate::capability::CAPABILITY_RECORD_RELATIVE_PATH,
+    ];
+    let Ok(output) = runner.run(repository.root(), &args, "graph.check-ignore") else {
+        return Ok(());
+    };
+    // `git check-ignore` exit codes: 0 = at least one path matched an
+    // ignore pattern; 1 = none matched; anything else (128 = not a Git
+    // repository, or another error) means "can't tell" -- fail open,
+    // matching the existing Python precedent's documented best-effort
+    // contract.
+    if output.status.code() == Some(0) {
+        let ignored = String::from_utf8_lossy(&output.stdout);
+        return Err(DurableError::new(
+            "graph.enablement-ignored",
+            format!(
+                "git would ignore required durable graph artifacts, refusing to report \
+                 enablement success: {}",
+                ignored.trim().replace('\n', ", ")
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// Explicit disable (`repopact graph disable`, Decision 0051 section 4):
+/// remove the derived `rog/` directory, then persist
+/// `capabilities.rog = disabled`. Idempotent -- removing an already-
+/// absent `rog/` and re-writing an already-`disabled` declaration both
+/// succeed with no further effect. Order matters: `rog/` is removed
+/// first, so a failure partway through never claims `disabled` while a
+/// stale graph still sits on disk (the repository would simply remain
+/// in whatever state it already was, still self-consistent).
+pub fn disable(repository_root: &Path) -> Result<(), DurableError> {
+    let rog_path = rog_root(repository_root);
+    if rog_path.exists() {
+        fs::remove_dir_all(&rog_path)
+            .map_err(|error| DurableError::new("graph.io", error.to_string()))?;
+    }
+    crate::capability::persist_disabled(repository_root)
+        .map_err(|error| DurableError::new("graph.capability-io", error.to_string()))?;
+    Ok(())
 }
 
 /// Replace `final_path` with `staging` without ever leaving a window in

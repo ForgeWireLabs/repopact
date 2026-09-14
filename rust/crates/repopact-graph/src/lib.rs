@@ -861,6 +861,10 @@ pub fn build(snapshot: &RepositorySnapshot) -> RepositoryGraph {
 pub fn build_and_write(
     snapshot: &RepositorySnapshot,
 ) -> Result<durable::Manifest, durable::DurableError> {
+    // Decision 0051 section 7 / step 12: refuse to report an enabled
+    // build as successful if Git would ignore the artifacts a clean
+    // clone needs to actually carry it.
+    durable::check_enablement_not_ignored(snapshot.repository())?;
     let (graph, fingerprint, semantic_coverage) = RepositoryGraph::build_with_fingerprint(snapshot);
     durable::write(
         snapshot.repository().root(),
@@ -869,6 +873,13 @@ pub fn build_and_write(
         semantic_coverage,
         incremental::current_semantic_compatibility(),
     )
+}
+
+/// Explicit disable (`repopact graph disable`, Decision 0051 section 4).
+/// See [`durable::disable`] for the exact ordering/idempotency
+/// guarantees.
+pub fn disable_graph(repository_root: &std::path::Path) -> Result<(), durable::DurableError> {
+    durable::disable(repository_root)
 }
 
 fn typed_work(record: &IndexedRecord) -> Option<WorkItem> {
@@ -1575,6 +1586,133 @@ mod tests {
             .iter()
             .any(|diagnostic| diagnostic.code == "graph.dangling-edge"));
 
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    // ---- ROG-014/015/039: capability enable/disable lifecycle -------
+
+    #[test]
+    fn build_persists_explicit_enabled_capability() {
+        let root = seeded_repo("capability-build-enables");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("build");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitEnabled
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disable_removes_graph_and_persists_explicit_disabled() {
+        let root = seeded_repo("capability-disable");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("build");
+        assert!(durable::rog_root(&root).exists());
+
+        disable_graph(&root).expect("disable");
+        assert!(!durable::rog_root(&root).exists());
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitDisabled
+        );
+
+        let status_result = status::status(&Repository::open(&root));
+        assert_eq!(status_result.freshness, status::Freshness::Absent);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn disable_is_idempotent() {
+        let root = seeded_repo("capability-disable-idempotent");
+        disable_graph(&root).expect("first disable");
+        disable_graph(&root).expect("second disable on an already-disabled repo");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitDisabled
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn build_disable_rebuild_re_enables() {
+        let root = seeded_repo("capability-cycle");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+
+        build_and_write(&snapshot).expect("first build");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitEnabled
+        );
+
+        disable_graph(&root).expect("disable");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitDisabled
+        );
+
+        let snapshot = Repository::open(&root).session().snapshot();
+        build_and_write(&snapshot).expect("second build re-enables");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitEnabled
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn legacy_graph_migrates_to_explicit_enabled_on_next_build_with_no_manual_step() {
+        let root = seeded_repo("capability-legacy-migration");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        build_and_write(&snapshot).expect("build");
+        // Simulate a pre-Decision-0051 graph: strip the capability
+        // record this checkpoint's own build just wrote.
+        std::fs::remove_file(root.join(crate::capability::CAPABILITY_RECORD_RELATIVE_PATH))
+            .unwrap();
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::LegacyEnabled
+        );
+
+        // The explicit backfill/migration path is exactly `graph build`
+        // again -- no manual deletion, no doctor step required.
+        let snapshot = Repository::open(&root).session().snapshot();
+        build_and_write(&snapshot).expect("migration build");
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::ExplicitEnabled
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ignored_durable_graph_refuses_to_report_enablement_success() {
+        let root = seeded_repo("capability-ignored-artifact");
+        std::fs::write(root.join(".gitignore"), "rog/\n").unwrap();
+        // A real Git repository is required for `git check-ignore` to
+        // have anything to consult.
+        std::process::Command::new("git")
+            .args(["init", "--quiet"])
+            .current_dir(&root)
+            .output()
+            .expect("git init");
+
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let result = build_and_write(&snapshot);
+        assert!(
+            result.is_err(),
+            "build must refuse to report enablement success when .gitignore swallows rog/"
+        );
+        assert_eq!(
+            crate::capability::current_state(&root).unwrap(),
+            crate::capability::CapabilityState::LegacyAbsent,
+            "capability must not be persisted as enabled when the graph would be git-ignored"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 

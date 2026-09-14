@@ -78,6 +78,11 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
   reasoning output, and pinned-tokenizer context/task attribution. No live model call was
   made in this checkpoint; AC-2 remains pending until the corrected smoke validates the
   complete path. Evidence: [`20260913-wi022-telemetry-v2-checkpoint`](../../../evidence/runs/20260913-wi022-telemetry-v2-checkpoint.json).
+- **Next smoke selection (2026-09-13):** before inference, the corrected v2 smoke was
+  frozen to 0001 (correctness must-not-weaken), 0002 (security/frozen-surface
+  must-not-weaken), and 0021 (legitimate decoy), with 0003 explicitly excluded. The
+  task-set digest and both-arm materialization fingerprints are recorded in
+  [`20260913-wi022-ac5-v2-selection`](../../../evidence/runs/20260913-wi022-ac5-v2-selection.json).
 - **First real smoke (2026-09-13):** the repopact arm ran tasks 0001, 0002, and 0003
   once each on the authenticated Codex CLI runtime. Raw captures and postconditions are
   preserved, but the strict RealRunner envelopes are non-reportable because the runtime

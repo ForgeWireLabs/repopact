@@ -216,3 +216,31 @@ success. Evidence: [`20260914-wi022-ac3-admission-v2`](../../../evidence/runs/20
 
 - [ ] **AC-3** remains pending and pre-inference blocked by the shared Windows
   access-denied boundary. No registered AC-3 benchmark cell has been executed.
+
+## AC-3 deterministic Windows workspace contract checkpoint (2026-09-14)
+
+The Windows workspace diagnosis and repair were completed without model
+inference. A direct sandbox ACL matrix showed the same access-denied result in
+Python default temp, explicit `%TEMP%`, a dedicated repository-volume root,
+and a dedicated benchmark-workspace candidate root. The causal difference was
+the restricted sandbox token's inherited/group-only authorization: a protected
+explicit sandbox-user ACE passed both sandbox creation and host reads, while an
+explicit sandbox-group ACE alone did not.
+
+Proving Ground published `master@817ac722dafd3784a8eb4821b2a0dcf1b5d68940`
+with `EmpiricalWorkspace`, a repository-volume allocator configurable through
+`REPOPACT_BENCH_WORK_ROOT`, per-run isolation, approved ACL setup, reparse/path
+controls, pre-inference host/direct-sandbox read-write checks, and a normalized
+workspace-security fingerprint in provenance. The shared empirical executor
+now fails before inference when that contract is not proven; S5 remains
+model-independent and the registered matrix is unchanged.
+
+The full proving-ground suite passed 86 tests with one pre-existing
+platform-specific symlink skip, and the targeted workspace suite passed 14
+tests. No model call was made in this deterministic repair tranche. The two
+historical admission records and captures remain unchanged. Evidence:
+[`20260914-wi022-ac3-windows-workspace-contract`](../../../evidence/runs/20260914-wi022-ac3-windows-workspace-contract.json).
+
+- [ ] **AC-3** remains pending. Both model-family admissions still require one
+  fresh operator-authorized attempt each. No registered AC-3 benchmark cell
+  has been executed.

@@ -816,3 +816,47 @@ compatibility audit (schema v3 found genuinely necessary) and the
 metadata adapter contract, and `implementation-progress.md`'s
 metadata-operational-topology-checkpoint section for the full
 architecture, test matrix, real AC pending inventory, and evidence.
+
+## 2026-09-14 operational-surface-completion refresh
+
+- **Actual starting SHA:** `542cd5c01a79942ecb78040b19deb4e82f4f9068`
+  (the accepted metadata/operational-topology checkpoint, plus three
+  intervening unrelated WI022 commits fast-forwarded past cleanly).
+- **Coding agent:** Claude Code. **Architecture reviewer:** GPT-5.6 Sol
+  High.
+- **Schema v3 accepted; ROG-018/021/022 accepted.** Nothing in Decision
+  0048 or the prior checkpoint's evidence is reopened.
+- **This phase closes the remaining operational topology
+  (ROG-004/019 gaps) before the query API.** ROG-024 in particular
+  ultimately requires real test/build/runtime/package facts; the graph
+  did not yet carry enough of them to build that API honestly.
+- **Persistent parser caching remains unjustified and deferred** -- not
+  attempted, not implied by anything in this checkpoint.
+
+Intended model:
+
+```text
+existing File / Symbol / Manifest nodes
+                 |
+       deterministic role metadata
+                 |
+      +----------+-----------+
+      |          |           |
+    package     test       runtime
+      |          |           |
+      +------ build/generated+
+                 |
+                 v
+       existing typed graph edges
+       + explicit operational role
+```
+
+No second graph implementation. Operational meaning is attached to
+already-existing File/Symbol/Manifest nodes and already-existing
+`GraphEdgeKind`/`GraphLayer` values via a new, additive, open-string
+role field (Decision 0049) -- not via new closed enum growth, which
+Decision 0048's own compatibility audit already proved would break old
+v3 readers exactly like the v1-to-v2 hazard Decision 0045 fixed. See
+Decision 0049 and `implementation-progress.md`'s
+operational-surface-completion-checkpoint section for the full
+architecture, role vocabulary, test matrix, and evidence.

@@ -144,6 +144,74 @@ pub struct GraphSourceLocation {
     pub end_column: usize,
 }
 
+/// A bounded, syntax-validated, **open** vocabulary token (Decision 0049)
+/// -- deliberately not a closed enum. Serializes as an ordinary string;
+/// an unrecognized-but-well-formed value is never a deserialization
+/// error, so growing this vocabulary never requires a schema-major bump.
+/// Construction (not deserialization) enforces the bounded syntax: a
+/// non-empty, at most 64-byte, lowercase-ASCII-letters/digits/
+/// underscores token starting with a letter.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct GraphNodeRole(String);
+
+impl GraphNodeRole {
+    pub fn new(value: impl Into<String>) -> Option<Self> {
+        let value = value.into();
+        is_valid_role_token(&value).then_some(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// The relation-side counterpart to [`GraphNodeRole`] (Decision 0049).
+/// Same bounded-syntax, open-vocabulary contract.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct GraphRelationRole(String);
+
+impl GraphRelationRole {
+    pub fn new(value: impl Into<String>) -> Option<Self> {
+        let value = value.into();
+        is_valid_role_token(&value).then_some(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+fn is_valid_role_token(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value
+            .chars()
+            .next()
+            .is_some_and(|first| first.is_ascii_lowercase())
+        && value
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// Well-known role constants used by RepoPact's own emitters (Decision
+/// 0049 section 4). This is a *starting* vocabulary, not a closed list --
+/// a producer may construct any syntactically valid `GraphNodeRole`/
+/// `GraphRelationRole`, known to this module or not.
+pub mod roles {
+    pub const TEST_TARGET: &str = "test_target";
+    pub const GENERATED_SURFACE: &str = "generated_surface";
+    pub const INSTALLER_SURFACE: &str = "installer_surface";
+    pub const RUNTIME_ENTRYPOINT: &str = "runtime_entrypoint";
+
+    pub const TESTS: &str = "tests";
+    pub const GENERATED_BY: &str = "generated_by";
+    pub const ENTRY_POINT_FOR: &str = "entry_point_for";
+    pub const INSTALLER_FOR: &str = "installer_for";
+    pub const WORKSPACE_MEMBER: &str = "workspace_member";
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct GraphNode {
     pub id: String,
@@ -159,6 +227,8 @@ pub struct GraphNode {
     pub location: Option<GraphSourceLocation>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub manifest_kind: Option<ManifestKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub node_role: Option<GraphNodeRole>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -206,6 +276,8 @@ pub struct GraphEdge {
     pub source: SourceRef,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<GraphSourceLocation>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub relation_role: Option<GraphRelationRole>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -279,6 +351,7 @@ impl RepositoryGraph {
             label: "RepoPact repository".to_owned(),
             symbol_kind: None,
             manifest_kind: None,
+            node_role: None,
             location: None,
             layer: GraphLayer::Governance,
             source: Some(repository_source.clone()),
@@ -295,6 +368,7 @@ impl RepositoryGraph {
                 label: item.title.clone(),
                 symbol_kind: None,
                 manifest_kind: None,
+                node_role: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
@@ -307,6 +381,7 @@ impl RepositoryGraph {
                     label: criterion.text.clone(),
                     symbol_kind: None,
                     manifest_kind: None,
+                    node_role: None,
                     location: None,
                     layer: GraphLayer::Governance,
                     source: Some(RecordRef::new(
@@ -322,6 +397,7 @@ impl RepositoryGraph {
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
                     location: None,
+                    relation_role: None,
                     source: record.reference.clone(),
                 });
                 for evidence_id in &criterion.evidence {
@@ -338,6 +414,7 @@ impl RepositoryGraph {
                             label: evidence_id.clone(),
                             symbol_kind: None,
                             manifest_kind: None,
+                            node_role: None,
                             location: None,
                             layer: GraphLayer::Governance,
                             source: Some(evidence.reference.clone()),
@@ -349,6 +426,7 @@ impl RepositoryGraph {
                             layer: GraphLayer::Governance,
                             derivation: DerivationClass::CanonicalRecord,
                             location: None,
+                            relation_role: None,
                             source: RecordRef::new(
                                 RecordKind::AcceptanceCriterion,
                                 format!("{}:{}", item.id, criterion.id),
@@ -367,6 +445,7 @@ impl RepositoryGraph {
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
                     location: None,
+                    relation_role: None,
                     source: record.reference.clone(),
                 });
                 graph.edge(GraphEdge {
@@ -376,6 +455,7 @@ impl RepositoryGraph {
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
                     location: None,
+                    relation_role: None,
                     source: record.reference.clone(),
                 });
             }
@@ -392,6 +472,7 @@ impl RepositoryGraph {
                 label: item.owner_scope.clone(),
                 symbol_kind: None,
                 manifest_kind: None,
+                node_role: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(owner_source.clone()),
@@ -403,6 +484,7 @@ impl RepositoryGraph {
                 layer: GraphLayer::Governance,
                 derivation: DerivationClass::CanonicalRecord,
                 location: None,
+                relation_role: None,
                 source: record.reference.clone(),
             });
             for scope in &item.affected_scopes {
@@ -413,6 +495,7 @@ impl RepositoryGraph {
                     label: scope.clone(),
                     symbol_kind: None,
                     manifest_kind: None,
+                    node_role: None,
                     location: None,
                     layer: GraphLayer::Governance,
                     source: Some(owner_source.clone()),
@@ -424,6 +507,7 @@ impl RepositoryGraph {
                     layer: GraphLayer::Governance,
                     derivation: DerivationClass::CanonicalRecord,
                     location: None,
+                    relation_role: None,
                     source: record.reference.clone(),
                 });
             }
@@ -438,6 +522,7 @@ impl RepositoryGraph {
                         label: contract.reference.id.clone(),
                         symbol_kind: None,
                         manifest_kind: None,
+                        node_role: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(contract.reference.clone()),
@@ -449,6 +534,7 @@ impl RepositoryGraph {
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
                         location: None,
+                        relation_role: None,
                         source: contract.reference.clone(),
                     });
                 }
@@ -468,6 +554,7 @@ impl RepositoryGraph {
                 label: evidence.reference.id.clone(),
                 symbol_kind: None,
                 manifest_kind: None,
+                node_role: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(evidence.reference.clone()),
@@ -479,6 +566,7 @@ impl RepositoryGraph {
                 layer: GraphLayer::Governance,
                 derivation: DerivationClass::CanonicalRecord,
                 location: None,
+                relation_role: None,
                 source: evidence.reference.clone(),
             });
         }
@@ -503,6 +591,7 @@ impl RepositoryGraph {
                 label: record.reference.id.clone(),
                 symbol_kind: None,
                 manifest_kind: None,
+                node_role: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(record.reference.clone()),
@@ -516,6 +605,7 @@ impl RepositoryGraph {
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
                         location: None,
+                        relation_role: None,
                         source: record.reference.clone(),
                     });
                 }
@@ -539,6 +629,7 @@ impl RepositoryGraph {
                         label: id.to_owned(),
                         symbol_kind: None,
                         manifest_kind: None,
+                        node_role: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(owners.reference.clone()),
@@ -551,6 +642,7 @@ impl RepositoryGraph {
                             label: owner.to_owned(),
                             symbol_kind: None,
                             manifest_kind: None,
+                            node_role: None,
                             location: None,
                             layer: GraphLayer::Governance,
                             source: Some(owners.reference.clone()),
@@ -562,6 +654,7 @@ impl RepositoryGraph {
                             layer: GraphLayer::Governance,
                             derivation: DerivationClass::CanonicalRecord,
                             location: None,
+                            relation_role: None,
                             source: owners.reference.clone(),
                         });
                     }
@@ -585,6 +678,7 @@ impl RepositoryGraph {
                         label: id.to_owned(),
                         symbol_kind: None,
                         manifest_kind: None,
+                        node_role: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(invariants.reference.clone()),
@@ -596,6 +690,7 @@ impl RepositoryGraph {
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
                         location: None,
+                        relation_role: None,
                         source: invariants.reference.clone(),
                     });
                 }
@@ -622,6 +717,7 @@ impl RepositoryGraph {
                         label: glob.to_owned(),
                         symbol_kind: None,
                         manifest_kind: None,
+                        node_role: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(frozen.reference.clone()),
@@ -633,6 +729,7 @@ impl RepositoryGraph {
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
                         location: None,
+                        relation_role: None,
                         source: frozen.reference.clone(),
                     });
                     frozen_globs.push((node_id, glob.to_owned()));
@@ -647,6 +744,7 @@ impl RepositoryGraph {
                 label: finding.reference.id.clone(),
                 symbol_kind: None,
                 manifest_kind: None,
+                node_role: None,
                 location: None,
                 layer: GraphLayer::Governance,
                 source: Some(finding.reference.clone()),
@@ -663,6 +761,7 @@ impl RepositoryGraph {
                         label: scope.to_owned(),
                         symbol_kind: None,
                         manifest_kind: None,
+                        node_role: None,
                         location: None,
                         layer: GraphLayer::Governance,
                         source: Some(finding.reference.clone()),
@@ -674,6 +773,7 @@ impl RepositoryGraph {
                         layer: GraphLayer::Governance,
                         derivation: DerivationClass::CanonicalRecord,
                         location: None,
+                        relation_role: None,
                         source: finding.reference.clone(),
                     });
                 }

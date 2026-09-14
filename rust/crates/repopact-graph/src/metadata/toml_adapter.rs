@@ -42,6 +42,7 @@ fn manifest_document_node(relative_path: &str, label: String, kind: ManifestKind
         symbol_kind: None,
         location: None,
         manifest_kind: Some(kind),
+        node_role: None,
     }
 }
 
@@ -55,6 +56,7 @@ fn fact_node(relative_path: &str, fact_kind: &str, name: &str, label: String) ->
         symbol_kind: None,
         location: None,
         manifest_kind: None,
+        node_role: None,
     }
 }
 
@@ -67,6 +69,7 @@ fn depends_on_edge(from: String, to: String, relative_path: &str) -> GraphEdge {
         derivation: DerivationClass::Manifest,
         source: source(relative_path),
         location: None,
+        relation_role: None,
     }
 }
 
@@ -79,6 +82,7 @@ fn contains_edge(from: String, to: String, relative_path: &str) -> GraphEdge {
         derivation: DerivationClass::Manifest,
         source: source(relative_path),
         location: None,
+        relation_role: None,
     }
 }
 

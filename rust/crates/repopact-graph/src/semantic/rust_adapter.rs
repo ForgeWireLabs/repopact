@@ -306,6 +306,7 @@ fn walk(
                     )),
                     symbol_kind: Some(SymbolKind::Module),
                     manifest_kind: None,
+                    node_role: None,
                     location: None,
                 });
                 edges.push(GraphEdge {
@@ -320,6 +321,7 @@ fn walk(
                         relative_path.to_owned(),
                     ),
                     location: Some(span_of(node)),
+                    relation_role: None,
                 });
             }
         }
@@ -455,6 +457,7 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
+        node_role: None,
         location: Some(location),
     });
     if is_public {
@@ -470,6 +473,7 @@ fn emit_symbol(
                 relative_path.to_owned(),
             ),
             location: Some(location),
+            relation_role: None,
         });
     }
     edges.push(GraphEdge {
@@ -484,6 +488,7 @@ fn emit_symbol(
             relative_path.to_owned(),
         ),
         location: Some(location),
+        relation_role: None,
     });
 }
 

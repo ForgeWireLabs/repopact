@@ -182,6 +182,7 @@ For stronger runtime authority, RepoPact also contains an optional protected adm
 - [`CONFORMANCE.md`](CONFORMANCE.md): implementation-independent conformance contract
 - [`governance/charter.md`](governance/charter.md): principles and non-goals
 - [`governance/workflow.md`](governance/workflow.md): repository workflow
+- [`docs/repository-orientation-graph.md`](docs/repository-orientation-graph.md): the optional Repository Orientation Graph (ROG) — enable/disable, query, Workbench operator map, and its authority boundary
 - [`decisions/`](decisions/): durable architecture and policy decisions
 - [`research/`](research/): formal model, protocols, findings, and paper
 - [`work/`](work/): the project's own RepoPact-governed work ledger

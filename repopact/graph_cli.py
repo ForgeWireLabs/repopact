@@ -275,6 +275,11 @@ def _resolve(args: argparse.Namespace) -> int:
     return _run_query(args, "graph.resolve", params)
 
 
+def _search(args: argparse.Namespace) -> int:
+    params = {"text": args.text, "bounds": _bounds_from_args(args)}
+    return _run_query(args, "graph.search", params)
+
+
 def _orient(args: argparse.Namespace) -> int:
     params = {"selector": _selector_from_args(args), "bounds": _bounds_from_args(args)}
     return _run_query(args, "graph.orient", params)
@@ -402,6 +407,13 @@ def main(argv: list[str] | None = None) -> int:
     p_resolve = base_query_parser("resolve", "Resolve a typed target selector to an exact graph fact")
     _add_selector_flags(p_resolve)
     p_resolve.set_defaults(handler=_resolve)
+
+    p_search = base_query_parser(
+        "search",
+        "Bounded, deterministic free-text search over the graph index (never a repository scan)",
+    )
+    p_search.add_argument("text", help="Search text (stable ID, path, label, symbol, or work-item ID)")
+    p_search.set_defaults(handler=_search)
 
     p_context = base_query_parser("context", "Bounded factual context around a resolved target")
     _add_selector_flags(p_context)

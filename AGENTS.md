@@ -56,6 +56,15 @@ particular role set.
 - **Policies** (`governance/policies/`): durable operating rules and hard-won
   lessons that are not themselves binding invariants.
 
+## Repository Orientation Graph (optional)
+
+Where enabled, [`repopact graph orient`/`search`/`dependencies`/`impact`/
+`tests`/`governance`](docs/repository-orientation-graph.md) give a bounded,
+deterministic way to find relevant work/decisions/tests before reading
+source — but every fact they surface is derived, never authoritative.
+Governance state still comes from `work/`, `governance/`, `decisions/`, and
+`evidence/` directly.
+
 ## Required checks
 
 Run before proposing completion:

@@ -28,7 +28,7 @@ pub const CURRENT_SEMANTIC_PIPELINE_VERSION: &str = "semantic-pipeline-1";
 /// Resource-policy version: bump when [`ResourcePolicy::default`]'s
 /// constants change in a way that could change which files are skipped
 /// vs. parsed for the same bytes.
-pub const CURRENT_RESOURCE_POLICY_VERSION: &str = "resource-policy-1";
+pub const CURRENT_RESOURCE_POLICY_VERSION: &str = "resource-policy-2";
 
 /// What must match, bit-for-bit, between a durable graph's baseline and
 /// the current implementation before any semantic contribution may be
@@ -51,11 +51,23 @@ pub struct SemanticCompatibility {
 /// only when the durable baseline's recorded identity equals this one
 /// exactly.
 pub fn current_semantic_compatibility() -> SemanticCompatibility {
-    let (adapter_versions, _relations_supported) = semantic::adapter_metadata();
+    let (mut adapter_versions, _relations_supported) = semantic::adapter_metadata();
+    // Metadata adapter identities/versions (WI063 metadata/operational-
+    // topology checkpoint, Decision 0048 section on extending
+    // compatibility identity) participate in the same reuse-compatibility
+    // check as source-language adapters -- merged into one map rather
+    // than a second field, since both are simply "adapter name ->
+    // version" and either changing invalidates reuse identically.
+    adapter_versions.extend(crate::metadata::adapter_versions());
     SemanticCompatibility {
         graph_schema_major: durable::CURRENT_GRAPH_SCHEMA_VERSION,
         pipeline_version: CURRENT_SEMANTIC_PIPELINE_VERSION.to_owned(),
         adapter_versions,
+        // Shared by source-language and metadata resource policy alike
+        // (minified/generated classification in `metadata::policy`
+        // applies uniformly ahead of both adapter families) -- one
+        // version constant, not two, since both are exercised by the
+        // exact same `build_file_contribution` policy checks.
         resource_policy_version: CURRENT_RESOURCE_POLICY_VERSION.to_owned(),
     }
 }
@@ -1397,6 +1409,162 @@ mod tests {
         assert_eq!(
             recovered, b"old graph",
             "the recovered graph must be byte-identical to the original, not the half-installed one"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    // WI063 metadata/operational-topology checkpoint, step 33: prove
+    // ROG-012 equivalence holds for metadata mutations too, using the
+    // exact same shared harness as the source-language mutation matrix.
+
+    #[test]
+    fn cargo_dependency_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case("cargo-dependency", base_fixture, |root| {
+            write(
+                root,
+                "Cargo.toml",
+                "[package]\nname = \"fixture\"\n\n[dependencies]\nserde = \"1.0\"\n",
+            );
+        });
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn cargo_workspace_member_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case("cargo-workspace-member", base_fixture, |root| {
+            write(
+                root,
+                "Cargo.toml",
+                "[workspace]\nmembers = [\"crates/added\"]\n",
+            );
+        });
+        assert_eq!(result.mode, UpdateMode::Incremental);
+    }
+
+    #[test]
+    fn python_dependency_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case(
+            "python-dependency",
+            |root| {
+                base_fixture(root);
+                write(
+                    root,
+                    "pyproject.toml",
+                    "[project]\nname = \"fixture\"\ndependencies = []\n",
+                );
+            },
+            |root| {
+                write(
+                    root,
+                    "pyproject.toml",
+                    "[project]\nname = \"fixture\"\ndependencies = [\"jsonschema>=4.20\"]\n",
+                );
+            },
+        );
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn package_json_script_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case(
+            "package-json-script",
+            |root| {
+                base_fixture(root);
+                write(root, "package.json", r#"{"name":"fixture","scripts":{}}"#);
+            },
+            |root| {
+                write(
+                    root,
+                    "package.json",
+                    r#"{"name":"fixture","scripts":{"build":"vite build"}}"#,
+                );
+            },
+        );
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn tsconfig_reference_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case(
+            "tsconfig-reference",
+            |root| {
+                base_fixture(root);
+                write(root, "tsconfig.json", r#"{"compilerOptions":{}}"#);
+            },
+            |root| {
+                write(
+                    root,
+                    "tsconfig.json",
+                    r#"{"compilerOptions":{},"extends":"./tsconfig.base.json"}"#,
+                );
+            },
+        );
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn ci_workflow_job_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case(
+            "ci-workflow-job",
+            |root| {
+                base_fixture(root);
+                write(
+                    root,
+                    ".github/workflows/ci.yml",
+                    "name: CI\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v4\n",
+                );
+            },
+            |root| {
+                write(
+                    root,
+                    ".github/workflows/ci.yml",
+                    "name: CI\njobs:\n  build:\n    steps:\n      - uses: actions/checkout@v5\n",
+                );
+            },
+        );
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn markdown_link_change_is_equivalent_to_full_rebuild() {
+        let result = run_equivalence_case(
+            "markdown-link",
+            |root| {
+                base_fixture(root);
+                write(root, "docs/guide.md", "# Guide\n\nSee [old](./old.md).\n");
+            },
+            |root| {
+                write(root, "docs/guide.md", "# Guide\n\nSee [new](./new.md).\n");
+            },
+        );
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(result.files_modified, 1);
+    }
+
+    #[test]
+    fn a_metadata_only_change_does_not_reparse_unrelated_source_files() {
+        let root = temp_root("metadata-isolated-reparse");
+        base_fixture(&root);
+        let snapshot0 = open_snapshot(&root);
+        crate::build_and_write(&snapshot0).expect("baseline build");
+
+        write(
+            &root,
+            "Cargo.toml",
+            "[package]\nname = \"fixture\"\n\n[dependencies]\nserde = \"1.0\"\n",
+        );
+        let snapshot1 = open_snapshot(&root);
+        let result = update(&snapshot1).expect("incremental update");
+        assert_eq!(result.mode, UpdateMode::Incremental);
+        assert_eq!(
+            result.files_modified, 1,
+            "only Cargo.toml itself should be reparsed, not the unrelated \
+             Rust/Python/TypeScript source files in the same fixture"
         );
         std::fs::remove_dir_all(root).unwrap();
     }

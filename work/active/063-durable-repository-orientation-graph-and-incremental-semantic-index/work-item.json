@@ -96,8 +96,10 @@
     {
       "id": "ROG-010",
       "text": "Expose explicit graph freshness/capability states including at least fresh, working-overlay or dirty-aware, partial, stale, unsupported, and corrupt (exact naming may differ). No supported client may silently present stale or partial graph output as a current complete repository map.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-063-working-overlay-checkpoint"
+      ]
     },
     {
       "id": "ROG-011",
@@ -118,8 +120,10 @@
     {
       "id": "ROG-013",
       "text": "Integrate with RepositorySession/snapshot and the existing watcher model so uncommitted working-tree changes can invalidate or update a local graph overlay without rewriting the durable baseline on every keystroke. Query results disclose when dirty working-tree state contributes to the answer.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-063-working-overlay-checkpoint"
+      ]
     },
     {
       "id": "ROG-014",
@@ -142,8 +146,10 @@
     {
       "id": "ROG-017",
       "text": "Define a language-neutral adapter interface for semantic extraction. Evaluate Tree-sitter or an equivalent incremental parser substrate and record the selected approach based on determinism, incremental behavior, portability, parse safety, language coverage, packaging cost, and integration with the Rust core.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260913-063-semantic-checkpoint"
+      ]
     },
     {
       "id": "ROG-018",

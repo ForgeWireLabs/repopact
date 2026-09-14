@@ -739,3 +739,269 @@ reuse are proven cross-platform; alternatively, closing ROG-017/018/022's
 disclosed semantic-coverage gaps before adding overlay complexity. A
 fresh architecture review should decide between the two.
 
+---
+
+# WI063 Implementation Progress -- Working-Overlay Checkpoint (2026-09-13)
+
+## Scope
+
+Building on the accepted incremental-equivalence checkpoint, this
+checkpoint implements ROG-013 (session working-tree overlay), reassesses
+ROG-010 against real disclosure behavior, and reassesses ROG-017 against
+already-existing semantic-checkpoint evidence. Decision 0047 binds the
+architecture. Explicitly not attempted: build/test/runtime operational
+adapters, rich JSON/TOML/YAML/Markdown semantic coverage, query/orient/
+impact APIs, the Workbench repository-map UI, adoption/backfill
+integration, a local acceleration database, a persistent Tree-sitter
+syntax-tree cache, or S8 R1.
+
+## The problem this checkpoint eliminates
+
+Before this checkpoint, `repopact-desktop-api` called
+`core.graph_snapshot(&snapshot)` -- a full governance+physical+semantic
+rebuild from scratch -- on every session open, every explicit refresh,
+both branches of `apply_mutation_plan`, and every non-no-op watcher poll.
+Two compounding costs made this expensive once semantic adapters existed
+(the prior checkpoint): the source-projection content-hash walk (proven
+by ROG-012's own performance evidence to dominate wall time), and a
+*second*, entirely separate full rebuild inside `overview_from_snapshot`
+purely to compute `graph_node_count`/`graph_edge_count`. A further,
+previously-undiagnosed gap: `RepositorySnapshot::token()` reflects only
+governance-record content, so an ordinary source-file edit (exactly the
+case ROG-013 targets) never changed it, and the pre-existing
+`poll_repository_events` logic used token equality to skip all graph
+work -- meaning plain source edits never updated the cached graph at all,
+regardless of how much semantic-extraction work existed under the hood.
+
+## Architecture
+
+```text
+                   durable ROG baseline
+                          Gd
+                          |
+                          v
+                 session graph state
+                          |
+        +-----------------+------------------+
+        |                                    |
+        v                                    v
+RepositorySnapshot                    watcher change set
+current governance                    changed paths
+current topology                           |
+        |                                   |
+        +----------------+------------------+
+                         |
+                         v
+               in-memory reconciliation
+                         |
+                         v
+                    working overlay
+                         Gw
+```
+
+No durable `rog/` file is changed by ordinary overlay reconciliation --
+only an explicit `repopact graph build`/`graph update` writes it.
+
+## SessionGraphState (repopact-graph::overlay)
+
+The canonical engine lives in `repopact-graph`, not
+`repopact-desktop-api` -- desktop/Tauri code orchestrates it; it does not
+derive graph correctness itself, and neither does the frontend.
+
+- `open(snapshot)`: one full source-projection walk (a session-open
+  cost, not a per-event cost). If the durable graph is present,
+  structurally valid, and its fingerprint already matches, the effective
+  graph is loaded verbatim (`durable::load_graph`) -- no source file is
+  read, no adapter runs. If stale, reconciles once in memory against the
+  durable baseline (reusing `incremental::plan_reconciliation`, the same
+  algorithm the durable `graph.update` path uses). If absent/corrupt/
+  unsupported, performs one full in-memory build.
+- `reconcile(snapshot, changed_paths)`: the watcher-driven hot path. For
+  each changed path, `symlink_metadata` classifies it first (a directory
+  or symlink triggers a conservative fallback to `refresh()`, never a
+  guess); a regular file's current digest is compared against the
+  in-memory inventory (a genuine no-op is dropped without reparsing);
+  only a real add/modify calls `semantic::build_file_contribution` for
+  that one file, and every other cached contribution is reused
+  untouched. Never performs a full projection walk. A burst above
+  `LARGE_BURST_FALLBACK_THRESHOLD` (64, centralized and documented) also
+  falls back to `refresh()`.
+- `refresh(snapshot)`: the explicit correctness-recovery path
+  (`refresh_repository()`'s effective-graph refresh). One full
+  projection walk, diffed against the overlay's own current in-memory
+  inventory (not the durable baseline, which this call does not
+  re-read) -- after it returns, the effective graph truthfully reflects
+  current filesystem state even if the durable baseline remains stale.
+
+## Shared machinery, not a second implementation
+
+`incremental::plan_reconciliation` was extracted from
+`incremental_update` (a behavior-preserving refactor -- all 69
+pre-existing `repopact-graph` tests passed unchanged both before and
+after) so the durable `graph.update` path and the overlay's
+session-open/stale-reconcile/refresh paths call the identical delta-
+reconciliation algorithm; the durable path additionally calls
+`durable::write`, the overlay path keeps the result in memory only.
+Every contribution regeneration, in both the durable and overlay paths,
+funnels through the same `semantic::build_file_contribution` primitive
+Decision 0046 established -- there is no second semantic-extraction
+implementation anywhere in this checkpoint.
+
+## Orthogonal status model (ROG-010)
+
+`GraphBasis` (durable/working_overlay), `GraphCoverageState` (complete/
+partial), and `DurableFreshness` (absent/fresh/stale/unsupported/corrupt)
+are three new, independent types combined into `EffectiveGraphStatus`.
+The pre-existing `status::Freshness` (the durable CLI's own model for
+`repopact graph status/build/verify`) is untouched -- `repopact graph
+status` may legitimately report `stale` at the exact moment a session's
+`EffectiveGraphStatus.basis` reports `working_overlay`; both are true,
+neither contradicts the other (Decision 0047 section 5/step 19). The
+effective status can simultaneously express `basis=working_overlay,
+coverage=partial, durable_baseline=stale` -- proven directly by a
+dedicated frontend test.
+
+## Watcher/session integration
+
+- `open_repository`: `SessionGraphState::open(&snapshot)`.
+- `refresh_repository`: `overlay.refresh(&snapshot)`.
+- `apply_mutation_plan` success path: `overlay.reconcile(&snapshot,
+  &changed_paths)` using the mutation's own exact changed paths --
+  self-applied edits update the graph immediately, before any watcher
+  poll (WI063 step 15). The stale-read-set failure path calls
+  `overlay.refresh` instead, since a failed apply is not a self-apply.
+- `poll_repository_events`: `overlay.reconcile(&snapshot, &paths)` now
+  runs on every non-empty watcher burst unconditionally, closing the
+  governance-token gap described above. `overview_from_snapshot` no
+  longer performs its own separate full rebuild -- it now takes the
+  overlay's already-computed node/edge counts as parameters, removing
+  the second redundant full rebuild every call site had been paying for.
+- The pre-existing `pending_self_paths`/`ChangeOrigin::SelfApply`
+  de-duplication is preserved unchanged; the overlay's own no-op
+  detection (an unchanged digest produces no reparse and does not bump
+  `overlay_generation`) additionally guarantees no duplicate semantic
+  work when the watcher later reports the same self-applied paths.
+
+## Durable no-write proof
+
+A dedicated `repopact-graph::overlay` test hashes `rog/manifest.json`
+and every node/edge shard before and after a 5-round burst of
+`reconcile()` calls (an edit repeated five times, a file added, a file
+deleted) and asserts byte-identical output. A dedicated
+`repopact-desktop-api` test proves ordinary session activity (open,
+watcher-driven edits, an explicit refresh) never creates `rog/` at all.
+A real ~1,470-file fixture run (see Performance evidence below)
+corroborates this on real content: the durable directory was written
+exactly once (the initial build) across seven subsequent overlay
+operations.
+
+## Test matrix (ROG-013)
+
+14 new `repopact-graph::overlay` tests plus 3 new `repopact-desktop-api`
+tests cover: a single semantic edit (one reparse, unrelated contributions
+reused, basis becomes `working_overlay`); a multi-file burst (only
+touched files reparse); addition/deletion/rename (delete+add, no
+fabricated identity); an unsupported-file change (inventory updates
+without fabricating semantics); a parser failure (coverage becomes
+`partial` without destroying unrelated contributions) and its recovery;
+pre-existing dirty state detected at session open with zero watcher
+history; a directory-level event and an oversized burst both falling
+back to a full reconcile; a duplicate/no-op watcher event (zero reparse,
+no generation bump); an explicit refresh reconciling a change the
+watcher never reported; a 100-file fixture proving exactly one reparse
+for one changed file; the durable-shard-hash-before/after proof above; a
+watcher-reported plain source edit updating the graph despite an
+unchanged governance snapshot token; a self-applied mutation updating
+the graph immediately, with the watcher's later report of the same paths
+recognized as `SelfApply` rather than duplicated; and ordinary session
+activity never writing `rog/`.
+
+Repository switching (a fresh session discards any prior overlay by
+construction -- a new `SessionGraphState::open` call, never reused across
+sessions) and session close/reopen (the overlay is a plain Rust value
+owned by `ActiveSession`, never serialized) were not given dedicated
+tests because both properties follow directly from the type's ownership
+structure rather than from any conditional logic that could regress
+independently.
+
+## Performance evidence (engineering validation only)
+
+On a disposable ~1,470-file copy of RepoPact's own live checkout, via a
+small standalone harness driving `SessionGraphState` directly (the
+overlay has no engine-CLI surface -- it is a session/desktop-only
+primitive): full durable build 3.28s; session open against a fresh
+durable baseline 2.63s (still pays one projection walk to confirm the
+fingerprint match, per Decision 0047 section 7); a single-file
+watcher-style update 559ms (1 reparsed, 696 reused); a duplicate/no-op
+watcher event 294.5 microseconds; a 10-event burst on the same file
+541ms total; a 5-file multi-file burst 683ms; an explicit full session
+refresh 2.23s. This is engineering validation only, explicitly not
+S8/R1 evidence and not claimed toward ROG-032 (which requires a broader,
+dedicated benchmark suite -- peak memory, local-cache size, clean-clone
+load time, query latency, branch/merge rebuild cost -- not attempted
+here).
+
+## WI057 re-check
+
+Both pre-existing `repopact-desktop-api` WI057 tests
+(`desktop_reads_reuse_one_snapshot_generation_without_git_fanout`,
+`watcher_burst_has_one_bounded_refresh_and_ignores_build_churn`) pass
+unchanged. Overlay reconciliation performs zero additional Git
+invocations -- delta computation and contribution reuse are pure
+in-memory/disk-shard operations.
+
+## Cross-platform proof
+
+The WSL2 Debian 13 checkout at `~/repopact-linux` (never `/mnt/c/...`)
+was fast-forwarded to this checkpoint's pushed commits and rebuilt;
+`cargo test -p repopact-graph -p repopact-desktop-api` and
+`cargo test --workspace` reproduce the exact same pass counts (83/14,
+full workspace green) as native Windows. The durable graph format is
+unchanged by this checkpoint (no schema-major bump, no new manifest
+field), so no new byte-equivalence cross-platform proof was required
+beyond ROG-012's own -- this run re-proves the overlay engine's test
+suite is platform-independent. No macOS execution occurred or is
+claimed.
+
+## AC assessment
+
+**Newly satisfied:** ROG-013 (session-local, non-durable, reconstructable
+overlay; watcher events treated as hints and re-verified; explicit
+conservative fallback for directory-level/oversized ambiguity;
+self-applied mutations reflected immediately; pre-existing dirty state
+detected without watcher history; durable `rog/` never rewritten by
+ordinary session activity), ROG-010 (all six required states are real,
+typed, and disclosed through `GraphView.status`; the desktop Workbench's
+Graph page status line renders working-overlay/partial/stale states
+distinctly, proven by two dedicated frontend tests).
+
+**Reassessed (not newly implemented this checkpoint):** ROG-017.
+Direct inspection of Decision 0045 and the semantic-adapter checkpoint's
+own evidence record confirms every clause of ROG-017's exact text
+already has genuine evidence (language-neutral adapter interface,
+Tree-sitter evaluated against alternatives, determinism/incremental-
+capability/portability/parse-safety/language-coverage/packaging-cost/
+Rust-core-integration all recorded). Marked satisfied against evidence
+ID `20260913-063-semantic-checkpoint`, not this checkpoint's own -- this
+working-overlay checkpoint did not touch semantic extraction.
+
+**Still pending:** ROG-004/018/022 (unchanged disclosed gaps -- broader
+edge taxonomy; JSON/TOML/YAML/Markdown/manifest semantic coverage
+explicitly named in ROG-018's own text; minified/generated file policy),
+ROG-031 (the broad conformance matrix now includes a genuinely proven
+durable-no-write-during-overlay-use property in addition to ROG-012's
+equivalence proof, but this checkpoint did not audit every remaining
+item in that matrix as one coordinated pass), ROG-032 (overlay-specific
+timing evidence gathered, but not the AC's full dedicated benchmark
+suite).
+
+## Next recommended WI063 phase
+
+Two credible options: (a) a persistent Tree-sitter syntax-tree cache /
+incremental reparse layer on top of the now-proven contribution-reuse
+overlay, for genuinely large repositories where even single-file
+reparse cost matters; or (b) closing the disclosed ROG-018/022 semantic-
+coverage gaps (JSON/TOML/YAML/Markdown adapters, exports detection,
+minified/generated policy) before adding further overlay sophistication.
+A fresh architecture review should decide between the two.
+

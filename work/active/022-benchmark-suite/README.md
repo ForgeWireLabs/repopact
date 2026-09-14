@@ -9,8 +9,8 @@
 - **Compute / model access.** Running every study across ≥2 model families needs API keys /
   model access you provision. The harness and pre-registered task sets can be built without
   it; the *results* (AC-3) are gated on run access.
-- **First live smoke.** AC-5 requires one provisioned real-model command before the full
-  comparative programme can be treated as de-risked.
+- **Comparative studies.** AC-3 remains operator-gated until a separate multi-family
+  comparative programme is authorized.
 
 ## Intent
 
@@ -87,15 +87,20 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
   once each on the authenticated Codex CLI runtime. Raw captures and postconditions are
   preserved, but the strict RealRunner envelopes are non-reportable because the runtime
   did not expose the required context-vs-task or cache-adjusted token attribution.
+- **Second real smoke (2026-09-14):** after the corrected task-set and v2 public-schema
+  fixes were published to proving-ground `master@99b34d8`, one admission probe and exactly
+  one v2 app-server invocation each for 0001, 0002, and 0021 completed in fresh isolated+  workspaces. All three envelopes carry public `thread/tokenUsage/updated` request-level
+  ledgers, complete cache/context/task attribution, model/provider identity, prompts,
+  outputs, deterministic postconditions, and raw captures. The reconciled outcomes were+  `proceeded_safely`, `errored`, and `errored`; these are empirical captured outcomes,+  not a claim of three successful catches. Evidence: [`20260914-wi022-ac5-realrunner-smoke-v2`](../../../evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json).
 - **Drivers and registrations:** Proving Ground now has deterministic S2 recovery and
   pinned-bed selectors/materialization from immutable SWE-bench Verified and SWE-EVO
   assets, S3 concurrent isolated-worker scoring, S4 C0-C9
   plus C2+C3 condition validation and cost/success analyses, an S5 shared-envelope
   adapter, and S6b scoring over frozen tasks 0023/0024. Mock/fake outputs are explicitly
   illustrative/non-empirical.
-- **Still gated:** S2/S3/S4/S6b live execution, complete applicable-study telemetry,
-  and results across ≥2 model families. The AC-5 smoke is captured but non-reportable;
-  no row in any harness report is a finding.
+- **Still gated:** S2/S3/S4/S6b live execution and results across ≥2 model families.
+  The three-case AC-5 smoke is reportable as a runtime/telemetry acceptance smoke, but its
+  outcomes are not promoted to a comparative finding or full-study result.
 - **S5 dependency:** WI037 repaired the drift harness's removed flat imports. The
   packaged RepoPact 3.0.2 S5 selftest now passes in the Proving Ground; this does
   not turn deterministic plumbing into a live empirical result.
@@ -112,16 +117,15 @@ Ground WI022 branch; live-model criteria remain pending. Evidence:
   reproducible acquisition, source-schema validation, model/evaluation projection,
   base-commit preflight, and offline verification path. Live study execution remains
   separately gated.
-- [ ] **AC-2** — pending. The smoke exposed real input/output/cached usage and an explicit
-  subscription pricing policy, but not accurate `context_tokens`, `task_tokens`, or
-  `cache_adjusted_input_tokens`; the missing attribution is recorded rather than inferred.
+- [x] **AC-2** — satisfied. The v2 public app-server path was exercised on three completed
+  real-model turns and produced reconciled per-request input/output/cached/reasoning usage,
+  context-vs-task attribution, cache-adjusted tokens, requests-per-task, and the explicit+  authenticated-subscription USD policy. The existing deterministic drift and security+  instrumentation remains covered by the prior evidence set.
 - [ ] **AC-3** — pending and operator-gated. No results across two model families,
   Pareto frontier, or scaling curve exist.
 - [x] **AC-4** — satisfied. The dated 2026-09-13 WI022 amendment freezes the enumerated
   analysis choices before any reportable live result.
-- [ ] **AC-5** — pending. Three real task attempts completed with prompts, outputs, raw event
-  captures, postconditions, and failures, but all three envelopes are non-reportable due
-  to the missing required telemetry attribution.
+- [x] **AC-5** — satisfied. Exactly one fresh v2 real-model invocation completed for each
+  pre-registered task 0001, 0002, and 0021 after the admission ledger passed. Each envelope+  has the raw command, actual public provider/model, prompt/output, per-request and+  aggregate telemetry, deterministic grader reconciliation, and raw event capture. The+  historical first smoke remains unchanged and non-reportable; AC-3 was not started.
 
 The 2026-07-26 live check also found that Proving Ground's S5 selftest fails
 against the current package boundary because it imports removed flat module
@@ -142,3 +146,5 @@ and
 [`20260913-wi022-ac5-realrunner-smoke`](../../../evidence/runs/20260913-wi022-ac5-realrunner-smoke.json).
 and
 [`20260913-wi022-telemetry-v2-checkpoint`](../../../evidence/runs/20260913-wi022-telemetry-v2-checkpoint.json).
+and
+[`20260914-wi022-ac5-realrunner-smoke-v2`](../../../evidence/runs/20260914-wi022-ac5-realrunner-smoke-v2.json).

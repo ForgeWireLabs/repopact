@@ -244,3 +244,27 @@ historical admission records and captures remain unchanged. Evidence:
 - [ ] **AC-3** remains pending. Both model-family admissions still require one
   fresh operator-authorized attempt each. No registered AC-3 benchmark cell
   has been executed.
+
+## AC-3 post-repair admission checkpoint v3 (2026-09-14)
+
+Following the deterministic Windows workspace repair, exactly one fresh
+non-benchmark admission was run for each permitted family: `gpt-5.6-luna` and
+`gpt-6-astra`. Both passed the full admission contract: the workspace
+preflight was green, the real app-server turn completed, strict structured
+output and telemetry reconciled, the model tool operation completed, the host
+read the resulting file with an exact 29-byte match, the empirical envelope
+validated, and the secret scan passed.
+
+The two captures are preserved in the new Proving Ground
+`20260914-wi022-ac3-admission-v3` namespace at published
+`master@9ab390d6f9bdd93ee9da1ff4f7dc89cf0a5f288c`. The prior initial-failure,
+post-fix-failure, and deterministic workspace-contract records remain
+unchanged. Evidence:
+[`20260914-wi022-ac3-admission-v3`](../../../evidence/runs/20260914-wi022-ac3-admission-v3.json).
+
+The frozen AC-3 programme is technically executable for both admitted model
+families. No comparative benchmark cell has yet been run. AC-3 remains
+pending.
+
+- [ ] **AC-3** remains pending. No registered AC-3 benchmark cell has been
+  executed.

@@ -1,4 +1,5 @@
 mod adopters;
+mod assurance;
 mod graph;
 mod research;
 mod verification;
@@ -14,6 +15,8 @@ use repopact_repository::{
     RepositoryTopology, STATUSES,
 };
 use repopact_schema::SchemaStore;
+#[cfg(test)]
+use repopact_types::Severity;
 use repopact_types::{Diagnostic, LifecycleStatus, ValidationReport, WorkItem};
 use serde_json::{Map, Value};
 
@@ -46,6 +49,17 @@ pub fn validate(root: impl AsRef<Path>) -> ValidationReport {
 /// validation boundary.
 pub fn validate_snapshot(snapshot: &RepositorySnapshot) -> ValidationReport {
     Validator::from_snapshot(snapshot).validate()
+}
+
+/// Compute the deterministic, read-only assurance-mapping review snapshot
+/// for `mapping_id` (WI051 phase 2, Decision 0055). Never writes anything;
+/// callers (the `assurance.snapshot` engine operation, `repopact assurance
+/// snapshot`) hand the result to the adopter to merge into their own record.
+pub fn compute_review_snapshot(
+    snapshot: &RepositorySnapshot,
+    mapping_id: &str,
+) -> Result<Value, String> {
+    Validator::from_snapshot(snapshot).compute_review_snapshot(mapping_id)
 }
 
 /// Render the owned dashboard projection without writing it. Mutation planning
@@ -143,6 +157,8 @@ impl Validator {
         self.validate_orphan_work_dirs();
         self.validate_evidence();
         self.validate_assurance_mappings();
+        self.validate_sensitive_evidence();
+        self.validate_review_and_claims();
         self.validate_audit_registry();
         self.validate_verification();
         self.validate_dashboard();
@@ -1672,6 +1688,24 @@ impl Validator {
         Diagnostic::error(code, message).with_path(self.rel(path))
     }
 
+    fn warn_at(
+        &self,
+        code: impl Into<String>,
+        message: impl Into<String>,
+        path: &Path,
+    ) -> Diagnostic {
+        Diagnostic::warning(code, message).with_path(self.rel(path))
+    }
+
+    fn info_at(
+        &self,
+        code: impl Into<String>,
+        message: impl Into<String>,
+        path: &Path,
+    ) -> Diagnostic {
+        Diagnostic::info(code, message).with_path(self.rel(path))
+    }
+
     fn rel(&self, path: &Path) -> String {
         self.repository.relative_path(path)
     }
@@ -2113,6 +2147,316 @@ mod tests {
             "expected no assurance diagnostics: {:?}",
             report.diagnostics
         );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    fn write_mapping(root: &Path, id: &str, extra_fields: &str) {
+        fs::create_dir_all(root.join("assurance/mappings")).unwrap();
+        let body = format!(
+            r#"{{
+                "$schema": "assurance-mapping.schema.json",
+                "version": 1,
+                "id": "{id}",
+                "framework": {{"id": "example-framework", "source_authority": "adopter-extension"}},
+                "requirement": {{"id": "AC-7"}},
+                "applicability": {{"status": "unassessed"}}
+                {extra_fields}
+                ,"created": "2026-09-14",
+                "updated": "2026-09-14"
+            }}"#
+        );
+        fs::write(root.join(format!("assurance/mappings/{id}.json")), body).unwrap();
+    }
+
+    fn diagnostic_with_code<'a>(
+        report: &'a repopact_types::ValidationReport,
+        code: &str,
+    ) -> Option<&'a Diagnostic> {
+        report.diagnostics.iter().find(|d| d.code == code)
+    }
+
+    /// `minimal_root` is deliberately not a fully valid repository (e.g. its
+    /// empty invariants list fails schema validation on its own), so these
+    /// tests check for the absence of an assurance-specific error rather
+    /// than the whole report's `has_errors()`.
+    fn has_assurance_error(report: &repopact_types::ValidationReport) -> bool {
+        report
+            .diagnostics
+            .iter()
+            .any(|d| d.code.starts_with("assurance.") && d.severity == Severity::Error)
+    }
+
+    #[test]
+    fn restricted_repository_artifact_warns_but_does_not_block() {
+        let root = minimal_root("assurance-restricted-artifact");
+        fs::create_dir_all(root.join("evidence")).unwrap();
+        fs::write(
+            root.join("evidence/redacted.md"),
+            "bounded synthetic summary",
+        )
+        .unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "repository_artifact", "sensitivity": "restricted", "path": "evidence/redacted.md"}]"#,
+        );
+        let report = validate(&root);
+        let diagnostic =
+            diagnostic_with_code(&report, "assurance.evidence-restricted-repository-artifact")
+                .expect("expected a restricted-artifact warning");
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert!(
+            !has_assurance_error(&report),
+            "a warning must never block validity: {:?}",
+            report.diagnostics
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn private_key_material_in_evidence_artifact_is_a_blocking_error() {
+        let root = minimal_root("assurance-private-key");
+        fs::create_dir_all(root.join("evidence")).unwrap();
+        fs::write(
+            root.join("evidence/leak.txt"),
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nsynthetic-test-data-only\n-----END OPENSSH PRIVATE KEY-----\n",
+        )
+        .unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/leak.txt"}]"#,
+        );
+        let report = validate(&root);
+        let diagnostic = diagnostic_with_code(&report, "assurance.evidence-private-key-material")
+            .expect("expected a private-key error");
+        assert_eq!(diagnostic.severity, Severity::Error);
+        assert!(report.has_errors());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn credential_bearing_external_uri_is_a_blocking_error() {
+        let root = minimal_root("assurance-credential-uri");
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "external_reference", "sensitivity": "ordinary", "external": {"system": "example", "identifier": "1", "reference": "https://user:synthetic-pw@example.invalid/report"}}]"#,
+        );
+        let report = validate(&root);
+        let diagnostic =
+            diagnostic_with_code(&report, "assurance.evidence-external-reference-credential")
+                .expect("expected a credential-in-uri error");
+        assert_eq!(diagnostic.severity, Severity::Error);
+        assert!(report.has_errors());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn oversized_artifact_is_a_coverage_info_not_a_scan() {
+        let root = minimal_root("assurance-oversize");
+        fs::create_dir_all(root.join("evidence")).unwrap();
+        fs::write(root.join("evidence/big.txt"), vec![b'a'; 300_000]).unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/big.txt"}]"#,
+        );
+        let report = validate(&root);
+        let diagnostic = diagnostic_with_code(
+            &report,
+            "assurance.evidence-artifact-oversize-not-inspected",
+        )
+        .expect("expected an oversize coverage diagnostic");
+        assert_eq!(diagnostic.severity, Severity::Info);
+        assert!(!has_assurance_error(&report), "{:?}", report.diagnostics);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn binary_artifact_is_skipped_with_a_coverage_diagnostic() {
+        let root = minimal_root("assurance-binary");
+        fs::create_dir_all(root.join("evidence")).unwrap();
+        fs::write(root.join("evidence/bin.dat"), [0u8, 1, 2, 3, 255, 254]).unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/bin.dat"}]"#,
+        );
+        let report = validate(&root);
+        diagnostic_with_code(&report, "assurance.evidence-artifact-binary-not-inspected")
+            .expect("expected a binary coverage diagnostic");
+        assert!(!has_assurance_error(&report), "{:?}", report.diagnostics);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn review_overdue_is_a_warning() {
+        let root = minimal_root("assurance-overdue");
+        write_mapping(
+            &root,
+            "example",
+            r#","review": {"reviewed_at": "2020-01-01T00:00:00Z", "review_due_at": "2020-02-01T00:00:00Z"}"#,
+        );
+        let report = validate(&root);
+        let diagnostic = diagnostic_with_code(&report, "assurance.review-overdue")
+            .expect("expected an overdue warning");
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert!(!has_assurance_error(&report), "{:?}", report.diagnostics);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn framework_version_stale_is_a_warning() {
+        let root = minimal_root("assurance-stale-framework");
+        write_mapping(
+            &root,
+            "example",
+            r#","framework": {"id": "example-framework", "version": "2027", "source_authority": "adopter-extension"},"review": {"framework_version_reviewed": "2026"}"#,
+        );
+        let report = validate(&root);
+        diagnostic_with_code(&report, "assurance.review-framework-version-stale")
+            .expect("expected a stale-framework-version warning");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn documentation_claim_basis_without_support_is_an_error() {
+        let root = minimal_root("assurance-claim-basis");
+        write_mapping(
+            &root,
+            "example",
+            r#","documentation_refs": [{"path": "AGENTS.md", "claim_basis": "evidence_reference"}]"#,
+        );
+        let report = validate(&root);
+        let diagnostic =
+            diagnostic_with_code(&report, "assurance.documentation-claim-basis-unsupported")
+                .expect("expected a claim-basis error");
+        assert_eq!(diagnostic.severity, Severity::Error);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn documentation_claim_basis_with_support_is_accepted() {
+        let root = minimal_root("assurance-claim-basis-ok");
+        write_mapping(
+            &root,
+            "example",
+            r#","evidence_refs": [{"kind": "hash", "sensitivity": "ordinary", "hash": {"algorithm": "sha256", "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}],"documentation_refs": [{"path": "AGENTS.md", "claim_basis": "evidence_reference"}]"#,
+        );
+        let report = validate(&root);
+        assert!(
+            diagnostic_with_code(&report, "assurance.documentation-claim-basis-unsupported")
+                .is_none(),
+            "{:?}",
+            report.diagnostics
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Merge `snapshot_value` into the mapping's *existing* `review` object
+    /// (never replacing it), matching the realistic workflow: an adopter
+    /// reviews first (populating `review.reviewed_by`/`reviewed_at`), then
+    /// takes a snapshot. Replacing `review` wholesale would make embedding a
+    /// snapshot look like a mapping edit in itself.
+    fn embed_snapshot(mapping_path: &Path, snapshot_value: Value) {
+        let mut data: Value =
+            serde_json::from_str(&fs::read_to_string(mapping_path).unwrap()).unwrap();
+        if data.get("review").is_none() {
+            data["review"] = serde_json::json!({});
+        }
+        data["review"]["snapshot"] = snapshot_value;
+        fs::write(mapping_path, serde_json::to_string_pretty(&data).unwrap()).unwrap();
+    }
+
+    #[test]
+    fn review_mapping_drift_is_detected_after_an_edit() {
+        let root = minimal_root("assurance-mapping-drift");
+        write_mapping(
+            &root,
+            "example",
+            r#","review": {"reviewed_by": "reviewer"}"#,
+        );
+        let validator = Validator::new(Repository::open(&root));
+        let snapshot_value = validator.compute_review_snapshot("example").unwrap();
+        let mapping_path = root.join("assurance/mappings/example.json");
+        embed_snapshot(&mapping_path, snapshot_value);
+
+        // Unchanged: no drift.
+        let report = validate(&root);
+        assert!(
+            diagnostic_with_code(&report, "assurance.review-mapping-drift").is_none(),
+            "{:?}",
+            report.diagnostics
+        );
+
+        // Edit the mapping's applicability -- drift must now be visible,
+        // including for an uncommitted, dirty working-tree change.
+        let mut data: Value =
+            serde_json::from_str(&fs::read_to_string(&mapping_path).unwrap()).unwrap();
+        data["applicability"] = serde_json::json!({"status": "applicable", "rationale": "changed", "determined_by": "reviewer"});
+        fs::write(&mapping_path, serde_json::to_string_pretty(&data).unwrap()).unwrap();
+        let report = validate(&root);
+        diagnostic_with_code(&report, "assurance.review-mapping-drift")
+            .expect("expected mapping drift");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn review_reference_drift_is_detected_for_a_changed_implementation_file() {
+        let root = minimal_root("assurance-reference-drift");
+        fs::write(root.join("impl.txt"), "version one").unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","review": {"reviewed_by": "reviewer"},"implementation_refs": [{"kind": "source", "ref": "impl.txt"}]"#,
+        );
+        let validator = Validator::new(Repository::open(&root));
+        let snapshot_value = validator.compute_review_snapshot("example").unwrap();
+        let mapping_path = root.join("assurance/mappings/example.json");
+        embed_snapshot(&mapping_path, snapshot_value);
+
+        fs::write(root.join("impl.txt"), "version two -- uncommitted edit").unwrap();
+        let report = validate(&root);
+        diagnostic_with_code(&report, "assurance.review-reference-drift")
+            .expect("expected reference drift");
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn review_reference_missing_after_deletion_is_distinct_from_drift() {
+        let root = minimal_root("assurance-reference-missing");
+        fs::write(root.join("impl.txt"), "version one").unwrap();
+        write_mapping(
+            &root,
+            "example",
+            r#","review": {"reviewed_by": "reviewer"},"implementation_refs": [{"kind": "source", "ref": "impl.txt"}]"#,
+        );
+        let validator = Validator::new(Repository::open(&root));
+        let snapshot_value = validator.compute_review_snapshot("example").unwrap();
+        let mapping_path = root.join("assurance/mappings/example.json");
+        embed_snapshot(&mapping_path, snapshot_value);
+
+        fs::remove_file(root.join("impl.txt")).unwrap();
+        let report = validate(&root);
+        diagnostic_with_code(&report, "assurance.review-reference-missing")
+            .expect("expected reference missing");
+        assert!(diagnostic_with_code(&report, "assurance.review-reference-drift").is_none());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn snapshot_is_byte_identical_across_repeated_runs() {
+        let root = minimal_root("assurance-snapshot-determinism");
+        write_mapping(
+            &root,
+            "example",
+            r#","control_refs": [{"kind": "invariant", "ref": "INV-does-not-matter"}]"#,
+        );
+        let validator = Validator::new(Repository::open(&root));
+        let first = validator.compute_review_snapshot("example").unwrap();
+        let second = validator.compute_review_snapshot("example").unwrap();
+        assert_eq!(first, second);
         fs::remove_dir_all(root).unwrap();
     }
 

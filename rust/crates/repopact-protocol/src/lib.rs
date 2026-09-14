@@ -139,6 +139,7 @@ pub fn capabilities() -> Capabilities {
             "graph.impact".to_owned(),
             "graph.orient".to_owned(),
             "analyze".to_owned(),
+            "assurance.snapshot".to_owned(),
         ],
         semantic_surfaces: vec![
             "repository".to_owned(),

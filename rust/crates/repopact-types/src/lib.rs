@@ -281,9 +281,25 @@ pub struct Diagnostic {
 
 impl Diagnostic {
     pub fn error(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::with_severity(Severity::Error, code, message)
+    }
+
+    pub fn warning(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::with_severity(Severity::Warning, code, message)
+    }
+
+    pub fn info(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::with_severity(Severity::Info, code, message)
+    }
+
+    fn with_severity(
+        severity: Severity,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             code: code.into(),
-            severity: Severity::Error,
+            severity,
             message: message.into(),
             path: None,
             record: None,
@@ -314,7 +330,12 @@ impl Diagnostic {
             .as_deref()
             .or(self.record.as_deref())
             .unwrap_or("<repository>");
-        format!("ERROR [{}] {}: {}", self.code, location, self.message)
+        let severity = match self.severity {
+            Severity::Error => "ERROR",
+            Severity::Warning => "WARNING",
+            Severity::Info => "INFO",
+        };
+        format!("{severity} [{}] {}: {}", self.code, location, self.message)
     }
 }
 

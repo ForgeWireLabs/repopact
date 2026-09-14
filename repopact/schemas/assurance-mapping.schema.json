@@ -114,9 +114,41 @@
         "reviewed_by": {"type": "string", "minLength": 1},
         "review_due_at": {"type": "string", "format": "date-time"},
         "review_interval_days": {"type": "integer", "minimum": 1},
-        "framework_version_reviewed": {"type": "string", "minLength": 1}
+        "framework_version_reviewed": {"type": "string", "minLength": 1},
+        "snapshot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mapping_digest", "references"],
+          "properties": {
+            "mapping_digest": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$",
+              "description": "SHA-256 hex digest of the mapping's canonical review projection (Decision 0055 section 4): the full mapping object with 'review.snapshot', 'created', and 'updated' excluded, recursively key-sorted and compactly serialized. Computed by 'repopact assurance snapshot <id>', never hand-authored."
+            },
+            "references": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["category", "kind", "ref", "digest"],
+                "properties": {
+                  "category": {"enum": ["control", "implementation", "evidence", "documentation"]},
+                  "kind": {"type": "string", "minLength": 1},
+                  "ref": {"type": "string", "minLength": 1},
+                  "digest": {
+                    "type": "string",
+                    "pattern": "^([a-f0-9]{64}|absent|unresolvable)$",
+                    "description": "SHA-256 hex digest of the reference's current content/canonical bytes at snapshot time, or 'absent'/'unresolvable' when the reference could not be locally resolved."
+                  }
+                }
+              },
+              "description": "One entry per locally resolvable control/implementation/evidence/documentation reference at the time this snapshot was taken. External references, attestations, and framework source text are never fetched and never appear here; their adopter-declared metadata participates only in mapping_digest."
+            }
+          },
+          "description": "A deterministic, locally-computed fingerprint of the mapping and its resolvable references at review time (ACM-005). Enables reference-drift and mapping-drift detection without re-deriving legal or compliance conclusions. Absence of a snapshot is valid; RepoPact then reports only 'unreviewed'/date-based freshness, not drift."
+        }
       },
-      "description": "Freshness metadata (ACM-005 foundation). This checkpoint stores the fields; it does not implement a drift/staleness engine."
+      "description": "Freshness and drift metadata (Decision 0054 section 12, extended by Decision 0055). Freshness/drift problems are diagnostics, never JSON-schema rejections: a stale or drifted mapping remains a structurally valid record."
     },
     "attestation": {
       "type": "object",
@@ -128,6 +160,23 @@
         "reference": {"type": "string", "minLength": 1}
       },
       "description": "An optional reference to an independent assessment/certification/attestation. Presence of this object means only that the adopter recorded a reference to an external attestation; RepoPact never independently verifies it and never treats it as RepoPact-issued certification."
+    },
+    "documentation_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "claim_basis"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "description": "Repository-relative path to the documentation asserting a claim about this mapping. Never an absolute host path."},
+          "claim_basis": {
+            "enum": ["mapping", "control_reference", "implementation_reference", "evidence_reference", "external_attestation_reference"],
+            "description": "The strongest factual support this documentation may claim, per this record. 'evidence_reference' requires a non-empty evidence_refs; 'external_attestation_reference' requires an attestation object; 'implementation_reference' requires a non-empty implementation_refs; 'control_reference' requires a non-empty control_refs; 'mapping' requires only that this mapping record exists. There is no 'compliant'/'certified'/'legally_satisfied' basis: RepoPact validates factual support for a claim's basis, never the claim's legal truth."
+          },
+          "description": {"type": "string", "minLength": 1}
+        }
+      },
+      "description": "Optional documentation-claim-basis declarations (ACM-005 claim safety). Documentation content itself is never parsed for legal meaning; only the declared basis is checked against what this record actually stores, and the referenced file participates in the review snapshot so a later edit surfaces as documentation drift."
     },
     "notes": {"type": "string"},
     "created": {"type": "string", "format": "date"},

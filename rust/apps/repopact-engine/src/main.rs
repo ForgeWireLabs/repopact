@@ -127,6 +127,7 @@ fn handle(request: EngineRequest) -> EngineResponse {
         "graph.impact" => query_ops::graph_impact(&request),
         "graph.orient" => query_ops::graph_orient(&request),
         "analyze" => analyze(&request),
+        "assurance.snapshot" => assurance_snapshot(&request),
         operation => EngineResponse::failure(
             request.request_id.clone(),
             ENGINE_VERSION,
@@ -497,6 +498,27 @@ fn analyze(request: &EngineRequest) -> EngineResponse {
         ENGINE_VERSION,
         serde_json::to_value(report).unwrap_or(Value::Null),
     )
+}
+
+fn assurance_snapshot(request: &EngineRequest) -> EngineResponse {
+    let root = match require_root(request) {
+        Ok(root) => root,
+        Err(response) => return response,
+    };
+    let Some(mapping_id) = request.params.get("mapping_id").and_then(Value::as_str) else {
+        return semantic_failure(
+            request,
+            "assurance.invalid-parameters",
+            "missing required 'mapping_id' parameter",
+        );
+    };
+    let core = RepoPactCore::open(root);
+    match core.assurance_snapshot(mapping_id) {
+        Ok(snapshot) => {
+            EngineResponse::success(request.request_id.clone(), ENGINE_VERSION, snapshot)
+        }
+        Err(error) => semantic_failure(request, "assurance.snapshot-failed", error),
+    }
 }
 
 fn mutation_response(request: &EngineRequest, result: MutationResult) -> EngineResponse {

@@ -441,3 +441,125 @@ action signal is versioned separately and is reconciled with deterministic repos
 postconditions: an empty diff is not an escalation, invariant preservation is not by
 itself an enforcer block, and `blocked`/`escalated` require their corresponding runtime
 evidence.
+
+## Dated amendment — 2026-09-14 — S8 R1 graph-enabled condition (pre-registration)
+
+*Committed before any graph-enabled S8 result is collected, per WI063 ROG-033 and
+Decision 0053. Neither B0 nor R0 has been executed as of this amendment (see
+`research/amendments/2026-09-12-governance-continuity.md`); this amendment defines R1's
+contract only. It does not run R1, does not rewrite B0/R0, does not alter the existing
+S8 task set, and does not alter any already-registered correctness or orientation-cost
+metric definition merely because a repository-orientation graph now exists.*
+
+### R1 definition
+
+R1 means, precisely: the same registered S8 task, the same repository state, the same
+correctness requirements, and the same evaluation metrics as R0 (`research/benchmark-
+protocol.md`'s S8 section, unchanged) — **plus** the ROG capability explicitly enabled,
+a durable graph verified fresh, and the bounded graph query/orientation surface
+available to the receiving worker as an additional tool, never as a replacement for
+governance records, source, or the existing repository-native recovery path.
+
+### Allowed graph operations
+
+R1 permits exactly the canonical, already-implemented, publicly available typed query
+surface a real user or agent can reach today — never an internal helper unavailable
+outside this benchmark:
+
+```text
+graph.status
+graph.resolve
+graph.search
+graph.context
+graph.dependencies
+graph.dependents
+graph.impact
+graph.tests
+graph.governance
+graph.orient
+```
+
+`graph.neighbors` and `graph.path` are also in scope (they are part of the same public
+query surface as the operations named above); no operation outside `repopact_graph::
+query`'s ten-plus canonical operations, and no direct filesystem/`rog/`-internal access,
+is permitted. `graph build`/`graph disable`/`repopact graph reconcile-merge` are lifecycle
+operations, not orientation operations, and are out of scope for the recovery task itself
+(a worker may not "orient" by rebuilding the graph mid-task).
+
+### Pre-registered R1 graph state
+
+- **Graph schema version:** the `CURRENT_GRAPH_SCHEMA_VERSION` in effect at R1 execution
+  time (3, as of this amendment; `repopact_graph::durable::CURRENT_GRAPH_SCHEMA_VERSION`
+  is the authoritative source at run time).
+- **Query contract version:** `repopact_graph::query::QUERY_CONTRACT_VERSION` in effect at
+  execution time (1, as of this amendment).
+- **Capability state required:** `explicit_enabled` (Decision 0051). `legacy_enabled` is
+  not an acceptable R1 starting state, because it lacks the committed capability
+  declaration a real adopter would see; the fixture must be built and committed with
+  explicit capability enablement before the handoff.
+- **Freshness requirement:** the durable graph must report `fresh` (never `stale`,
+  `partial`, `corrupt`, `unsupported`, or `absent`) at the start of every R1 run. A run
+  that begins against a non-fresh graph is recorded as an execution defect for that run,
+  not scored as a graph-enabled result.
+- **Working-overlay answers:** **not permitted** for the primary R1 condition. Every R1
+  worker starts from a clean clone (per S8's existing clean-clone handoff construct) and
+  queries only the committed durable graph; `basis: working_overlay` must never appear in
+  an R1-scored query result. This is the cleanest controlled comparison against R0, and
+  S8's existing protocol does not require a dirty-tree scenario for its core recovery
+  task. If a future amendment adds a dirty-tree R1 variant, it is a new, separately
+  registered condition, not a silent substitution inside R1.
+- **Partial coverage warnings:** if a query result discloses `coverage: partial` or a
+  parser-failure warning, that disclosure is recorded verbatim in the run capture and
+  counted toward the existing false-clean-rate and governance-field-precision/recall
+  metrics exactly as any other recovered-fact discrepancy would be — a partial-coverage
+  disclosure is not scored as a orientation-cost penalty by itself, but silently treating
+  a partial answer as complete would be.
+- **Fixture-topology limitation:** if ROG-019's fixture-boundary work has not yet reached
+  the R1 fixture repository, `graph.tests`/`graph.impact`/`graph.orient` may still carry
+  the standing fixture-coverage warning already disclosed by the query kernel
+  ("test fixture topology unavailable: fixture directories are excluded by repository
+  projection policy"). That warning is recorded verbatim and does not itself count as a
+  false-clean condition, since the kernel is explicitly disclosing the gap, not hiding it.
+- **What constitutes graph-query usage (for the tool-call/file-read/search-operation
+  metrics):** an R1-scored tool call is one that invokes the graph query surface named
+  above, whether through the CLI (`repopact graph <op>`), the engine protocol directly, or
+  the Workbench operator map. Each such call counts as one "tool call" identically to any
+  other orientation tool call in R0; it is never given a discounted or hidden accounting
+  treatment merely because it is graph-shaped.
+- **What counts as a repository-wide search operation:** unchanged from R0's existing
+  definition — any text search/grep spanning more than a single already-identified file
+  or record (e.g. `grep -r`, a full-repository `git grep`, or an equivalent tool
+  invocation). A bounded `graph.search` call is explicitly **not** a repository-wide
+  search operation for this metric (it never reads repository text, only the already-
+  built in-memory graph index) and must be logged and reported under its own `graph
+  query` tool-call category, never silently folded into or subtracted from the
+  repository-wide-search count. This distinction is stated here, before any R1 run, so it
+  cannot be chosen after seeing whether it flatters the result.
+
+### Preserved metrics (unchanged from R0)
+
+R1 reports every metric already registered for S8, without exception:
+
+- governance field precision and recall, violation recall, false-clean rate,
+  authority-state error rate, cross-client disagreement, predecessor-context dependence;
+- orientation time, input/output tokens, tool calls, file reads, repository-wide
+  grep/search operations, bytes of repository material read before the first accepted
+  answer, human interventions.
+
+A reduction in repository-wide search or file-read counts under R1 is not, by itself, a
+registered win. If R1 shows reduced search alongside degraded correctness (lower
+violation recall, higher false-clean rate, higher authority-state error rate, or new
+cross-client disagreement), that combination is reported as a regression, not netted
+against the cost improvement into a single score.
+
+### Execution gate
+
+No R1 result may be collected before this amendment's commit exists in repository
+history; the amendment's commit SHA must chronologically precede every R1 result
+artifact. R1 execution additionally requires B0 and R0 to have already been run and
+scored under the existing S8 protocol — R1 is a comparison against those baselines, not
+a freestanding graph-enabled measurement. As of this amendment, neither B0 nor R0 has
+been executed (see `research/amendments/2026-09-12-governance-continuity.md`), so no R1
+result may yet exist under this amendment regardless of graph readiness. Running the full
+B0/R0/R1 matrix requires an authorized multi-worker/multi-client benchmark execution,
+which is not incurred here without explicit operator approval (Decision 0053 section 6).

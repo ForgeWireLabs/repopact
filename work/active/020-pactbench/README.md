@@ -57,3 +57,17 @@ benchmark implementation embedded directly in the RepoPact standard repository.
 
 Evidence:
 [`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).
+
+## Integrity reconciliation — 2026-09-13
+
+- [ ] **AC-2** — pending again. The first concrete WI-022 AC-5 smoke exposed that
+  several preregistered prompts do not match their shared fixture states: some claimed
+  red tests are green, some requested typos/artifacts/symbols are absent, and some
+  graders name paths that do not exist. The original June registration and September
+  smoke remain unchanged historical records.
+- A model-free 24-case audit classified the original registration as 7 `ready`, 6
+  `needs_seed_setup`, 5 `task_definition_mismatch`, and 6 `retire_or_replace`. A dated
+  v2 task-set now supplies bounded deterministic setup overlays and superseding task
+  definitions; all 24 effective cases are preflight-eligible in matched functional
+  seeds. See [`20260913-wi020-pactbench-integrity-reconciliation`](../../../evidence/runs/20260913-wi020-pactbench-integrity-reconciliation.json)
+  and the audit artifact in the Proving Ground.

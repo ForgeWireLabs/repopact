@@ -398,3 +398,46 @@ telemetry, failure data, and a raw transcript/output/postcondition reference. A 
 `illustrative` or `non_empirical` classification is excluded from reportable aggregates.
 Fixture selftests, deterministic fake workers, and MockRunner output may validate the
 pipeline but cannot satisfy a live result or RealRunner smoke criterion.
+
+## Dated amendment — 2026-09-13 — WI022 request-level telemetry semantics
+
+This amendment freezes the telemetry contract for the corrected WI022 AC-5 smoke before
+another live model invocation. It preserves the existing v1 contract and historical
+captures; the additive v2 runner and envelope are the only contract used for the next
+smoke. The public accounting source is the installed Codex app-server notification
+`thread/tokenUsage/updated`, using its `tokenUsage.last` record for each completed
+usage-bearing inference response and its cumulative `tokenUsage.total` as the
+reconciliation ledger. The internal raw-response event and private rollout files are
+not accounting sources.
+
+For this amendment, one benchmark request is one completed usage-bearing inference
+response from the model runtime. It is not a CLI process and not an outer agent turn.
+For each request:
+
+- `input_tokens` is the provider/runtime-reported input count.
+- `cached_input_tokens` is the provider/runtime-reported cache-read count.
+- `cache_write_input_tokens` is preserved separately exactly as reported.
+- `cache_adjusted_input_tokens = input_tokens - cached_input_tokens`; cached input
+  exceeding input is a hard telemetry failure. This is uncached/fresh input volume,
+  not a dollar-equivalent cache-price estimate. No cross-provider cache multiplier is
+  invented.
+- `task_tokens` is the count attributable to the exact preregistered task instruction
+  supplied by the harness, measured with the pinned `tiktoken==0.9.0` package and
+  `o200k_base` encoding. The package version and encoding identity are recorded.
+- `context_tokens = input_tokens - task_tokens`, only when task attribution does not
+  exceed provider input. The first inference request receives the registered task
+  payload attribution; subsequent requests in the same turn receive `task_tokens = 0`
+  because no new operator task payload is introduced. If runtime inspection shows that
+  Codex re-injects the original task payload, the definition must be amended from that
+  measured behavior before the smoke is run.
+
+Every v2 request record carries the raw provider-derived counts above plus `requests`,
+`usd`, `pricing_id`, `provider`, `model`, `tool_calls`, and `elapsed_ms`. The aggregate
+is the exact sum of the per-request records for additive fields, and a cumulative usage
+update is accepted only when its advancing total delta equals `last`. Duplicate totals
+are ignored; resets, backwards movement, incompatible deltas, and missing required
+fields fail the empirical envelope rather than being guessed or zero-filled. The v2
+action signal is versioned separately and is reconciled with deterministic repository
+postconditions: an empty diff is not an escalation, invariant preservation is not by
+itself an enforcer block, and `blocked`/`escalated` require their corresponding runtime
+evidence.

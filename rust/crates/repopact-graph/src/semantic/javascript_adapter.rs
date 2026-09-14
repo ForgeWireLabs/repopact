@@ -33,7 +33,7 @@ use crate::{
     DerivationClass, GraphEdge, GraphEdgeKind, GraphLayer, GraphNode, GraphNodeKind, SymbolKind,
 };
 
-pub const ADAPTER_VERSION: &str = "javascript-typescript-adapter-0.1.0";
+pub const ADAPTER_VERSION: &str = "javascript-typescript-adapter-0.2.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
 /// ROG-022: a maliciously or accidentally deeply nested AST must not
 /// overflow this walker\'s own recursion stack. Exceeding this depth
@@ -286,6 +286,7 @@ fn walk(
                     )),
                     symbol_kind: Some(SymbolKind::Module),
                     manifest_kind: None,
+                    node_role: None,
                     location: None,
                 });
                 edges.push(GraphEdge {
@@ -300,6 +301,7 @@ fn walk(
                         relative_path.to_owned(),
                     ),
                     location: Some(span_of(node)),
+                    relation_role: None,
                 });
             }
         }
@@ -379,6 +381,9 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
+        node_role: (symbol_kind == SymbolKind::Test)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_TARGET))
+            .flatten(),
         location: Some(location),
     });
     edges.push(GraphEdge {
@@ -393,6 +398,7 @@ fn emit_symbol(
             relative_path.to_owned(),
         ),
         location: Some(location),
+        relation_role: None,
     });
 }
 
@@ -441,6 +447,27 @@ mod tests {
         assert_eq!(by_label.get("bar"), Some(&Some(SymbolKind::Function)));
         assert_eq!(by_label.get("Baz"), Some(&Some(SymbolKind::Type)));
         assert_eq!(by_label.get("method"), Some(&Some(SymbolKind::Method)));
+        let bar = output.nodes.iter().find(|n| n.label == "bar").unwrap();
+        assert_eq!(bar.node_role, None);
+    }
+
+    #[test]
+    fn test_named_functions_are_tagged_test_target() {
+        let output = extract(
+            SourceLanguage::JavaScript,
+            "src/index.test.js",
+            "function testAddition() {}\n",
+        );
+        let symbol = output
+            .nodes
+            .iter()
+            .find(|n| n.label == "testAddition")
+            .unwrap();
+        assert_eq!(symbol.symbol_kind, Some(SymbolKind::Test));
+        assert_eq!(
+            symbol.node_role.as_ref().map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET)
+        );
     }
 
     #[test]

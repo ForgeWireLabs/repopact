@@ -1,0 +1,135 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-telemetry-v2-checkpoint",
+  "timestamp": "2026-09-13T23:59:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "repository_refs": {
+    "repopact_main_start_sha": "542cd5c01a79942ecb78040b19deb4e82f4f9068",
+    "repopact_bookkeeping_branch": "codex/wi022-bookkeeping-next",
+    "proving_ground_master_start_sha": "43c05e6f5c4fccef2600bdf4bb1d12f4cd473ce7",
+    "proving_ground_integrity_commit": "40e33fc",
+    "proving_ground_telemetry_commit": "aba108ea400d06aca1e8b050b6e9e138f9ed6fdd",
+    "historical_smoke": "20260913-wi022-ac5-realrunner-smoke",
+    "historical_smoke_preserved": true
+  },
+  "scope": {
+    "model_calls": 0,
+    "reportable_comparative_runs": 0,
+    "second_ac5_smoke_run": false,
+    "ac3_started": false
+  },
+  "commands": [
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Proving Ground full suite passed: 62 tests, including deterministic materialization and telemetry-v2 tests."
+    },
+    {
+      "command": "python -m benchmarks.pactbench.materialize --out evidence/audits/20260914-pactbench-executability.json",
+      "exit_code": 0,
+      "summary": "24 effective cases eligible; zero effective preflight failures; zero invalid grader contracts."
+    },
+    {
+      "command": "python -m pip install -r requirements.txt",
+      "exit_code": 0,
+      "summary": "Pinned tiktoken==0.9.0 and JSON-schema dependencies are installed."
+    },
+    {
+      "command": "codex --version; codex app-server generate-json-schema --out <temporary-directory> --experimental",
+      "exit_code": 0,
+      "summary": "Installed public schema inspected; request-level token usage and workspaceWrite policy are present."
+    }
+  ],
+  "artifacts": [
+    "proving-ground branch codex/wi022-integrity-telemetry @ 40e33fc: PactBench integrity audit",
+    "proving-ground branch codex/wi022-integrity-telemetry @ aba108ea400d06aca1e8b050b6e9e138f9ed6fdd: public Codex telemetry v2 and adapter attribution tests",
+    "proving-ground:benchmarks/harness/codex_app_server.py",
+    "proving-ground:benchmarks/harness/codex_real_runner_v2.py",
+    "proving-ground:evidence/audits/20260914-pactbench-executability.json",
+    "research/benchmark-protocol.md",
+    "work/active/022-benchmark-suite/"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "codex": "0.154.0-alpha.6.2",
+    "model_execution": "none",
+    "third_party_payload_committed": false,
+    "unrelated_wi063_baseline_failures_preserved": true
+  },
+  "public_runtime_surface": {
+    "codex_version": "0.154.0-alpha.6.2",
+    "source": "Codex public app-server stdio protocol",
+    "notification": "thread/tokenUsage/updated",
+    "accepted_fields": [
+      "tokenUsage.last",
+      "tokenUsage.total",
+      "tokenUsage.modelContextWindow",
+      "inputTokens",
+      "cachedInputTokens",
+      "cacheWriteInputTokens",
+      "outputTokens",
+      "reasoningOutputTokens",
+      "totalTokens"
+    ],
+    "private_rollout_files_used": false,
+    "internal_raw_response_event_used": false,
+    "request_sandbox_policy": "workspaceWrite"
+  },
+  "telemetry_contract": {
+    "runner_contract_version": "repopact.real-runner.v2",
+    "envelope_schema_version": "repopact.experiment-run.v2",
+    "action_signal_version": "pactbench.action-signal.v1",
+    "request_definition": "one completed usage-bearing inference response",
+    "cumulative_ledger": "accept only advancing totals whose delta equals last; ignore exact duplicates; reject resets, backwards movement, gaps, or mismatches",
+    "cache_adjusted_definition": "input_tokens - cached_input_tokens; hard fail when cached input exceeds input",
+    "cache_write_preserved": true,
+    "usd_policy": "0 for authenticated ChatGPT subscription, recorded as policy rather than unavailable pricing",
+    "task_tokenizer": {
+      "package": "tiktoken",
+      "version": "0.9.0",
+      "encoding": "o200k_base",
+      "task_payload": "exact registered task instruction",
+      "subsequent_request_task_tokens": 0
+    },
+    "context_definition": "input_tokens - task_tokens",
+    "aggregate_definition": "exact sum of per-request additive telemetry"
+  },
+  "validation": [
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Proving Ground full suite passed: 61 tests, including the deterministic materialization and telemetry-v2 tests."
+    },
+    {
+      "command": "python -m benchmarks.pactbench.materialize --out evidence/audits/20260914-pactbench-executability.json",
+      "exit_code": 0,
+      "summary": "24 effective cases eligible; 0 effective preflight failures; 0 invalid grader contracts."
+    },
+    {
+      "command": "python -m pip install -r requirements.txt",
+      "exit_code": 0,
+      "summary": "Pinned tiktoken==0.9.0 and existing JSON-schema dependencies are installed."
+    },
+    {
+      "command": "codex --version; codex app-server generate-json-schema --out <temporary-directory> --experimental",
+      "exit_code": 0,
+      "summary": "The installed public schema was inspected; request-level token usage and workspaceWrite policy are present."
+    }
+  ],
+  "acceptance_boundary": {
+    "wi022_ac1": "unchanged_satisfied",
+    "wi022_ac2": "pending_until_live_v2_smoke",
+    "wi022_ac3": "pending_not_started",
+    "wi022_ac4": "unchanged_satisfied",
+    "wi022_ac5": "pending_first_smoke_non_reportable_preserved",
+    "wi020_ac2": "pending_until_integrity_reconciliation_is accepted in RepoPact bookkeeping"
+  },
+  "notes": [
+    "This is an implementation and protocol checkpoint, not a second AC-5 smoke.",
+    "The June registration and first September non-reportable smoke were not rewritten.",
+    "The unrelated WI063 CITATION.cff ownership and research-freshness baseline failures were not repaired."
+  ]
+}

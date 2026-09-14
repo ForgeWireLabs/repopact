@@ -29,7 +29,7 @@ use crate::{
     DerivationClass, GraphEdge, GraphEdgeKind, GraphLayer, GraphNode, GraphNodeKind, SymbolKind,
 };
 
-pub const ADAPTER_VERSION: &str = "python-adapter-0.1.0";
+pub const ADAPTER_VERSION: &str = "python-adapter-0.2.0";
 pub const SUPPORTED_RELATIONS: [&str; 2] = ["defines", "imports"];
 /// ROG-022: a maliciously or accidentally deeply nested AST must not
 /// overflow this walker\'s own recursion stack. Exceeding this depth
@@ -196,6 +196,7 @@ fn walk(
                     )),
                     symbol_kind: Some(SymbolKind::Module),
                     manifest_kind: None,
+                    node_role: None,
                     location: None,
                 });
                 edges.push(GraphEdge {
@@ -210,6 +211,7 @@ fn walk(
                         relative_path.to_owned(),
                     ),
                     location: Some(span_of(node)),
+                    relation_role: None,
                 });
             }
         }
@@ -281,6 +283,9 @@ fn emit_symbol(
         )),
         symbol_kind: Some(symbol_kind),
         manifest_kind: None,
+        node_role: (symbol_kind == SymbolKind::Test)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_TARGET))
+            .flatten(),
         location: Some(location),
     });
     edges.push(GraphEdge {
@@ -295,6 +300,7 @@ fn emit_symbol(
             relative_path.to_owned(),
         ),
         location: Some(location),
+        relation_role: None,
     });
 }
 
@@ -351,6 +357,17 @@ mod tests {
             .find(|n| n.label == "test_addition")
             .unwrap();
         assert_eq!(symbol.symbol_kind, Some(SymbolKind::Test));
+        assert_eq!(
+            symbol.node_role.as_ref().map(crate::GraphNodeRole::as_str),
+            Some(crate::roles::TEST_TARGET)
+        );
+    }
+
+    #[test]
+    fn non_test_symbols_carry_no_test_target_role() {
+        let output = extract("def top():\n    pass\n");
+        let symbol = output.nodes.iter().find(|n| n.label == "top").unwrap();
+        assert_eq!(symbol.node_role, None);
     }
 
     #[test]

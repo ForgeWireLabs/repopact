@@ -23,7 +23,8 @@
       "text": "The runnable PactBench suite (task format + tasks, fixtures, harnesses, S5 drift harness, captures, result bundles) is hosted in the RepoPact Proving Ground repo (ForgeWireLabs/repopact-proving-ground), which consumes RepoPact from PyPI and runs the suite against the packaged product.",
       "state": "satisfied",
       "evidence": [
-        "20260726-semantic-ledger-freshness-reconciliation"
+        "20260726-semantic-ledger-freshness-reconciliation",
+        "20260913-wi020-pactbench-integrity-reconciliation"
       ]
     },
     {
@@ -36,5 +37,5 @@
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-07-26"
+  "updated": "2026-09-13"
 }

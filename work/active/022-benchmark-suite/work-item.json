@@ -32,7 +32,9 @@
         "20260726-semantic-ledger-freshness-reconciliation",
         "20260913-wi022-deterministic-benchmark-tranche",
         "20260913-wi022-s5-package-boundary-reconciliation",
-        "20260913-wi022-ac5-realrunner-smoke"
+        "20260913-wi022-ac5-realrunner-smoke",
+        "20260913-wi022-telemetry-v2-checkpoint",
+        "20260913-wi022-ac5-v2-selection"
       ]
     },
     {

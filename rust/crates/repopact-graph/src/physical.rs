@@ -102,6 +102,7 @@ pub fn extend(
             label: basename(directory),
             symbol_kind: None,
             manifest_kind: None,
+            node_role: None,
             location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(
@@ -118,6 +119,7 @@ pub fn extend(
             layer: GraphLayer::Physical,
             derivation: DerivationClass::Filesystem,
             location: None,
+            relation_role: None,
             source: RecordRef::new(RecordKind::Directory, directory.clone(), directory.clone()),
         });
     }
@@ -135,6 +137,7 @@ pub fn extend(
             label: basename(&file.relative_path),
             symbol_kind: None,
             manifest_kind: None,
+            node_role: None,
             location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(
@@ -151,6 +154,7 @@ pub fn extend(
             layer: GraphLayer::Physical,
             derivation: DerivationClass::Filesystem,
             location: None,
+            relation_role: None,
             source: RecordRef::new(
                 RecordKind::File,
                 file.relative_path.clone(),
@@ -166,6 +170,7 @@ pub fn extend(
                 layer: GraphLayer::Physical,
                 derivation: DerivationClass::Manifest,
                 location: None,
+                relation_role: None,
                 source: RecordRef::new(RecordKind::Directory, workspace.clone(), workspace.clone()),
             });
         }
@@ -179,6 +184,7 @@ pub fn extend(
                 layer: GraphLayer::Physical,
                 derivation: DerivationClass::Manifest,
                 location: None,
+                relation_role: None,
                 source: RecordRef::new(
                     RecordKind::File,
                     file.relative_path.clone(),
@@ -196,6 +202,7 @@ pub fn extend(
                     layer: GraphLayer::Physical,
                     derivation: DerivationClass::Filesystem,
                     location: None,
+                    relation_role: None,
                     source: RecordRef::new(
                         RecordKind::File,
                         file.relative_path.clone(),

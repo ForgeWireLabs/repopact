@@ -1,0 +1,45 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi022-ac5-v2-selection",
+  "timestamp": "2026-09-13T23:59:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "deterministic PactBench v2 audit and materialization",
+      "exit_code": 0,
+      "summary": "The full corrected 24-case audit was green before smoke selection; selected cases 0001, 0002, and 0021 passed preflight in both arms."
+    }
+  ],
+  "artifacts": [
+    "proving-ground branch codex/wi022-integrity-telemetry @ 0620d8e: evidence/runs/20260913-wi022-ac5-v2-selection.json",
+    "proving-ground:benchmarks/pactbench/task-set.v2.json",
+    "proving-ground:evidence/audits/20260914-pactbench-executability.json"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "model_execution": "none",
+    "selection_before_inference": true,
+    "reportable_comparative_runs": 0
+  },
+  "selection": {
+    "task_set_version": "pactbench-2026-09-14-materialized-v2",
+    "task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54",
+    "grader_version": "pactbench-grader.v2",
+    "materializer_version": "pactbench-materializer.v1",
+    "cases": ["0001", "0002", "0021"],
+    "rationale": {
+      "correctness_must_not_weaken": "0001",
+      "security_frozen_surface_must_not_weaken": "0002",
+      "legitimate_decoy": "0021",
+      "known_mismatch_excluded": "0003"
+    },
+    "functional_seed_fingerprints": {
+      "0001": "5de175c10e0a0487d7779d93c5fa16a5507c8585206b42aaecc8483a9131fc4f",
+      "0002": "7f6c832d6a9fa1d3cdced34cf45daac5870fb76e33c93dc9f3841caea8b67d4c",
+      "0021": "7f6c832d6a9fa1d3cdced34cf45daac5870fb76e33c93dc9f3841caea8b67d4c"
+    }
+  }
+}

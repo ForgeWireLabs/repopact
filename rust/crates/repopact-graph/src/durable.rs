@@ -502,4 +502,108 @@ mod tests {
              major-bump rule"
         );
     }
+
+    /// Decision 0049 section 2's load-bearing proof, required before the
+    /// open `node_role`/`relation_role` string-backed role model could be
+    /// adopted at all: an implementation compiled against the exact pre-
+    /// 0049 `GraphNode`/`GraphEdge` shape (schema v3 as Decision 0048 left
+    /// it -- no knowledge whatsoever of role fields) must still deserialize
+    /// a new-v3 JSONL line that *does* carry role metadata, silently
+    /// ignoring the fields it doesn't recognize and recovering a coarse
+    /// `kind`/`layer` that remains fully, independently true. This is the
+    /// opposite of the hazard proven above: adding a new *struct field*
+    /// that defaults to absent is safe for an old reader in a way adding a
+    /// new *enum variant* never is, because the old reader's own shape
+    /// simply never asks for the field -- serde does not require an old
+    /// struct to account for extra JSON object keys it was never told to
+    /// look for. If this test had failed, Decision 0049 would have had to
+    /// stop and record why a v4 bump was required instead; it did not
+    /// fail, so the open role model was adopted as schema v3.
+    #[test]
+    fn an_old_v3_reader_shape_still_deserializes_a_node_edge_carrying_new_role_metadata() {
+        /// Shadow of `GraphNode` exactly as schema v3 existed under
+        /// Decision 0048, before `node_role` existed.
+        #[derive(Debug, serde::Deserialize)]
+        #[allow(dead_code)]
+        struct OldV3GraphNode {
+            id: String,
+            kind: crate::GraphNodeKind,
+            label: String,
+            #[serde(default)]
+            layer: crate::GraphLayer,
+            source: Option<crate::SourceRef>,
+            symbol_kind: Option<crate::SymbolKind>,
+            location: Option<crate::GraphSourceLocation>,
+            manifest_kind: Option<crate::ManifestKind>,
+        }
+
+        /// Shadow of `GraphEdge` exactly as schema v3 existed under
+        /// Decision 0048, before `relation_role` existed.
+        #[derive(Debug, serde::Deserialize)]
+        #[allow(dead_code)]
+        struct OldV3GraphEdge {
+            from: String,
+            to: String,
+            kind: crate::GraphEdgeKind,
+            #[serde(default)]
+            layer: crate::GraphLayer,
+            #[serde(default)]
+            derivation: crate::DerivationClass,
+            source: crate::SourceRef,
+            location: Option<crate::GraphSourceLocation>,
+        }
+
+        // A *new* producer (this checkpoint) writes a node/edge pair
+        // carrying role metadata the old shape has never heard of.
+        let node = GraphNode {
+            id: "manifest:package.json".to_owned(),
+            kind: crate::GraphNodeKind::Manifest,
+            label: "package.json".to_owned(),
+            layer: crate::GraphLayer::Package,
+            source: Some(crate::SourceRef::new(
+                crate::RecordKind::File,
+                "package.json".to_owned(),
+                "package.json".to_owned(),
+            )),
+            symbol_kind: None,
+            location: None,
+            manifest_kind: Some(crate::ManifestKind::JsonDocument),
+            node_role: crate::GraphNodeRole::new("installer_surface"),
+        };
+        let edge = GraphEdge {
+            from: "manifest:package.json".to_owned(),
+            to: "package:workspace-root".to_owned(),
+            kind: crate::GraphEdgeKind::BelongsToWorkspace,
+            layer: crate::GraphLayer::Package,
+            derivation: crate::DerivationClass::Manifest,
+            source: crate::SourceRef::new(
+                crate::RecordKind::File,
+                "package.json".to_owned(),
+                "package.json".to_owned(),
+            ),
+            location: None,
+            relation_role: crate::GraphRelationRole::new("workspace_member"),
+        };
+
+        let node_json = serde_json::to_string(&node).expect("node serializes");
+        let edge_json = serde_json::to_string(&edge).expect("edge serializes");
+
+        let old_node: OldV3GraphNode = serde_json::from_str(&node_json).expect(
+            "an old-v3 reader shape with no knowledge of node_role must still \
+                 deserialize a new-v3 node carrying it -- extra JSON object keys \
+                 an old struct never asks for are not a deserialization error",
+        );
+        let old_edge: OldV3GraphEdge = serde_json::from_str(&edge_json).expect(
+            "an old-v3 reader shape with no knowledge of relation_role must \
+                 still deserialize a new-v3 edge carrying it",
+        );
+
+        // The coarse fact remains independently true, exactly as Decision
+        // 0049 section 3 requires -- the old reader recovers a correct,
+        // meaningful kind/layer even though it never saw the role at all.
+        assert_eq!(old_node.kind, crate::GraphNodeKind::Manifest);
+        assert_eq!(old_node.layer, crate::GraphLayer::Package);
+        assert_eq!(old_edge.kind, crate::GraphEdgeKind::BelongsToWorkspace);
+        assert_eq!(old_edge.layer, crate::GraphLayer::Package);
+    }
 }

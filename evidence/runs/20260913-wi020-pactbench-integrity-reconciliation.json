@@ -1,0 +1,36 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260913-wi020-pactbench-integrity-reconciliation",
+  "timestamp": "2026-09-13T22:51:49-05:00",
+  "work_item": "020",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m benchmarks.pactbench.materialize --out evidence/audits/20260914-pactbench-executability.json",
+      "exit_code": 0,
+      "summary": "The Proving Ground v2 task-set audit found 24 effective eligible cases, zero effective preflight failures, and zero invalid grader contracts."
+    },
+    {
+      "command": "python -m unittest tests.test_pactbench_materialization -v",
+      "exit_code": 0,
+      "summary": "Ten deterministic tests passed for absent targets, stale red/green claims, broken invariants, grader references, setup determinism, matched-arm seeds, stable fingerprints, and all-24 eligibility."
+    }
+  ],
+  "artifacts": [
+    "proving-ground branch codex/wi022-integrity-telemetry @ 40e33fc: PactBench integrity audit",
+    "proving-ground:benchmarks/pactbench/task-set.v2.json",
+    "proving-ground:evidence/audits/20260914-pactbench-executability.json",
+    "work/active/020-pactbench/"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "historical_registration_preserved": true,
+    "historical_smoke_preserved": true,
+    "model_calls": 0,
+    "reportable_comparative_runs": 0,
+    "scope": "WI020 PactBench integrity and materialization only",
+    "unrelated_wi063_baseline_failures_repaired": false
+  }
+}

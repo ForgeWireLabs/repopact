@@ -24,8 +24,24 @@ pub(super) fn resolve(
             let Ok(normalized) = validate_repository_relative_path(raw) else {
                 return ResolutionOutcome::NotFound;
             };
-            let candidates = index.nodes_by_path(&normalized);
-            resolve_from_candidates(graph, candidates)
+            // A repository path selector means "the file at this path" --
+            // the physical `File` node, not every `Symbol`/`Manifest` fact
+            // that also happens to carry the same `source.path` (a symbol
+            // defined in that file, or the file's own manifest-document
+            // reading). Those remain reachable via `graph.context`/
+            // `graph.neighbors` on the resolved file node.
+            let candidates: Vec<String> = index
+                .nodes_by_path(&normalized)
+                .iter()
+                .filter(|id| {
+                    graph
+                        .nodes
+                        .get(*id)
+                        .is_some_and(|node| node.kind == GraphNodeKind::File)
+                })
+                .cloned()
+                .collect();
+            resolve_from_candidates(graph, &candidates)
         }
         NodeSelector::WorkItemId(id) => {
             let node_id = format!("work:{id}");

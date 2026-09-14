@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "assurance-mapping.schema.json",
+  "title": "RepoPact assurance/control mapping record",
+  "description": "Optional, adopter-authored record mapping an implemented control to an external assurance/regulatory framework requirement (WI051, Decision 0054). RepoPact records that a mapping, control, or evidence reference exists; it never derives legal compliance, certification, or independent audit conclusions from that presence. Framework and requirement identifiers are adopter-owned open strings -- RepoPact does not enumerate or interpret specific regulatory regimes. Evidence is always a reference (hash, repository-relative artifact path, evidence-run id, or external-system pointer); this schema has no field capable of carrying a raw payload inline. Absence of an assurance/ directory leaves a repository fully valid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "version", "id", "framework", "requirement", "applicability", "created", "updated"],
+  "properties": {
+    "$schema": {"type": "string", "minLength": 1},
+    "version": {"const": 1, "description": "Assurance-mapping record schema version (Decision 0054 section 3). An unrecognized major version must be reported as unsupported, never interpreted optimistically."},
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$",
+      "minLength": 1,
+      "description": "Opaque adopter-chosen slug identifying this mapping record. Must match the filename stem."
+    },
+    "framework": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source_authority"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "description": "Adopter-owned open identifier for the external framework/source (e.g. 'example-framework'). Never a RepoPact-defined regulatory enum."},
+        "version": {"type": "string", "minLength": 1, "description": "Framework/source version or edition, when the framework is versioned."},
+        "source_authority": {"type": "string", "minLength": 1, "description": "Where the requirement definition came from (e.g. 'official-publication', 'customer-contract', 'internal-assurance-profile', 'industry-standard', 'adopter-extension'). Adopter-chosen text; RepoPact never treats this as legally controlling."},
+        "source_ref": {"type": "string", "minLength": 1, "description": "Adopter-owned pointer to the framework source text (URI, citation, or internal document reference). RepoPact never fetches or interprets this."}
+      }
+    },
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "description": "Adopter-owned open requirement/control identifier within the framework (e.g. 'CC6.1', '164.312(a)(1)', 'CUSTOM-AUTH-04'). RepoPact validates only that it is a non-empty string."},
+        "title": {"type": "string", "minLength": 1}
+      }
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "enum": ["unassessed", "applicable", "not_applicable", "conditional", "partial"],
+          "description": "Adopter conclusion about whether the requirement applies. A non-'unassessed' status is an adopter assertion, never a RepoPact-derived legal conclusion."
+        },
+        "rationale": {"type": "string", "minLength": 1},
+        "determined_by": {"type": "string", "minLength": 1, "description": "Reviewer/owner reference for the applicability conclusion."},
+        "determined_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "control_refs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/canonical_ref"},
+      "description": "References to adopter-owned canonical RepoPact records (policy, invariant, contract, decision, work_item, role) that constitute the control. The mapping never duplicates control text RepoPact already owns canonically."
+    },
+    "implementation_refs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/implementation_ref"},
+      "description": "Where the control is realized. Path-shaped kinds are repository-relative only; absolute host paths are rejected."
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/evidence_ref"}
+    },
+    "responsibility": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role"],
+        "properties": {
+          "role": {"enum": ["adopter_owned", "shared", "third_party_dependent"]},
+          "description": {"type": "string", "minLength": 1},
+          "owner_ref": {"type": "string", "minLength": 1, "description": "Optional reference to a RepoPact owner/role scope."}
+        }
+      }
+    },
+    "third_party_dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "description": {"type": "string", "minLength": 1},
+          "evidence_refs": {"type": "array", "items": {"$ref": "#/$defs/evidence_ref"}}
+        }
+      },
+      "description": "Generic third-party/subprocessor dependencies (identity provider, cloud host, payment processor, external auditor, other service). Naming a dependency here never implies that dependency is itself compliant."
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "description"],
+        "properties": {
+          "kind": {"enum": ["known_gap", "accepted_exception", "planned_remediation", "not_yet_evidenced", "external_dependency"]},
+          "description": {"type": "string", "minLength": 1},
+          "opened_at": {"type": "string", "format": "date"},
+          "target_resolution_at": {"type": "string", "format": "date"},
+          "owner_ref": {"type": "string", "minLength": 1}
+        }
+      },
+      "description": "Open gaps/exceptions are structurally distinguishable from passing evidence. A record with an unresolved gap remains a valid RepoPact record; validity of the record never implies satisfaction of the external requirement."
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "reviewed_by": {"type": "string", "minLength": 1},
+        "review_due_at": {"type": "string", "format": "date-time"},
+        "review_interval_days": {"type": "integer", "minimum": 1},
+        "framework_version_reviewed": {"type": "string", "minLength": 1}
+      },
+      "description": "Freshness metadata (ACM-005 foundation). This checkpoint stores the fields; it does not implement a drift/staleness engine."
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issuer": {"type": "string", "minLength": 1},
+        "type": {"type": "string", "minLength": 1},
+        "date": {"type": "string", "format": "date"},
+        "reference": {"type": "string", "minLength": 1}
+      },
+      "description": "An optional reference to an independent assessment/certification/attestation. Presence of this object means only that the adopter recorded a reference to an external attestation; RepoPact never independently verifies it and never treats it as RepoPact-issued certification."
+    },
+    "notes": {"type": "string"},
+    "created": {"type": "string", "format": "date"},
+    "updated": {"type": "string", "format": "date"}
+  },
+  "$defs": {
+    "canonical_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": {"enum": ["policy", "invariant", "contract", "decision", "work_item", "role"]},
+        "ref": {"type": "string", "minLength": 1, "description": "Meaning depends on kind: policy/decision/work_item canonical id, invariant INV-N id, contract repository-relative AGENTS.md path, role adopter-owned scope name."},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "implementation_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "ref"],
+      "properties": {
+        "kind": {"enum": ["source", "configuration", "workflow", "test", "runtime_surface", "decision", "work_item"]},
+        "ref": {"type": "string", "minLength": 1, "description": "Repository-relative path for source/configuration/workflow/test/runtime_surface kinds; canonical decision/work_item id otherwise. Never an absolute host path."},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "evidence_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sensitivity"],
+      "properties": {
+        "kind": {"enum": ["evidence_run", "hash", "repository_artifact", "external_reference"]},
+        "sensitivity": {
+          "enum": ["ordinary", "sensitive", "restricted"],
+          "description": "Adopter-declared sensitivity of the underlying evidence. RepoPact does not classify content; the adopter declares this explicitly."
+        },
+        "description": {"type": "string", "minLength": 1},
+        "evidence_run_id": {"type": "string", "minLength": 1, "description": "Required when kind is 'evidence_run': a canonical evidence-run id (evidence/runs/<id>.json)."},
+        "hash": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "digest"],
+          "properties": {
+            "algorithm": {"enum": ["sha256", "sha512"]},
+            "digest": {"type": "string", "pattern": "^[a-f0-9]+$"},
+            "size_bytes": {"type": "integer", "minimum": 0},
+            "count": {"type": "integer", "minimum": 0},
+            "content_descriptor": {"type": "string", "minLength": 1, "description": "Bounded, non-secret description of what was hashed. A digest is an integrity/reference mechanism, not anonymization."}
+          }
+        },
+        "path": {"type": "string", "minLength": 1, "description": "Required when kind is 'repository_artifact': a repository-relative path to a bounded, redacted, or synthetic report already committed to the repository. Never an absolute host path, and never a path expected to hold a raw regulated/customer payload."},
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["system", "identifier"],
+          "properties": {
+            "system": {"type": "string", "minLength": 1},
+            "identifier": {"type": "string", "minLength": 1},
+            "reference": {"type": "string", "minLength": 1, "description": "URI or citation. Must never embed credentials."},
+            "observed_at": {"type": "string", "format": "date"},
+            "digest": {"type": "string", "minLength": 1}
+          }
+        }
+      },
+      "allOf": [
+        {"if": {"properties": {"kind": {"const": "evidence_run"}}}, "then": {"required": ["evidence_run_id"]}},
+        {"if": {"properties": {"kind": {"const": "hash"}}}, "then": {"required": ["hash"]}},
+        {"if": {"properties": {"kind": {"const": "repository_artifact"}}}, "then": {"required": ["path"]}},
+        {"if": {"properties": {"kind": {"const": "external_reference"}}}, "then": {"required": ["external"]}}
+      ]
+    }
+  }
+}

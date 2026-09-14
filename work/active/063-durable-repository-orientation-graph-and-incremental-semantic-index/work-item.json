@@ -170,8 +170,10 @@
     {
       "id": "ROG-019",
       "text": "Add deterministic build/package/test/operational adapters where repository metadata supports them, including at least Cargo workspace/dependency metadata, Python package/project metadata, JavaScript/TypeScript package and tsconfig/workspace metadata, CI workflow references, test targets/fixtures, generated boundaries, installer/package surfaces, and runtime/application entry points used by RepoPact.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-020",
@@ -270,14 +272,18 @@
     {
       "id": "ROG-032",
       "text": "Produce performance and storage evidence on RepoPact plus documented larger fixtures: full build time, incremental update time by change class, peak memory, durable graph size, local-cache size, node/edge counts, clean-clone verification/load time, representative query latency, parser coverage, graph/source size ratio, and branch/merge rebuild cost. Any product limit is justified by measurements rather than intuition.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-033",
       "text": "Before any graph-enabled comparative result is collected, append a dated amendment to `research/benchmark-protocol.md` defining the S8 R1 graph-enabled condition without rewriting existing B0/R0 conditions, tasks, or metrics. The amendment is committed before exploratory R1 runs that could influence the evaluation contract.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-034",
@@ -288,20 +294,26 @@
     {
       "id": "ROG-035",
       "text": "Document adoption, enable/disable, rebuild, verification, freshness, graph-query, unsupported-language, privacy/exclusion, cache, and troubleshooting workflows for both human operators and agents. Documentation distinguishes durable graph facts from heuristics and from authoritative source/governance records.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-036",
       "text": "The deterministic ROG core requires no LLM, embedding/vector database, cloud indexing service, or external provider. Any future assisted semantic enrichment is proposal/inferred only, is clearly provenance-typed, and cannot silently become governance or mutation authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-037",
       "text": "Graph queries and Workbench views do not bypass WI054 typed mutation plan/apply, frozen-surface approval, WI050 admission/enforcement, Tauri IPC/capability boundaries, evidence/provenance rules, or repository path restrictions. Graph impact data may inform a mutation plan but never authorizes it.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     },
     {
       "id": "ROG-038",
@@ -320,8 +332,10 @@
     {
       "id": "ROG-040",
       "text": "Prove by API design and tests that graph data itself cannot grant ownership, approval, lifecycle authority, criterion waiver, frozen-surface acknowledgement, invariant mutation, or evidence truth. Those authorities continue to derive from their existing RepoPact source records and governed mutation/admission paths.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260914-063-closeout-readiness-checkpoint"
+      ]
     }
   ],
   "created": "2026-09-12",

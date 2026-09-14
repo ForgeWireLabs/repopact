@@ -147,13 +147,23 @@ pub struct SessionGraphState {
     baseline_inventory: BTreeMap<String, String>,
     durable_freshness: DurableFreshness,
     current_inventory: BTreeMap<String, String>,
+    /// The projection's excluded-boundary facts (Decision 0053 section 1
+    /// / ROG-019), carried alongside `current_inventory` so a per-file
+    /// watcher patch (`reconcile`) preserves them without needing its own
+    /// directory-level recompute -- any actual boundary change is a
+    /// directory-level event, which already falls back to `refresh()`
+    /// (a full `SourceProjection::build`) rather than a per-file patch.
+    current_boundaries: Vec<crate::projection::ProjectedBoundary>,
     semantic_by_file: BTreeMap<String, SemanticContribution>,
     effective_graph: RepositoryGraph,
     effective_fingerprint: String,
     overlay_generation: u64,
 }
 
-fn projection_from_inventory(inventory: &BTreeMap<String, String>) -> SourceProjection {
+fn projection_from_inventory_and_boundaries(
+    inventory: &BTreeMap<String, String>,
+    boundaries: &[crate::projection::ProjectedBoundary],
+) -> SourceProjection {
     SourceProjection {
         files: inventory
             .iter()
@@ -162,6 +172,7 @@ fn projection_from_inventory(inventory: &BTreeMap<String, String>) -> SourceProj
                 digest: digest.clone(),
             })
             .collect(),
+        excluded_boundaries: boundaries.to_vec(),
     }
 }
 
@@ -208,13 +219,22 @@ impl SessionGraphState {
             .any(|d| d.code == "graph.schema-unsupported");
         let is_corrupt = !is_absent && !is_unsupported && !diagnostics.is_empty();
 
+        let boundaries = projection.excluded_boundaries.clone();
+
         if is_absent {
-            return Self::full_build_in_memory(snapshot, inventory, DurableFreshness::Absent, None);
+            return Self::full_build_in_memory(
+                snapshot,
+                inventory,
+                boundaries,
+                DurableFreshness::Absent,
+                None,
+            );
         }
         if is_unsupported {
             return Self::full_build_in_memory(
                 snapshot,
                 inventory,
+                boundaries,
                 DurableFreshness::Unsupported,
                 None,
             );
@@ -223,6 +243,7 @@ impl SessionGraphState {
             return Self::full_build_in_memory(
                 snapshot,
                 inventory,
+                boundaries,
                 DurableFreshness::Corrupt,
                 None,
             );
@@ -234,6 +255,7 @@ impl SessionGraphState {
                 return Self::full_build_in_memory(
                     snapshot,
                     inventory,
+                    boundaries,
                     DurableFreshness::Absent,
                     None,
                 )
@@ -250,6 +272,7 @@ impl SessionGraphState {
                     baseline_inventory: inventory.clone(),
                     durable_freshness: DurableFreshness::Fresh,
                     current_inventory: inventory,
+                    current_boundaries: boundaries,
                     semantic_by_file,
                     effective_graph: graph,
                     effective_fingerprint: current_fingerprint,
@@ -275,6 +298,7 @@ impl SessionGraphState {
             baseline_inventory: inventory.clone(),
             durable_freshness: DurableFreshness::Stale,
             current_inventory: inventory,
+            current_boundaries: boundaries,
             semantic_by_file: plan.semantic_by_file,
             effective_graph: plan.graph,
             effective_fingerprint: current_fingerprint,
@@ -285,10 +309,11 @@ impl SessionGraphState {
     fn full_build_in_memory(
         snapshot: &RepositorySnapshot,
         inventory: BTreeMap<String, String>,
+        boundaries: Vec<crate::projection::ProjectedBoundary>,
         durable_freshness: DurableFreshness,
         baseline_manifest_fingerprint: Option<String>,
     ) -> Self {
-        let projection = projection_from_inventory(&inventory);
+        let projection = projection_from_inventory_and_boundaries(&inventory, &boundaries);
         let plan = incremental::plan_reconciliation(snapshot, &projection, &[], &BTreeMap::new());
         let fingerprint = projection.fingerprint();
         Self {
@@ -296,6 +321,7 @@ impl SessionGraphState {
             baseline_inventory: inventory.clone(),
             durable_freshness,
             current_inventory: inventory,
+            current_boundaries: boundaries,
             semantic_by_file: plan.semantic_by_file,
             effective_graph: plan.graph,
             effective_fingerprint: fingerprint,
@@ -449,6 +475,7 @@ impl SessionGraphState {
         };
 
         self.current_inventory = inventory_from_projection(&projection);
+        self.current_boundaries = projection.excluded_boundaries.clone();
         self.semantic_by_file = plan.semantic_by_file;
         self.effective_graph = plan.graph;
         self.effective_fingerprint = projection.fingerprint();
@@ -459,7 +486,10 @@ impl SessionGraphState {
     }
 
     fn rebuild_effective_graph(&mut self, snapshot: &RepositorySnapshot) {
-        let projection = projection_from_inventory(&self.current_inventory);
+        let projection = projection_from_inventory_and_boundaries(
+            &self.current_inventory,
+            &self.current_boundaries,
+        );
         let mut graph =
             RepositoryGraph::build_governance_and_physical_with_projection(snapshot, &projection);
         for (nodes, edges) in self.semantic_by_file.values().map(|(_, n, e)| (n, e)) {

@@ -54,6 +54,23 @@ pub fn extend(
         }
     }
 
+    // Decision 0053 section 1 / ROG-019: a fixture boundary's own
+    // directory node is added even though it contains no projected
+    // files (its contents are never read) -- its ancestors are inserted
+    // the same way a file's ancestors are, and the boundary path itself
+    // is inserted directly (`ancestors` only ever yields *proper*
+    // prefixes of the path passed to it).
+    let mut fixture_boundary_dirs: BTreeSet<String> = BTreeSet::new();
+    for boundary in &projection.excluded_boundaries {
+        if boundary.classification == crate::projection::TEST_FIXTURE_BOUNDARY_CLASSIFICATION {
+            for ancestor in ancestors(&boundary.relative_path) {
+                directories.insert(ancestor);
+            }
+            directories.insert(boundary.relative_path.clone());
+            fixture_boundary_dirs.insert(boundary.relative_path.clone());
+        }
+    }
+
     // A directory is a Workspace if it directly contains a recognized
     // manifest file (Decision 0044: manifest presence is a deterministic
     // fact, not a heuristic guess). A directory is a NestedRepository if it
@@ -96,13 +113,17 @@ pub fn extend(
         } else {
             GraphNodeKind::Directory
         };
+        let node_role = fixture_boundary_dirs
+            .contains(directory)
+            .then(|| crate::GraphNodeRole::new(crate::roles::TEST_FIXTURE))
+            .flatten();
         graph.node(GraphNode {
             id: id.clone(),
             kind,
             label: basename(directory),
             symbol_kind: None,
             manifest_kind: None,
-            node_role: None,
+            node_role,
             location: None,
             layer: GraphLayer::Physical,
             source: Some(RecordRef::new(

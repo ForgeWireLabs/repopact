@@ -27,11 +27,32 @@ pub struct ProjectedFile {
     pub digest: String,
 }
 
+/// The classification string [`repopact_repository::BoundaryClassification
+/// ::TestFixtureBoundary`] serializes to. Kept as a plain string constant
+/// (not the repository crate's enum) because `SourceProjection` is
+/// serialized durably and must not require the repository crate's type
+/// at deserialization time.
+pub const TEST_FIXTURE_BOUNDARY_CLASSIFICATION: &str = "test_fixture_boundary";
+
+/// A deterministic, content-free fact about an excluded boundary
+/// directory (Decision 0053 section 1 / ROG-019): its repository-
+/// relative path and classification participate in the fingerprint,
+/// but nothing beneath it is ever read.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct ProjectedBoundary {
+    pub relative_path: String,
+    pub classification: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SourceProjection {
     /// Sorted by `relative_path`; the sort itself is part of the
     /// determinism contract, not an implementation detail.
     pub files: Vec<ProjectedFile>,
+    /// Sorted by `(relative_path, classification)`. Empty on any
+    /// repository with no recognized excluded boundary.
+    #[serde(default)]
+    pub excluded_boundaries: Vec<ProjectedBoundary>,
 }
 
 impl SourceProjection {
@@ -46,8 +67,9 @@ impl SourceProjection {
     /// exclusion, and structural symlink exclusion, and additionally
     /// excludes anything under the durable ROG output directory.
     pub fn build(repository: &Repository, topology: &RepositoryTopology) -> Self {
-        let mut files: Vec<ProjectedFile> = repository
-            .files_under_with_topology(repository.root(), topology)
+        let (walked_files, walked_boundaries) =
+            repository.files_and_boundaries_under_with_topology(repository.root(), topology);
+        let mut files: Vec<ProjectedFile> = walked_files
             .into_iter()
             .filter_map(|path| {
                 let relative = repository.relative_path(&path);
@@ -66,11 +88,30 @@ impl SourceProjection {
             .collect();
         files.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
         files.dedup_by(|left, right| left.relative_path == right.relative_path);
-        Self { files }
+
+        let mut excluded_boundaries: Vec<ProjectedBoundary> = walked_boundaries
+            .into_iter()
+            .map(|boundary| ProjectedBoundary {
+                relative_path: repository.relative_path(&boundary.path),
+                classification: boundary.classification.as_str().to_owned(),
+            })
+            .collect();
+        excluded_boundaries.sort();
+        excluded_boundaries.dedup();
+
+        Self {
+            files,
+            excluded_boundaries,
+        }
     }
 
-    /// `sha256(join("\n", sorted("{path}\0{digest}")))`, hex-encoded. See
-    /// Decision 0044 section 8.
+    /// `sha256(join("\n", sorted("{path}\0{digest}"), sorted boundary
+    /// "{path}\0{classification}")))`, hex-encoded. See Decision 0044
+    /// section 8 and Decision 0053 section 1: a boundary's existence and
+    /// classification participate in the fingerprint exactly like an
+    /// ordinary file's path and content digest, so creating, removing, or
+    /// renaming a fixture directory changes the fingerprint -- but
+    /// nothing beneath it ever contributes a byte.
     pub fn fingerprint(&self) -> String {
         let mut hasher = Sha256::new();
         for (index, file) in self.files.iter().enumerate() {
@@ -80,6 +121,13 @@ impl SourceProjection {
             hasher.update(file.relative_path.as_bytes());
             hasher.update(b"\0");
             hasher.update(file.digest.as_bytes());
+        }
+        for boundary in &self.excluded_boundaries {
+            hasher.update(b"\n");
+            hasher.update(b"boundary\0");
+            hasher.update(boundary.relative_path.as_bytes());
+            hasher.update(b"\0");
+            hasher.update(boundary.classification.as_bytes());
         }
         hex::encode(hasher.finalize())
     }

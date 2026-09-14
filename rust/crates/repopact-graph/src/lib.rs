@@ -207,6 +207,11 @@ fn is_valid_role_token(value: &str) -> bool {
 pub mod roles {
     pub const TEST_TARGET: &str = "test_target";
     pub const GENERATED_SURFACE: &str = "generated_surface";
+    /// A directory this repository's source walk deliberately excludes
+    /// from content ingestion (Decision 0053 section 1 / ROG-019). Marks
+    /// only the boundary directory's own node -- it is never given
+    /// children, and nothing beneath it is read.
+    pub const TEST_FIXTURE: &str = "test_fixture";
     pub const INSTALLER_SURFACE: &str = "installer_surface";
     pub const RUNTIME_ENTRYPOINT: &str = "runtime_entrypoint";
 
@@ -1025,6 +1030,194 @@ mod tests {
             );
         }
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    // ---- ROG-019 fixture-boundary model (Decision 0053 section 1) ------
+
+    #[test]
+    fn a_fixture_boundary_is_a_bounded_graph_fact_never_a_content_dump() {
+        let root = seeded_repo("rog019-fixture-boundary-fact");
+        std::fs::create_dir_all(root.join("tests/fixtures/nested")).unwrap();
+        let secret = "sk-fake-super-secret-fixture-token";
+        std::fs::write(root.join("tests/fixtures/secret.txt"), secret).unwrap();
+        std::fs::write(
+            root.join("tests/fixtures/nested/also.txt"),
+            "more secret data",
+        )
+        .unwrap();
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let graph = build(&snapshot);
+
+        let boundary = graph
+            .nodes
+            .get("dir:tests/fixtures")
+            .expect("the boundary directory itself must be a graph node");
+        assert_eq!(boundary.kind, GraphNodeKind::Directory);
+        assert_eq!(
+            boundary.node_role.as_ref().map(GraphNodeRole::as_str),
+            Some(roles::TEST_FIXTURE)
+        );
+
+        // No child of the boundary -- and no trace of its content -- may
+        // appear anywhere in the graph.
+        assert!(
+            !graph.nodes.contains_key("dir:tests/fixtures/nested"),
+            "the graph must never descend into a fixture boundary"
+        );
+        for node in graph.nodes.values() {
+            assert!(
+                !node.id.contains("fixtures/"),
+                "no node may exist beneath the fixture boundary: {}",
+                node.id
+            );
+            assert!(
+                !node.label.contains(secret) && !node.label.to_lowercase().contains("secret"),
+                "fixture content/filenames must never leak into a node label: {}",
+                node.label
+            );
+        }
+        for edge in &graph.edges {
+            assert!(!edge.to.contains("fixtures/") && !edge.from.contains("fixtures/nested"));
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn adding_a_fixture_boundary_changes_the_fingerprint_editing_its_content_does_not() {
+        let root = seeded_repo("rog019-fixture-fingerprint");
+        let repository = Repository::open(&root);
+        let snapshot = repository.session().snapshot();
+        let (before_graph, before_fp, _) = RepositoryGraph::build_with_fingerprint(&snapshot);
+        assert!(!before_graph.nodes.contains_key("dir:tests/fixtures"));
+
+        std::fs::create_dir_all(root.join("tests/fixtures")).unwrap();
+        std::fs::write(root.join("tests/fixtures/a.txt"), "v1").unwrap();
+        let repository2 = Repository::open(&root);
+        let snapshot2 = repository2.session().snapshot();
+        let (after_graph, after_fp, _) = RepositoryGraph::build_with_fingerprint(&snapshot2);
+        assert_ne!(
+            before_fp, after_fp,
+            "creating a fixture boundary must change the projection fingerprint"
+        );
+        assert!(after_graph.nodes.contains_key("dir:tests/fixtures"));
+
+        // Editing content *inside* the boundary must not change the
+        // fingerprint at all -- the graph never reads those bytes.
+        std::fs::write(
+            root.join("tests/fixtures/a.txt"),
+            "an entirely different value, much longer than before",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("tests/fixtures/b.txt"),
+            "a whole new fixture file",
+        )
+        .unwrap();
+        let repository3 = Repository::open(&root);
+        let snapshot3 = repository3.session().snapshot();
+        let (_, after_edit_fp, _) = RepositoryGraph::build_with_fingerprint(&snapshot3);
+        assert_eq!(
+            after_fp, after_edit_fp,
+            "editing content inside an excluded fixture boundary must not change the fingerprint"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fixture_boundary_full_incremental_and_overlay_converge_on_add_remove_rename() {
+        let root = seeded_repo("rog019-fixture-equivalence");
+        let open_snapshot = || {
+            let repository = Repository::open(&root);
+            repository.session().snapshot()
+        };
+
+        // --- baseline, then add the boundary ---
+        crate::build_and_write(&open_snapshot()).expect("baseline build");
+        std::fs::create_dir_all(root.join("tests/fixtures")).unwrap();
+        std::fs::write(root.join("tests/fixtures/a.txt"), "v1").unwrap();
+
+        let full_graph = build(&open_snapshot());
+        let update_result = incremental::update(&open_snapshot()).expect("incremental update");
+        let mut overlay = crate::overlay::SessionGraphState::open(&open_snapshot());
+        overlay.refresh(&open_snapshot());
+
+        assert!(
+            full_graph.nodes.contains_key("dir:tests/fixtures"),
+            "full build must see the added boundary"
+        );
+        assert_eq!(
+            update_result.final_node_count,
+            full_graph.nodes.len(),
+            "incremental update must converge to the same node count as a full rebuild"
+        );
+        assert!(
+            overlay
+                .effective_graph()
+                .nodes
+                .contains_key("dir:tests/fixtures"),
+            "working-overlay refresh must see the added boundary"
+        );
+        assert_eq!(
+            overlay.status().effective_fingerprint,
+            full_graph_fingerprint(&open_snapshot()),
+            "overlay effective fingerprint must equal a clean full rebuild's fingerprint"
+        );
+
+        // --- remove ---
+        crate::build_and_write(&open_snapshot()).expect("commit the enabled boundary state");
+        std::fs::remove_dir_all(root.join("tests/fixtures")).unwrap();
+        let after_remove_full = build(&open_snapshot());
+        assert!(!after_remove_full.nodes.contains_key("dir:tests/fixtures"));
+        let removed_update = incremental::update(&open_snapshot()).expect("incremental remove");
+        assert_eq!(
+            removed_update.final_node_count,
+            after_remove_full.nodes.len()
+        );
+
+        // --- rename ---
+        std::fs::create_dir_all(root.join("tests/fixtures")).unwrap();
+        std::fs::write(root.join("tests/fixtures/a.txt"), "v1").unwrap();
+        crate::build_and_write(&open_snapshot()).expect("rebuild before rename");
+        std::fs::rename(
+            root.join("tests/fixtures"),
+            root.join("tests/fixtures_renamed"),
+        )
+        .unwrap();
+        // A rename is not itself a recognized boundary name, so the
+        // renamed directory no longer classifies as a fixture boundary at
+        // all -- it becomes an ordinary, fully content-projected
+        // directory instead (proving classification is exact-name-based,
+        // not merely "a directory nothing else points into").
+        let after_rename_full = build(&open_snapshot());
+        assert!(!after_rename_full.nodes.contains_key("dir:tests/fixtures"));
+        let renamed_dir = after_rename_full
+            .nodes
+            .get("dir:tests/fixtures_renamed")
+            .expect("the renamed directory is now an ordinary, fully-walked directory");
+        assert_ne!(
+            renamed_dir.node_role.as_ref().map(GraphNodeRole::as_str),
+            Some(roles::TEST_FIXTURE),
+            "a renamed-away-from-'fixtures' directory must not keep the fixture-boundary role"
+        );
+        assert!(
+            after_rename_full
+                .nodes
+                .contains_key("file:tests/fixtures_renamed/a.txt"),
+            "its content is now ordinarily projected since it is no longer excluded"
+        );
+        let renamed_update = incremental::update(&open_snapshot()).expect("incremental rename");
+        assert_eq!(
+            renamed_update.final_node_count,
+            after_rename_full.nodes.len()
+        );
+
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    fn full_graph_fingerprint(snapshot: &repopact_repository::RepositorySnapshot) -> String {
+        crate::projection::SourceProjection::build(snapshot.repository(), snapshot.topology())
+            .fingerprint()
     }
 
     #[test]

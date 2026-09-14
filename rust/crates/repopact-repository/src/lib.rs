@@ -724,16 +724,35 @@ impl Repository {
         path: &Path,
         topology: &RepositoryTopology,
     ) -> Vec<PathBuf> {
+        self.files_and_boundaries_under_with_topology(path, topology)
+            .0
+    }
+
+    /// Decision 0053 section 1 (ROG-019 fixture-boundary model): the same
+    /// walk `files_under_with_topology` already performs, additionally
+    /// collecting every directory it declines to descend into whose name
+    /// [`classify_boundary`] recognizes -- currently only `fixtures`.
+    /// Never a second filesystem pass, and the boundary directory's
+    /// *contents* are never read, enumerated, or hashed; only its
+    /// repository-relative path and classification are observed.
+    pub fn files_and_boundaries_under_with_topology(
+        &self,
+        path: &Path,
+        topology: &RepositoryTopology,
+    ) -> (Vec<PathBuf>, Vec<ExcludedBoundary>) {
         let path = normalize_path(path);
         let mut files = Vec::new();
+        let mut boundaries = Vec::new();
         walk_files_inner(
             &self.root,
             &path,
             topology.linked_worktree_roots(),
             &mut files,
+            &mut boundaries,
         );
         files.sort_by(|left, right| path_string(left).cmp(&path_string(right)));
-        files
+        boundaries.sort_by(|left, right| path_string(&left.path).cmp(&path_string(&right.path)));
+        (files, boundaries)
     }
 
     pub fn all_files(&self) -> Vec<PathBuf> {
@@ -1068,11 +1087,45 @@ fn walk_files(path: &Path) -> Vec<PathBuf> {
     result
 }
 
+/// A directory RepoPact's source walk declines to descend into, whose
+/// *existence and classification* (never its contents) participate in
+/// the source projection (Decision 0053 section 1 / ROG-019). `path` is
+/// the boundary directory's own (repository-root-relative once passed
+/// through `Repository::relative_path`) path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExcludedBoundary {
+    pub path: PathBuf,
+    pub classification: BoundaryClassification,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BoundaryClassification {
+    TestFixtureBoundary,
+}
+
+impl BoundaryClassification {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::TestFixtureBoundary => "test_fixture_boundary",
+        }
+    }
+}
+
+/// The narrow subset of [`IGNORED_PARTS`] whose existence RepoPact is
+/// willing to name as a deterministic fact. Every other ignored name
+/// (`target`, `node_modules`, `.venv`, ...) remains a silent build/
+/// dependency-artifact exclusion -- adding a name here is a deliberate,
+/// reviewed decision (Decision 0053), not automatic.
+fn classify_boundary(name: &str) -> Option<BoundaryClassification> {
+    (name == "fixtures").then_some(BoundaryClassification::TestFixtureBoundary)
+}
+
 fn walk_files_inner(
     root: &Path,
     current: &Path,
     linked: &BTreeSet<PathBuf>,
     result: &mut Vec<PathBuf>,
+    boundaries: &mut Vec<ExcludedBoundary>,
 ) {
     if current != root && is_within_known(current, linked) {
         return;
@@ -1090,7 +1143,12 @@ fn walk_files_inner(
         if kind.is_dir() && !kind.is_symlink() {
             let name = entry.file_name().to_string_lossy().to_string();
             if !ignored_part(&name) {
-                walk_files_inner(root, &normalize_path(&path), linked, result);
+                walk_files_inner(root, &normalize_path(&path), linked, result, boundaries);
+            } else if let Some(classification) = classify_boundary(&name) {
+                boundaries.push(ExcludedBoundary {
+                    path: normalize_path(&path),
+                    classification,
+                });
             }
         } else if kind.is_file() {
             // A linked worktree's `.git` is a plain pointer *file* (never a
@@ -1586,6 +1644,90 @@ mod tests {
             "the worktree's own .git pointer file must never appear as a source file"
         );
         assert!(files.iter().any(|path| path.ends_with("AGENTS.md")));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// ROG-019 fixture-boundary model (Decision 0053 section 1): the
+    /// walk observes that `tests/fixtures` exists and classifies it, but
+    /// never enumerates, reads, or otherwise touches anything beneath it
+    /// -- including a deliberately secret-looking filename, which must
+    /// never appear anywhere in the walk's output.
+    #[test]
+    fn a_fixture_boundary_is_classified_without_traversing_its_contents() {
+        let root = temp_root("fixture-boundary");
+        fs::create_dir_all(root.join("tests/fixtures/nested")).unwrap();
+        fs::write(
+            root.join("tests/fixtures/secret-token.txt"),
+            "sk-fake-do-not-read",
+        )
+        .unwrap();
+        fs::write(
+            root.join("tests/fixtures/nested/also-secret.txt"),
+            "another-fake-secret",
+        )
+        .unwrap();
+        fs::write(root.join("tests/lib_test.rs"), "// ordinary test file").unwrap();
+        let repo = Repository::open(&root);
+        let topology = repo.topology();
+        let (files, boundaries) =
+            repo.files_and_boundaries_under_with_topology(repo.root(), &topology);
+
+        assert_eq!(boundaries.len(), 1, "exactly one fixture boundary expected");
+        assert_eq!(
+            boundaries[0].classification,
+            BoundaryClassification::TestFixtureBoundary
+        );
+        assert!(
+            boundaries[0].path.ends_with("tests/fixtures")
+                || boundaries[0].path.ends_with("fixtures")
+        );
+
+        assert!(
+            files.iter().any(|path| path.ends_with("tests/lib_test.rs")),
+            "an ordinary sibling test file must still be observed"
+        );
+        assert!(
+            !files
+                .iter()
+                .any(|path| path_string(path).contains("fixtures")),
+            "no path under the fixture boundary may appear in the file list"
+        );
+        assert!(
+            !files
+                .iter()
+                .any(|path| path_string(path).contains("secret")),
+            "fixture content (including its filenames) must never surface in the walk output"
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Editing a file *inside* an excluded fixture tree must never change
+    /// the observed boundary list -- the walk only ever sees the
+    /// boundary's own existence, never a content-derived signal.
+    #[test]
+    fn editing_fixture_content_does_not_change_the_observed_boundary() {
+        let root = temp_root("fixture-boundary-edit-stable");
+        fs::create_dir_all(root.join("tests/fixtures")).unwrap();
+        fs::write(root.join("tests/fixtures/a.txt"), "v1").unwrap();
+        let repo = Repository::open(&root);
+        let topology = repo.topology();
+        let (_files1, boundaries1) =
+            repo.files_and_boundaries_under_with_topology(repo.root(), &topology);
+
+        fs::write(
+            root.join("tests/fixtures/a.txt"),
+            "v2, much longer content than before",
+        )
+        .unwrap();
+        fs::write(
+            root.join("tests/fixtures/b.txt"),
+            "a whole new fixture file",
+        )
+        .unwrap();
+        let (_files2, boundaries2) =
+            repo.files_and_boundaries_under_with_topology(repo.root(), &topology);
+
+        assert_eq!(boundaries1, boundaries2);
         fs::remove_dir_all(root).unwrap();
     }
 

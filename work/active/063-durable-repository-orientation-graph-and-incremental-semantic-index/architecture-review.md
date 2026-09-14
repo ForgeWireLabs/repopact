@@ -860,3 +860,62 @@ v3 readers exactly like the v1-to-v2 hazard Decision 0045 fixed. See
 Decision 0049 and `implementation-progress.md`'s
 operational-surface-completion-checkpoint section for the full
 architecture, role vocabulary, test matrix, and evidence.
+
+## 2026-09-14 bounded-query-and-orientation-surface refresh
+
+Actual starting SHA `2157494aa28527b753bb46a3d1b5a87c905f20b4` (the
+accepted operational-surface-completion checkpoint). Coding agent:
+Claude Code. Architecture reviewer: GPT-5.6 Sol High.
+
+Accepted going in: ROG-004 (full relation-taxonomy conjunctive list
+genuinely met); ROG-019 remains pending, and remains pending after
+this checkpoint too -- its one remaining named gap (test-fixture
+topology) is intentionally not closed here, since RepoPact's own
+`fixtures/`-named directories stay architecturally invisible to the
+graph via the pre-existing `IGNORED_PARTS` exclusion (Decision 0044,
+proven by ROG-021), and no included RepoPact source/config metadata
+currently names an excluded-fixture-boundary fact to ground a real,
+honest fixture relationship. Fabricating one to satisfy an AC is
+explicitly out of scope; see Decision 0050 section 10. The durable,
+incremental, and working-overlay graph lifecycles (Decisions 0044,
+0046, 0047) are accepted and unmodified by this checkpoint.
+
+This checkpoint adds **only read/query capability** -- a typed,
+bounded query and orientation surface (ROG-023 through ROG-026) over
+the already-materialized graph. It does not add a second graph
+builder, does not add a persistent query database, does not touch
+`rog/`, and grants no mutation, governance, or lifecycle authority
+(ROG-037/040): every query result is read-only structural fact plus
+explicit coverage/freshness disclosure, never proof of behavior and
+never an approval, waiver, or ownership grant.
+
+```text
+                    RepositoryGraph
+                         +
+               graph state / coverage
+                         |
+                         v
+                 pure query kernel
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+  durable engine    session overlay    desktop API
+      queries            queries            queries
+        |                |                |
+        +----------------+----------------+
+                         |
+                         v
+               typed bounded results
+```
+
+The query kernel (`repopact_graph::query`) owns no filesystem
+crawling, no graph mutation, no durable writes, and no provider/LLM
+calls -- it is a pure function of an already-materialized
+`RepositoryGraph` (or `SessionGraphState::effective_graph()`) plus a
+disposable, in-memory, reconstructed-per-call index (`BTreeMap`-based,
+never persisted, never `rog/`-adjacent). See Decision 0050 for the
+full query-authority, resolution, bounds, pagination, freshness, and
+legacy-`graph`-operation contract, and
+`implementation-progress.md`'s bounded-query-orientation-checkpoint
+section for the operation list, DTO shapes, test matrix, and evidence.

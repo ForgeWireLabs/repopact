@@ -768,3 +768,51 @@ duplicated) instead of a second implementation.
 See Decision 0047 and `implementation-progress.md`'s
 working-overlay-checkpoint section for the full architecture, test
 matrix, and evidence.
+
+## 2026-09-14 metadata and operational topology refresh
+
+- **Actual starting SHA:** `dfd56903c5cd9298059527f1dbd98515cbd5ce32`
+  (the accepted working-overlay checkpoint).
+- **Coding agent:** Claude Code. **Architecture reviewer:** GPT-5.6 Sol
+  High.
+- **Durable/incremental/overlay layers accepted as-is.** Nothing in
+  Decisions 0044-0047 is reopened. The durability lifecycle stays: full
+  deterministic build -> durable `graph.update` -> session working
+  overlay, all three layers now additionally metadata-aware rather than
+  source-language-only.
+- **Persistent parser-tree caching remains deliberately deferred** --
+  not attempted, not implied by anything in this checkpoint.
+- **Metadata/operational facts are now required before the bounded
+  query/orientation layer (ROG-023-026) can be built honestly**: that
+  layer needs real dependency, build, package, test, and CI facts to
+  answer orientation questions, not only source-symbol facts.
+
+Conceptual design for this checkpoint:
+
+```text
+                    SourceProjection
+                          |
+            +-------------+-------------+
+            |                           |
+            v                           v
+   language semantic              metadata adapters
+   Rust/Python/JS/TS         JSON/TOML/YAML/Markdown
+            |                           |
+            +-------------+-------------+
+                          |
+                          v
+                  normalized facts
+                          |
+          +---------------+----------------+
+          |               |                |
+          v               v                v
+      semantic         build/test        package/runtime
+        layer             layer               layer
+```
+
+All contributions still end in one canonical `RepositoryGraph` -- no
+second graph authority is introduced. See Decision 0048 for the schema-
+compatibility audit (schema v3 found genuinely necessary) and the
+metadata adapter contract, and `implementation-progress.md`'s
+metadata-operational-topology-checkpoint section for the full
+architecture, test matrix, real AC pending inventory, and evidence.

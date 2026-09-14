@@ -76,6 +76,9 @@ class RepositoryValidationTests(unittest.TestCase):
     def problems(self) -> list[str]:
         return [problem.message for problem in validate(self.root)]
 
+    def problems_with_severity(self) -> list[tuple[str, str]]:
+        return [(problem.severity, problem.message) for problem in validate(self.root)]
+
     def manifest(self, item_id: str = "000") -> Path:
         matches = [
             path
@@ -643,6 +646,222 @@ class RepositoryValidationTests(unittest.TestCase):
         fields["applicability"] = {"status": "bogus"}
         self._write_assurance_mapping("example", fields)
         self.assertTrue(any("is not one of" in v for v in self.problems()))
+
+    # --- assurance sensitive-evidence guardrails (WI051 phase 2, ACM-004) --
+
+    def _write_evidence_artifact(self, relative: str, content: str | bytes) -> None:
+        target = self.root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(content, str):
+            target.write_text(content, encoding="utf-8")
+        else:
+            target.write_bytes(content)
+
+    def test_restricted_repository_artifact_warns_but_does_not_block(self) -> None:
+        self._write_evidence_artifact("evidence/redacted.md", "bounded synthetic summary")
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "restricted", "path": "evidence/redacted.md"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "restricted' evidence artifact" in m]
+        self.assertEqual(["warning"], matching)
+        self.assertFalse(any(s == "error" and "assurance" in m for s, m in severities))
+
+    def test_private_key_material_in_evidence_artifact_is_a_blocking_error(self) -> None:
+        self._write_evidence_artifact(
+            "evidence/leak.txt",
+            "-----BEGIN OPENSSH PRIVATE KEY-----\nsynthetic-test-data-only\n-----END OPENSSH PRIVATE KEY-----\n",
+        )
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/leak.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "private-key marker" in m]
+        self.assertEqual(["error"], matching)
+
+    def test_credential_bearing_external_uri_is_a_blocking_error(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [{
+            "kind": "external_reference", "sensitivity": "ordinary",
+            "external": {"system": "example", "identifier": "1",
+                         "reference": "https://user:synthetic-pw@example.invalid/report"},
+        }]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "embeds userinfo credentials" in m]
+        self.assertEqual(["error"], matching)
+
+    def test_secret_query_param_in_external_reference_is_a_warning(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [{
+            "kind": "external_reference", "sensitivity": "ordinary",
+            "external": {"system": "example", "identifier": "1",
+                         "reference": "https://example.invalid/report?token=synthetic-test-value"},
+        }]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "shaped like a secret/token/credential" in m]
+        self.assertEqual(["warning"], matching)
+
+    def test_luhn_valid_pan_shaped_content_is_a_warning(self) -> None:
+        # Well-known synthetic Visa test PAN; never a real card.
+        self._write_evidence_artifact("evidence/report.txt", "card on file: 4111 1111 1111 1111")
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/report.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "cardholder-data-shaped" in m]
+        self.assertEqual(["warning"], matching)
+
+    def test_identity_marker_content_is_a_warning(self) -> None:
+        self._write_evidence_artifact("evidence/report.txt", "ssn=000-00-0000")
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/report.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "restricted health/identity evidence" in m]
+        self.assertEqual(["warning"], matching)
+
+    def test_binary_evidence_artifact_is_a_coverage_info_diagnostic(self) -> None:
+        self._write_evidence_artifact("evidence/bin.dat", bytes([0, 1, 2, 3, 255, 254]))
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/bin.dat"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "binary or not valid UTF-8" in m]
+        self.assertEqual(["info"], matching)
+
+    def test_oversized_evidence_artifact_is_a_coverage_info_diagnostic(self) -> None:
+        self._write_evidence_artifact("evidence/big.txt", "a" * 300_000)
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/big.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "bounded inspection limit" in m]
+        self.assertEqual(["info"], matching)
+
+    def test_ordinary_evidence_artifact_produces_no_hazard_diagnostics(self) -> None:
+        self._write_evidence_artifact("evidence/report.txt", "42 records reconciled, no issues found")
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [
+            {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "evidence/report.txt"}
+        ]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        self.assertFalse(any("assurance" in m for _, m in severities))
+
+    # --- assurance review/freshness/drift and claim safety (ACM-005) -------
+
+    def test_review_overdue_is_a_warning(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["review"] = {"reviewed_at": "2020-01-01T00:00:00Z", "review_due_at": "2020-02-01T00:00:00Z"}
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "control review is overdue" in m]
+        self.assertEqual(["warning"], matching)
+
+    def test_review_current_is_silent(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["review"] = {"reviewed_at": "2020-01-01T00:00:00Z", "review_due_at": "2099-01-01T00:00:00Z"}
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("control review is overdue" in v for v in self.problems()))
+
+    def test_framework_version_stale_is_a_warning(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["framework"]["version"] = "2027"
+        fields["review"] = {"framework_version_reviewed": "2026"}
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "differs from the reviewed version" in m]
+        self.assertEqual(["warning"], matching)
+
+    def test_documentation_claim_basis_without_support_is_an_error(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["documentation_refs"] = [{"path": "AGENTS.md", "claim_basis": "evidence_reference"}]
+        self._write_assurance_mapping("example", fields)
+        severities = self.problems_with_severity()
+        matching = [s for s, m in severities if "no corresponding data to support it" in m]
+        self.assertEqual(["error"], matching)
+
+    def test_documentation_claim_basis_with_support_is_accepted(self) -> None:
+        fields = self._minimal_mapping_fields()
+        fields["evidence_refs"] = [{
+            "kind": "hash", "sensitivity": "ordinary",
+            "hash": {"algorithm": "sha256", "digest": "a" * 64},
+        }]
+        fields["documentation_refs"] = [{"path": "AGENTS.md", "claim_basis": "evidence_reference"}]
+        self._write_assurance_mapping("example", fields)
+        self.assertFalse(any("no corresponding data to support it" in v for v in self.problems()))
+
+    def test_review_snapshot_matches_rust_engine_for_full_fixture(self) -> None:
+        from repopact import validate_repo
+
+        fields = self._minimal_mapping_fields()
+        fields["control_refs"] = [{"kind": "invariant", "ref": "INV-1"}]
+        self._write_assurance_mapping("example", fields)
+        snapshot = validate_repo.compute_review_snapshot(self.root, "example")
+        self.assertIn("mapping_digest", snapshot)
+        self.assertEqual(64, len(snapshot["mapping_digest"]))
+        self.assertEqual(1, len(snapshot["references"]))
+        self.assertEqual("INV-1", snapshot["references"][0]["ref"])
+
+    def test_review_mapping_drift_detected_after_edit(self) -> None:
+        from repopact import validate_repo
+
+        fields = self._minimal_mapping_fields()
+        fields["review"] = {"reviewed_by": "reviewer"}
+        self._write_assurance_mapping("example", fields)
+        snapshot = validate_repo.compute_review_snapshot(self.root, "example")
+        mapping_path = self.root / "assurance" / "mappings" / "example.json"
+        self.write_json(mapping_path, lambda d: d["review"].__setitem__("snapshot", snapshot))
+        self.assertFalse(any("has changed since its last review snapshot" in v for v in self.problems()))
+
+        self.write_json(mapping_path, lambda d: d.__setitem__("notes", "edited after review"))
+        self.assertTrue(any("has changed since its last review snapshot" in v for v in self.problems()))
+
+    def test_review_reference_drift_for_dirty_uncommitted_change(self) -> None:
+        from repopact import validate_repo
+
+        self._write_evidence_artifact("impl.txt", "version one")
+        fields = self._minimal_mapping_fields()
+        fields["review"] = {"reviewed_by": "reviewer"}
+        fields["implementation_refs"] = [{"kind": "source", "ref": "impl.txt"}]
+        self._write_assurance_mapping("example", fields)
+        snapshot = validate_repo.compute_review_snapshot(self.root, "example")
+        mapping_path = self.root / "assurance" / "mappings" / "example.json"
+        self.write_json(mapping_path, lambda d: d["review"].__setitem__("snapshot", snapshot))
+
+        (self.root / "impl.txt").write_text("version two -- uncommitted edit", encoding="utf-8")
+        self.assertTrue(any("has changed since review" in v for v in self.problems()))
+
+    def test_review_reference_missing_after_deletion(self) -> None:
+        from repopact import validate_repo
+
+        self._write_evidence_artifact("impl.txt", "version one")
+        fields = self._minimal_mapping_fields()
+        fields["review"] = {"reviewed_by": "reviewer"}
+        fields["implementation_refs"] = [{"kind": "source", "ref": "impl.txt"}]
+        self._write_assurance_mapping("example", fields)
+        snapshot = validate_repo.compute_review_snapshot(self.root, "example")
+        mapping_path = self.root / "assurance" / "mappings" / "example.json"
+        self.write_json(mapping_path, lambda d: d["review"].__setitem__("snapshot", snapshot))
+
+        (self.root / "impl.txt").unlink()
+        problems = self.problems()
+        self.assertTrue(any("was reviewed but is now absent" in v for v in problems))
+        self.assertFalse(any("has changed since review" in v for v in problems))
 
     # --- optional disjoint-scope rule --------------------------------------
 

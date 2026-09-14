@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-claim-basis",
+  "framework": {
+    "id": "example-framework",
+    "source_authority": "adopter-extension"
+  },
+  "requirement": {
+    "id": "AC-7"
+  },
+  "applicability": {
+    "status": "unassessed"
+  },
+  "documentation_refs": [
+    {"path": "AGENTS.md", "claim_basis": "external_attestation_reference"}
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

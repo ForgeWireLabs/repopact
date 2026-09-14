@@ -141,6 +141,18 @@
       "source": "SPEC.md#4-validation-rules-semantics",
       "enforced_by": "repopact/validate_repo.py:validate_assurance_mappings",
       "description": "Assurance mapping control/implementation/evidence references resolve to canonical records or contained, existing repository-relative paths (decision 0054)."
+    },
+    {
+      "id": "SPEC-4-assurance-sensitive-evidence-guardrails",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_sensitive_evidence",
+      "description": "Bounded, false-positive-prone diagnostics over evidence content an assurance mapping already references (private-key markers and credential-bearing URIs are errors; secret/cardholder/identity shape and restricted repository artifacts are warnings; coverage limits are info) (decision 0055)."
+    },
+    {
+      "id": "SPEC-4-assurance-review-drift-and-claims",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_review_and_claims",
+      "description": "Review freshness, framework-version staleness, deterministic reference/mapping drift, and documentation claim-basis diagnostics (decision 0055)."
     }
   ],
   "cases": [
@@ -488,6 +500,50 @@
         "SPEC-4-assurance-reference-resolution"
       ],
       "description": "An evidence reference naming an evidence-run id that does not exist is rejected as a dangling canonical reference."
+    },
+    {
+      "id": "valid-assurance-mapping-forgewire",
+      "path": "valid-assurance-forgewire",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": [
+        "SPEC-4-assurance-mapping-validity",
+        "SPEC-4-assurance-reference-resolution",
+        "SPEC-4-assurance-review-drift-and-claims"
+      ],
+      "description": "A ForgeWire-shaped adopter assurance mapping (ACM-007) is processed by the exact same engine/validator code path as the adopter-neutral 'example-framework' fixture above, proving the kernel is framework-neutral. The fixture is public-safe and synthetic, an example of expressiveness rather than a certification claim."
+    },
+    {
+      "id": "valid-assurance-restricted-artifact-warning",
+      "path": "valid-assurance-restricted-artifact-warning",
+      "overlay_on": "valid",
+      "expect": "accept",
+      "rules": [
+        "SPEC-4-assurance-sensitive-evidence-guardrails"
+      ],
+      "description": "A 'restricted'-declared repository-artifact evidence reference produces a warning but never blocks repository validity (decision 0055 severity contract)."
+    },
+    {
+      "id": "assurance-private-key-evidence",
+      "path": "invalid/assurance-private-key-evidence",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "private-key marker",
+      "rules": [
+        "SPEC-4-assurance-sensitive-evidence-guardrails"
+      ],
+      "description": "A private-key marker in a referenced evidence artifact is a blocking error; private-key material must never be committed as evidence."
+    },
+    {
+      "id": "assurance-documentation-claim-basis-unsupported",
+      "path": "invalid/assurance-documentation-claim-basis-unsupported",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "no corresponding data to support it",
+      "rules": [
+        "SPEC-4-assurance-review-drift-and-claims"
+      ],
+      "description": "A documentation reference declaring 'external_attestation_reference' claim basis without an attestation object is rejected (decision 0055 claim-safety model)."
     }
   ]
 }

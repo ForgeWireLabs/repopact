@@ -1,0 +1,20 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "example-restricted",
+  "framework": {
+    "id": "example-framework",
+    "source_authority": "adopter-extension"
+  },
+  "requirement": {
+    "id": "AC-7"
+  },
+  "applicability": {
+    "status": "unassessed"
+  },
+  "evidence_refs": [
+    {"kind": "repository_artifact", "sensitivity": "restricted", "path": "assurance/reports/restricted-summary.md"}
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

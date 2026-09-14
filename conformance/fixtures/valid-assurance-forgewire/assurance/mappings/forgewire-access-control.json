@@ -1,0 +1,66 @@
+{
+  "$schema": "../../schemas/assurance-mapping.schema.json",
+  "version": 1,
+  "id": "forgewire-access-control",
+  "framework": {
+    "id": "forgewire-assurance-profile",
+    "version": "2026.1",
+    "source_authority": "internal-assurance-profile",
+    "source_ref": "https://forgewire.example.invalid/assurance/profile/2026.1"
+  },
+  "requirement": {
+    "id": "PCI-SHAPED-REQ-7",
+    "title": "Restrict access to cardholder-adjacent records by business need to know"
+  },
+  "applicability": {
+    "status": "applicable",
+    "rationale": "ForgeWire's payment-adjacent dispatch surface handles access-controlled records for this profile.",
+    "determined_by": "forgewire-assurance-reviewer",
+    "determined_at": "2026-09-14T00:00:00Z"
+  },
+  "control_refs": [
+    {"kind": "invariant", "ref": "INV-1", "description": "Access-control invariant."},
+    {"kind": "work_item", "ref": "001", "description": "Access-control implementation work item."}
+  ],
+  "implementation_refs": [
+    {"kind": "source", "ref": "AGENTS.md", "description": "Access-boundary authority contract."}
+  ],
+  "evidence_refs": [
+    {"kind": "evidence_run", "sensitivity": "ordinary", "evidence_run_id": "20260101-seed", "description": "Access-control validation run."},
+    {"kind": "repository_artifact", "sensitivity": "ordinary", "path": "assurance/reports/forgewire-access-review-summary.md", "description": "Bounded access-review summary."}
+  ],
+  "responsibility": [
+    {"role": "adopter_owned", "description": "ForgeWire operates and reviews the access-control boundary."},
+    {"role": "third_party_dependent", "description": "Underlying identity provider issues access tokens."}
+  ],
+  "third_party_dependencies": [
+    {
+      "name": "forgewire-identity-provider",
+      "description": "Issues and revokes access tokens for the dispatch surface. Naming this dependency does not imply it is itself compliant."
+    }
+  ],
+  "gaps": [
+    {
+      "kind": "planned_remediation",
+      "description": "Automated quarterly access recertification is planned but not yet implemented.",
+      "opened_at": "2026-09-14",
+      "target_resolution_at": "2027-03-01"
+    }
+  ],
+  "review": {
+    "reviewed_at": "2026-09-14T00:00:00Z",
+    "reviewed_by": "forgewire-assurance-reviewer",
+    "review_due_at": "2027-03-14T00:00:00Z",
+    "framework_version_reviewed": "2026.1"
+  },
+  "documentation_refs": [
+    {
+      "path": "assurance/reports/forgewire-access-review-summary.md",
+      "claim_basis": "evidence_reference",
+      "description": "The summary documents the evidence this mapping already references."
+    }
+  ],
+  "notes": "Demonstrates assurance-mapping capability for a ForgeWire-shaped adopter profile (ACM-007). This is an example of expressiveness, not a certification: it does not assert that ForgeWire is compliant with any named framework. The kernel code path processing this record is identical, unmodified, to the one processing the adopter-neutral 'example-framework' fixture.",
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

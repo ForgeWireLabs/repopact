@@ -12,7 +12,8 @@ use std::time::{Duration, Instant};
 use notify::{Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use repopact_analysis::{AnalysisFinding, AnalysisQuery};
 use repopact_core::RepoPactCore;
-use repopact_graph::{GraphEdge, GraphNode, RepositoryGraph};
+use repopact_graph::overlay::{EffectiveGraphStatus, SessionGraphState};
+use repopact_graph::{GraphEdge, GraphNode};
 use repopact_mutation::{
     CreateWorkItem, EditWorkItem, GeneratedImpact, MutationDiagnostic, MutationPlan,
     MutationRequest, MutationResult, TransitionWorkItem, WorkItemEdits,
@@ -180,6 +181,13 @@ pub struct RecordDetailView {
 pub struct GraphView {
     pub nodes: Vec<GraphNode>,
     pub edges: Vec<GraphEdge>,
+    /// WI063 ROG-010/013 typed disclosure: whether this graph reflects
+    /// the durable baseline exactly or working-tree state not yet
+    /// written to `rog/`, the durable baseline's own freshness, and
+    /// whether semantic coverage is complete or partial -- three
+    /// orthogonal facts a client must not flatten into "current
+    /// complete" (Decision 0047).
+    pub status: EffectiveGraphStatus,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -388,7 +396,10 @@ struct ActiveSession {
     generation: u64,
     core: RepoPactCore,
     snapshot: Arc<RepositorySnapshot>,
-    graph: GraphView,
+    /// WI063 ROG-013 session working-tree overlay (Decision 0047). Owns
+    /// the effective graph; never serialized, never written to `rog/` by
+    /// ordinary session activity.
+    overlay: SessionGraphState,
     overview: RepositoryOverview,
     watcher: Option<RepositoryWatcher>,
     plans: BTreeMap<String, StoredPlan>,
@@ -461,14 +472,21 @@ impl DesktopService {
             state.next_session
         };
         let id = format!("session-{generation}");
-        let graph = graph_view(core.graph_snapshot(&snapshot));
-        let overview = overview_from_snapshot(&id, generation, watcher.is_some(), &snapshot);
+        let overlay = SessionGraphState::open(&snapshot);
+        let overview = overview_from_snapshot(
+            &id,
+            generation,
+            watcher.is_some(),
+            &snapshot,
+            overlay.effective_graph().nodes.len(),
+            overlay.effective_graph().edges.len(),
+        );
         let active = ActiveSession {
             id: id.clone(),
             generation,
             core,
             snapshot,
-            graph,
+            overlay,
             overview: overview.clone(),
             watcher,
             plans: BTreeMap::new(),
@@ -519,9 +537,7 @@ impl DesktopService {
             )
         };
         let snapshot = Arc::new(core.snapshot());
-        let graph = graph_view(core.graph_snapshot(&snapshot));
         let next_generation = generation + 1;
-        let overview = overview_from_snapshot(&id, next_generation, watcher_running, &snapshot);
         let mut state = self.lock()?;
         let active = active_mut(&mut state)?;
         if active.id != id || active.generation != generation {
@@ -530,9 +546,21 @@ impl DesktopService {
                 "the repository session changed during refresh",
             ));
         }
+        // Explicit refresh is correctness recovery (Decision 0047 section
+        // 9): one full source-projection walk, diffed against the
+        // overlay's own current in-memory inventory, never a full
+        // governance+physical+semantic rebuild from scratch.
+        active.overlay.refresh(&snapshot);
+        let overview = overview_from_snapshot(
+            &id,
+            next_generation,
+            watcher_running,
+            &snapshot,
+            active.overlay.effective_graph().nodes.len(),
+            active.overlay.effective_graph().edges.len(),
+        );
         active.generation = next_generation;
         active.snapshot = snapshot;
-        active.graph = graph;
         active.overview = overview.clone();
         active.refresh_in_flight = false;
         active.pending_self_paths.clear();
@@ -648,12 +676,11 @@ impl DesktopService {
 
     pub fn graph(&self) -> Result<GraphView, DesktopError> {
         let state = self.lock()?;
-        Ok(state
+        let active = state
             .active
             .as_ref()
-            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?
-            .graph
-            .clone())
+            .ok_or_else(|| DesktopError::new("session.not-open", "select a repository first"))?;
+        Ok(graph_view(&active.overlay))
     }
 
     pub fn analyze(&self, query: AnalysisQuery) -> Result<AnalysisView, DesktopError> {
@@ -745,7 +772,6 @@ impl DesktopService {
                 // while keeping the failed plan's mutation authority consumed.
                 let core = RepoPactCore::open_repository(repository.clone());
                 let snapshot = Arc::new(core.snapshot());
-                let graph = graph_view(core.graph_snapshot(&snapshot));
                 let next_generation = generation + 1;
                 let watcher_running = {
                     let state = self.lock()?;
@@ -754,8 +780,6 @@ impl DesktopService {
                         .as_ref()
                         .is_some_and(|active| active.id == session_id && active.watcher.is_some())
                 };
-                let overview =
-                    overview_from_snapshot(session_id, next_generation, watcher_running, &snapshot);
                 let mut state = self.lock()?;
                 let active = active_mut(&mut state)?;
                 if active.id != session_id || active.generation != generation {
@@ -764,9 +788,21 @@ impl DesktopService {
                         "the repository session changed after stale-plan refresh",
                     ));
                 }
+                // The mutation failed on a stale read-set, not a
+                // successful self-apply -- reconcile fully, like an
+                // explicit refresh, rather than trusting any particular
+                // changed-path set.
+                active.overlay.refresh(&snapshot);
+                let overview = overview_from_snapshot(
+                    session_id,
+                    next_generation,
+                    watcher_running,
+                    &snapshot,
+                    active.overlay.effective_graph().nodes.len(),
+                    active.overlay.effective_graph().edges.len(),
+                );
                 active.generation = next_generation;
                 active.snapshot = snapshot;
-                active.graph = graph;
                 active.overview = overview;
                 active.refresh_in_flight = false;
                 return Ok(apply_view(session_id, next_generation, result, stale));
@@ -782,7 +818,6 @@ impl DesktopService {
         let changed_paths = result.changed_paths.clone();
         let core = RepoPactCore::open_repository(repository);
         let snapshot = Arc::new(core.snapshot());
-        let graph = graph_view(core.graph_snapshot(&snapshot));
         let next_generation = generation + 1;
         let watcher_running = {
             let state = self.lock()?;
@@ -791,8 +826,6 @@ impl DesktopService {
                 .as_ref()
                 .is_some_and(|active| active.id == session_id && active.watcher.is_some())
         };
-        let overview =
-            overview_from_snapshot(session_id, next_generation, watcher_running, &snapshot);
         let mut state = self.lock()?;
         let active = active_mut(&mut state)?;
         if active.id != session_id || active.generation != generation {
@@ -801,9 +834,21 @@ impl DesktopService {
                 "the repository session changed after applying the plan",
             ));
         }
+        // Self-applied mutations update the overlay immediately from the
+        // exact changed paths the mutation itself produced (WI063 step
+        // 15) -- no waiting for the OS watcher to observe the same edit,
+        // and no full rebuild.
+        active.overlay.reconcile(&snapshot, &changed_paths);
+        let overview = overview_from_snapshot(
+            session_id,
+            next_generation,
+            watcher_running,
+            &snapshot,
+            active.overlay.effective_graph().nodes.len(),
+            active.overlay.effective_graph().edges.len(),
+        );
         active.generation = next_generation;
         active.snapshot = snapshot;
-        active.graph = graph;
         active.overview = overview;
         active.pending_self_paths.extend(changed_paths);
         active.refresh_in_flight = false;
@@ -864,36 +909,39 @@ impl DesktopService {
         for change in changes {
             paths.extend(change);
         }
+        let paths_vec: Vec<String> = paths.iter().cloned().collect();
         let next_generation = generation + 1;
-        let overview = if snapshot_token == old_token {
-            None
-        } else {
-            Some(overview_from_snapshot(
-                &session_id,
-                next_generation,
-                watcher_running,
-                &snapshot,
-            ))
-        };
-        let graph = if snapshot_token == old_token {
-            None
-        } else {
-            Some(graph_view(core.graph_snapshot(&snapshot)))
-        };
         let mut state = self.lock()?;
         let active = active_mut(&mut state)?;
         if active.id != session_id || active.generation != generation {
             return Ok(Vec::new());
         }
         active.refresh_in_flight = false;
-        if snapshot_token == old_token {
+
+        // Reconcile the overlay against the watcher's own changed paths
+        // regardless of whether the governance snapshot token moved --
+        // `snapshot_token` only reflects governance-record content, so an
+        // ordinary source-file edit (the exact case ROG-013 targets)
+        // never changes it, but must still update the effective graph
+        // (WI063 step 10). This never performs a full source-projection
+        // walk or writes `rog/` -- see `SessionGraphState::reconcile`.
+        let reconcile_outcome = active.overlay.reconcile(&snapshot, &paths_vec);
+
+        if snapshot_token == old_token && !reconcile_outcome.changed {
             for path in &paths {
                 active.pending_self_paths.remove(path);
             }
             return Ok(Vec::new());
         }
-        let overview = overview.expect("changed snapshot has an overview");
-        let graph = graph.expect("changed snapshot has a graph");
+
+        let overview = overview_from_snapshot(
+            &session_id,
+            next_generation,
+            watcher_running,
+            &snapshot,
+            active.overlay.effective_graph().nodes.len(),
+            active.overlay.effective_graph().edges.len(),
+        );
         let self_apply = paths
             .iter()
             .all(|path| active.pending_self_paths.remove(path));
@@ -905,7 +953,6 @@ impl DesktopService {
         };
         active.generation = next_generation;
         active.snapshot = snapshot;
-        active.graph = graph;
         active.overview = overview.clone();
         Ok(vec![RepositoryChangedEvent {
             session_id,
@@ -984,9 +1031,10 @@ fn overview_from_snapshot(
     generation: u64,
     watcher_running: bool,
     snapshot: &RepositorySnapshot,
+    graph_node_count: usize,
+    graph_edge_count: usize,
 ) -> RepositoryOverview {
     let validation = validation_view(&repopact_validation::validate_snapshot(snapshot));
-    let graph = repopact_graph::build(snapshot);
     RepositoryOverview {
         session_id: session_id.to_owned(),
         generation,
@@ -995,8 +1043,8 @@ fn overview_from_snapshot(
         work_item_count: snapshot.index().work_items.len(),
         evidence_count: snapshot.index().evidence.len(),
         decision_count: snapshot.index().decisions.len(),
-        graph_node_count: graph.nodes.len(),
-        graph_edge_count: graph.edges.len(),
+        graph_node_count,
+        graph_edge_count,
         snapshot_token: snapshot.token(),
         watcher: WatcherStatusView {
             state: if watcher_running {
@@ -1128,10 +1176,12 @@ fn record_detail(record: &IndexedRecord) -> RecordDetailView {
     }
 }
 
-fn graph_view(graph: RepositoryGraph) -> GraphView {
+fn graph_view(overlay: &SessionGraphState) -> GraphView {
+    let graph = overlay.effective_graph();
     GraphView {
-        nodes: graph.nodes.into_values().collect(),
-        edges: graph.edges,
+        nodes: graph.nodes.values().cloned().collect(),
+        edges: graph.edges.clone(),
+        status: overlay.status(),
     }
 }
 
@@ -1684,5 +1734,195 @@ mod tests {
         assert!(!production.contains("std::process"));
         assert!(!production.contains("Command::new"));
         assert!(!production.contains("shell = true"));
+    }
+
+    fn all_durable_shard_bytes(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        use repopact_graph::durable;
+        let mut map = std::collections::BTreeMap::new();
+        let Ok(Some(manifest)) = durable::read_manifest(root) else {
+            return map;
+        };
+        for shard in &manifest.node_shards {
+            if let Ok(bytes) = durable::shard_bytes(root, "nodes", &shard.shard) {
+                map.insert(format!("nodes/{}", shard.shard), bytes);
+            }
+        }
+        for shard in &manifest.edge_shards {
+            if let Ok(bytes) = durable::shard_bytes(root, "edges", &shard.shard) {
+                map.insert(format!("edges/{}", shard.shard), bytes);
+            }
+        }
+        map
+    }
+
+    #[test]
+    fn watcher_reported_source_edit_updates_the_graph_even_when_governance_token_is_unchanged() {
+        // Editing an ordinary source file never changes RepositorySnapshot::token()
+        // (governance-record content only), which is exactly the case ROG-013's
+        // watcher-driven overlay reconciliation must still handle -- previously
+        // this class of edit never updated the cached graph at all.
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+        let before = service.graph().unwrap();
+        assert!(before.nodes.iter().any(|node| node.label == "hello"));
+
+        fs::write(
+            dir.path().join("src/lib.rs"),
+            "pub fn hello() {}\npub fn goodbye() {}\n",
+        )
+        .unwrap();
+        {
+            let state = service.lock().unwrap();
+            state
+                .active
+                .as_ref()
+                .and_then(|active| active.watcher.as_ref())
+                .expect("watcher should be available")
+                .inject_for_test(&["src/lib.rs"]);
+        }
+        let mut events = Vec::new();
+        for _ in 0..20 {
+            std::thread::sleep(Duration::from_millis(80));
+            events.extend(service.poll_repository_events().unwrap());
+            if !events.is_empty() {
+                break;
+            }
+        }
+        assert_eq!(events.len(), 1);
+
+        let after = service.graph().unwrap();
+        assert!(after.nodes.iter().any(|node| node.label == "goodbye"));
+        assert_eq!(
+            after.status.basis,
+            repopact_graph::overlay::GraphBasis::WorkingOverlay
+        );
+    }
+
+    #[test]
+    fn self_applied_mutation_updates_the_graph_immediately() {
+        let dir = tempdir().unwrap();
+        // Minimal governed-repository scaffold so a real mutation actually
+        // succeeds end to end (unrelated to overlay behavior, but required
+        // for `apply_mutation_plan` to succeed rather than merely plan).
+        fs::create_dir_all(dir.path().join("governance")).unwrap();
+        fs::create_dir_all(dir.path().join("audits")).unwrap();
+        fs::write(dir.path().join("VERSION"), "0.0.0\n").unwrap();
+        fs::write(dir.path().join("AGENTS.md"), "# Agents\n").unwrap();
+        fs::write(
+            dir.path().join("governance/invariants.json"),
+            r#"{"version":1,"invariants":[{"id":"INV-1","statement":"placeholder","rationale":"placeholder","escalation":"placeholder","enforced_by":null}]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("governance/frozen-surface.json"),
+            r#"{"version":1,"protected":[]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("governance/owners.json"),
+            r#"{"version":2,"enforce_tracked_path_ownership":false,"scopes":[{"id":"governance","paths":["**"],"owner":"governance-owner"}]}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("audits/registry.json"),
+            r#"{"version":1,"scopes":[]}"#,
+        )
+        .unwrap();
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+        let before_nodes = service.graph().unwrap().nodes.len();
+
+        let intent = MutationIntent::CreateWorkItem(CreateWorkItemIntent {
+            title: "Overlay self-apply proof".to_owned(),
+            status: "active".to_owned(),
+            date: "2026-09-13".to_owned(),
+            owner_scope: "governance".to_owned(),
+            affected_scopes: Vec::new(),
+            depends_on: Vec::new(),
+            provenance: "concrete".to_owned(),
+            acceptance_criteria: Vec::new(),
+        });
+        let plan = service.plan_mutation(intent).unwrap();
+        let apply = service
+            .apply_mutation_plan(&plan.session_id, &plan.plan_handle)
+            .unwrap();
+        assert!(
+            apply.success,
+            "mutation apply should succeed against a minimal but valid governed repository: {:?}",
+            apply.diagnostics
+        );
+
+        // Immediately after apply, no watcher poll has happened yet --
+        // the graph must already reflect the new work item.
+        let after_nodes = service.graph().unwrap().nodes.len();
+        assert!(after_nodes > before_nodes);
+
+        // The watcher later reporting the same self-applied paths must
+        // not duplicate work or manufacture a second visible change.
+        {
+            let state = service.lock().unwrap();
+            state
+                .active
+                .as_ref()
+                .and_then(|active| active.watcher.as_ref())
+                .expect("watcher should be available")
+                .inject_for_test(
+                    &apply
+                        .changed_paths
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>(),
+                );
+        }
+        std::thread::sleep(Duration::from_millis(200));
+        let events = service.poll_repository_events().unwrap();
+        assert!(
+            events.is_empty() || events[0].origin == ChangeOrigin::SelfApply,
+            "a self-applied change reported later by the watcher must be recognized as such, not External"
+        );
+        assert_eq!(service.graph().unwrap().nodes.len(), after_nodes);
+    }
+
+    #[test]
+    fn desktop_session_activity_never_writes_the_durable_graph() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("src")).unwrap();
+        fs::write(dir.path().join("src/lib.rs"), "pub fn hello() {}\n").unwrap();
+        // No durable rog/ exists yet -- session activity below must never
+        // create or otherwise write one; only an explicit `graph build`/
+        // `graph update` (never called here) may do that.
+        let service = DesktopService::new();
+        service.open_repository(dir.path()).unwrap();
+
+        fs::write(
+            dir.path().join("src/lib.rs"),
+            "pub fn hello() {}\npub fn added() {}\n",
+        )
+        .unwrap();
+        {
+            let state = service.lock().unwrap();
+            state
+                .active
+                .as_ref()
+                .and_then(|active| active.watcher.as_ref())
+                .expect("watcher should be available")
+                .inject_for_test(&["src/lib.rs"]);
+        }
+        for _ in 0..10 {
+            std::thread::sleep(Duration::from_millis(60));
+            if !service.poll_repository_events().unwrap().is_empty() {
+                break;
+            }
+        }
+        service.refresh_repository().unwrap();
+
+        assert!(
+            !dir.path().join("rog").exists(),
+            "ordinary desktop session activity (open/watcher/refresh) must never create rog/"
+        );
+        assert!(all_durable_shard_bytes(dir.path()).is_empty());
     }
 }

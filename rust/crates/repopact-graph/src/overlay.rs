@@ -92,7 +92,7 @@ pub enum DurableFreshness {
 /// Typed disclosure of the session's effective graph state (WI063
 /// ROG-010/013, step 17). No host absolute paths and no source bodies
 /// ever appear here.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct EffectiveGraphStatus {
     pub basis: GraphBasis,
     pub durable_freshness: DurableFreshness,

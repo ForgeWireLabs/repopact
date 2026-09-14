@@ -152,6 +152,7 @@ pub enum RecordKind {
     Template,
     AdopterManifest,
     ResearchMetadata,
+    AssuranceMapping,
     Directory,
     File,
 }

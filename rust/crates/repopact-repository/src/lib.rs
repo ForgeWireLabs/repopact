@@ -136,6 +136,16 @@ pub struct EvidenceFile {
     pub value: Result<Value, String>,
 }
 
+/// A discovered `assurance/mappings/*.json` record (WI051, Decision 0054),
+/// before schema/cross-reference validation. Mirrors `EvidenceFile`: an
+/// optional, adopter-authored JSON record family with the same discovery
+/// shape as evidence runs.
+#[derive(Debug, Clone)]
+pub struct AssuranceMappingFile {
+    pub path: PathBuf,
+    pub value: Result<Value, String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct IndexedRecord {
     pub reference: RecordRef,
@@ -169,6 +179,10 @@ pub struct RecordIndex {
     /// policy, lifecycle/benchmark/threat/trace documents) is folded into
     /// `source_paths`/`text_files` below for the same reason.
     pub research_metadata: Option<IndexedRecord>,
+    /// `assurance/mappings/*.json` (WI051, Decision 0054): optional
+    /// provider-neutral assurance/control mapping records. An empty vector
+    /// (the default) is a fully valid repository state.
+    pub assurance_mappings: Vec<IndexedRecord>,
     pub source_paths: Vec<PathBuf>,
     pub work_directories: Vec<PathBuf>,
     pub text_files: BTreeMap<PathBuf, String>,
@@ -231,6 +245,30 @@ impl RecordIndex {
             index.evidence.push(IndexedRecord::json(
                 RecordRef::new(
                     RecordKind::EvidenceRun,
+                    id,
+                    repository.relative_path(&record.path),
+                ),
+                record.path.clone(),
+                record.value,
+            ));
+        }
+        for record in repository.discover_assurance_mappings() {
+            let id = record
+                .value
+                .as_ref()
+                .ok()
+                .and_then(|value| value.get("id"))
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| {
+                    record
+                        .path
+                        .file_stem()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or("unknown")
+                });
+            index.assurance_mappings.push(IndexedRecord::json(
+                RecordRef::new(
+                    RecordKind::AssuranceMapping,
                     id,
                     repository.relative_path(&record.path),
                 ),
@@ -319,6 +357,12 @@ impl RecordIndex {
         index
             .source_paths
             .extend(index.policies.iter().map(|record| record.path.clone()));
+        index.source_paths.extend(
+            index
+                .assurance_mappings
+                .iter()
+                .map(|record| record.path.clone()),
+        );
         index
             .source_paths
             .extend(index.contracts.iter().map(|record| record.path.clone()));
@@ -673,6 +717,19 @@ impl Repository {
                     value.get("id").and_then(Value::as_str).map(str::to_owned)
                 }
                 _ => None,
+            })
+            .collect()
+    }
+
+    /// Discover `assurance/mappings/*.json` records. An absent directory is a
+    /// fully valid RepoPact repository with zero assurance mappings, so this
+    /// returns an empty list rather than treating absence as an error.
+    pub fn discover_assurance_mappings(&self) -> Vec<AssuranceMappingFile> {
+        sorted_json_files(&self.root.join("assurance").join("mappings"))
+            .into_iter()
+            .map(|path| AssuranceMappingFile {
+                value: read_json(&path),
+                path,
             })
             .collect()
     }

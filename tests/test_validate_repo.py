@@ -1133,7 +1133,8 @@ class RepositoryValidationTests(unittest.TestCase):
         reg["scopes"].append({
             "path": "todos/12-search", "owner": "governance-owner",
             "contract": "todos/12-search/AGENTS.md", "last_reviewed": "2026-06-15",
-            "next_review": "2026-09-13", "alignment": "current", "notes": "nested",
+            "next_review": (date.today() + timedelta(days=1)).isoformat(),
+            "alignment": "current", "notes": "nested",
         })
         (repo / "audits" / "registry.json").write_text(json.dumps(reg, indent=2) + "\n", encoding="utf-8")
         generate_dashboard.write_dashboard(repo)

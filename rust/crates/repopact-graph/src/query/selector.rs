@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use crate::SymbolKind;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum NodeSelector {
     /// An exact, already-known graph node ID (e.g. `"file:src/lib.rs"`,
     /// `"work:063"`). Never a partial/prefix match.

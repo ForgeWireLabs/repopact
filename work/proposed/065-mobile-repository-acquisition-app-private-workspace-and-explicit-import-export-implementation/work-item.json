@@ -1,0 +1,73 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "065",
+  "title": "Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation",
+  "status": "proposed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "docs", "evidence"],
+  "depends_on": ["041", "060", "061"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-14T00:00:00Z",
+    "note": "Stamped by `repopact new` at WI061 closeout, as required by WI061 AC-5: WI061 decided (Decision 0056) that mobile repositories are app-private ordinary filesystem workspaces acquired via SAF import, archive import, or (Stage 2) embedded Git, and explicitly deferred all implementation to this follow-up. This item implements Stage 1 only (SAF/archive import into an app-private workspace, normal Workbench operation, explicit export/share-back); Stage 2 embedded Git is out of scope here."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A production mobile workspace registry exists: an app-owned record of each acquired workspace (workspace id, display name, acquisition kind, source reference, created/imported time, last export/sync state, Git/non-Git) persisted in app-private storage, containing no credential material, and not acting as a new global governance authority (per Decision 0056).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-2",
+      "text": "select_repository (or a new typed mobile acquisition command set) on Android offers SAF-based acquisition: ACTION_OPEN_DOCUMENT_TREE for a directory, and ACTION_OPEN_DOCUMENT for a single archive, replacing the current unconditional `repository.mobile-selection-unavailable` error on a normal production build with a real acquisition flow. No broad storage permission (e.g. MANAGE_EXTERNAL_STORAGE) is added; the debug-only android_validation.rs path may be retired once production acquisition covers its purpose.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-3",
+      "text": "Safe recursive directory import from a picked SAF tree into the app-private workspace is implemented with bounded resource handling, a defined symlink policy, defined duplicate-name behavior, no path traversal or writes outside the allocated workspace root, cancellation, and partial-import cleanup, proven by adversarial tests (traversal attempt, symlink escape attempt, oversized/pathological tree).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-4",
+      "text": "Safe archive import (.zip or equivalent) into the app-private workspace is implemented with zip-slip/absolute-path/`..`-traversal rejection, symlink-escape protection, entry-count/expanded-byte/depth bounds against archive bombs, duplicate/case-conflicting path handling, and cleanup after failed extraction, proven by adversarial tests using deliberately malicious fixture archives.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-5",
+      "text": "DesktopService/RepositorySession open and operate on an app-private workspace produced by AC-3 or AC-4 exactly as they do on desktop -- normal Workbench IA, real Rust-backed reads, and a real mutation plan/review/apply cycle -- with zero source-code change to DesktopService, RepositorySession, RepositoryTopology, or the mutation engine's repository-model assumptions (only the acquisition adapter is new).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-6",
+      "text": "Explicit export/share-back is implemented for both SAF-directory-imported and archive-imported workspaces: a user-invoked action writes the current app-private workspace state back out through SAF (directory write-back or a newly produced archive via a user-selected SAF destination), never automatically or in the background, with obvious-divergence detection attempted where feasible before overwrite (per Decision 0056's write-back model).",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-7",
+      "text": "The mobile command surface exposes only typed operations (import repository, export workspace, and stubs/no-ops for the Stage-2-reserved clone/pull/push) -- never an arbitrary read/write URI, arbitrary filesystem path, or generic shell -- preserving Decision 0041's typed-command authority boundary; progress/cancellation/error reporting for import and export are typed, not raw strings.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-8",
+      "text": "Real Android runtime evidence (on-device, not merely compiled) proves: SAF directory import, SAF/archive import, Workbench operation against the resulting workspace, mutation apply, and export/share-back all function correctly on a real device or emulator, and the Android permission/capability manifest is re-audited to confirm no broad storage, shell, or generic filesystem capability was introduced.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-9",
+      "text": "A future embedded-Git seam is established (at minimum, the acquisition-kind/workspace-identity model and command-surface shape accommodate a future clone/pull/push addition without a breaking redesign) but embedded Git itself (git2-rs/gix integration, real clone/fetch/push, remote credentials) is explicitly out of scope for this work item and is deferred to a further follow-up work item created or activated at this item's own closeout if still warranted.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

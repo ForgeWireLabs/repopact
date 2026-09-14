@@ -1779,7 +1779,19 @@ two pre-existing, unrelated diagnostics already disclosed in the prior
 checkpoint (unregistered research-claim documents, `CITATION.cff`
 ownership) plus a dashboard staleness this checkpoint's own changes
 caused and then fixed by regenerating it. Broad Python regression
-suite: see the evidence record's `closeout.python_regression`.
+suite: 280 passed, 2 skipped, 18 subtests passed, 14 failed, 836.40s.
+13 of the 14 failures are the same two previously-disclosed pre-
+existing conditions. The 14th,
+`test_takeover_refuses_dir_with_audit_scope_inside`, is newly observed
+this checkpoint but confirmed (via a `git worktree` checkout to
+`2157494`, this checkpoint's own starting commit, not a working-tree
+mutation) to already fail there too -- an unrelated, apparently
+date-sensitive subsystem (`test_validate_repo.py`'s takeover/audit-
+scope registry test hardcodes `next_review: '2026-09-13'`; today is
+2026-09-14) this checkpoint never touched. Disclosed as a third
+pre-existing condition, not silently folded into the other two, not
+fixed. See the evidence record's `closeout.python_regression` for the
+full detail.
 
 ### AC assessment
 

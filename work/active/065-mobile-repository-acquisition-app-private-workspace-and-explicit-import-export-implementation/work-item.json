@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "065",
   "title": "Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "tooling",
   "affected_scopes": ["tooling", "docs", "evidence"],
   "depends_on": ["041", "060", "061"],

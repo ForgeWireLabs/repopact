@@ -10,6 +10,16 @@
 ))]
 mod android_validation;
 
+// Not `#[cfg(target_os = "android")]`-gated as a whole: `MobileAcquisitionCoordinator`,
+// its DTOs, and the id-only `mobile_workspace_open`/`mobile_operation_*`/
+// `mobile_git_capabilities` commands only depend on the platform-neutral
+// `repopact-mobile-acquisition` crate, so they compile and are host-tested
+// on every platform (WI065 Checkpoint B §35). Only `mobile_import_directory`/
+// `mobile_import_archive` (which call the real Android SAF bridge) are
+// individually gated inside the module, and only the Android build of this
+// app actually registers any of these commands (see `run()` below).
+mod mobile_acquisition;
+
 use std::thread;
 use std::time::Duration;
 
@@ -243,11 +253,16 @@ fn poll_repository_events(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let service = DesktopService::new();
+    // WI065 Checkpoint B (§24): select_repository and its native-picker/
+    // PathBuf path stay desktop-only and completely unchanged. Android
+    // gets a separate typed command surface (mobile_*) rather than one
+    // command contorted to cover incompatible desktop/mobile semantics.
+    // Command registration is therefore fully platform-branched here, not
+    // merely the plugin list, so the Android build never even references
+    // desktop-only types and vice versa.
     #[cfg(not(target_os = "android"))]
-    let builder = tauri::Builder::default().plugin(tauri_plugin_dialog::init());
-    #[cfg(target_os = "android")]
-    let builder = tauri::Builder::default();
-    builder
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(service.clone())
         .invoke_handler(tauri::generate_handler![
             select_repository,
@@ -271,7 +286,42 @@ pub fn run() {
             apply_mutation_plan,
             discard_mutation_plan,
             poll_repository_events
-        ])
+        ]);
+    #[cfg(target_os = "android")]
+    let builder = tauri::Builder::default()
+        .plugin(repopact_mobile_saf::init_plugin())
+        .manage(service.clone())
+        .invoke_handler(tauri::generate_handler![
+            select_repository,
+            close_repository,
+            repository_overview,
+            refresh_repository,
+            validate_repository,
+            list_work_items,
+            get_work_item,
+            list_decisions,
+            get_decision,
+            list_evidence,
+            get_evidence,
+            relationship_graph,
+            graph_query,
+            graph_verify,
+            graph_status,
+            graph_build,
+            analyze_work_item,
+            plan_mutation,
+            apply_mutation_plan,
+            discard_mutation_plan,
+            poll_repository_events,
+            mobile_acquisition::mobile_workspace_list,
+            mobile_acquisition::mobile_import_directory,
+            mobile_acquisition::mobile_import_archive,
+            mobile_acquisition::mobile_operation_status,
+            mobile_acquisition::mobile_operation_cancel,
+            mobile_acquisition::mobile_workspace_open,
+            mobile_acquisition::mobile_git_capabilities
+        ]);
+    builder
         .setup(|app| {
             let handle = app.handle().clone();
             let service = app.state::<DesktopService>().inner().clone();
@@ -284,6 +334,28 @@ pub fn run() {
                     let _ = handle.emit("repository-changed", event);
                 }
             });
+            // WI065 Checkpoint B (§15/§16): the production mobile workspace
+            // registry/importer is initialized exactly once here, from the
+            // real app-private data directory (Decision 0057 -- never
+            // WI060's debug validation root), and managed for the app's
+            // whole lifetime. WorkspaceManager::open already performs
+            // Checkpoint A's crash/restart recovery (orphaned staging
+            // cleanup, stale registry temp-file cleanup) synchronously
+            // before returning; a corrupt registry surfaces as a loud
+            // startup error here rather than a silently empty one.
+            #[cfg(target_os = "android")]
+            {
+                let root = app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|error| format!("unable to resolve app_data_dir: {error}"))?
+                    .join("repositories");
+                let coordinator = mobile_acquisition::MobileAcquisitionCoordinator::open(root)
+                    .map_err(|error| {
+                        format!("unable to initialize the mobile acquisition coordinator: {error}")
+                    })?;
+                app.manage(std::sync::Arc::new(coordinator));
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

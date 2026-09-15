@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SAF (ACTION_OPEN_DOCUMENT_TREE / ACTION_OPEN_DOCUMENT) requires no
+         manifest permission of its own: the user's picker grant is the
+         entire authority surface (Decision 0056/0057). This plugin adds no
+         permission here, and must not: no MANAGE_EXTERNAL_STORAGE, no
+         legacy broad READ_EXTERNAL_STORAGE/WRITE_EXTERNAL_STORAGE. -->
+</manifest>

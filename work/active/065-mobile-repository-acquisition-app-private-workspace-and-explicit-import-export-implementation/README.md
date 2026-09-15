@@ -134,18 +134,52 @@ full record of each):
   cancel-while-importing scenario was not executed this session -- recorded
   as a real follow-up rather than faked. See
   `evidence/runs/20260915-065-checkpoint-b5-android-saf-runtime.json`.
-- **Checkpoint C (Workbench mutation cycle), Checkpoint D (export/share-back
-  wiring, including the typed export commands AC-7 also requires), Checkpoint
-  E (adversarial device tests + final closeout) — not started.**
+- **Checkpoint C — done, production-imported Android workspace mutation
+  proof.** Proved that an app-private workspace acquired through the real
+  production SAF path behaves identically to a desktop-opened repository
+  through the existing, unmodified Rust-owned mutation system. On the same
+  WI060/B.5-proven emulator, imported a new, richer SAF-directory fixture
+  (a minimal but genuinely valid RepoPact repository -- the B.5 fixture was
+  deliberately not one) through the real `ACTION_OPEN_DOCUMENT_TREE` picker,
+  then drove the identical Workbench mutation UI used on desktop end to end:
+  Work tab → `001 · Seed work item` → **Edit typed fields** → typed title
+  edit → **Review edit plan** (`plan_mutation`) → real review dialog showing
+  the opaque plan handle (`plan-1-1`), the Rust-generated diff preview, and
+  generated impacts (no MutationPlan DTO serialized into or reconstructed by
+  JavaScript) → **Apply approved plan** (`apply_mutation_plan`) → toast
+  "Plan applied and post-validation completed." The on-device file hash
+  changed exactly as planned (`430c135a…` → `1b0d7f9e…`), the session
+  snapshot token was invalidated and replaced (`124440fdaaad…` →
+  `52004f1cdd86…`) with no manual refresh, and the session generation
+  counter incremented to `2` -- all without an app restart. A full
+  force-stop + relaunch cycle then proved the mutation was durably
+  persisted (not merely in-memory), and the original external SAF source
+  file remained byte-identical throughout, confirming the app-private copy
+  was the sole canonical, edited copy per Decision 0056. A cheap secondary
+  read-only open of the pre-existing archive-imported workspace confirmed
+  the same open/read path works identically for `saf_archive` acquisitions.
+  No source change was required anywhere in `DesktopService`,
+  `RepositorySession`, `RepositoryTopology`, or the mutation engine --
+  Checkpoint C is a pure proof exercise against the already-landed
+  production build, and the post-session permission/log-privacy audits
+  stayed clean (no new permissions, no crashes, no leaked URIs). The
+  optional negative stale-plan test (Section 17) was not attempted this
+  session, honestly recorded as not executed rather than faked, since the
+  primary AC-5 requirement -- one complete, valid plan/review/apply cycle
+  proven through the real UI -- was already fully satisfied. See
+  `evidence/runs/20260915-065-checkpoint-c-android-mutation-cycle.json`.
+- **Checkpoint D (export/share-back wiring, including the typed export
+  commands AC-7 also requires), Checkpoint E (adversarial device tests +
+  final closeout) — not started.**
 
-AC-1, AC-2, AC-3, and AC-4 are now `satisfied` in `work-item.json`, backed by
-the real on-device evidence above. AC-7 stays `pending`: its exact wording
-requires the mobile command surface to expose typed **export** operations
-too, and those belong to Checkpoint D, not yet built. AC-5, AC-6, AC-8, and
-AC-9 stay `pending` as Checkpoint C/D/E's job outright (AC-8 in particular
-still needs mutation-apply and export/share-back runtime proof on top of
-this checkpoint's acquisition-only proof). This work item stays `active`
-rather than being closed against partial evidence.
+AC-1, AC-2, AC-3, AC-4, and now AC-5 are `satisfied` in `work-item.json`,
+backed by the real on-device evidence above. AC-7 stays `pending`: its
+exact wording requires the mobile command surface to expose typed
+**export** operations too, and those belong to Checkpoint D, not yet built.
+AC-6, AC-8, and AC-9 stay `pending` as Checkpoint D/E's job outright (AC-8
+in particular still needs export/share-back runtime proof on top of this
+checkpoint's mutation-apply proof). This work item stays `active` rather
+than being closed against partial evidence.
 
 ## Scope
 

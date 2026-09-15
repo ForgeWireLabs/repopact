@@ -64,8 +64,10 @@
     {
       "id": "AC-5",
       "text": "DesktopService/RepositorySession open and operate on an app-private workspace produced by AC-3 or AC-4 exactly as they do on desktop -- normal Workbench IA, real Rust-backed reads, and a real mutation plan/review/apply cycle -- with zero source-code change to DesktopService, RepositorySession, RepositoryTopology, or the mutation engine's repository-model assumptions (only the acquisition adapter is new).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-c-android-mutation-cycle"
+      ]
     },
     {
       "id": "AC-6",

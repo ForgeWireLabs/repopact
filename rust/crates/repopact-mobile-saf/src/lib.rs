@@ -41,7 +41,7 @@ mod desktop;
 mod mobile;
 
 #[cfg(mobile)]
-pub use mobile::{AndroidSafSource, StagingArchiveFile};
+pub use mobile::{AndroidExportSink, AndroidSafSource, StagingArchiveFile};
 
 /// A picked SAF directory tree, or a picked SAF archive document. The
 /// `*_uri` fields are native-owned from here on: they are stored only in
@@ -56,6 +56,15 @@ pub struct PickedTree {
 pub struct PickedDocument {
     pub document_uri: String,
     pub display_name: String,
+}
+
+/// WI065 Checkpoint D: the result of attempting to create one new export
+/// root beneath a picked SAF parent tree (Decision 0057 §6/§7). A same-named
+/// child that already exists is a `Conflict`, never a silent merge.
+#[derive(Debug, Clone)]
+pub enum ExportRootOutcome {
+    Created { root_uri: String },
+    Conflict,
 }
 
 pub trait SafAcquisitionExt<R: Runtime> {
@@ -91,6 +100,63 @@ impl<R: Runtime> SafAcquisition<R> {
         #[cfg(desktop)]
         return desktop::pick_archive_document();
     }
+
+    /// WI065 Checkpoint D: picks a SAF destination parent tree for a
+    /// directory export.
+    pub fn pick_export_directory(&self) -> AcquisitionResult<Option<PickedTree>> {
+        #[cfg(mobile)]
+        return mobile::pick_export_directory(&self.0);
+        #[cfg(desktop)]
+        return desktop::pick_export_directory();
+    }
+
+    /// Creates exactly one new export root beneath `tree_uri` (Decision
+    /// 0057 §6/§7). Never overwrites or merges into an existing child.
+    pub fn create_export_root(
+        &self,
+        tree_uri: &str,
+        name: &str,
+    ) -> AcquisitionResult<ExportRootOutcome> {
+        #[cfg(mobile)]
+        return mobile::create_export_root(&self.0, tree_uri, name);
+        #[cfg(desktop)]
+        return desktop::create_export_root(tree_uri, name);
+    }
+
+    /// Best-effort cleanup of an app-created export root after a failed or
+    /// cancelled directory export (Decision 0057 §17).
+    pub fn delete_document(&self, uri: &str) -> AcquisitionResult<()> {
+        #[cfg(mobile)]
+        return mobile::delete_document(&self.0, uri);
+        #[cfg(desktop)]
+        return desktop::delete_document(uri);
+    }
+
+    /// Picks a brand-new `CreateDocument` destination for an archive export
+    /// (Decision 0057 §10).
+    pub fn pick_export_archive_destination(
+        &self,
+        suggested_name: &str,
+    ) -> AcquisitionResult<Option<PickedDocument>> {
+        #[cfg(mobile)]
+        return mobile::pick_export_archive_destination(&self.0, suggested_name);
+        #[cfg(desktop)]
+        return desktop::pick_export_archive_destination(suggested_name);
+    }
+
+    /// Uploads an already-completed local archive file to its picked SAF
+    /// destination (Decision 0057 §10/§18: build the complete ZIP locally
+    /// first, then copy it out in one step).
+    pub fn upload_completed_archive(
+        &self,
+        document_uri: &str,
+        local_zip_path: &std::path::Path,
+    ) -> AcquisitionResult<u64> {
+        #[cfg(mobile)]
+        return mobile::upload_completed_archive(&self.0, document_uri, local_zip_path);
+        #[cfg(desktop)]
+        return desktop::upload_completed_archive(document_uri, local_zip_path);
+    }
 }
 
 #[cfg(mobile)]
@@ -114,6 +180,20 @@ impl<R: Runtime> SafAcquisition<R> {
         document_uri: &str,
     ) -> AcquisitionResult<mobile::StagingArchiveFile> {
         mobile::open_archive_document(&self.0, document_uri)
+    }
+
+    /// WI065 Checkpoint D: constructs a real Android
+    /// [`repopact_mobile_acquisition::sink::ExportSink`] rooted at an
+    /// already-created export root document. `staging_dir` is a
+    /// caller-owned, app-private directory used only to stage one file's
+    /// bytes at a time before each is uploaded (never a second copy of the
+    /// whole export).
+    pub fn open_export_sink(
+        &self,
+        root_uri: String,
+        staging_dir: std::path::PathBuf,
+    ) -> AcquisitionResult<mobile::AndroidExportSink<R>> {
+        mobile::AndroidExportSink::new(self.0.clone(), root_uri, staging_dir)
     }
 }
 

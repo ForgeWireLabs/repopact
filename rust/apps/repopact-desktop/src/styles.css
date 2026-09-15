@@ -41,6 +41,10 @@ h4 { margin-bottom: 10px; }
 .muted { color: var(--muted); line-height: 1.55; }
 .path-text { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; margin-bottom: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-actions, .button-row { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.mobile-workspace-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; }
+.mobile-workspace-row-header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.mobile-workspace-row-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mobile-operation-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .theme-picker { color: var(--muted); display: flex; gap: 8px; align-items: center; font-size: 12px; }
 select, input, textarea { border: 1px solid var(--line); background: var(--panel-2); color: var(--ink); border-radius: 7px; padding: 9px 11px; outline: none; min-height: 42px; }
 input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

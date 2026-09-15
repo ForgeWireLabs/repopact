@@ -319,7 +319,11 @@ pub fn run() {
             mobile_acquisition::mobile_operation_status,
             mobile_acquisition::mobile_operation_cancel,
             mobile_acquisition::mobile_workspace_open,
-            mobile_acquisition::mobile_git_capabilities
+            mobile_acquisition::mobile_git_capabilities,
+            mobile_acquisition::mobile_export_workspace_directory,
+            mobile_acquisition::mobile_export_workspace_archive,
+            mobile_acquisition::mobile_workspace_source_status,
+            mobile_acquisition::mobile_workspace_remove
         ]);
     builder
         .setup(|app| {

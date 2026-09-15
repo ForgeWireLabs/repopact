@@ -39,13 +39,17 @@ use std::thread;
 
 use repopact_desktop_api::{DesktopError, DesktopService, RepositoryOverview};
 #[cfg(target_os = "android")]
-use repopact_mobile_acquisition::bounds::{ArchiveBounds, ImportBounds};
+use repopact_mobile_acquisition::bounds::{ArchiveBounds, ExportBounds, ImportBounds};
 use repopact_mobile_acquisition::operation::{CancellationToken, OperationProgress};
+#[cfg(target_os = "android")]
+use repopact_mobile_acquisition::paths::sanitize_export_root_name;
+#[cfg(target_os = "android")]
+use repopact_mobile_acquisition::SourceStatus;
 use repopact_mobile_acquisition::{
     AcquisitionError, AcquisitionResult, ErrorCode, WorkspaceManager, WorkspaceRecord,
 };
 #[cfg(target_os = "android")]
-use repopact_mobile_saf::SafAcquisitionExt;
+use repopact_mobile_saf::{ExportRootOutcome, SafAcquisitionExt};
 use serde::Serialize;
 #[cfg(target_os = "android")]
 use tauri::AppHandle;
@@ -164,6 +168,19 @@ impl MobileAcquisitionCoordinator {
         self.manager
             .list_workspaces()
             .into_iter()
+            .map(|record| {
+                // WI065 Checkpoint D §27: opportunistically re-derive
+                // `changed_since_export` before reporting the list, so the
+                // frontend never displays a stale `exported` state after a
+                // later local mutation. Best-effort: a failed re-scan
+                // (workspace briefly not ready, filesystem error) simply
+                // leaves the previously-persisted state as-is rather than
+                // failing the whole list.
+                let _ = self.manager.refresh_export_freshness(&record.workspace_id);
+                self.manager
+                    .get_workspace(&record.workspace_id)
+                    .unwrap_or(record)
+            })
             .map(Into::into)
             .collect()
     }
@@ -303,6 +320,23 @@ pub fn mobile_workspace_open(
     service.open_repository(path)
 }
 
+/// WI065 Checkpoint D §37 (secondary to AC-6/AC-7): removes only a
+/// workspace's app-private copy. Never touches the original SAF source or
+/// archive. The frontend is responsible for warning the user first when a
+/// workspace has never been exported or has changed since its last export
+/// (`lastExportState`); this command itself performs no such gate -- it is
+/// a typed, id-only delete, exactly like every other command here.
+#[tauri::command]
+pub fn mobile_workspace_remove(
+    workspace_id: String,
+    coordinator: State<'_, Arc<MobileAcquisitionCoordinator>>,
+) -> Result<(), MobileAcquisitionError> {
+    coordinator
+        .manager()
+        .remove_workspace(&workspace_id)
+        .map_err(Into::into)
+}
+
 /// Picks a SAF directory tree (blocking on the user's picker interaction,
 /// exactly like desktop's `select_repository` already blocks on its native
 /// folder dialog) and, if one was selected, starts a bounded import on a
@@ -399,6 +433,229 @@ pub fn mobile_import_archive(
     });
 
     Ok(Some(operation_id))
+}
+
+/// WI065 Checkpoint D: explicit, user-invoked directory export/share-back
+/// (Decision 0056/0057 §"Export/write-back authority surface"). Accepts
+/// only a registered workspace id -- never a destination path or URI. The
+/// destination *parent* is picked live through the real SAF directory-tree
+/// picker; RepoPact then creates exactly one new export root beneath it
+/// (never writing into an arbitrary pre-existing tree) and reports a typed
+/// `export_conflict` if a same-named child already exists there.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn mobile_export_workspace_directory(
+    workspace_id: String,
+    app: AppHandle,
+    coordinator: State<'_, Arc<MobileAcquisitionCoordinator>>,
+) -> Result<Option<String>, MobileAcquisitionError> {
+    let record = coordinator
+        .manager()
+        .get_workspace(&workspace_id)
+        .map_err(MobileAcquisitionError::from)?;
+
+    let picked = app
+        .saf_acquisition()
+        .pick_export_directory()
+        .map_err(MobileAcquisitionError::from)?;
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+
+    let export_root_name = sanitize_export_root_name(&record.display_name);
+    let root_outcome = app
+        .saf_acquisition()
+        .create_export_root(&picked.tree_uri, &export_root_name)
+        .map_err(MobileAcquisitionError::from)?;
+    let root_uri = match root_outcome {
+        ExportRootOutcome::Created { root_uri } => root_uri,
+        ExportRootOutcome::Conflict => {
+            return Err(MobileAcquisitionError {
+                code: ErrorCode::ExportConflict,
+                message: format!(
+                    "an item named '{export_root_name}' already exists at the chosen destination; \
+                     pick a different destination or rename the workspace"
+                ),
+            });
+        }
+    };
+
+    let (operation_id, cancel) = coordinator.begin_operation();
+    let coordinator_thread = coordinator.inner().clone();
+    let thread_operation_id = operation_id.clone();
+    let staging_dir = coordinator
+        .manager()
+        .root()
+        .join("staging-export")
+        .join(&operation_id);
+    thread::spawn(move || {
+        let mut sink = match app
+            .saf_acquisition()
+            .open_export_sink(root_uri.clone(), staging_dir)
+        {
+            Ok(sink) => sink,
+            Err(error) => {
+                coordinator_thread.finish(&thread_operation_id, Err(error));
+                return;
+            }
+        };
+        let progress_operation_id = thread_operation_id.clone();
+        let progress_coordinator = coordinator_thread.clone();
+        let result = coordinator_thread
+            .manager()
+            .export_directory_via_sink(
+                &workspace_id,
+                &mut sink,
+                &ExportBounds::default(),
+                &cancel,
+                move |progress| {
+                    progress_coordinator.update_progress(&progress_operation_id, progress)
+                },
+            )
+            .and_then(|_summary| coordinator_thread.manager().get_workspace(&workspace_id));
+
+        // Decision 0057 §17: on any failure or cancellation, best-effort
+        // clean up the export root this operation itself created -- never
+        // report success if the destination was left in a partial state,
+        // and never leave an orphaned app-created directory silently.
+        if result.is_err() {
+            if let Err(cleanup_error) = app.saf_acquisition().delete_document(&root_uri) {
+                repopact_log_cleanup_failure(&cleanup_error);
+            }
+        }
+        coordinator_thread.finish(&thread_operation_id, result);
+    });
+
+    Ok(Some(operation_id))
+}
+
+/// WI065 Checkpoint D: explicit, user-invoked archive export/share-back.
+/// Always creates a brand-new document through `ACTION_CREATE_DOCUMENT` --
+/// Stage 1 never overwrites an original archive in place. The complete ZIP
+/// is built into local app-private staging first (Decision 0057 §10), and
+/// the workspace is marked exported only once that completed file has
+/// actually been copied to the picked SAF destination.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn mobile_export_workspace_archive(
+    workspace_id: String,
+    app: AppHandle,
+    coordinator: State<'_, Arc<MobileAcquisitionCoordinator>>,
+) -> Result<Option<String>, MobileAcquisitionError> {
+    let record = coordinator
+        .manager()
+        .get_workspace(&workspace_id)
+        .map_err(MobileAcquisitionError::from)?;
+    // A workspace's display name already ends in `.zip` when it mirrors a
+    // saf_archive import's original filename (Decision 0057) -- strip a
+    // pre-existing extension before appending one, rather than suggesting
+    // an oddity like "project.zip.zip" (a real defect found via runtime
+    // testing, WI065 Checkpoint D).
+    let base_name = sanitize_export_root_name(&record.display_name);
+    let base_name = base_name
+        .strip_suffix(".zip")
+        .or_else(|| base_name.strip_suffix(".ZIP"))
+        .unwrap_or(&base_name);
+    let suggested_name = format!("{base_name}.zip");
+
+    let picked = app
+        .saf_acquisition()
+        .pick_export_archive_destination(&suggested_name)
+        .map_err(MobileAcquisitionError::from)?;
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+
+    let (operation_id, cancel) = coordinator.begin_operation();
+    let coordinator_thread = coordinator.inner().clone();
+    let thread_operation_id = operation_id.clone();
+    let staging_dir = coordinator
+        .manager()
+        .root()
+        .join("staging-export")
+        .join(&operation_id);
+    thread::spawn(move || {
+        let result = (|| -> AcquisitionResult<WorkspaceRecord> {
+            std::fs::create_dir_all(&staging_dir)
+                .map_err(|error| AcquisitionError::new(ErrorCode::InternalIo, error.to_string()))?;
+            let local_zip_path = staging_dir.join("export.zip");
+            let local_file = std::fs::File::create(&local_zip_path)
+                .map_err(|error| AcquisitionError::new(ErrorCode::InternalIo, error.to_string()))?;
+            let progress_operation_id = thread_operation_id.clone();
+            let progress_coordinator = coordinator_thread.clone();
+            coordinator_thread.manager().build_archive_snapshot(
+                &workspace_id,
+                local_file,
+                &ExportBounds::default(),
+                &cancel,
+                move |progress| {
+                    progress_coordinator.update_progress(&progress_operation_id, progress)
+                },
+            )?;
+            // Decision 0057 §18: the workspace is marked exported only
+            // after this upload succeeds -- never merely because the local
+            // snapshot was built successfully.
+            app.saf_acquisition()
+                .upload_completed_archive(&picked.document_uri, &local_zip_path)?;
+            coordinator_thread
+                .manager()
+                .mark_workspace_exported(&workspace_id)?;
+            let _ = std::fs::remove_file(&local_zip_path);
+            coordinator_thread.manager().get_workspace(&workspace_id)
+        })();
+        coordinator_thread.finish(&thread_operation_id, result);
+    });
+
+    Ok(Some(operation_id))
+}
+
+/// WI065 Checkpoint D §8/§9: an on-demand, read-only check of whether a
+/// `saf_directory` workspace's original external source has obviously
+/// changed since import. Performs a fresh, non-writing re-listing through
+/// the same real SAF bridge the import path used -- never a claim of
+/// cryptographic proof, and never itself a blocking gate on export (Stage
+/// 1's create-new-root export model has no overwrite step to guard).
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub fn mobile_workspace_source_status(
+    workspace_id: String,
+    app: AppHandle,
+    coordinator: State<'_, Arc<MobileAcquisitionCoordinator>>,
+) -> Result<SourceStatus, MobileAcquisitionError> {
+    let record = coordinator
+        .manager()
+        .get_workspace(&workspace_id)
+        .map_err(MobileAcquisitionError::from)?;
+    if record.acquisition_kind != repopact_mobile_acquisition::AcquisitionKind::SafDirectory {
+        // Archive sources are one-shot, one-time input with no persisted
+        // grant to re-scan (Decision 0057 §"Persistable URI permissions");
+        // there is nothing honest to compare against.
+        return Ok(SourceStatus::Unknown);
+    }
+    let cancel = CancellationToken::new();
+    let mut source = match app
+        .saf_acquisition()
+        .open_directory_source(record.source_reference.clone())
+    {
+        Ok(source) => source,
+        Err(error) => {
+            return Ok(repopact_mobile_acquisition::divergence::status_from_scan_error(error.code));
+        }
+    };
+    Ok(coordinator
+        .manager()
+        .check_source_status(&workspace_id, &mut source, &cancel))
+}
+
+/// Privacy-safe cleanup-failure diagnostic (WI065 Checkpoint B.5 redaction
+/// discipline continued into Checkpoint D): logs only the typed error code,
+/// never a raw `content://` URI or provider message.
+#[cfg(target_os = "android")]
+fn repopact_log_cleanup_failure(error: &AcquisitionError) {
+    eprintln!(
+        "mobile export: cleanup of an app-created export root failed (code={:?}); destination may contain a partial export",
+        error.code
+    );
 }
 
 #[cfg(test)]

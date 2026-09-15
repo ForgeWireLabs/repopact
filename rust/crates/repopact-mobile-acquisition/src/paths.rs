@@ -148,6 +148,37 @@ impl CollisionGuard {
     }
 }
 
+/// WI065 Checkpoint D §6: derives a deterministic, sanitized export-root
+/// directory/document name from a workspace's user-facing display name.
+/// Never used for anything path-safety-authoritative on its own -- the
+/// resulting name still passes through the same collision/creation checks
+/// as any other SAF document name -- but a raw display name may contain
+/// path separators, control characters, or be empty, none of which are
+/// valid single path segments.
+pub fn sanitize_export_root_name(display_name: &str) -> String {
+    let mut sanitized: String = display_name
+        .trim()
+        .chars()
+        .map(|ch| match ch {
+            '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|' => '_',
+            ch if ch.is_control() => '_',
+            ch => ch,
+        })
+        .collect();
+    sanitized = sanitized.trim_matches(['.', ' ', '_']).to_owned();
+    if sanitized.is_empty() {
+        sanitized = "repopact-export".to_owned();
+    }
+    // A generous but bounded length -- this is a single path segment name,
+    // not the deep-path-length bound `ExportBounds`/`ImportBounds` enforce
+    // during traversal.
+    const MAX_NAME_LENGTH: usize = 128;
+    if sanitized.chars().count() > MAX_NAME_LENGTH {
+        sanitized = sanitized.chars().take(MAX_NAME_LENGTH).collect();
+    }
+    sanitized
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +284,26 @@ mod tests {
         guard.admit("a.txt", EntryKind::File).unwrap();
         guard.admit("b.txt", EntryKind::File).unwrap();
         guard.admit("dir/a.txt", EntryKind::File).unwrap();
+    }
+
+    #[test]
+    fn sanitizes_path_separators_and_control_characters() {
+        assert_eq!(
+            sanitize_export_root_name("My/Project\\Name"),
+            "My_Project_Name"
+        );
+    }
+
+    #[test]
+    fn sanitizes_empty_name_to_a_fallback() {
+        assert_eq!(sanitize_export_root_name("   "), "repopact-export");
+    }
+
+    #[test]
+    fn preserves_an_ordinary_display_name() {
+        assert_eq!(
+            sanitize_export_root_name("repo-dir-fixture"),
+            "repo-dir-fixture"
+        );
     }
 }

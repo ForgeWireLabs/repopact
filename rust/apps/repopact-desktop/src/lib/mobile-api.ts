@@ -9,6 +9,7 @@ import type {
   AcquisitionOperation,
   MobileAcquisitionError,
   MobileCapabilityStatus,
+  SourceStatus,
   WorkspaceSummary,
 } from "./mobile-types";
 
@@ -28,4 +29,14 @@ export const mobileApi = {
   // Accepts only an opaque workspace id -- never a path or URI.
   openWorkspace: (workspaceId: string) =>
     invoke<RepositoryOverview>("mobile_workspace_open", { workspaceId }),
+  // WI065 Checkpoint D: explicit export/share-back. `null` means the user
+  // cancelled the SAF destination picker -- not a failure.
+  exportWorkspaceDirectory: (workspaceId: string) =>
+    invoke<string | null>("mobile_export_workspace_directory", { workspaceId }),
+  exportWorkspaceArchive: (workspaceId: string) =>
+    invoke<string | null>("mobile_export_workspace_archive", { workspaceId }),
+  sourceStatus: (workspaceId: string) =>
+    invoke<SourceStatus>("mobile_workspace_source_status", { workspaceId }),
+  removeWorkspace: (workspaceId: string) =>
+    invoke<void>("mobile_workspace_remove", { workspaceId }),
 };

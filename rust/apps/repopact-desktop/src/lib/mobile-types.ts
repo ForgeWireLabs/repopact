@@ -75,6 +75,14 @@ export type AcquisitionOperation =
 
 export type Stage2Status = "unsupported_stage2";
 
+// WI065 Checkpoint D: mirrors repopact_mobile_acquisition::SourceStatus.
+export type SourceStatus =
+  | "unchanged"
+  | "obviously_changed"
+  | "unavailable"
+  | "permission_lost"
+  | "unknown";
+
 export interface MobileCapabilityStatus {
   cloneRepository: Stage2Status;
   pullRepository: Stage2Status;

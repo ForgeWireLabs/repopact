@@ -29,6 +29,33 @@ impl Default for ImportBounds {
     }
 }
 
+/// Decision 0057 §19 (Checkpoint D): export must remain bounded even though
+/// its source (the app-private workspace) is more trusted than an external
+/// import source. Deliberately mirrors [`ImportBounds`]'s values -- an
+/// export can never legitimately need to move more data than the same
+/// workspace was allowed to import in the first place.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportBounds {
+    pub max_entries: u64,
+    pub max_total_bytes: u64,
+    pub max_single_file_bytes: u64,
+    pub max_depth: usize,
+    pub max_path_length: usize,
+}
+
+impl Default for ExportBounds {
+    fn default() -> Self {
+        let import = ImportBounds::default();
+        Self {
+            max_entries: import.max_entries,
+            max_total_bytes: import.max_total_bytes,
+            max_single_file_bytes: import.max_single_file_bytes,
+            max_depth: import.max_depth,
+            max_path_length: import.max_path_length,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ArchiveBounds {
     pub max_entries: u64,

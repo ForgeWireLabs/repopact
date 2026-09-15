@@ -27,5 +27,9 @@ commands.allow = [
   "mobile_operation_status",
   "mobile_operation_cancel",
   "mobile_workspace_open",
-  "mobile_git_capabilities"
+  "mobile_git_capabilities",
+  "mobile_export_workspace_directory",
+  "mobile_export_workspace_archive",
+  "mobile_workspace_source_status",
+  "mobile_workspace_remove"
 ]

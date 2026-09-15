@@ -11,14 +11,18 @@
 
 pub mod archive;
 pub mod bounds;
+pub mod divergence;
 pub mod error;
+pub mod export;
 pub mod import;
 pub mod operation;
 pub mod paths;
 pub mod registry;
+pub mod sink;
 pub mod source;
 pub mod workspace;
 
+pub use divergence::SourceStatus;
 pub use error::{AcquisitionError, AcquisitionResult, ErrorCode};
 pub use registry::{
     AcquisitionKind, ExportState, GitState, LifecycleState, SourceFingerprint, WorkspaceRecord,

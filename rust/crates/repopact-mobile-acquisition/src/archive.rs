@@ -12,9 +12,9 @@ use std::path::Path;
 use zip::write::SimpleFileOptions;
 use zip::{ZipArchive, ZipWriter};
 
-use crate::bounds::ArchiveBounds;
+use crate::bounds::{ArchiveBounds, ExportBounds};
 use crate::error::{AcquisitionError, AcquisitionResult, ErrorCode};
-use crate::operation::{CancellationToken, OperationPhase, ProgressThrottle};
+use crate::operation::{CancellationToken, OperationPhase, OperationProgress, ProgressThrottle};
 use crate::paths::{reject_unsafe_relative_path, safe_join, CollisionGuard, EntryKind};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -244,15 +244,23 @@ fn bounded_extract(
 /// Creates a new `.zip` at `dest_writer` from `source_root`'s contents.
 /// Used for both directory-workspace and archive-workspace export
 /// (Decision 0057 §"Export semantics": archive export always creates a new
-/// document, never mutates an original archive in place).
+/// document, never mutates an original archive in place). Bounded and
+/// progress-reporting exactly like the importers (WI065 Checkpoint D
+/// §19/§20): even though `source_root` is app-owned/trusted content, an
+/// export must not become an unbounded operation, and the caller needs the
+/// same typed progress stream to drive a Cancel-capable UI.
 pub fn create_archive<W: Write + Seek>(
     source_root: &Path,
     dest_writer: W,
+    bounds: &ExportBounds,
     cancel: &CancellationToken,
+    mut on_progress: impl FnMut(OperationProgress),
 ) -> AcquisitionResult<u64> {
     let mut writer = ZipWriter::new(dest_writer);
     let options = SimpleFileOptions::default();
     let mut bytes_written = 0u64;
+    let mut entries_written = 0u64;
+    let mut throttle = ProgressThrottle::new("archive-export", OperationPhase::Exporting);
 
     let mut stack = vec![(source_root.to_path_buf(), String::new())];
     while let Some((absolute_dir, relative_dir)) = stack.pop() {
@@ -275,6 +283,35 @@ pub fn create_archive<W: Write + Seek>(
             } else {
                 format!("{relative_dir}/{name}")
             };
+
+            reject_unsafe_relative_path(&relative)?;
+            if relative.len() > bounds.max_path_length {
+                return Err(AcquisitionError::new(
+                    ErrorCode::ResourceLimit,
+                    format!(
+                        "path '{relative}' exceeds the {}-character path-length bound",
+                        bounds.max_path_length
+                    ),
+                ));
+            }
+            let depth = relative.split(['/', '\\']).count();
+            if depth > bounds.max_depth {
+                return Err(AcquisitionError::new(
+                    ErrorCode::ResourceLimit,
+                    format!(
+                        "path '{relative}' exceeds the {}-level depth bound",
+                        bounds.max_depth
+                    ),
+                ));
+            }
+            entries_written += 1;
+            if entries_written > bounds.max_entries {
+                return Err(AcquisitionError::new(
+                    ErrorCode::ResourceLimit,
+                    format!("export exceeds the {}-entry bound", bounds.max_entries),
+                ));
+            }
+
             let metadata = child
                 .metadata()
                 .map_err(|error| AcquisitionError::new(ErrorCode::InternalIo, error.to_string()))?;
@@ -284,15 +321,19 @@ pub fn create_archive<W: Write + Seek>(
                     .map_err(|error| {
                         AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
                     })?;
-                stack.push((child.path(), relative));
+                stack.push((child.path(), relative.clone()));
+                throttle.record(0);
             } else if metadata.is_file() {
-                writer.start_file(relative, options).map_err(|error| {
-                    AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
-                })?;
+                writer
+                    .start_file(relative.clone(), options)
+                    .map_err(|error| {
+                        AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
+                    })?;
                 let mut source = fs::File::open(child.path()).map_err(|error| {
                     AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
                 })?;
                 let mut buffer = [0u8; COPY_CHUNK_BYTES];
+                let mut file_bytes = 0u64;
                 loop {
                     cancel.check()?;
                     let read = source.read(&mut buffer).map_err(|error| {
@@ -301,19 +342,38 @@ pub fn create_archive<W: Write + Seek>(
                     if read == 0 {
                         break;
                     }
+                    file_bytes += read as u64;
+                    if file_bytes > bounds.max_single_file_bytes {
+                        return Err(AcquisitionError::new(
+                            ErrorCode::ResourceLimit,
+                            format!(
+                                "'{relative}' exceeds the {}-byte single-file bound",
+                                bounds.max_single_file_bytes
+                            ),
+                        ));
+                    }
+                    if bytes_written + file_bytes > bounds.max_total_bytes {
+                        return Err(AcquisitionError::new(
+                            ErrorCode::ResourceLimit,
+                            "export exceeds the total-bytes bound",
+                        ));
+                    }
                     writer.write_all(&buffer[..read]).map_err(|error| {
                         AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
                     })?;
-                    bytes_written += read as u64;
                 }
+                bytes_written += file_bytes;
+                throttle.record(file_bytes);
             }
             // Symlinks or other special files inside a workspace are not
             // expected (Stage 1 never materializes them on import), so
             // they are silently skipped here rather than failing an
             // otherwise-valid export.
+            throttle.maybe_emit(Some(&relative), None, false, &mut on_progress);
         }
     }
 
+    throttle.maybe_emit(None, Some(entries_written), true, &mut on_progress);
     writer
         .finish()
         .map_err(|error| AcquisitionError::new(ErrorCode::InternalIo, error.to_string()))?;
@@ -513,7 +573,14 @@ mod tests {
 
         let cancel = CancellationToken::new();
         let mut buffer = Cursor::new(Vec::new());
-        create_archive(source.path(), &mut buffer, &cancel).unwrap();
+        create_archive(
+            source.path(),
+            &mut buffer,
+            &crate::bounds::ExportBounds::default(),
+            &cancel,
+            |_| {},
+        )
+        .unwrap();
 
         let dest = tempfile::tempdir().unwrap();
         buffer.set_position(0);

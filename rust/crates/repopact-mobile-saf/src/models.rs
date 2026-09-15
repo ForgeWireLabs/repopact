@@ -71,3 +71,63 @@ pub enum OpenDocumentResponse {
     #[serde(rename_all = "camelCase")]
     Error { reason: String },
 }
+
+/// WI065 Checkpoint D: export/share-back response shapes. `PickedTree`'s
+/// shape is reused for `pickExportDirectory` (same "picked a directory
+/// tree" concept as import); the rest are new.
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CreateExportRootResponse {
+    #[serde(rename_all = "camelCase")]
+    Ok { root_uri: String },
+    /// Decision 0057 §"Export semantics" / WI065 Checkpoint D §6: the
+    /// intended export-root name already exists under the picked parent --
+    /// never silently merged or overwritten.
+    Conflict,
+    #[serde(rename_all = "camelCase")]
+    Error { reason: String },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CreateChildDocumentResponse {
+    #[serde(rename_all = "camelCase")]
+    Ok { uri: String },
+    #[serde(rename_all = "camelCase")]
+    Error { reason: String },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum WriteDocumentResponse {
+    #[serde(rename_all = "camelCase")]
+    Ok { byte_count: u64 },
+    #[serde(rename_all = "camelCase")]
+    Error { reason: String },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum DeleteDocumentResponse {
+    Ok,
+    #[serde(rename_all = "camelCase")]
+    Error {
+        reason: String,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum CreateExportArchiveResponse {
+    #[serde(rename_all = "camelCase")]
+    Selected {
+        document_uri: String,
+        display_name: String,
+    },
+    Cancelled,
+    #[serde(rename_all = "camelCase")]
+    Error {
+        reason: String,
+    },
+}

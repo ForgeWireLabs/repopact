@@ -19,15 +19,18 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 use crate::archive::{create_archive, import_archive, ArchiveImportSummary};
-use crate::bounds::{ArchiveBounds, ImportBounds};
+use crate::bounds::{ArchiveBounds, ExportBounds, ImportBounds};
+use crate::divergence::{compare_fingerprints, SourceStatus};
 use crate::error::{AcquisitionError, AcquisitionResult, ErrorCode};
+use crate::export::{export_tree, scan_source_fingerprint, ExportSummary};
 use crate::import::{import_directory, ImportSummary};
 use crate::operation::{CancellationToken, OperationCoordinator, OperationProgress};
 use crate::registry::{
     clean_stale_registry_temp_files, AcquisitionKind, ExportState, GitState, LifecycleState,
     SourceFingerprint, WorkspaceRecord, WorkspaceRegistry,
 };
-use crate::source::AcquisitionSource;
+use crate::sink::{ExportSink, FilesystemSink};
+use crate::source::{AcquisitionSource, FilesystemSource};
 
 pub struct WorkspaceManager {
     root: PathBuf,
@@ -106,6 +109,15 @@ impl WorkspaceManager {
             registry,
             coordinator: OperationCoordinator::new(),
         })
+    }
+
+    /// The manager's own root directory (`<app_data_dir>/repositories`).
+    /// Exposed so a caller (the app's mobile-acquisition coordinator) can
+    /// allocate its own scratch space alongside `staging/`/`workspaces/`
+    /// for concerns this crate does not itself need to know about (e.g. a
+    /// transient local ZIP file en route to a real SAF upload).
+    pub fn root(&self) -> &Path {
+        &self.root
     }
 
     pub fn list_workspaces(&self) -> Vec<WorkspaceRecord> {
@@ -275,37 +287,86 @@ impl WorkspaceManager {
     }
 
     /// Explicit, user-invoked export/share-back for a directory-imported
-    /// workspace (Decision 0056/0057): copies the current workspace
-    /// repository content to `destination_root`, which must already be an
-    /// empty (or non-existent, then created) ordinary directory -- this
-    /// stands in for a SAF destination tree at the Rust layer; the Android
-    /// adapter is responsible for presenting that destination as a real SAF
-    /// write target.
+    /// workspace (Decision 0056/0057) against an ordinary filesystem
+    /// destination -- used by desktop's own export path and by this crate's
+    /// host-side tests. `destination_root` must already be an empty (or
+    /// non-existent, then created) ordinary directory; a non-empty
+    /// destination is a typed `ExportConflict` (Decision 0057 §"Export
+    /// semantics": v1 requires a new/empty destination by default, never a
+    /// silent merge).
     pub fn export_directory(
         &self,
         workspace_id: &str,
         destination_root: &Path,
         cancel: &CancellationToken,
         require_empty_destination: bool,
-    ) -> AcquisitionResult<()> {
-        let repository_dir = self.repository_path(workspace_id)?;
-        if require_empty_destination {
-            if destination_root.is_dir() {
-                let non_empty = fs::read_dir(destination_root)
-                    .map_err(io_err)?
-                    .next()
-                    .is_some();
-                if non_empty {
-                    return Err(AcquisitionError::new(
-                        ErrorCode::ExportConflict,
-                        "export destination is not empty; explicit replace was not requested",
-                    ));
-                }
+    ) -> AcquisitionResult<ExportSummary> {
+        if require_empty_destination && destination_root.is_dir() {
+            let non_empty = fs::read_dir(destination_root)
+                .map_err(io_err)?
+                .next()
+                .is_some();
+            if non_empty {
+                return Err(AcquisitionError::new(
+                    ErrorCode::ExportConflict,
+                    "export destination is not empty; explicit replace was not requested",
+                ));
             }
         }
         fs::create_dir_all(destination_root).map_err(io_err)?;
-        copy_tree(&repository_dir, destination_root, cancel)?;
-        self.mark_exported(workspace_id)
+        let mut sink = FilesystemSink::new(destination_root);
+        self.export_directory_via_sink(
+            workspace_id,
+            &mut sink,
+            &ExportBounds::default(),
+            cancel,
+            |_| {},
+        )
+    }
+
+    /// The platform-neutral entry point every export destination (a real
+    /// Android SAF export root, or [`FilesystemSink`] above) goes through.
+    /// Rust owns the entire traversal/bounds/cancellation/progress
+    /// discipline (Decision 0057 §12/§AC-6/§AC-7); the sink implementation
+    /// owns only how a directory/file actually gets created at its
+    /// destination. The sink's destination root (an already-created,
+    /// collision-checked location) is the caller's responsibility to
+    /// establish before calling this -- see
+    /// `mobile_acquisition::mobile_export_workspace_directory` for the real
+    /// Android flow (pick parent -> create one new export root -> call this).
+    pub fn export_directory_via_sink(
+        &self,
+        workspace_id: &str,
+        sink: &mut dyn ExportSink,
+        bounds: &ExportBounds,
+        cancel: &CancellationToken,
+        on_progress: impl FnMut(OperationProgress),
+    ) -> AcquisitionResult<ExportSummary> {
+        let repository_dir = self.repository_path(workspace_id)?;
+        let mut source = FilesystemSource::new(&repository_dir)?;
+        let summary = export_tree(&mut source, sink, bounds, cancel, on_progress)?;
+        self.mark_exported(workspace_id)?;
+        Ok(summary)
+    }
+
+    /// Builds a complete archive snapshot of the workspace's current
+    /// repository content without marking the workspace exported (Decision
+    /// 0057 §18: on Android, the workspace must not be marked exported
+    /// until the completed archive has actually been copied to its real SAF
+    /// destination -- a step this crate cannot perform itself). Desktop's
+    /// own [`Self::export_archive`] wraps this with an immediate
+    /// [`Self::mark_exported`], since there `dest_writer` already *is* the
+    /// final destination.
+    pub fn build_archive_snapshot<W: Write + Seek>(
+        &self,
+        workspace_id: &str,
+        dest_writer: W,
+        bounds: &ExportBounds,
+        cancel: &CancellationToken,
+        on_progress: impl FnMut(OperationProgress),
+    ) -> AcquisitionResult<u64> {
+        let repository_dir = self.repository_path(workspace_id)?;
+        create_archive(&repository_dir, dest_writer, bounds, cancel, on_progress)
     }
 
     /// Explicit, user-invoked export for either workspace kind: always
@@ -315,18 +376,131 @@ impl WorkspaceManager {
         &self,
         workspace_id: &str,
         dest_writer: W,
+        bounds: &ExportBounds,
         cancel: &CancellationToken,
+        on_progress: impl FnMut(OperationProgress),
     ) -> AcquisitionResult<u64> {
-        let repository_dir = self.repository_path(workspace_id)?;
-        let bytes = create_archive(&repository_dir, dest_writer, cancel)?;
+        let bytes =
+            self.build_archive_snapshot(workspace_id, dest_writer, bounds, cancel, on_progress)?;
         self.mark_exported(workspace_id)?;
         Ok(bytes)
+    }
+
+    /// Marks a workspace exported after its content has genuinely reached
+    /// an external destination. Public so a caller that had to split
+    /// "build the snapshot" from "the destination write actually succeeded"
+    /// across an external boundary (WI065 Checkpoint D's Android archive
+    /// export: build locally, then upload through the SAF bridge) can
+    /// record success only once that upload is confirmed.
+    pub fn mark_workspace_exported(&self, workspace_id: &str) -> AcquisitionResult<()> {
+        self.mark_exported(workspace_id)
     }
 
     fn mark_exported(&self, workspace_id: &str) -> AcquisitionResult<()> {
         let mut record = self.get_workspace(workspace_id)?;
         record.last_export_state = ExportState::Exported;
-        self.registry.upsert(record)
+        self.registry.upsert(record)?;
+        // WI065 Checkpoint D §27: record a local, product-owned digest of
+        // the just-exported app-private repository content so a later
+        // mutation can be honestly detected as `changed_since_export`
+        // without ever inspecting the external destination (export is a
+        // one-way copy-out; this crate never reads back what it wrote).
+        if let Ok(repository_dir) = self.repository_path(workspace_id) {
+            if let Ok(mut scan_source) = FilesystemSource::new(&repository_dir) {
+                let cancel = CancellationToken::new();
+                if let Ok(fingerprint) = scan_source_fingerprint(&mut scan_source, &cancel) {
+                    let _ = self.write_export_fingerprint(workspace_id, &fingerprint);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn export_fingerprint_path(&self, workspace_id: &str) -> PathBuf {
+        self.local_metadata_dir(workspace_id)
+            .join("export-fingerprint.json")
+    }
+
+    fn write_export_fingerprint(
+        &self,
+        workspace_id: &str,
+        fingerprint: &SourceFingerprint,
+    ) -> AcquisitionResult<()> {
+        let path = self.export_fingerprint_path(workspace_id);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(io_err)?;
+        }
+        let serialized = serde_json::to_vec_pretty(fingerprint)
+            .map_err(|error| AcquisitionError::new(ErrorCode::InternalIo, error.to_string()))?;
+        fs::write(&path, serialized).map_err(io_err)
+    }
+
+    fn read_export_fingerprint(&self, workspace_id: &str) -> Option<SourceFingerprint> {
+        let path = self.export_fingerprint_path(workspace_id);
+        let raw = fs::read(&path).ok()?;
+        serde_json::from_slice(&raw).ok()
+    }
+
+    /// WI065 Checkpoint D §27: re-derives whether a previously-exported
+    /// workspace has been mutated locally since that export, using only the
+    /// same bounded entry-count/aggregate-bytes comparison Decision 0057
+    /// already accepts for source fingerprints -- never a claim of
+    /// cryptographic proof, and never conflated with the *external source*
+    /// divergence check ([`Self::check_source_status`]). Updates and
+    /// returns the registry's `last_export_state` when it can honestly do
+    /// so; leaves `NeverExported`/`DivergenceUnknown`/`Diverged` alone (this
+    /// only ever transitions between `Exported` and `ChangedSinceExport`).
+    pub fn refresh_export_freshness(&self, workspace_id: &str) -> AcquisitionResult<ExportState> {
+        let record = self.get_workspace(workspace_id)?;
+        if !matches!(
+            record.last_export_state,
+            ExportState::Exported | ExportState::ChangedSinceExport
+        ) {
+            return Ok(record.last_export_state);
+        }
+        let Some(exported_fingerprint) = self.read_export_fingerprint(workspace_id) else {
+            return Ok(record.last_export_state);
+        };
+        let repository_dir = self.repository_path(workspace_id)?;
+        let mut source = FilesystemSource::new(&repository_dir)?;
+        let cancel = CancellationToken::new();
+        let current_fingerprint = scan_source_fingerprint(&mut source, &cancel)?;
+        let status = compare_fingerprints(&exported_fingerprint, &current_fingerprint);
+        let next_state = match status {
+            SourceStatus::Unchanged => ExportState::Exported,
+            _ => ExportState::ChangedSinceExport,
+        };
+        if next_state != record.last_export_state {
+            let mut updated = record;
+            updated.last_export_state = next_state;
+            self.registry.upsert(updated)?;
+        }
+        Ok(next_state)
+    }
+
+    /// WI065 Checkpoint D §8/§9: an honest, bounded check of whether the
+    /// *external* SAF source a directory workspace was imported from has
+    /// obviously changed, using a fresh, read-only, non-writing re-listing
+    /// (`source` walks the same tree `AndroidSafSource`/`FilesystemSource`
+    /// walked at import time) compared against the persisted
+    /// `source_fingerprint`. Never mutates the workspace or its registry
+    /// entry -- this is a query, not a write-back decision.
+    pub fn check_source_status(
+        &self,
+        workspace_id: &str,
+        source: &mut dyn AcquisitionSource,
+        cancel: &CancellationToken,
+    ) -> SourceStatus {
+        let Ok(record) = self.get_workspace(workspace_id) else {
+            return SourceStatus::Unknown;
+        };
+        let Some(persisted) = record.source_fingerprint else {
+            return SourceStatus::Unknown;
+        };
+        match scan_source_fingerprint(source, cancel) {
+            Ok(current) => compare_fingerprints(&persisted, &current),
+            Err(error) => crate::divergence::status_from_scan_error(error.code),
+        }
     }
 
     pub fn cancel_operation(&self, operation_id: &str) -> AcquisitionResult<()> {
@@ -359,29 +533,6 @@ impl WorkspaceManager {
 
 fn io_err(error: std::io::Error) -> AcquisitionError {
     AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
-}
-
-/// Recursively copies `source` into `dest` (both ordinary, already-
-/// validated app-owned/user-owned directories -- no external, untrusted
-/// path-safety concerns apply here the way they do for [`crate::import`],
-/// because the source is RepoPact's own workspace content).
-fn copy_tree(source: &Path, dest: &Path, cancel: &CancellationToken) -> AcquisitionResult<()> {
-    let mut stack = vec![(source.to_path_buf(), dest.to_path_buf())];
-    while let Some((from, to)) = stack.pop() {
-        cancel.check()?;
-        for entry in fs::read_dir(&from).map_err(io_err)? {
-            let entry = entry.map_err(io_err)?;
-            let target = to.join(entry.file_name());
-            let metadata = entry.metadata().map_err(io_err)?;
-            if metadata.is_dir() {
-                fs::create_dir_all(&target).map_err(io_err)?;
-                stack.push((entry.path(), target));
-            } else if metadata.is_file() {
-                fs::copy(entry.path(), &target).map_err(io_err)?;
-            }
-        }
-    }
-    Ok(())
 }
 
 fn clean_stale_staging(root: &Path) -> AcquisitionResult<()> {
@@ -581,7 +732,13 @@ mod tests {
 
         let mut export_buffer = Cursor::new(Vec::new());
         manager
-            .export_archive(&record.workspace_id, &mut export_buffer, &cancel)
+            .export_archive(
+                &record.workspace_id,
+                &mut export_buffer,
+                &ExportBounds::default(),
+                &cancel,
+                |_| {},
+            )
             .unwrap();
         let updated = manager.get_workspace(&record.workspace_id).unwrap();
         assert_eq!(updated.last_export_state, ExportState::Exported);
@@ -619,6 +776,250 @@ mod tests {
             .export_directory(&record.workspace_id, destination.path(), &cancel, true)
             .unwrap_err();
         assert_eq!(err.code, crate::error::ErrorCode::ExportConflict);
+    }
+
+    // WI065 Checkpoint D: proves the Checkpoint-C mutation pattern end to
+    // end through export -- import, mutate the app-private file directly
+    // (standing in for a real plan/apply cycle, already proven separately
+    // in Checkpoint C), export, and confirm the exported copy carries the
+    // mutation while the original import source is untouched.
+    #[test]
+    fn export_carries_a_local_mutation_while_source_stays_untouched() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"original").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        let repo_path = manager.repository_path(&record.workspace_id).unwrap();
+        fs::write(repo_path.join("a.txt"), b"mutated").unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        let summary = manager
+            .export_directory(&record.workspace_id, destination.path(), &cancel, true)
+            .unwrap();
+        assert_eq!(summary.files_exported, 1);
+        assert_eq!(
+            fs::read_to_string(destination.path().join("a.txt")).unwrap(),
+            "mutated"
+        );
+        assert_eq!(
+            fs::read_to_string(src.path().join("a.txt")).unwrap(),
+            "original",
+            "the original import source must never be silently written back to"
+        );
+    }
+
+    #[test]
+    fn export_directory_via_sink_matches_the_filesystem_path() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"hello").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        let mut sink = FilesystemSink::new(destination.path());
+        let summary = manager
+            .export_directory_via_sink(
+                &record.workspace_id,
+                &mut sink,
+                &ExportBounds::default(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+        assert_eq!(summary.files_exported, 1);
+        assert_eq!(
+            fs::read_to_string(destination.path().join("a.txt")).unwrap(),
+            "hello"
+        );
+    }
+
+    /// A sink that fails partway through, used to prove the exporter
+    /// surfaces a real error (never a false success) when a destination
+    /// write fails mid-export -- a synthetic stand-in for a real
+    /// DocumentsProvider failure (WI065 Checkpoint D §33/§34).
+    struct FailingAfterNSink {
+        inner: FilesystemSink,
+        remaining_successes: usize,
+    }
+
+    impl ExportSink for FailingAfterNSink {
+        fn create_directory(&mut self, relative_path: &str) -> AcquisitionResult<()> {
+            self.inner.create_directory(relative_path)
+        }
+
+        fn create_file(
+            &mut self,
+            relative_path: &str,
+        ) -> AcquisitionResult<Box<dyn crate::sink::ExportFileWriter + '_>> {
+            if self.remaining_successes == 0 {
+                return Err(AcquisitionError::new(
+                    ErrorCode::InternalIo,
+                    "synthetic provider failure",
+                ));
+            }
+            self.remaining_successes -= 1;
+            self.inner.create_file(relative_path)
+        }
+    }
+
+    #[test]
+    fn export_via_sink_surfaces_a_mid_export_failure_rather_than_a_false_success() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"1").unwrap();
+        fs::write(src.path().join("b.txt"), b"2").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        let mut sink = FailingAfterNSink {
+            inner: FilesystemSink::new(destination.path()),
+            remaining_successes: 0,
+        };
+        let err = manager
+            .export_directory_via_sink(
+                &record.workspace_id,
+                &mut sink,
+                &ExportBounds::default(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap_err();
+        assert_eq!(err.code, crate::error::ErrorCode::InternalIo);
+        // The workspace must not be marked exported on a failed export.
+        let after = manager.get_workspace(&record.workspace_id).unwrap();
+        assert_eq!(after.last_export_state, ExportState::NeverExported);
+    }
+
+    #[test]
+    fn refresh_export_freshness_detects_a_local_mutation_after_export() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"1").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        let destination = tempfile::tempdir().unwrap();
+        manager
+            .export_directory(&record.workspace_id, destination.path(), &cancel, true)
+            .unwrap();
+        assert_eq!(
+            manager
+                .refresh_export_freshness(&record.workspace_id)
+                .unwrap(),
+            ExportState::Exported
+        );
+
+        // Local mutation after export (standing in for a real Checkpoint-C
+        // mutation apply): add a new file to the app-private repository.
+        let repo_path = manager.repository_path(&record.workspace_id).unwrap();
+        fs::write(repo_path.join("new-file.txt"), b"added after export").unwrap();
+        assert_eq!(
+            manager
+                .refresh_export_freshness(&record.workspace_id)
+                .unwrap(),
+            ExportState::ChangedSinceExport
+        );
+        let updated = manager.get_workspace(&record.workspace_id).unwrap();
+        assert_eq!(updated.last_export_state, ExportState::ChangedSinceExport);
+    }
+
+    #[test]
+    fn check_source_status_reports_unchanged_for_an_untouched_source() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"1").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        let mut rescan = FilesystemSource::new(src.path()).unwrap();
+        let status = manager.check_source_status(&record.workspace_id, &mut rescan, &cancel);
+        assert_eq!(status, crate::divergence::SourceStatus::Unchanged);
+    }
+
+    #[test]
+    fn check_source_status_detects_an_obviously_changed_source() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("a.txt"), b"1").unwrap();
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let mut source = FilesystemSource::new(src.path()).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_directory(
+                &mut source,
+                "P".to_owned(),
+                "token".to_owned(),
+                &import_bounds(),
+                &cancel,
+                |_| {},
+            )
+            .unwrap();
+
+        // The external source changes after import (a new file added
+        // outside RepoPact's knowledge).
+        fs::write(src.path().join("b.txt"), b"new").unwrap();
+        let mut rescan = FilesystemSource::new(src.path()).unwrap();
+        let status = manager.check_source_status(&record.workspace_id, &mut rescan, &cancel);
+        assert_eq!(status, crate::divergence::SourceStatus::ObviouslyChanged);
     }
 
     #[test]

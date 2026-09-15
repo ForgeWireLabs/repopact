@@ -1,6 +1,6 @@
 # 065 — Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation
 
-> **Status**: 🔨 Active
+> **Status**: ✅ Completed
 > **Owners**: tooling (lead).
 > **Depends on**: Decision 0041, WI060, WI061 (Decision 0056).
 > **Coding agent**: Claude Code. **Architecture reviewer**: GPT-5.6 Sol High.
@@ -227,15 +227,44 @@ full record of each):
   path) — its export proof above was already captured and recorded before
   the crash. See
   `evidence/runs/20260915-065-checkpoint-d-android-export-shareback.json`.
-- **Checkpoint E (adversarial device tests + final closeout) — not
-  started.**
+- **Checkpoint E (final assurance, Stage-2 Git follow-up, and closeout) —
+  done.** Re-synchronized against `origin/main` (both at `d5c4e23`, no
+  divergence to reconcile) and re-read decisions 0041/0056/0057, WI061's
+  closeout, and all four prior checkpoint evidence records to confirm the
+  implementation still matches those decisions after the concurrent WI050,
+  WI066/3.1.0, and WI022 merges. Confirmed AC-9's seam half structurally,
+  not just in prose: `AcquisitionKind::RemoteGit` and
+  `GitState::EmbeddedGitManaged` already exist as reserved enum variants in
+  `registry.rs`, `mobile_git_capabilities` already returns a typed
+  `Stage2Status::UnsupportedStage2` capability descriptor, and
+  `DesktopService`/`RepositorySession`/`RepositoryTopology`/the mutation
+  pipeline remain untouched — all without forcing the existing
+  shell-shaped `GitRunner` trait to become the future `GitBackend`
+  abstraction, which correctly does not yet exist in code. Allocated the
+  Stage-2 follow-up canonically via `repopact new work-item` (after
+  rebuilding the release `repopact-engine` binary, made stale by the
+  concurrent 3.1.0 version cut) as **WI068 — Embedded Mobile Git Backend
+  and Remote Repository Synchronization** (`proposed`, depends on 065,
+  cross-references decisions 0056/0057 and WI067 without a hard dependency
+  on WI067). Re-audited the WI066→WI067 renumbering: intact, no stale
+  current-canonical reference found; the one remaining "WI066" mention
+  (inside Checkpoint D's evidence) is accurate historical narration of the
+  rename and was left unmodified. Re-inventoried the 11-command mobile
+  surface, Android manifest permissions, and privacy/logging discipline —
+  all unchanged and still clean since Checkpoint D. Left the cancellation
+  honest-gap and `android_validation.rs`'s debug-only disposition as
+  Checkpoint D recorded them (neither is reopened; deletion of
+  `android_validation.rs` is not required and was not performed). Ran the
+  full final validation suite on synchronized main: `cargo fmt --check`,
+  `cargo check --workspace`, and `cargo test --workspace` (all green, zero
+  failures across every crate including 67 `repopact-mobile-acquisition`
+  tests), frontend `typecheck`/`vitest` (29/29)/`build` (all green), and
+  `repopact validate --root .` (clean). No Android rebuild was needed since
+  no Android source or build input changed after Checkpoint D. See
+  `evidence/runs/20260915-065-final-closeout.json`.
 
-AC-1 through AC-8 are now `satisfied` in `work-item.json`, backed by the
-real on-device evidence above. AC-9 stays `pending`: the future embedded-Git
-seam already exists structurally in the registry/command-surface shape, but
-allocating the Stage-2 follow-up work item is Checkpoint E/closeout's job,
-not this one's. This work item stays `active` rather than being closed
-against partial evidence.
+AC-1 through AC-9 are all `satisfied` in `work-item.json`. This work item
+is now `completed`.
 
 ## Scope
 
@@ -254,8 +283,8 @@ against partial evidence.
 
 ## Closeout
 
-Each acceptance criterion is satisfied by linked evidence. When all are
-satisfied, move this directory to `work/completed/`, regenerate the
-dashboard, and — if embedded Git is still warranted and not already
-covered — create or activate the Stage 2 follow-up ("Embedded Mobile Git
-Backend and Remote Repository Synchronization") per Decision 0056.
+All nine acceptance criteria are satisfied by linked evidence (see
+`work-item.json`). The Stage-2 follow-up, **WI068 — Embedded Mobile Git
+Backend and Remote Repository Synchronization**, was created (`proposed`,
+not activated) at this item's own closeout per AC-9 and Decision 0056. This
+directory has moved to `work/completed/`.

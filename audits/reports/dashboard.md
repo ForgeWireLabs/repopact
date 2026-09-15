@@ -15,17 +15,17 @@
 | Audit findings | 3 |
 | Decision records | 60 |
 | Policy records | 2 |
-| Evidence runs | 138 |
+| Evidence runs | 139 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| proposed | 3 |
-| active | 8 |
+| proposed | 4 |
+| active | 7 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 56 |
+| completed | 57 |
 
 ## Audit freshness
 
@@ -39,6 +39,5 @@ All audit scopes are within their review cadence.
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
-- 065: Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -420,9 +420,12 @@ class UnixGuardListener:
     def accept(self) -> tuple[Any, dict[str, Any]]:
         if self._socket is None:
             self.bind()
-        connection, _ = self._socket.accept()
-        identity = peer_identity(connection)
-        return connection, {"transport": identity.transport, "pid": identity.peer_pid, "uid": identity.peer_uid}
+        while True:
+            connection, _ = self._socket.accept()
+            identity = peer_identity(connection)
+            if identity.transport != "unknown" and identity.peer_uid is not None:
+                return connection, {"transport": identity.transport, "pid": identity.peer_pid, "uid": identity.peer_uid}
+            connection.close()
 
     def close(self) -> None:
         if self._socket is not None:

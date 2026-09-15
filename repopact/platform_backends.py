@@ -486,11 +486,11 @@ def _unix_protected_path(path: Path, *, owner_uid: int = 0, socket_endpoint: boo
         checked: list[str] = []
         while True:
             info = current.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                return False, f"Unix protected path contains a symlink: {current}"
             if current == candidate and socket_endpoint:
                 if not stat.S_ISSOCK(info.st_mode):
                     return False, f"Unix endpoint is not a socket: {current}"
-            elif current != candidate and stat.S_ISLNK(info.st_mode):
-                return False, f"Unix protected path contains a symlink: {current}"
             if info.st_uid != owner_uid:
                 return False, f"Unix protected path is not owned by uid {owner_uid}: {current}"
             writable_bits = 0o002 if socket_endpoint and current == candidate else 0o022

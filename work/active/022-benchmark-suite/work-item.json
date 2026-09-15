@@ -52,7 +52,11 @@
         "20260914-wi022-ac3-windows-workspace-contract",
         "20260914-wi022-ac3-admission-v3",
         "20260914-wi022-ac3-whole-program-preflight",
-        "20260914-wi022-ac3-resource-deferred"
+        "20260914-wi022-ac3-resource-deferred",
+        "20260915-wi022-ac3-sonnet-admission-evidence-v1",
+        "20260915-wi022-ac3-execution-manifest-v3",
+        "20260915-wi022-ac3-whole-program-preflight-v3",
+        "20260915-wi022-ac3-budget-checkpoint-v3"
       ]
     },
     {
@@ -76,5 +80,5 @@
     }
   ],
   "created": "2026-06-24",
-  "updated": "2026-09-14"
+  "updated": "2026-09-15"
 }

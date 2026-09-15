@@ -93,25 +93,59 @@ full record of each):
   mobile commands actually exist. A real `npx tauri android build --debug
   --target aarch64 --apk` **succeeded**, producing a genuine debug APK with
   the compiled `SafAcquisitionPlugin.class` linked in; the Android manifest
-  permission set is unchanged (no new permission of any kind). **Not done:**
-  an interactive on-device/emulator smoke test actually tapping through the
-  real SAF pickers -- no emulator was running this session, and booting one
-  plus driving the picker UI was judged out of this checkpoint's core scope
-  given time already spent. See
+  permission set is unchanged (no new permission of any kind). The
+  interactive on-device/emulator smoke test this checkpoint did not have
+  time for was completed in Checkpoint B.5 below. See
   `evidence/runs/20260914-065-checkpoint-b-android-saf-acquisition.json`
   for the full record, including a real build failure (an illegal `--`
   inside an XML comment breaking Android's manifest merger) found and fixed
   by the first real build attempt.
-- **Checkpoint C (Workbench open + mutation cycle), Checkpoint D (export/
-  share-back wiring), Checkpoint E (adversarial device tests + Android
-  runtime proof + closeout) — not started.**
+- **Checkpoint B.5 — done, real SAF runtime acceptance.** Booted the
+  WI060-proven emulator (`forge_moto_one_hyper_lab_api35`, Android 15/API 35,
+  x86_64), built and installed a fresh APK from synchronized source, and
+  drove the **real** production app (`android-debug-validation` not used)
+  through both real SAF pickers via `adb`/`uiautomator` UI automation --
+  never by injecting a URI into native code. Both a small controlled
+  directory fixture and a controlled ZIP were imported end-to-end through
+  every layer (picker → Kotlin plugin → Rust adapter → `AcquisitionSource` →
+  Checkpoint A's bounded importer → staging → app-private workspace →
+  registry → frontend list), with **on-device SHA-256 digests matching the
+  pre-import fixtures byte-for-byte** for every file. A 400-file real-SAF
+  import completed successfully too (408 total files across 3 workspaces),
+  strengthening AC-3's real-tree requirement. Both workspaces opened via
+  `mobile_workspace_open` and showed real Rust-backed reads (repository
+  identity, validation) on the actual production app-private path. Registry
+  persistence was proven across two full `force-stop` + relaunch cycles for
+  all three workspaces. Picker cancellation (directory and archive, via the
+  hardware Back key) was clean: no crash, no error, no phantom workspace.
+  The installed package's runtime permission audit showed **zero** granted
+  permissions beyond pre-existing `INTERNET`, and a full-session log-privacy
+  audit found no `content://` leakage from this app's own log tags.
+  Two real defects were found and fixed by this session's own real-build/
+  real-run attempts (not fabricated): (1) `listChildren`'s root-level SAF
+  call passed a tree URI where `DocumentsContract.getDocumentId` requires a
+  document URI, throwing `IllegalArgumentException` on every first
+  directory import; (2) that same exception's message (and, independently,
+  `Logger.error`'s own throwable-argument stack-trace dump) would have
+  logged the full picked-tree `content://` URI unredacted. Both fixed,
+  rebuilt, reinstalled, and reverified. **Honest gap:** `mobile_operation_cancel`
+  is implemented and host-tested, but `MobileAcquisitionPanel.tsx` exposes no
+  UI affordance to trigger it mid-import, so a real runtime
+  cancel-while-importing scenario was not executed this session -- recorded
+  as a real follow-up rather than faked. See
+  `evidence/runs/20260915-065-checkpoint-b5-android-saf-runtime.json`.
+- **Checkpoint C (Workbench mutation cycle), Checkpoint D (export/share-back
+  wiring, including the typed export commands AC-7 also requires), Checkpoint
+  E (adversarial device tests + final closeout) — not started.**
 
-AC-1 through AC-9 therefore remain `pending` in `work-item.json`: Checkpoints
-A and B are real, tested, (mostly) build-verified progress, but AC-2/AC-3/
-AC-4/AC-7's exact wording still requires the on-device picker-interaction
-proof this checkpoint did not execute, and AC-5/AC-6/AC-8/AC-9 are
-Checkpoint C/D/E's job outright. This work item stays `active` rather than
-being closed against partial evidence.
+AC-1, AC-2, AC-3, and AC-4 are now `satisfied` in `work-item.json`, backed by
+the real on-device evidence above. AC-7 stays `pending`: its exact wording
+requires the mobile command surface to expose typed **export** operations
+too, and those belong to Checkpoint D, not yet built. AC-5, AC-6, AC-8, and
+AC-9 stay `pending` as Checkpoint C/D/E's job outright (AC-8 in particular
+still needs mutation-apply and export/share-back runtime proof on top of
+this checkpoint's acquisition-only proof). This work item stays `active`
+rather than being closed against partial evidence.
 
 ## Scope
 

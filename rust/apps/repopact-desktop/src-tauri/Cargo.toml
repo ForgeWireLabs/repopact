@@ -20,11 +20,17 @@ tauri-build = { version = "2.5.3", features = [] }
 [dependencies]
 repopact-analysis.workspace = true
 repopact-desktop-api.workspace = true
+repopact-mobile-acquisition.workspace = true
+repopact-mobile-saf.workspace = true
 repopact-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-dialog = "2.7.3"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.23.0"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

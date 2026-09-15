@@ -20,5 +20,12 @@ commands.allow = [
   "plan_mutation",
   "apply_mutation_plan",
   "discard_mutation_plan",
-  "poll_repository_events"
+  "poll_repository_events",
+  "mobile_workspace_list",
+  "mobile_import_directory",
+  "mobile_import_archive",
+  "mobile_operation_status",
+  "mobile_operation_cancel",
+  "mobile_workspace_open",
+  "mobile_git_capabilities"
 ]

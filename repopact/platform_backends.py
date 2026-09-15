@@ -19,6 +19,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -1081,7 +1082,14 @@ class LinuxBackend(PlatformBackend):
                 code, output = _command_output(command_line)
                 if code != 0:
                     raise RuntimeError(f"systemd guard activation failed: {output.strip()}")
-            return self.attest(root).record()
+            deadline = time.monotonic() + 5
+            attestation = self.attest(root)
+            while not attestation.healthy and time.monotonic() < deadline:
+                time.sleep(0.05)
+                attestation = self.attest(root)
+            if not attestation.healthy:
+                raise RuntimeError("Linux guard started without a healthy attestation: " + attestation.reason)
+            return attestation.record()
         except Exception:
             if unit_created:
                 _command_output(["systemctl", "disable", "--now", self.service_name])

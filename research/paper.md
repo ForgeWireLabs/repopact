@@ -4,8 +4,8 @@
 
 Jeremy Shows  
 ForgeWire Labs  
-Draft, 2026-06-25; revised 2026-09-13
-Implementation/evidence snapshot: `542cd5c01a79942ecb78040b19deb4e82f4f9068` (development `main` at reconciliation)
+Draft, 2026-06-25; revised 2026-09-14
+Implementation/evidence snapshot: `6d782116fc9762da00439cf079d0f50585fea52` (3.1.0 release-candidate implementation snapshot)
 Target: arXiv cs.SE preprint, then software engineering or agentic systems workshop submission
 
 ## Abstract
@@ -43,12 +43,15 @@ We evaluate RepoPact reflexively and adversarially using its packaged implementa
 conformance suite, recorded findings, naturalistic case studies, and a pre-registered
 comparative benchmark program. The implementation has evolved from a Python reference
 system into a canonical Rust semantic engine consumed by compatibility tooling and a Tauri
-2 Workbench, while preserving repository-level interoperability. The stable public boundary
-is 3.0.2; the reconciled development `main` snapshot adds active graph and launch-readiness
-work that must not be presented as stable-release capability. Windows, Linux, and Android
-bring-up evidence exists for the Workbench; macOS and iOS remain intended targets that still
-require platform-specific validation. Comparative cross-model results remain forthcoming
-and will be reported whether they confirm or challenge the claims.
+2 Workbench, while preserving repository-level interoperability. RepoPact 3.1.0 is the
+stable public boundary and ships the canonical engine, local-first verification/release
+surface, additive graph capability, and optional assurance-mapping capability in the
+Python/Rust package. WI063's graph implementation is substantially operational but remains
+active at 37/40 satisfied criteria; WI065's app-private mobile acquisition checkpoint is
+real but active at 4/9 satisfied criteria. Windows, Linux, and Android evidence exists for
+the Workbench, while macOS and iOS still require platform-specific validation. RealRunner
+has crossed the real-model-exercised boundary, but comparative cross-model results remain
+pending and will be reported whether they confirm or challenge the claims.
 
 **Keywords:** agentic software engineering; human-agent collaboration; repository
 governance; governance continuity; software invariants; durable project state;
@@ -142,10 +145,10 @@ This paper makes six contributions.
    machine-checkable conformance suite, naturalistic field observations, and
    pre-registered comparative benchmarks. Disconfirming results are in scope by design.
 
-RepoPact is open source under Apache-2.0. The current stable public release is 3.0.2;
-development `main` is a separately reconciled implementation snapshot and is not itself a
-stable release. It is part of the ForgeWire Labs inspectable-infrastructure stack, but the
-system and model described here are independently useful.
+RepoPact is open source under Apache-2.0. The current stable public release is 3.1.0;
+the implementation/evidence snapshot named above is the release-candidate source snapshot
+used for this manuscript. It is part of the ForgeWire Labs inspectable-infrastructure
+stack, but the system and model described here are independently useful.
 
 ## 2. Background and Related Work
 
@@ -547,12 +550,23 @@ The current RepoPact release line is no longer accurately described as only a Py
 The architecture has evolved while preserving one important rule: there should be **one
 semantic authority** for the governance model.
 
-The current stable public release is 3.0.2. The reconciled development `main` snapshot at
-`542cd5c01a79942ecb78040b19deb4e82f4f9068` includes a canonical Rust semantic engine, a
-compatibility-oriented Python command surface, a Tauri 2 Workbench, schemas, templates, a
-conformance suite, migration tools, evidence records, and the research corpus. The snapshot
-also contains active Repository Orientation Graph implementation work and launch-readiness
-records; those development-state claims are not retroactively attributed to 3.0.2.
+The current stable public release is 3.1.0. The release-candidate implementation snapshot
+at `6d782116fc9762da00439cf079d0f50585fea52` includes a canonical Rust semantic engine, a
+compatibility-oriented Python command surface, local-first verification and release
+operations, a Tauri 2 Workbench, schemas, templates, a conformance suite, migration tools,
+evidence records, and the research corpus. The stable Python/Rust artifact includes the
+engine and CLI surfaces; Workbench installers/APKs follow their own platform release path
+and are not silently implied by the PyPI artifact. The snapshot also contains substantially
+implemented but still active ROG and mobile work; those incomplete criteria remain explicit
+below rather than being promoted to completed product or empirical claims.
+
+The manuscript uses four evidence levels. **Stable product** means the Python/Rust 3.1.0
+package and its documented CLI/conformance boundary. **Implemented but incomplete/active**
+means code and concrete checkpoints exist while the governing work item still has open
+criteria, as with WI063 and WI065. **Research infrastructure** means preregistered studies,
+harnesses, instrumentation, and RealRunner execution plumbing. **Empirical results** means
+only completed, reportable observations; architecture, smoke plumbing, and preregistered
+plans are not substituted for comparative results.
 
 ### 4.1 Canonical Rust semantic engine
 
@@ -615,11 +629,10 @@ The public command surface includes operations such as:
 | `check-frozen` | enforce frozen-surface changes against a base |
 | `doctor` | diagnose, repair, and migrate drift |
 
-The development `main` snapshot also exposes newer operational surfaces, including
-`verify ci`, grouped `release` verification/build/inspect commands, and graph operations.
-Those commands are documented here to identify the current implementation boundary; their
-presence on development `main` does not imply that the stable 3.0.2 release has the same
-surface or that every release gate has closed.
+The stable 3.1.0 package exposes newer operational surfaces, including `verify ci`, grouped
+`release` verification/build/inspect commands, graph operations, assurance snapshots, and
+the bounded admission/approval surfaces. These are additive to the earlier CLI. The package
+surface does not imply that every external release, platform, or research gate has closed.
 
 Mandatory preflight makes intent visible before implementation begins. Existing repositories
 use migration and grandfathering semantics rather than pretending historical work was
@@ -648,7 +661,10 @@ automation path uses.
 
 The Workbench shares one Tauri 2 application architecture across desktop and mobile targets.
 Current evidence includes Windows installer/application work, Linux `.deb` build-install-
-launch validation, and Android build-install-launch validation on a real target.
+launch validation, and a real Android SAF acquisition checkpoint on an emulator. The mobile
+path proved directory and archive import, app-private staging, registry persistence,
+picker cancellation, and permission/log-privacy checks, while mid-import cancellation,
+Workbench mutation, and explicit export/share-back remain open in WI065.
 
 macOS and iOS remain intended targets and share application and asset foundations, but they
 should not be described as validated until native platform evidence exists.
@@ -665,8 +681,9 @@ status-directory agreement, dependency cycles, evidence links, scope validity,
 concurrency, provenance, orphan planning content, and derived-artifact consistency.
 
 A standard without conformance is only a convention. RepoPact therefore publishes a
-versioned conformance surface including `CONFORMANCE.md`, fixture repositories, a suite
-manifest, and a conformance runner.
+versioned 3.1.0 conformance surface including `CONFORMANCE.md`, fixture repositories, a
+suite manifest, and a conformance runner. The current canonical run passes 35/35 fixture
+cases and the additive WI050 admission corpus passes 8/8 vectors.
 
 A third-party implementation does not need to copy RepoPact's internal code to claim
 compatibility. It needs to reproduce the specified accept/reject behavior for the versioned
@@ -740,13 +757,16 @@ registered governance or context condition.
 | S5 | H12 | drift detection and staleness | detection rate, latency, silent-staleness rate | drift harness present; comparative results pending |
 | S6 | H13 | defensive security and injection resistance | defensive catch rate, injected-context-followed rate | tasks scoped; real results pending |
 | S7 | H14 | enforcement closure and longitudinal drift | checkpoint coverage, invocation, effectiveness, nonconformant admission | pre-registered 2026-08-21; not completed |
-| S8 | H15 | governance continuity and clean-clone orientation | governance recovery, violation recall, false-clean rate, orientation cost | pre-registered 2026-09-12; no runs performed |
+| S8 | H15 | governance continuity and clean-clone orientation | governance recovery, violation recall, false-clean rate, orientation cost | pre-registered 2026-09-12; R1 graph-enabled evaluation not run |
 
 The current benchmark maturity should be described precisely. The program is
 pre-registered and partially implemented: deterministic task materialization, the driver,
-scoring, and harness infrastructure exist, but deterministic mock runs validate plumbing,
-not agent behavior, and no comparative cross-model results are claimed. Cross-model findings
-should not be claimed until real runs are complete.
+scoring, drift/security instrumentation, and harness infrastructure exist. WI022 AC-5 has
+also crossed the real-model-exercised boundary through a reportable three-task RealRunner
+smoke with reconciled telemetry and deterministic grading. That smoke validates the runtime
+and evidence path; it is not a comparative result, Pareto frontier, scaling curve, or claim
+that one model or governance condition is better. WI022 AC-3 remains pending because the
+two-model-family comparative program has not been completed.
 
 S8 is intentionally distinct from S2. S2 asks whether durable state improves downstream
 task recovery. S8 asks whether the represented governed substrate itself survives a change
@@ -1037,14 +1057,38 @@ S8 therefore records orientation cost separately from correctness, including tok
 calls, file reads, bytes read, and repository-wide search operations. Those measures were
 registered before design of any future orientation mechanism.
 
-A durable Repository Orientation Graph is now under active implementation. The current
-development implementation provides a derived, versioned graph substrate with deterministic
-rebuild, incremental convergence, language-aware semantic extraction, working-tree overlays,
-and explicit freshness and coverage state. It remains non-authoritative: source and
-governance records remain the source of truth. Higher-level orientation queries, adoption
-integration, broader topology, performance closeout, operator-facing graph workflows, and
-the pre-registered S8 graph-enabled evaluation remain incomplete. Its value must be measured
-against the already-registered S8 baseline instead of assumed from architectural appeal.
+A durable Repository Orientation Graph is now substantially implemented and operational
+rather than merely future work. WI063 has 37 of 40 criteria satisfied. The current
+implementation includes durable and deterministic graph representation, incremental/full
+convergence, working-tree overlays, freshness/capability states, Rust/Python/JavaScript/
+TypeScript semantic extraction, TOML/JSON/YAML/Markdown metadata adapters,
+build/package/test/runtime topology, clean-clone operation, adoption/backfill integration,
+bounded public query/orientation operations, deterministic pagination and bounds, Workbench
+repository-map behavior, branch/merge graph regeneration, performance/storage measurements,
+and authority-boundary tests.
+
+The graph remains non-authoritative: source and governance records remain the source of
+truth, and graph output does not authorize mutation. Three WI063 criteria remain open:
+cross-form-factor/platform usability and normalization, execution of the preregistered S8
+R1 graph-enabled evaluation, and the final closeout inventory/gate. Any graph-enabled
+condition must be added through a dated amendment and measured against the pre-registered
+no-graph baseline rather than assumed valuable from architectural appeal. The available
+implementation evidence therefore supports operational maturity, not a causal claim that
+ROG improves orientation or complete repository understanding.
+
+### 7.9 Assurance and control mapping
+
+WI051 is completed with an optional, provider-neutral assurance/control mapping model. A
+mapping can distinguish framework mapping, applicability conclusion, implemented control,
+operating evidence, and independent audit or certification, while resolving implementation
+and evidence references, recording reviewer rationale, detecting stale framework/review and
+reference drift, and guarding sensitive evidence and documentation claim basis. ForgeWire is
+represented as an adopter example rather than a hard-coded framework.
+
+This capability governs the boundaries and evidence of assurance claims; it does not infer
+legal compliance, certification, SOC 2, HIPAA, PCI, GDPR, or any other external conclusion
+from a stored mapping. The records are optional, so their absence does not invalidate an
+existing 3.0.2 repository.
 
 ## 8. Threats to Validity
 
@@ -1118,8 +1162,10 @@ implementation details.
 
 The existence of a polished-looking UI can create a false impression that every governance
 capability has reached operator parity. UI claims must distinguish between implemented,
-wired, validated, and merely planned controls. Missing operator controls should remain
-visible as release work rather than being hidden by overall visual quality.
+wired, validated, and merely planned controls. The mobile acquisition implementation has
+crossed a real Android SAF import/build boundary, but mutation, explicit export/share-back,
+and full end-to-end runtime acceptance remain active. Missing operator controls should
+remain visible as release work rather than being hidden by overall visual quality.
 
 ### T12: Orientation mechanism bias
 
@@ -1159,10 +1205,11 @@ to invent its own governance semantics. Human operator control and agent interop
 therefore become two views of the same repository state rather than separate systems.
 
 The evaluation so far is intentionally incomplete. Real failures have changed the design.
-Real cases have held. Comparative model results are still pending. The enforcement-closure
-field observation motivated a new hypothesis rather than being retroactively treated as
-proof. Governance continuity is now likewise registered prospectively as H15/S8 before any
-S8 run.
+Real cases have held. RealRunner now proves that the model-execution and telemetry path can
+be exercised, but it does not supply comparative results. The enforcement-closure field
+observation motivated a new hypothesis rather than being retroactively treated as proof.
+Governance continuity and graph-enabled orientation remain registered prospectively as
+H15/S8, with no R1 run yet completed.
 
 Future work includes:
 
@@ -1171,14 +1218,14 @@ Future work includes:
 3. running the pre-registered enforcement-closure study outside ForgeWire Labs controlled repositories;
 4. running the pre-registered S8 governance-continuity study across clean worker, machine, and client handoffs;
 5. obtaining genuine third-party reproduction and adoption evidence;
-6. maintaining operator-control parity as repository-orientation, verification, and
+6. completing WI063's cross-platform usability/normalization, R1 execution, and closeout
+   inventory;
+7. completing WI065's Workbench mutation, explicit export/share-back, and end-to-end mobile
+   runtime acceptance;
+8. maintaining operator-control parity as repository-orientation, verification, and
    admission capabilities are added, and validating equivalent native behavior on macOS and
    iOS;
-7. validating macOS and iOS platform behavior before claiming support;
-8. expanding external ingestion while preserving provenance and authority;
-9. completing higher-level Repository Orientation Graph queries, adoption integration,
-   performance closeout, and graph-enabled evaluation against the frozen S8 no-graph
-   baseline;
+9. expanding external ingestion while preserving provenance and authority;
 10. mechanizing more temporal and relational invariants and hardening repair semantics;
 11. encouraging independent conformance implementations.
 
@@ -1317,7 +1364,7 @@ predecessor-private context. H15/S8 is pre-registered to test this more broadly.
 | S5 | Drift detection | RepoPact reduces silent staleness and detection latency | drift harness present; comparative results pending |
 | S6 | Defensive security and injection resistance | RepoPact improves defensive invariant preservation | tasks scoped; real results pending |
 | S7 | Enforcement closure and longitudinal drift | covered, invoked, effective checkpoints admit less known-nonconformant state | pre-registered 2026-08-21; not completed |
-| S8 | Governance continuity | clean worker, machine, and supported-client handoffs recover equivalent governed state and known violations | pre-registered 2026-09-12; no runs performed |
+| S8 | Governance continuity | clean worker, machine, and supported-client handoffs recover equivalent governed state and known violations | pre-registered 2026-09-12; R1 graph-enabled evaluation not run |
 
 ### Appendix E: Figures and tables planned
 

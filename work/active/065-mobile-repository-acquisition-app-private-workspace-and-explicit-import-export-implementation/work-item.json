@@ -4,8 +4,16 @@
   "title": "Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation",
   "status": "active",
   "owner_scope": "tooling",
-  "affected_scopes": ["tooling", "docs", "evidence"],
-  "depends_on": ["041", "060", "061"],
+  "affected_scopes": [
+    "tooling",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "041",
+    "060",
+    "061"
+  ],
   "provenance": "concrete",
   "preflight": {
     "created_before_work_started": true,
@@ -16,32 +24,50 @@
     {
       "id": "AC-1",
       "text": "A production mobile workspace registry exists: an app-owned record of each acquired workspace (workspace id, display name, acquisition kind, source reference, created/imported time, last export/sync state, Git/non-Git) persisted in app-private storage, containing no credential material, and not acting as a new global governance authority (per Decision 0056).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-a-workspace-registry-and-safe-import-export",
+        "20260914-065-checkpoint-b-android-saf-acquisition",
+        "20260915-065-checkpoint-b5-android-saf-runtime"
+      ]
     },
     {
       "id": "AC-2",
       "text": "select_repository (or a new typed mobile acquisition command set) on Android offers SAF-based acquisition: ACTION_OPEN_DOCUMENT_TREE for a directory, and ACTION_OPEN_DOCUMENT for a single archive, replacing the current unconditional `repository.mobile-selection-unavailable` error on a normal production build with a real acquisition flow. No broad storage permission (e.g. MANAGE_EXTERNAL_STORAGE) is added; the debug-only android_validation.rs path may be retired once production acquisition covers its purpose.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-a-workspace-registry-and-safe-import-export",
+        "20260914-065-checkpoint-b-android-saf-acquisition",
+        "20260915-065-checkpoint-b5-android-saf-runtime"
+      ]
     },
     {
       "id": "AC-3",
       "text": "Safe recursive directory import from a picked SAF tree into the app-private workspace is implemented with bounded resource handling, a defined symlink policy, defined duplicate-name behavior, no path traversal or writes outside the allocated workspace root, cancellation, and partial-import cleanup, proven by adversarial tests (traversal attempt, symlink escape attempt, oversized/pathological tree).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-a-workspace-registry-and-safe-import-export",
+        "20260914-065-checkpoint-b-android-saf-acquisition",
+        "20260915-065-checkpoint-b5-android-saf-runtime"
+      ]
     },
     {
       "id": "AC-4",
       "text": "Safe archive import (.zip or equivalent) into the app-private workspace is implemented with zip-slip/absolute-path/`..`-traversal rejection, symlink-escape protection, entry-count/expanded-byte/depth bounds against archive bombs, duplicate/case-conflicting path handling, and cleanup after failed extraction, proven by adversarial tests using deliberately malicious fixture archives.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-a-workspace-registry-and-safe-import-export",
+        "20260914-065-checkpoint-b-android-saf-acquisition",
+        "20260915-065-checkpoint-b5-android-saf-runtime"
+      ]
     },
     {
       "id": "AC-5",
       "text": "DesktopService/RepositorySession open and operate on an app-private workspace produced by AC-3 or AC-4 exactly as they do on desktop -- normal Workbench IA, real Rust-backed reads, and a real mutation plan/review/apply cycle -- with zero source-code change to DesktopService, RepositorySession, RepositoryTopology, or the mutation engine's repository-model assumptions (only the acquisition adapter is new).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-checkpoint-c-android-mutation-cycle"
+      ]
     },
     {
       "id": "AC-6",
@@ -69,5 +95,5 @@
     }
   ],
   "created": "2026-09-14",
-  "updated": "2026-09-14"
+  "updated": "2026-09-15"
 }

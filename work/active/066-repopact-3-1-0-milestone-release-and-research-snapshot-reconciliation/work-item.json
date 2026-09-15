@@ -1,0 +1,85 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "066",
+  "title": "RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": ["governance", "work", "evidence", "tooling", "docs"],
+  "depends_on": ["021", "046", "061", "063", "065"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-14T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "A concrete 3.0.2-to-3.1.0 compatibility audit is recorded from the live repository and release history, including the stable-tree validation probe, schema/semantic rule comparison, engine protocol compatibility, CLI compatibility, and adopter migration impact; the audit explicitly determines MINOR versus MAJOR before version mutation.",
+      "state": "satisfied",
+      "evidence": ["20260914-066-compatibility-audit"]
+    },
+    {
+      "id": "AC-2",
+      "text": "The authoritative milestone inventory reconciles Git history, WI063, WI051, WI022, WI061, WI065, WI046, launch assets, decisions, and evidence, preserving active/incomplete states and distinguishing shipped product, implemented-but-active work, research infrastructure, and completed empirical results.",
+      "state": "satisfied",
+      "evidence": ["20260914-066-milestone-inventory"]
+    },
+    {
+      "id": "AC-3",
+      "text": "research/paper.md is reconciled against the final release-candidate SHA with the 3.1.0 identity, current maturity, ROG, assurance mapping, RealRunner, mobile architecture/implementation boundary, release surface, platform evidence, limitations, and research-status claims stated without attributing active or pending work as completed results.",
+      "state": "satisfied",
+      "evidence": ["20260915-066-paper-arxiv"]
+    },
+    {
+      "id": "AC-4",
+      "text": "The arXiv preparation sources and metadata are refreshed from an isolated source package, references and figures are verified, research/arxiv/main.pdf is rebuilt and checked, and the durable records continue to state ARXIV NOT SUBMITTED unless separately authorized.",
+      "state": "satisfied",
+      "evidence": ["20260915-066-paper-arxiv"]
+    },
+    {
+      "id": "AC-5",
+      "text": "A durable accepted release decision records the compatibility audit and the rationale for RepoPact 3.1.0 as a MINOR release, including optional/additive assurance and ROG capabilities, additive graph protocol/CLI operations, unchanged existing lifecycle/provenance validity, and adopter implications.",
+      "state": "satisfied",
+      "evidence": ["20260914-066-compatibility-audit"]
+    },
+    {
+      "id": "AC-6",
+      "text": "All canonical release identities and public/generated surfaces are synchronized to 3.1.0 according to the established rules: VERSION, stable RELEASE_LABEL convention, pyproject package identity, conformance suite_version, Rust engine identity, SPEC, README, CITATION, CONFORMANCE, changelog/release records, and release metadata.",
+      "state": "satisfied",
+      "evidence": ["20260915-066-release-artifacts"]
+    },
+    {
+      "id": "AC-7",
+      "text": "The final candidate passes repository validation, CI verification, release verification, required Python/Rust/frontend checks, conformance, SPEC/dashboard/research freshness, frozen-surface checks, release-surface validation, reproducibility, and artifact inspection without weakening a gate or fabricating platform evidence.",
+      "state": "pending",
+      "evidence": ["20260915-066-release-artifacts"]
+    },
+    {
+      "id": "AC-8",
+      "text": "Clean-source release evidence records the pre-release SHA, final release SHA, source/tree identity, platform actually executed, missing platform evidence, build report, release readiness, wheel and sdist hashes, and package inspection results.",
+      "state": "satisfied",
+      "evidence": ["20260915-066-release-artifacts"]
+    },
+    {
+      "id": "AC-9",
+      "text": "After all canonical gates pass, the exact 3.1.0 Python artifact is published through the existing secure credential path, PyPI reports 3.1.0, and a new clean environment installs repopact==3.1.0 from PyPI and passes version/engine, minimal-fixture validation, packaged-resource, metadata, and conformance smoke checks.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-10",
+      "text": "The final release commit receives the policy-required v3.1.0 tag and GitHub release if release history confirms that process; notes describe shipped capabilities and explicitly preserve WI063/WI065 active boundaries and ARXIV NOT SUBMITTED status.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-11",
+      "text": "After publication/tagging, any continuing development source identity is restored to the established distinct VERSION-pinned development RELEASE_LABEL, and WI021 AC-3 is reconciled only from real publication and clean-install evidence while AC-1, AC-2, and AC-4 retain their actual operator-gated states.",
+      "state": "pending",
+      "evidence": ["20260915-066-release-artifacts", "20260915-066-post-tag-identity"]
+    }
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

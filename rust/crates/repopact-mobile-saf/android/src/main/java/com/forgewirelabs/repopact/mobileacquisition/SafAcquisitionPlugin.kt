@@ -185,7 +185,19 @@ class SafAcquisitionPlugin(private val activity: Activity) : Plugin(activity) {
     try {
       val treeUri = Uri.parse(args.treeUri)
       val parentUri = Uri.parse(args.parentUri)
-      val parentDocumentId = DocumentsContract.getDocumentId(parentUri)
+      // WI065 Checkpoint B.5: for the root call, Rust's AndroidSafSource
+      // passes the tree URI itself as parentUri (there is no document URI
+      // for the tree's root yet) -- DocumentsContract.getDocumentId()
+      // throws IllegalArgumentException on a tree URI, it only accepts a
+      // document URI built via buildDocumentUriUsingTree. Every subsequent
+      // call passes a real document URI (the one this method itself builds
+      // below), where isDocumentUri() is true. This branch is required for
+      // the very first listChildren call on any picked tree to succeed.
+      val parentDocumentId = if (DocumentsContract.isDocumentUri(activity, parentUri)) {
+        DocumentsContract.getDocumentId(parentUri)
+      } else {
+        DocumentsContract.getTreeDocumentId(parentUri)
+      }
       val childrenUri =
         DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, parentDocumentId)
 
@@ -342,7 +354,25 @@ class SafAcquisitionPlugin(private val activity: Activity) : Plugin(activity) {
   }
 
   private fun resolveError(invoke: Invoke, reason: String, ex: Exception) {
-    Logger.error("SafAcquisitionPlugin", "$reason: ${ex.message}", ex)
+    // WI065 Checkpoint B.5 privacy audit (§19): Android's own exception
+    // messages (e.g. DocumentsContract.getDocumentId's
+    // IllegalArgumentException) can embed a full content:// URI, which
+    // itself reveals the picked tree's on-device path structure. The
+    // throwable itself is deliberately NOT passed to Logger.error -- Log.e
+    // with a Throwable prints its stack trace, which re-embeds that same
+    // unredacted message regardless of what string is passed alongside it.
+    // The reason code and exception class name already carry enough
+    // information to diagnose a real defect without the raw URI.
+    Logger.error(
+      "SafAcquisitionPlugin",
+      "$reason (${ex.javaClass.simpleName}): ${redactContentUris(ex.message)}",
+      null
+    )
     resolveTypedError(invoke, reason)
+  }
+
+  private fun redactContentUris(message: String?): String {
+    if (message == null) return "(no message)"
+    return message.replace(Regex("content://\\S+"), "content://<redacted>")
   }
 }

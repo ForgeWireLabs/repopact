@@ -1,0 +1,86 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-066-milestone-inventory",
+  "timestamp": "2026-09-14T22:03:20-05:00",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git log --oneline --decorate -20; git diff --stat v3.0.2..HEAD",
+      "exit_code": 0,
+      "summary": "the 3.1.0 candidate follows the stable v3.0.2 tag through 384 commits and contains the canonical engine, graph, assurance, local release, Workbench, mobile, evidence, and research deltas"
+    },
+    {
+      "command": "inspect work-item.json for WI063, WI051, WI022, WI061, WI065, WI046, WI021, and WI066",
+      "exit_code": 0,
+      "summary": "active and completed states were preserved; WI063 is 37/40 satisfied, WI065 is 4/9 satisfied, WI022 AC-3 remains pending after resource deferment, WI051/WI061/WI046 are completed, and WI021 launch gates remain operator-controlled"
+    },
+    {
+      "command": "inspect docs/assets/readme and research/arxiv/figures",
+      "exit_code": 0,
+      "summary": "the launch asset set includes the RepoPact hero visual, Workbench governance capture, and repository-relative arXiv copies"
+    },
+    {
+      "command": "repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "the generated dashboard reconciles governed structure and lifecycle counts; it is not treated as an independently hand-maintained source"
+    }
+  ],
+  "artifacts": [
+    "work/active/063-durable-repository-orientation-graph-and-incremental-semantic-index/work-item.json",
+    "work/active/065-mobile-repository-acquisition-app-private-workspace-and-explicit-import-export-implementation/work-item.json",
+    "work/active/022-benchmark-suite/work-item.json",
+    "work/completed/051-assurance-control-mapping-and-sensitive-evidence-boundary/work-item.json",
+    "work/completed/061-mobile-repository-acquisition-app-private-workspace-and-git-strategy/work-item.json",
+    "work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/work-item.json",
+    "work/active/021-public-launch/work-item.json",
+    "docs/assets/readme/repopact-hero-social.png",
+    "docs/assets/readme/workbench-governance.jpg",
+    "research/arxiv/main.pdf",
+    "audits/reports/dashboard.md",
+    "decisions/0058-release-repopact-3-1-0-as-a-compatible-minor-milestone.md"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "candidate_commit": "6d782116fc9762da00439cf079d0f50585fea52",
+    "candidate_tree": "580db812ef9dbef04f2749d9a872876ff6ffde62",
+    "stable_tag": "v3.0.2",
+    "stable_commit": "dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+    "version": "3.1.0",
+    "release_label": null
+  },
+  "inventory": {
+    "stable_product": [
+      "VERSION and Python package identity 3.1.0",
+      "canonical Rust/Python validation and local verification/release surfaces",
+      "35-case conformance suite with suite_version 3.1.0",
+      "README, SPEC, CITATION, CONFORMANCE, and generated dashboard synchronized to the stable candidate"
+    ],
+    "implemented_but_active": [
+      "WI063 Repository Orientation Graph: 37/40 criteria satisfied; ROG-028, ROG-034, and ROG-038 remain pending",
+      "WI065 mobile acquisition and app-private workspace: 4/9 criteria satisfied; Android SAF checkpoint is real, while mutation/export/share-back and end-to-end runtime criteria remain open",
+      "WI022 AC-3 comparative benchmark: pending; resource deferment is recorded and is not a comparative result"
+    ],
+    "research_infrastructure": [
+      "RealRunner smoke execution and telemetry plumbing",
+      "pre-registered benchmark protocol and findings register",
+      "arXiv source package and locally rebuilt PDF; ARXIV NOT SUBMITTED"
+    ],
+    "completed_empirical_or_architectural_work": [
+      "WI046 local-first verification/release architecture",
+      "WI051 optional provider-neutral assurance/control mapping",
+      "WI061 mobile repository acquisition strategy",
+      "WI063 completed graph implementation checkpoints recorded by evidence"
+    ],
+    "launch_gate_state": {
+      "WI021_AC-1_operator_approval": "pending",
+      "WI021_AC-2_arxiv_submission": "pending; ARXIV NOT SUBMITTED",
+      "WI021_AC-3_pypi_launch": "pending until real publication and clean-install evidence",
+      "WI021_AC-4_show_hn": "pending; operator-controlled"
+    }
+  },
+  "statement": "The authoritative milestone inventory distinguishes shipped 3.1.0 package capability, implemented-but-active WI063/WI065 work, research infrastructure, and completed results. It preserves open work and operator gates rather than promoting checkpoints or smoke plumbing into completed empirical claims."
+}

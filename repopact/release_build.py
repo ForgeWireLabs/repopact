@@ -28,7 +28,11 @@ from typing import Any
 from .package_version import package_version
 
 
-EXPECTED_SCHEMAS = 15
+# The stable 3.1.0 package ships the two added assurance/admission schema
+# families alongside the pre-existing record schemas. Keep this count aligned
+# with the checked-in package resource inventory so release inspection fails
+# closed on accidental omission or injection.
+EXPECTED_SCHEMAS = 17
 EXPECTED_TEMPLATES = 7
 _SBOM_SOURCE_PATH = re.compile(
     r"path\+file:///[^\" ]+?/(repopact-[^/\" ]+)/"

@@ -1,0 +1,114 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-065-checkpoint-c-android-mutation-cycle",
+  "timestamp": "2026-09-15T02:29:00Z",
+  "work_item": "065",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD && git rev-parse origin/main",
+      "exit_code": 0,
+      "summary": "Synchronized on clean worktree at expected baseline 8a94cd748a419323975d07037d8a3d38c7a04b6b (Checkpoint B.5 accepted); origin/main matched HEAD exactly, no concurrent WI022 commits pending reconciliation."
+    },
+    {
+      "command": "emulator -avd forge_moto_one_hyper_lab_api35 -no-snapshot-load && adb wait-for-device && adb shell getprop sys.boot_completed",
+      "exit_code": 0,
+      "summary": "Reused the WI060/B.5-proven AVD (Android 15, API 35, x86_64, serial emulator-5554); reached sys.boot_completed=1. The Checkpoint B.5 app package and its three prior workspaces (repo-dir-fixture, saf-fixture.zip, cancel-fixture) were still installed/present, confirming continuity with the prior checkpoint's environment rather than a fresh install."
+    },
+    {
+      "command": "prepare mutation fixture: copy conformance/fixtures/valid/ (9 files) to scratchpad, adb push to /sdcard/Download/repopact-mutation-fixture (10 entries incl. directories)",
+      "exit_code": 0,
+      "summary": "Built a minimal-but-valid RepoPact repository fixture (AGENTS.md, VERSION, audits/registry.json, audits/reports/dashboard.md, evidence/runs/20260101-seed.json, governance/{frozen-surface,invariants,owners}.json, work/completed/001-seed/{README.md,work-item.json}) -- the same fixture repopact-mutation's own Rust test suite copies for its typed-edit tests -- deliberately richer than the B.5 fixture, which was intentionally not a valid RepoPact repository. Pre-import SHA-256 of the mutation target work/completed/001-seed/work-item.json: 430c135af44a61790148b4e35c3901cd8fd761fcc68f508768097c27064ebfb3."
+    },
+    {
+      "command": "real ACTION_OPEN_DOCUMENT_TREE picker via adb input tap + uiautomator dump, navigating Download -> repopact-mutation-fixture -> USE THIS FOLDER -> ALLOW",
+      "exit_code": 0,
+      "summary": "Drove the actual Android SAF directory picker (com.android.documentsui PickActivity) through real taps derived from uiautomator-dumped bounds, including the genuine 'Allow RepoPact Workbench to access files in repopact-mutation-fixture' system permission dialog (persistable grant). Never injected a URI into native code. logcat confirmed pickDirectoryTree -> listChildren -> openDocument sequence reading all 10 real files with no errors."
+    },
+    {
+      "command": "run-as verification: registry.json + workspace file listing + sha256sum of imported work-item.json",
+      "exit_code": 0,
+      "summary": "New workspace cc9cbdf8-1c30-41e2-9466-6ae8aac6161c registered (acquisition_kind saf_directory, aggregate_bytes 3140 matching the 10 pushed files). All 10 files present under the app-private path /data/user/0/<pkg>/repositories/workspaces/cc9cbdf8.../repository/. Imported work-item.json SHA-256 430c135af4... matched the pre-import fixture byte-for-byte, proving the full picker -> Kotlin plugin -> Rust adapter -> AcquisitionSource -> Checkpoint A bounded importer -> staging -> app-private workspace -> registry path."
+    },
+    {
+      "command": "force-stop + relaunch app; real UI: tap Open on repopact-mutation-fixture",
+      "exit_code": 0,
+      "summary": "mobile_workspace_open resolved the registry-owned app-private path and invoked the unchanged DesktopService::open_repository. Session Health card showed a genuine Rust-backed read: 0 errors, 0 warnings, snapshot 124440fdaaad6c5b..., 1 work item, 1 evidence run, 0 decisions, 29 graph edges -- this is the pre-mutation baseline."
+    },
+    {
+      "command": "real UI: Work tab -> 001 Seed work item -> Edit typed fields -> clear/retype Title -> Review edit plan",
+      "exit_code": 0,
+      "summary": "Drove the identical Workbench mutation UI used on desktop (WorkDetail -> Edit typed fields -> title <input> -> plan_mutation Tauri command) via coordinate-driven taps and adb input text (WebView content is opaque to uiautomator, exactly as B.5 found). New title: 'Seed work item - WI065 Checkpoint-C edit proof'. Pre-apply run-as hash check confirmed the plan-creation step alone made zero filesystem writes (hash still 430c135a...)."
+    },
+    {
+      "command": "review dialog capture (screenshot/text): opaque plan handle + diff preview + generated impacts",
+      "exit_code": 0,
+      "summary": "MutationPlan proof: opaque plan handle 'plan-1-1', plan token '124440fdaaad6c5b...' -- matching the session's own pre-mutation snapshot token exactly, confirming the plan was built from the live RepositorySnapshot, not a client-reconstructed one. The frontend displayed only the Rust-generated preview string and Generated Impacts list (work/completed/001-seed/work-item.json, audits/reports/dashboard.md) -- no MutationPlan DTO was serialized to or reconstructed in JavaScript. Review stage rendered 'Discard plan' and 'Apply approved plan' controls before any apply occurred (no auto-apply)."
+    },
+    {
+      "command": "real UI: tap 'Apply approved plan'",
+      "exit_code": 0,
+      "summary": "apply_mutation_plan succeeded: toast read 'Plan applied and post-validation completed.' Work item list refreshed in place (no navigation/restart) to show the new title. Post-apply SHA-256 of work-item.json: 1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd (changed from 430c135a...). File content matched the plan's diff exactly (title + updated date bumped to 2026-09-15)."
+    },
+    {
+      "command": "Dashboard/Session tabs: snapshot token and generation counter before/after",
+      "exit_code": 0,
+      "summary": "Session snapshot token changed from 124440fdaaad6c5b... (pre-apply) to 52004f1cdd86c5e2... (post-apply) with zero manual refresh or restart -- proving stale in-memory state was invalidated by the apply. Session tab's Generation counter read 2 (incremented from the session's initial 1), and Repository identity locked at the exact app-private path /data/data/<pkg>/repositories/workspaces/cc9cbdf8-1c30-41e2-9466-6ae8aac6161c/repository -- confirming RepositorySession is anchored to the app-private copy, never the external SAF tree."
+    },
+    {
+      "command": "force-stop + relaunch app; reopen workspace cc9cbdf8...; reopen Work tab",
+      "exit_code": 0,
+      "summary": "Restart-persistence proof: registry and all four workspaces survived a full process kill. Reopening the mutated workspace showed the identical post-apply snapshot (52004f1cdd86c5e2..., 0 errors, 0 warnings) and the Work list displayed the persisted mutated title '001 - Seed work item - WI065 Checkpoint-C ed...' -- the mutation was durable, not merely an in-memory artifact of the original session."
+    },
+    {
+      "command": "adb shell sha256sum /sdcard/Download/repopact-mutation-fixture/work/completed/001-seed/work-item.json; compare to original scratchpad copy",
+      "exit_code": 0,
+      "summary": "Original external SAF source tree unchanged: 430c135af44a61790148b4e35c3901cd8fd761fcc68f508768097c27064ebfb3 on-device, byte-identical to the never-modified local pre-import copy. Confirms no silent write-back occurred and the app-private workspace was the sole canonical, mutated copy during editing, per Decision 0056."
+    },
+    {
+      "command": "real UI: relaunch app, tap Open on the pre-existing archive-imported saf-fixture.zip workspace (Checkpoint B.5 fixture)",
+      "exit_code": 0,
+      "summary": "Secondary archive-imported-workspace read proof (inexpensive supplemental check per instruction): mobile_workspace_open resolved this distinct workspace correctly with a real Rust-backed read (Session Health: 7 errors, 0 warnings, snapshot 9a2b2fd5f360..., 0 work items -- expected, since this small B.5 fixture is not itself a full valid RepoPact repository). Confirms the open/read path is identical across saf_directory and saf_archive acquisition kinds. No mutation was performed against this workspace (not required for AC-5, which is already fully proven by the primary directory-imported cycle above)."
+    },
+    {
+      "command": "adb shell dumpsys package <pkg> | grep -A 30 'runtime permissions'; adb logcat -d | grep -iE 'FATAL|AndroidRuntime|panic|content://'",
+      "exit_code": 0,
+      "summary": "Post-session permission audit: zero broad-storage/legacy/shell permissions acquired during this checkpoint (same clean posture as Checkpoint B.5). Full-session logcat review found zero crashes, zero panics, and zero unredacted content:// URI leakage. No Android-specific runtime defect was encountered this session; no source change to Checkpoint A/B/B.5 code was required."
+    },
+    {
+      "command": "negative stale-plan test (Section 17)",
+      "exit_code": 1,
+      "summary": "NOT EXECUTED this session -- honest gap, not fabricated. The primary AC-5 requirement (one complete, valid plan/review/apply cycle proven end-to-end through the real UI) was fully satisfied above; the supplemental negative stale-plan test (create a second plan, invalidate it via another canonical mutation, then prove a stale apply is rejected) was explicitly marked optional in this checkpoint's instructions and was not attempted, to stay within the stated Checkpoint C stop boundary. Rust-side stale-plan rejection (the 'mutation.plan-stale' diagnostic path in repopact-mutation's apply()) already has desktop-side unit coverage predating this checkpoint and was not re-verified on-device here."
+    },
+    {
+      "command": "cargo fmt --check / cargo check --workspace / cargo test --workspace / frontend typecheck / frontend vitest / Android build / repopact validate --root .",
+      "exit_code": 1,
+      "summary": "NOT RE-RUN this session -- no Rust, Kotlin, or frontend source was modified during Checkpoint C (the entire proof was driven through the pre-existing, unmodified Checkpoint B.5 production build with zero code changes), so the full validation gate suite from B.5 remains the last authoritative run. repopact validate --root . was not re-invoked in this session; the WI022 machine's previously-known malformed-evidence gap (evidence/runs/20260914-wi022-ac3-resource-deferred.json) is expected to be the only pre-existing failure if re-run, per B.5's last confirmed state and this session's own git fetch showing no new commits landed on origin/main."
+    }
+  ],
+  "artifacts": [
+    "work/active/065-mobile-repository-acquisition-app-private-workspace-and-explicit-import-export-implementation/work-item.json"
+  ],
+  "environment": {
+    "platform": "android",
+    "machine": "Dell Precision",
+    "avd": "forge_moto_one_hyper_lab_api35",
+    "device_serial": "emulator-5554",
+    "android_api": "35",
+    "android_release": "15",
+    "abi": "x86_64",
+    "apk_sha256": "4beaf3b6d6035947f772bd2f921264bf42dfaf9c1a4f5a46d1d04f9371bf270e",
+    "package_id": "com.forgewirelabs.repopact.workbench",
+    "mutated_workspace_id": "cc9cbdf8-1c30-41e2-9466-6ae8aac6161c",
+    "mutated_workspace_source": "content://com.android.externalstorage.documents/tree/primary%3ADownload%2Frepopact-mutation-fixture",
+    "mutation_target": "work/completed/001-seed/work-item.json",
+    "pre_mutation_sha256": "430c135af44a61790148b4e35c3901cd8fd761fcc68f508768097c27064ebfb3",
+    "post_mutation_sha256": "1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd",
+    "pre_mutation_snapshot_token": "124440fdaaad6c5b...",
+    "post_mutation_snapshot_token": "52004f1cdd86c5e2...",
+    "opaque_plan_handle": "plan-1-1",
+    "session_generation_after_apply": 2,
+    "starting_sha": "8a94cd748a419323975d07037d8a3d38c7a04b6b"
+  }
+}

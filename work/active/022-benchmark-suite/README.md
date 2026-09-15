@@ -268,3 +268,31 @@ pending.
 
 - [ ] **AC-3** remains pending. No registered AC-3 benchmark cell has been
   executed.
+
+## AC-3 whole-program deterministic preflight (2026-09-14)
+
+The published Proving Ground implementation at `master@696f602111c0045d0dd38756376165ed5d2261ba`
+completed the whole-program pre-inference preflight for both admitted families:
+`gpt-5.6-luna` and `gpt-6-astra`. The machine-readable report records **543 READY /
+0 BLOCKED** logical cells, 567 execution slots, 432 live model/worker turns, 135
+shared deterministic S5 cells, and 408 model-dependent cells. Every cell was
+classified `READY`; no registered model-dependent cell was executed.
+
+S2 provisioned four SWE-bench Verified and two SWE-EVO tasks at exact immutable
+base revisions, with clean functional model workspaces that contain neither gold
+solutions nor hidden test patches, plus separate official evaluator copies using
+the registered patch-then-test procedure. S3 passed 24 fake concurrent cells and
+48 worker turns with isolation, ACL, rendering, scoring, and cleanup checks. S4
+passed 180 fake cells over C0-C8, including C2+C3, with C9 explicitly out of
+scope. S5 ran all 135 deterministic cells (15 mutations × 3 conditions × 3
+repetitions) with blind-spot and scorer checks. S6a and S6b passed 108 and 24 fake
+cells respectively, with no invalid graders. Queue collision, manifest order,
+atomic-write, and resumability checks passed for all 543 entries.
+
+Evidence: [`20260914-wi022-ac3-whole-program-preflight`](../../../evidence/runs/20260914-wi022-ac3-whole-program-preflight.json),
+with the full report in the published Proving Ground repository at
+`evidence/runs/20260914-wi022-ac3-whole-program-preflight.json`.
+
+**0 model calls in this session.** Comparative inference has not started. AC-3
+remains pending until the separate live comparative programme is authorized and
+executed.

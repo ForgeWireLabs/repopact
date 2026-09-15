@@ -28,14 +28,14 @@
     {
       "id": "AC-3",
       "text": "research/paper.md is reconciled against the final release-candidate SHA with the 3.1.0 identity, current maturity, ROG, assurance mapping, RealRunner, mobile architecture/implementation boundary, release surface, platform evidence, limitations, and research-status claims stated without attributing active or pending work as completed results.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260915-066-paper-arxiv"]
     },
     {
       "id": "AC-4",
       "text": "The arXiv preparation sources and metadata are refreshed from an isolated source package, references and figures are verified, research/arxiv/main.pdf is rebuilt and checked, and the durable records continue to state ARXIV NOT SUBMITTED unless separately authorized.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260915-066-paper-arxiv"]
     },
     {
       "id": "AC-5",
@@ -46,20 +46,20 @@
     {
       "id": "AC-6",
       "text": "All canonical release identities and public/generated surfaces are synchronized to 3.1.0 according to the established rules: VERSION, stable RELEASE_LABEL convention, pyproject package identity, conformance suite_version, Rust engine identity, SPEC, README, CITATION, CONFORMANCE, changelog/release records, and release metadata.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260915-066-release-artifacts"]
     },
     {
       "id": "AC-7",
       "text": "The final candidate passes repository validation, CI verification, release verification, required Python/Rust/frontend checks, conformance, SPEC/dashboard/research freshness, frozen-surface checks, release-surface validation, reproducibility, and artifact inspection without weakening a gate or fabricating platform evidence.",
       "state": "pending",
-      "evidence": []
+      "evidence": ["20260915-066-release-artifacts"]
     },
     {
       "id": "AC-8",
       "text": "Clean-source release evidence records the pre-release SHA, final release SHA, source/tree identity, platform actually executed, missing platform evidence, build report, release readiness, wheel and sdist hashes, and package inspection results.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260915-066-release-artifacts"]
     },
     {
       "id": "AC-9",
@@ -77,7 +77,7 @@
       "id": "AC-11",
       "text": "After publication/tagging, any continuing development source identity is restored to the established distinct VERSION-pinned development RELEASE_LABEL, and WI021 AC-3 is reconciled only from real publication and clean-install evidence while AC-1, AC-2, and AC-4 retain their actual operator-gated states.",
       "state": "pending",
-      "evidence": []
+      "evidence": ["20260915-066-release-artifacts", "20260915-066-post-tag-identity"]
     }
   ],
   "created": "2026-09-14",

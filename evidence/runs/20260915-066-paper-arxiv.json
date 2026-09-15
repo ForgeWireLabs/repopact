@@ -1,0 +1,56 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-066-paper-arxiv",
+  "timestamp": "2026-09-15T05:30:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "inspect research/paper.md and research/arxiv/ against the milestone inventory",
+      "exit_code": 0,
+      "summary": "the paper distinguishes stable 3.1.0 product, active WI063/WI065 boundaries, research infrastructure, and pending comparative results without presenting active work as complete"
+    },
+    {
+      "command": "tectonic --outdir build --keep-logs main.tex",
+      "exit_code": 0,
+      "summary": "the arXiv source package rebuilt successfully from an isolated copy with no overfull boxes"
+    },
+    {
+      "command": "pdfinfo research/arxiv/main.pdf; pdftoppm -r 120 research/arxiv/main.pdf qa/page",
+      "exit_code": 0,
+      "summary": "the final PDF is 9 pages with 2 figures; all 9 pages were rendered and visually inspected without clipping, missing glyphs, absolute-path dependency, or PII"
+    }
+  ],
+  "artifacts": [
+    "research/paper.md",
+    "research/arxiv/main.tex",
+    "research/arxiv/references.bib",
+    "research/arxiv/figures/repopact-hero-social.png",
+    "research/arxiv/figures/workbench-governance.jpg",
+    "research/arxiv/main.pdf",
+    "research/arxiv-submission-prep.md"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "stable_release": {
+      "commit": "a87ea20e808ba67c04f625d7cc44c7f8f92487eb",
+      "tag": "v3.1.0"
+    },
+    "paper_snapshot": {
+      "commit": "6d782116fc9762da00439cf079d0f50585fea52",
+      "description": "3.1.0 release-candidate implementation/evidence snapshot"
+    },
+    "pdf": {
+      "pages": 9,
+      "figures": 2,
+      "bytes": 332074,
+      "title": "RepoPact: Repository-Native Governance for Durable Human-Agent Software Engineering",
+      "author": "Jeremy Shows",
+      "status": "preparation only; ARXIV NOT SUBMITTED"
+    }
+  },
+  "statement": "The paper and arXiv source package are reconciled and locally verified for the 3.1.0 milestone. The PDF is a preparation artifact only; ARXIV NOT SUBMITTED remains the durable status."
+}

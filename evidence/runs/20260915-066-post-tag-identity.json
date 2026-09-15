@@ -1,0 +1,44 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-066-post-tag-identity",
+  "timestamp": "2026-09-15T05:35:00Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "the continuing checkout installs as repopact 3.1.0.dev1 after the stable tag"
+    },
+    {
+      "command": "repopact validate --root .",
+      "exit_code": 0,
+      "summary": "the post-tag development identity and generated dashboard validate successfully"
+    },
+    {
+      "command": "inspect VERSION, RELEASE_LABEL, and pyproject.toml",
+      "exit_code": 0,
+      "summary": "VERSION remains the compatibility core 3.1.0, RELEASE_LABEL is 3.1.0-dev.1, and the PEP 440 package identity is 3.1.0.dev1"
+    }
+  ],
+  "artifacts": [
+    "VERSION",
+    "RELEASE_LABEL",
+    "pyproject.toml",
+    "v3.1.0"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "stable_tag": "v3.1.0",
+    "stable_tag_target": "a87ea20e808ba67c04f625d7cc44c7f8f92487eb",
+    "development_identity": {
+      "version": "3.1.0",
+      "release_label": "3.1.0-dev.1",
+      "package_version": "3.1.0.dev1"
+    }
+  },
+  "statement": "The immutable v3.1.0 tag retains the stable unlabeled identity. Continuing main development is explicitly labeled 3.1.0-dev.1 and validates as package version 3.1.0.dev1; the compatibility VERSION core remains 3.1.0."
+}

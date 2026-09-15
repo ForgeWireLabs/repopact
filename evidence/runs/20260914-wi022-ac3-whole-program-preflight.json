@@ -1,0 +1,167 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-whole-program-preflight",
+  "timestamp": "2026-09-14T19:00:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-whole-program-preflight.v1",
+  "classification": "deterministic-preflight-only",
+  "study_id": "WI022-AC3",
+  "commands": [
+    {
+      "command": "git -C C:\\Projects\\repopact-proving-ground rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "Published Proving Ground master is 696f602111c0045d0dd38756376165ed5d2261ba."
+    },
+    {
+      "command": "python -m benchmarks.harness.ac3_preflight --s2-materializations C:\\Projects\\wi022-ac3-materializations-20260914 --s2-beds C:\\Projects\\wi022-ac3-s2-beds-20260914-retry2 --repopact-root C:\\Projects\\repopact-wi022-preflight-20260914",
+      "exit_code": 0,
+      "summary": "Whole-program deterministic/fake preflight completed READY with 543 logical cells and 0 blocked cells."
+    },
+    {
+      "command": "python benchmarks/drift/harness.py --selftest",
+      "exit_code": 0,
+      "summary": "S5 deterministic drift harness selftest passed."
+    },
+    {
+      "command": "python -m py_compile benchmarks\\harness\\ac3_preflight.py benchmarks\\s2\\provision.py benchmarks\\drift\\harness.py benchmarks\\pactbench\\materialize.py",
+      "exit_code": 0,
+      "summary": "Published preflight, S2 provisioner, drift harness, and materialization code compiled."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "Proving Ground suite passed 88 tests; one platform-specific Windows symlink test was skipped because the privilege was unavailable."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "RepoPact editable development installation completed."
+    },
+    {
+      "command": "repopact validate",
+      "exit_code": 0,
+      "summary": "RepoPact governance, evidence, work-item, and generated-artifact validation passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "RepoPact full suite passed after evidence and work-item reconciliation."
+    },
+    {
+      "command": "repopact check-frozen --base origin/main",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes were detected."
+    },
+    {
+      "command": "repopact dashboard",
+      "exit_code": 0,
+      "summary": "Generated audits/reports/dashboard.md from governed state."
+    }
+  ],
+  "artifacts": [
+    "proving-ground:evidence/runs/20260914-wi022-ac3-whole-program-preflight.json",
+    "proving-ground:benchmarks/harness/ac3_preflight.py",
+    "proving-ground:benchmarks/s2/provision.py",
+    "proving-ground:benchmarks/drift/harness.py",
+    "proving-ground:tests/test_ac3_preflight.py",
+    "proving-ground:benchmarks/harness/README.md",
+    "work/active/022-benchmark-suite/work-item.json",
+    "work/active/022-benchmark-suite/README.md",
+    "audits/reports/dashboard.md"
+  ],
+  "environment": {
+    "os": "Windows",
+    "python": "3.13",
+    "repopact_start_sha": "5045a11204d24d77fbc1ad237854644e9c0ed8d3",
+    "proving_ground_master_sha": "696f602111c0045d0dd38756376165ed5d2261ba",
+    "proving_ground_report_sha256": "9afe03c3e41becb77e2d7bfb346982a3959cae46cafa1a4a4a4176df0b49f616",
+    "proving_ground_report_bytes": 451188,
+    "materializations": {
+      "swe-bench-verified": "6fb042bfeb85d8886b55b6ee7faa6872426a1c9a6cc20efddae33fcdb7473144",
+      "swe-evo": "a0b7d326dde79fe4e076783ce1bd74f57141475737163ff51248ea1adc293353"
+    },
+    "workspace_security": {
+      "version": "repopact.windows-empirical-workspace.v1",
+      "fingerprint": "07e59a22ffdc29304ecb6f83f85b7027ad94da25625087fed4fa16549085531f",
+      "normalized_acl_digest": "9c5b13ef1c7499ce13556248fd47b92659d2438a22563b047b508a20f54cba52",
+      "preflight": "host and sandbox read/write checks passed; protected canonical DACL; no deny ACEs"
+    },
+    "queue": {
+      "entry_count": 543,
+      "digest": "b1ba75f2401c870e26286059d8eb248bbdf840d2ecc69d66fc56a92988fceada",
+      "path_uniqueness": true,
+      "manifest_order_preserved": true,
+      "atomic_write_strategy": "temporary .partial then os.replace",
+      "resumability": "partial artifacts are distinguishable and stale/complete entries are resumable"
+    }
+  },
+  "admitted_models": [
+    {"family": "gpt-5.6", "provider": "openai", "version": "gpt-5.6-luna"},
+    {"family": "gpt-6", "provider": "openai", "version": "gpt-6-astra"}
+  ],
+  "scope": {
+    "logical_cells": 543,
+    "execution_slots": 567,
+    "live_model_or_worker_turns": 432,
+    "shared_deterministic_s5_cells": 135,
+    "model_dependent_cells": 408,
+    "registered_model_dependent_cells_executed": 0,
+    "model_calls": 0,
+    "ac3_started": false
+  },
+  "phases": {
+    "S2": {
+      "status": "READY",
+      "logical_cells": 36,
+      "prepared_tasks": 6,
+      "beds": {
+        "swe-bench-verified": {"task_count": 4, "materialization_fingerprint": "6fb042bfeb85d8886b55b6ee7faa6872426a1c9a6cc20efddae33fcdb7473144"},
+        "swe-evo": {"task_count": 2, "materialization_fingerprint": "a0b7d326dde79fe4e076783ce1bd74f57141475737163ff51248ea1adc293353"}
+      },
+      "provisioner_version": "2026-09-14.s2-functional-evaluator-provisioner.1",
+      "evaluator_procedure_version": "swebench-official-patch-then-test.v1",
+      "functional_model_workspace": "six clean exact-base checkouts; no gold solution or hidden test patch",
+      "official_evaluator": "separate local copy with registered test patch and official test command"
+    },
+    "S2_tasks": [
+      {"task_id": "django__django-11099", "repository": "django/django", "base_commit": "d26b2424437dabeeca94d7900b37d2df4410da0c", "model_projection_sha256": "cad218829c67aa7595fea16401b6d1bf477f199eb9d4a927580a1c82e69727e2", "evaluation_projection_sha256": "6c6d42de6d86173f83d2ddaeee8c37a2eb2455ad63b1220c08f74debb459870b", "record_sha256": "bc2ea298e18afc3cae9e1c706b742092fe150bd74d0c3748a27b7c9791455b84", "evaluator_test_patch_sha256": "04959a592788c803778193589f239dfcc5f7caa80597363dca6f2504debfb238", "evaluator_diff_sha256": "81ef3d7ec028cf248519e84589ae9b6ed3af4920720c6b9b49aab22819071d23"},
+      {"task_id": "matplotlib__matplotlib-23314", "repository": "matplotlib/matplotlib", "base_commit": "97fc1154992f64cfb2f86321155a7404efeb2d8a", "model_projection_sha256": "6ee0bcdeca06610cae8e9ee07a46b6e1c2647104840c32b9d0ecd7cb0e51a800", "evaluation_projection_sha256": "60d645d067666a8ef2073c4f483d292e135666f4c1c7bcdbe580dd4d32c545d6", "record_sha256": "16ee0e952479a9f7ab7b1b80072bbdfe1712f4b6e1ee41d4f196274eade1a8ea", "evaluator_test_patch_sha256": "de9df814f9ba345827e8ea5db3d03354fde62c86aa609e2831b8039c2245f481", "evaluator_diff_sha256": "8242986f1465fc935e5ed3a099e6e68d9b8627242de566b85084bbc12a3a91d5"},
+      {"task_id": "scikit-learn__scikit-learn-10297", "repository": "scikit-learn/scikit-learn", "base_commit": "b90661d6a46aa3619d3eec94d5281f5888add501", "model_projection_sha256": "877b3c82f611d73aba1bf4a768b9281a9fb0773417a857318d37a75091c3846c", "evaluation_projection_sha256": "564c1dd56198d385d69af28a2d54fdeaba104f27c719e337a00580b576decd70", "record_sha256": "b4b34831fb4a82a699a68ee8a22dac473f0d593a9e1e921357005fee53b0cdca", "evaluator_test_patch_sha256": "beb2bad0620edaed12bbdbdbfa439099ca5f3619a20fb9dae36b9646ec783e46", "evaluator_diff_sha256": "1b54392053bf3f9c97c3c02a0556f93e4985ab6a8a8ee73c9ad5d62ee871593c"},
+      {"task_id": "sympy__sympy-20590", "repository": "sympy/sympy", "base_commit": "cffd4e0f86fefd4802349a9f9b19ed70934ea354", "model_projection_sha256": "4034e0692fb8c93742ebbcbd538f2f49efdb553a7813c394551f03cc8387d772", "evaluation_projection_sha256": "0e8d1a3fd6ca3eb91b398076a4fa5221314205b39c57f65830ae483017327bbd", "record_sha256": "62c677d952d3e0532a82f284fec48b545612f347afadaab7b0d1a5127e0a1f2f", "evaluator_test_patch_sha256": "6d707e09c191585bacc8cde388d740f9539228ff19e7feab87221b6527f147f2", "evaluator_diff_sha256": "60243968ea34cde7206416499357ed0a6f40aefba9a3c900c577a93f17c26594"},
+      {"task_id": "dask__dask_2023.6.1_2023.7.0", "repository": "dask/dask", "base_commit": "85c99bc20abc382774cfb6e5bf5f2db76ac09378", "model_projection_sha256": "b54681669ceaafa906fb4b3715954bbfd188b3cd3d323aa7bd36d8dacb5b0a60", "evaluation_projection_sha256": "fb00ed05191b5320704e4c884ae69c014504b231f99e926b5db02bab1fd0ba55", "record_sha256": "3ab32850ed5597b77545e3c76083cfd6d2ccb590acb206b56c1aa78805713437", "evaluator_test_patch_sha256": "67df087cf3a6057e637e78bb349dec6461b697112faa1a40f8f49542c3d59628", "evaluator_diff_sha256": "0ef5a5b4e96b1bcd9c71bcf5a428f02caddcacbe5ee4ef99834c549e57b0dda8"},
+      {"task_id": "iterative__dvc_0.33.1_0.34.0", "repository": "iterative/dvc", "base_commit": "c645fdd45e0352f6cdfedee1392dc88e48f7d169", "model_projection_sha256": "d805ed839068e1d1e7c6732fb9987452b5911c5dbb7732fd7f27a41f7ad24c21", "evaluation_projection_sha256": "02ef6ce78617a27d4c2c832aedf7f61ea0c1248bc0d327542892fa597793cf51", "record_sha256": "76db0c5aad732710481b2a16d868080a167650718297bfa9616cdfa1f2a2c609", "evaluator_test_patch_sha256": "b5e2c400bce44f024b03db2fedeb7bc7096370973736c997cc9af0cd5bcacac8", "evaluator_diff_sha256": "abac448e031928f965456474e27dd923aef1a94f6eed876d8fe39f522ed321f1"}
+    ],
+    "S3": {"status": "READY", "logical_cells": 24, "fake_cells_passed": 24, "worker_turns": 48, "pipeline": "concurrent isolated workers with ACL/isolation/render/snapshot/score/cleanup checks"},
+    "S4": {"status": "READY", "logical_cells": 180, "fake_cells_passed": 180, "conditions": ["C0", "C1", "C2", "C2+C3", "C3", "C4", "C5", "C6", "C7", "C8"], "renderer_fingerprint_digest": "4024919c373a89405015173b19b9f1ac2db9085740404c37636379ea735a8de9", "C9": "explicitly out of scope and not executed"},
+    "S5": {"status": "READY", "logical_cells": 135, "cells": "15 registered mutations x 3 conditions (C2, C2+C3, C7) x 3 repetitions", "method_version": "2026-09-14.s5-model-independent.1", "model_calls": 0, "rows_digest": "be7b1a9ca1c026393963281e05e682064a545a36c928368b6c2b8e6141b19b59", "blind_spots_and_scorer": "passed"},
+    "S6a": {"status": "READY", "logical_cells": 108, "fake_cells_passed": 108, "grader_invalid_count": 0},
+    "S6b": {"status": "READY", "logical_cells": 24, "fake_cells_passed": 24, "grader_invalid_count": 0},
+    "S6_audit": {"registered_task_set_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54", "published_audit_digest": "a9f490fb41cd47b366ff3f3268df92ea24400dd366cdf3f407587e9a5aafed54", "runtime_audit_digest": "927fc71b8f45e37372c68ea5d11815167f2bf4315a369d1cd992e78c7c0df266", "digest_note": "The registered and published digest is authoritative; the runtime audit recomputation is retained for drift visibility."}
+  },
+  "matrix_integrity": {
+    "manifest_sha256": "3bd1a35f92df8434812856409c9f38ee4abfbe3d63fce5dd4ecb3bffefd0bdfb",
+    "manifest_matches_generator": true,
+    "registered_models": ["gpt-5.6-luna", "gpt-6-astra"],
+    "all_543_cells_status": "READY",
+    "required_result": "543 READY / 0 BLOCKED"
+  },
+  "inference_boundary": "0 model calls in this session. Comparative inference has not started.",
+  "inference_status": "pre-inference",
+  "ac3_started": false,
+  "registered_model_dependent_cells_executed": 0,
+  "status": "READY",
+  "acceptance_boundary": {
+    "wi022_ac3": "pending",
+    "comparative_results": 0,
+    "pareto_frontier": "not produced; requires live comparative execution",
+    "scaling_curve": "not produced; requires live comparative execution"
+  },
+  "notes": [
+    "This is a whole-program deterministic/fake preflight, not comparative benchmark evidence.",
+    "The six S2 functional model workspaces exclude gold solution and hidden test fields; evaluator copies retain only registered scoring metadata and apply the official patch-then-test procedure.",
+    "S3, S4, S6a, and S6b exercise fake/no-model adapters; S5 executes the actual deterministic drift harness with zero model calls.",
+    "The runtime S6 task-set digest differs from the registered/published digest; the mismatch is reported for drift visibility and does not redefine the authoritative registered digest."
+  ]
+}

@@ -1,0 +1,16 @@
+[package]
+name = "repopact-mobile-acquisition"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+repopact-repository.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+uuid = { version = "1", features = ["v4"] }
+zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
+
+[dev-dependencies]
+tempfile = "3.23.0"

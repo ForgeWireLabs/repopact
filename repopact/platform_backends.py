@@ -13,6 +13,7 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import stat
 import subprocess
@@ -888,11 +889,74 @@ class LinuxBackend(PlatformBackend):
         object.__setattr__(self, "service_name", "repopact-guard.service")
         object.__setattr__(self, "ipc_endpoint", "/run/repopact/guard.sock")
         object.__setattr__(self, "runtime_path", Path("/usr/local/lib/repopact/guard"))
+        object.__setattr__(self, "install_root", Path("/usr/local/lib/repopact/guard"))
+        object.__setattr__(self, "manifest_path", Path("/usr/local/lib/repopact/guard/install.json"))
+        object.__setattr__(self, "unit_path", Path("/etc/systemd/system") / self.service_name)
+
+    def _runtime_digest(self, runtime: Path | None = None) -> str:
+        base = runtime or self.runtime_path
+        result = hashlib.sha256()
+        for path in sorted(base.rglob("*.py")):
+            if path.is_file():
+                result.update(str(path.relative_to(base)).replace("\\", "/").encode("utf-8"))
+                result.update(path.read_bytes())
+        return result.hexdigest()
+
+    def _manifest(self) -> Mapping[str, Any] | None:
+        try:
+            value = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            return None
+        return value if isinstance(value, Mapping) else None
+
+    def _service_command(self, interpreter: Path | None = None) -> list[str]:
+        selected = (interpreter or Path("/usr/bin/python3")).resolve(strict=True)
+        return [str(selected), "-I", str(self.runtime_path / "guard-service.py"),
+                "--endpoint", self.ipc_endpoint, "--state-root", str(self.protected_state_location.parent)]
+
+    def preflight(self, root: Path | None = None, *, interpreter: Path | None = None) -> dict[str, Any]:
+        """Run non-mutating checks for the root-owned Linux service install."""
+        requested = interpreter or Path("/usr/bin/python3")
+        checks: dict[str, bool] = {
+            "linux_host": platform.system().lower() == "linux" and os.name == "posix",
+            "running_as_root": hasattr(os, "geteuid") and os.geteuid() == 0,
+            "systemd_running": False,
+            "source_package": (Path(__file__).resolve().parent / "unix_guard_service.py").is_file(),
+            "source_tree_clean": True,
+            "interpreter_protected": False,
+            "runtime_target_absent": not self.install_root.exists(),
+            "unit_target_absent": not self.unit_path.exists(),
+            "state_target_absent": not self.protected_state_location.exists(),
+        }
+        code, output = _command_output(["systemctl", "is-system-running"])
+        checks["systemd_running"] = code == 0 and output.strip() in {"running", "degraded"}
+        source_root = root.resolve() if root is not None else Path.cwd().resolve()
+        code, output = _command_output(["git", "-C", str(source_root), "status", "--porcelain", "--untracked-files=all"])
+        checks["source_tree_clean"] = code == 0 and not output.strip()
+        try:
+            canonical_interpreter = requested.resolve(strict=True)
+            checks["interpreter_protected"] = _unix_protected_path(canonical_interpreter)[0]
+        except (OSError, ValueError):
+            canonical_interpreter = requested.absolute()
+        revision_code, revision = _command_output(["git", "-C", str(source_root), "rev-parse", "HEAD"])
+        command = self._service_command(canonical_interpreter) if canonical_interpreter.is_file() else []
+        ready = all(checks.values())
+        return {
+            "backend": self.name, "service_name": self.service_name,
+            "install_root": str(self.install_root), "runtime_path": str(self.runtime_path),
+            "state_path": str(self.protected_state_location), "ipc_endpoint": self.ipc_endpoint,
+            "unit_path": str(self.unit_path), "interpreter": str(canonical_interpreter),
+            "source_revision": revision.strip() if revision_code == 0 else "",
+            "service_command_argv": command, "service_command": shlex.join(command),
+            "checks": checks, "mutations": [], "ready": ready,
+            "rollback": "not-needed" if ready else "no machine mutation performed",
+        }
 
     def attest(self, root: Path | None = None, protected_dir: Path | None = None) -> BackendAttestation:
         unit = Path("/etc/systemd/system") / self.service_name
         socket = Path(self.ipc_endpoint)
-        installed = unit.is_file() and self.runtime_path.is_dir() and self.protected_state_location.is_dir()
+        manifest = self._manifest()
+        installed = unit.is_file() and self.runtime_path.is_dir() and self.protected_state_location.is_dir() and manifest is not None
         service_running = False
         if installed:
             code, output = _command_output(["systemctl", "is-active", self.service_name])
@@ -910,19 +974,33 @@ class LinuxBackend(PlatformBackend):
         state_ok, state_reason = _unix_protected_path(self.protected_state_location)
         socket_ok, socket_reason = _unix_protected_path(socket, socket_endpoint=True)
         unit_ok, unit_reason = _unix_protected_path(unit)
+        manifest_ok = bool(manifest and manifest.get("runtime_digest") == self._runtime_digest()
+                           and manifest.get("installed_code_path") == str(self.runtime_path)
+                           and manifest.get("ipc_endpoint") == self.ipc_endpoint)
+        command_text = ""
+        if installed:
+            _code, command_text = _command_output(["systemctl", "show", self.service_name,
+                                                    "--property=ExecStart", "--value"])
+        command_ok = bool(command_text and str(self.runtime_path / "guard-service.py") in command_text
+                          and " -I " in f" {command_text} ")
         path_chain_ok = bool(runtime_ok and state_ok and socket_ok and unit_ok)
-        healthy = bool(installed and service_running and identity_ok and path_chain_ok)
+        healthy = bool(installed and service_running and identity_ok and path_chain_ok and manifest_ok and command_ok)
         assumptions = (
             "systemd service is root-owned and peer identity is checked with SO_PEERCRED",
             "Unix socket and all protected parent directories are root-owned and not group/world-writable",
+            "installed manifest digest and systemd ExecStart bind the live service to the protected runtime",
             "this backend proves session-start/pre-action guard health only; it does not claim arbitrary process confinement",
         )
         if not path_chain_ok:
             assumptions += tuple(reason for ok, reason in ((runtime_ok, runtime_reason), (state_ok, state_reason),
                                                             (socket_ok, socket_reason), (unit_ok, unit_reason)) if not ok)
+        if not manifest_ok:
+            assumptions += ("installed runtime manifest is absent, mismatched, or tampered",)
+        if not command_ok:
+            assumptions += ("systemd ExecStart is absent or does not select the protected isolated runtime",)
         return BackendAttestation(
             backend_id=self.name, os_name=self.os_name, installed=installed, healthy=healthy,
-            integrity_checked=bool(installed and runtime_ok and state_ok and unit_ok),
+            integrity_checked=bool(installed and runtime_ok and state_ok and unit_ok and manifest_ok and command_ok),
             protected_from_gated_principal=bool(healthy), service_identity_verified=identity_ok,
             path_confinement=False, process_confinement=False, host_configuration_protected=bool(path_chain_ok),
             service_identity=service_identity or "root", installed_code_path=str(self.runtime_path),
@@ -932,10 +1010,125 @@ class LinuxBackend(PlatformBackend):
             protected_path_chain=path_chain_ok,
         )
 
-    def install(self, root: Path | None = None, **_: Any) -> dict[str, Any]:
+    def install(self, root: Path | None = None, *, preflight: bool = False,
+                interpreter: Path | None = None, **_: Any) -> dict[str, Any]:
+        report = self.preflight(root, interpreter=interpreter)
+        if preflight:
+            return report
+        if not report["ready"]:
+            failures = [key for key, value in report["checks"].items() if not value]
+            raise RuntimeError("Linux guard install preflight failed (zero machine mutation): " + ", ".join(failures))
+        source_package = Path(__file__).resolve().parent
+        staging = self.install_root.parent / f".repopact-guard-install-{os.getpid()}-{os.urandom(6).hex()}"
+        unit_created = False
+        state_created = False
+        try:
+            staging.mkdir(parents=True, exist_ok=False)
+            stage_runtime = staging / "runtime"
+            stage_runtime.mkdir(parents=True, exist_ok=False)
+            for source in source_package.rglob("*.py"):
+                relative = source.relative_to(source_package)
+                target = stage_runtime / "repopact" / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            launcher = stage_runtime / "guard-service.py"
+            launcher.write_text(
+                "#!/usr/bin/python3\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parent))\n"
+                "from repopact.unix_guard_service import main\n"
+                "raise SystemExit(main())\n",
+                encoding="utf-8",
+            )
+            for directory in (staging, stage_runtime, stage_runtime / "repopact"):
+                os.chmod(directory, 0o755)
+            for path in stage_runtime.rglob("*.py"):
+                os.chmod(path, 0o644)
+            os.chmod(launcher, 0o755)
+            digest_value = self._runtime_digest(stage_runtime)
+            source_root = (root or Path.cwd()).resolve()
+            code, revision = _command_output(["git", "-C", str(source_root), "rev-parse", "HEAD"])
+            command = self._service_command(Path(report["interpreter"]))
+            manifest = {
+                "protocol_version": "1", "service_name": self.service_name, "service_identity": "root",
+                "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
+                "ipc_endpoint": self.ipc_endpoint, "runtime_digest": digest_value,
+                "source_revision": revision.strip() if code == 0 else "", "interpreter": report["interpreter"],
+                "service_command": shlex.join(command), "isolation": ["-I"],
+            }
+            (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            os.chmod(staging / "install.json", 0o644)
+            staging.replace(self.install_root)
+            self.protected_state_location.mkdir(parents=True, exist_ok=False)
+            os.chmod(self.protected_state_location, 0o700)
+            state_created = True
+            unit = "\n".join((
+                "[Unit]", "Description=RepoPact protected admission guard", "After=local-fs.target", "",
+                "[Service]", "Type=simple", "User=root", "Group=users",
+                f"ExecStart={shlex.join(command)}", "Restart=on-failure", "RestartSec=1",
+                "NoNewPrivileges=true", "PrivateTmp=true", "ProtectHome=true", "ProtectSystem=strict",
+                f"ReadWritePaths={self.protected_state_location.parent} /run/repopact", "",
+                "[Install]", "WantedBy=multi-user.target", "",
+            ))
+            self.unit_path.write_text(unit, encoding="utf-8")
+            os.chmod(self.unit_path, 0o644)
+            unit_created = True
+            for command_line in ((["systemctl", "daemon-reload"]),
+                                 (["systemctl", "enable", "--now", self.service_name])):
+                code, output = _command_output(command_line)
+                if code != 0:
+                    raise RuntimeError(f"systemd guard activation failed: {output.strip()}")
+            return self.attest(root).record()
+        except Exception:
+            if unit_created:
+                _command_output(["systemctl", "disable", "--now", self.service_name])
+                try:
+                    self.unit_path.unlink()
+                except OSError:
+                    pass
+                _command_output(["systemctl", "daemon-reload"])
+            if state_created:
+                shutil.rmtree(self.protected_state_location, ignore_errors=True)
+            if self.install_root.exists():
+                shutil.rmtree(self.install_root, ignore_errors=True)
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+            raise
+
+    def register(self, root: Path, **kwargs: Any) -> dict[str, Any]:
         if os.name != "posix" or os.geteuid() != 0:
-            raise PrivilegeRequired("Linux guard installation requires root; install a system service and 0600 Unix socket")
-        raise RuntimeError("Linux installer is intentionally explicit: package the protected runtime and systemd unit before enabling it")
+            raise PrivilegeRequired("Linux guard registration requires root")
+        signer = kwargs.get("signer")
+        if signer is None:
+            raise PrivilegeRequired("guard register requires an explicit external operator signer")
+        from .admission import setup_admission, verify_registration
+        if not self.attest(root).healthy:
+            raise PrivilegeRequired("guard must be installed and healthy before repository registration")
+        if verify_registration(root.resolve(), self.protected_state_location).allowed:
+            raise RuntimeError("repository is already registered; explicit rotation/unregister is required")
+        result = setup_admission(root.resolve(), self.protected_state_location, signer, registry_key="adoption")
+        return {"backend": self.name, "root": str(root.resolve()), "status": "registered",
+                **{key: str(value) for key, value in result.items() if key != "signer"}}
+
+    def uninstall(self, **_: Any) -> dict[str, Any]:
+        if os.name != "posix" or os.geteuid() != 0:
+            raise PrivilegeRequired("Linux guard uninstall requires root")
+        _command_output(["systemctl", "disable", "--now", self.service_name])
+        if self.unit_path.exists():
+            self.unit_path.unlink()
+        _command_output(["systemctl", "daemon-reload"])
+        shutil.rmtree(self.install_root, ignore_errors=True)
+        shutil.rmtree(self.protected_state_location, ignore_errors=True)
+        try:
+            Path(self.ipc_endpoint).unlink()
+        except OSError:
+            pass
+        try:
+            Path(self.ipc_endpoint).parent.rmdir()
+        except OSError:
+            pass
+        return {"backend": self.name, "status": "service-removed", "state": str(self.protected_state_location)}
 
 
 class MacOSBackend(PlatformBackend):

@@ -71,23 +71,46 @@ full record of each):
   reused containment primitive, and a ZIP directory-entry trailing-slash
   collision-key gap) are documented and fixed in place, not worked around.
   See `evidence/runs/20260915-065-checkpoint-a-workspace-registry-and-safe-import-export.json`.
-- **Checkpoint B — not started.** The Android-native SAF adapter (a real
-  Tauri mobile plugin: Kotlin `@TauriPlugin`/`ActivityResult` handling for
-  `ACTION_OPEN_DOCUMENT_TREE`/`ACTION_OPEN_DOCUMENT`/`ACTION_CREATE_DOCUMENT`,
-  bridged to an `AcquisitionSource` implementation), the typed Tauri command
-  surface wiring `repopact-mobile-acquisition` into `repopact-desktop`, and
-  the Android Gradle/capability changes this requires. `repopact-mobile-
-  acquisition` deliberately exists as a standalone, already-tested crate
-  precisely so this checkpoint only has to bridge to it, not redesign it.
+- **Checkpoint B — mostly done; one gap recorded honestly.** A real Android
+  Tauri mobile plugin, `rust/crates/repopact-mobile-saf/`: Kotlin
+  `@TauriPlugin`/`ActivityResult` handling for
+  `ACTION_OPEN_DOCUMENT_TREE`/`ACTION_OPEN_DOCUMENT`
+  (`SafAcquisitionPlugin.kt`), bridged from Rust via `PluginHandle::
+  run_mobile_plugin` into `AndroidSafSource` (implements Checkpoint A's
+  `AcquisitionSource` by listing one directory's children per SAF call --
+  never a single upfront tree walk) and a staging-file bridge for archive
+  documents. The production `MobileAcquisitionCoordinator`
+  (`rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs`) wraps
+  one `WorkspaceManager` rooted at `app_data_dir()/repositories` (never
+  WI060's debug validation path), initialized once in `run()`'s `setup`.
+  Seven typed commands (`mobile_workspace_list`, `mobile_import_directory`,
+  `mobile_import_archive`, `mobile_operation_status`,
+  `mobile_operation_cancel`, `mobile_workspace_open`,
+  `mobile_git_capabilities`) are registered only on the Android build;
+  `select_repository` and desktop's native picker are completely unchanged.
+  A minimal frontend entry surface (`MobileAcquisitionPanel.tsx`: Import
+  folder / Import ZIP / existing workspaces / Open) renders only where the
+  mobile commands actually exist. A real `npx tauri android build --debug
+  --target aarch64 --apk` **succeeded**, producing a genuine debug APK with
+  the compiled `SafAcquisitionPlugin.class` linked in; the Android manifest
+  permission set is unchanged (no new permission of any kind). **Not done:**
+  an interactive on-device/emulator smoke test actually tapping through the
+  real SAF pickers -- no emulator was running this session, and booting one
+  plus driving the picker UI was judged out of this checkpoint's core scope
+  given time already spent. See
+  `evidence/runs/20260914-065-checkpoint-b-android-saf-acquisition.json`
+  for the full record, including a real build failure (an illegal `--`
+  inside an XML comment breaking Android's manifest merger) found and fixed
+  by the first real build attempt.
 - **Checkpoint C (Workbench open + mutation cycle), Checkpoint D (export/
   share-back wiring), Checkpoint E (adversarial device tests + Android
   runtime proof + closeout) — not started.**
 
-AC-1 through AC-9 therefore remain `pending` in `work-item.json`: Checkpoint
-A is real, tested, host-verified progress, but AC-1 ("a production mobile
-workspace registry exists") and the rest are written in terms of the
-running application and real Android runtime evidence, which this
-checkpoint does not yet provide. This work item stays `active` rather than
+AC-1 through AC-9 therefore remain `pending` in `work-item.json`: Checkpoints
+A and B are real, tested, (mostly) build-verified progress, but AC-2/AC-3/
+AC-4/AC-7's exact wording still requires the on-device picker-interaction
+proof this checkpoint did not execute, and AC-5/AC-6/AC-8/AC-9 are
+Checkpoint C/D/E's job outright. This work item stays `active` rather than
 being closed against partial evidence.
 
 ## Scope

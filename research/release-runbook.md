@@ -1,8 +1,36 @@
 # Release runbook
 
-## Current 3.0.2 corrective release
+## Current 3.1.0 minor release
 
-The 3.0.2 release contains the record-relative `source_of_truth:` correction
+The 3.1.0 release is the accepted compatible-minor milestone from decision
+0058 and WI066. The live 3.0.2 compatibility audit found no mandatory behavior
+break: the adopter schema change is optional, new record families are
+additive, existing conformance IDs/rules remain valid, the engine protocol
+major is unchanged, and new CLI operations are additive. Keep `VERSION=3.1.0`
+and omit `RELEASE_LABEL` on the exact stable release commit. The stable package
+includes the canonical Rust/Python engine, local-first verification and release
+surfaces, and the additive graph and assurance capabilities. WI063 and WI065
+remain active implementation boundaries; the arXiv package remains preparation
+only and **ARXIV NOT SUBMITTED**.
+
+Build only from the clean committed release tree with
+`repopact release build --root . --outdir dist`, inspect the wheel and sdist,
+and run `python -m twine check dist\\repopact-3.1.0*`. Publish only those exact
+files through the existing secure credential path. Verify public metadata and
+hashes, then install `repopact==3.1.0` in a clean environment outside the
+checkout and run the package/resource/conformance smoke checks. Create and push
+the annotated `v3.1.0` tag and the GitHub release because that process is
+established by prior releases; release notes must preserve the active WI063 and
+WI065 boundaries and the **ARXIV NOT SUBMITTED** status.
+
+After the stable tag and publication, continuing `main` development must restore
+`VERSION=3.1.0`, `RELEASE_LABEL=3.1.0-dev.1`, and package metadata
+`3.1.0.dev1`. Do not move `v3.1.0` or treat that development identity as a
+stable publication.
+
+## Historical 3.0.2 corrective release
+
+The historical 3.0.2 release contains the record-relative `source_of_truth:` correction
 and structural same-repository linked-worktree contract-discovery correction
 from WI043 and WI042. Keep `VERSION=3.0.2` and omit `RELEASE_LABEL` on the
 exact stable release commit. Build only from that clean committed tree with

@@ -22,8 +22,8 @@
     {
       "id": "AC-2",
       "text": "The authoritative milestone inventory reconciles Git history, WI063, WI051, WI022, WI061, WI065, WI046, launch assets, decisions, and evidence, preserving active/incomplete states and distinguishing shipped product, implemented-but-active work, research infrastructure, and completed empirical results.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-066-milestone-inventory"]
     },
     {
       "id": "AC-3",
@@ -40,8 +40,8 @@
     {
       "id": "AC-5",
       "text": "A durable accepted release decision records the compatibility audit and the rationale for RepoPact 3.1.0 as a MINOR release, including optional/additive assurance and ROG capabilities, additive graph protocol/CLI operations, unchanged existing lifecycle/provenance validity, and adopter implications.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260914-066-compatibility-audit"]
     },
     {
       "id": "AC-6",

@@ -103,7 +103,7 @@ Workbench source: [`rust/apps/repopact-desktop/`](rust/apps/repopact-desktop/)
 
 ![RepoPact Workbench on Windows showing the validated Work lifecycle view with proposed, active, deferred, and complete counts, a blocked record, active work, and the selected repository session.](docs/assets/readme/workbench-governance.jpg)
 
-*Current-tree Workbench capture: a real validated repository session, not an empty shell. The screenshot is evidence for the repository's Workbench implementation and is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.0 package contract.*
+*Launch-readiness Workbench capture: a real validated repository session, not an empty shell. The screenshot is a capture-time view of the implementation and is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.0 package contract.*
 
 ## Use it with `AGENTS.md`, `CLAUDE.md`, and coding agents
 

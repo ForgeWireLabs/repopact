@@ -1067,6 +1067,7 @@ class LinuxBackend(PlatformBackend):
             unit = "\n".join((
                 "[Unit]", "Description=RepoPact protected admission guard", "After=local-fs.target", "",
                 "[Service]", "Type=simple", "User=root", "Group=users",
+                "RuntimeDirectory=repopact", "RuntimeDirectoryMode=0750",
                 f"ExecStart={shlex.join(command)}", "Restart=on-failure", "RestartSec=1",
                 "NoNewPrivileges=true", "PrivateTmp=true", "ProtectHome=true", "ProtectSystem=strict",
                 f"ReadWritePaths={self.protected_state_location.parent} /run/repopact", "",

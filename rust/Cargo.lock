@@ -2871,12 +2871,16 @@ version = "0.1.0"
 dependencies = [
  "repopact-analysis",
  "repopact-desktop-api",
+ "repopact-mobile-acquisition",
+ "repopact-mobile-saf",
  "repopact-types",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]
@@ -2939,6 +2943,17 @@ dependencies = [
  "tempfile",
  "uuid",
  "zip",
+]
+
+[[package]]
+name = "repopact-mobile-saf"
+version = "0.1.0"
+dependencies = [
+ "repopact-mobile-acquisition",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

@@ -1,0 +1,15 @@
+[package]
+name = "repopact-mobile-saf"
+version = "0.1.0"
+edition = "2021"
+publish = false
+links = "repopact-mobile-saf"
+
+[build-dependencies]
+tauri-plugin = { version = "2.6.3", features = ["build"] }
+
+[dependencies]
+repopact-mobile-acquisition.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tauri = { version = "2.11.5", features = [] }

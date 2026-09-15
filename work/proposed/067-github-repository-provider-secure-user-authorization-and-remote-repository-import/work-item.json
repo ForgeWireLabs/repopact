@@ -1,0 +1,109 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "067",
+  "title": "GitHub Repository Provider, Secure User Authorization, and Remote Repository Import",
+  "status": "proposed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "docs", "evidence"],
+  "depends_on": ["065"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-15T03:45:00Z",
+    "note": "Created after WI065 Checkpoint C proved that a production-acquired repository becomes an ordinary app-private/filesystem RepoPact workspace and can use the unchanged DesktopService/RepositorySession mutation path. The operator explicitly required RepoPact UI/backend GitHub integration so repository acquisition is not limited to local filesystem/SAF/archive sources. This item captures that direction without interrupting active WI065 implementation."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "GH-001",
+      "text": "A durable architecture decision defines a provider-neutral remote repository-source boundary in which GitHub is the first implementation but RepoPact repository semantics remain provider-independent: GitHub/GitLab/Forgejo/generic-Git sources may materialize an ordinary local/app-private filesystem workspace, and no provider-specific Repository, DesktopService, RepositorySession, mutation, graph, or governance authority is introduced.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-002",
+      "text": "The GitHub integration uses a GitHub App rather than a classic broad OAuth App unless implementation-time evidence demonstrates a stronger alternative. The permission model is least-privilege and records the exact GitHub App permissions required for v1 snapshot import; repository contents are read-only in v1 and write/push permission is not requested merely for possible future Git synchronization.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-003",
+      "text": "Native desktop/mobile authentication is implemented without embedding a reusable GitHub App private key or treating a bundled client secret as confidential. The selected authorization flow is appropriate for a public/native client, records the threat model and redirect/device-flow trade-offs, supports login cancellation/retry/expiry, and does not require a ForgeWire Labs hosted auth service merely to import a repository unless a separate explicit architecture decision later chooses one.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-004",
+      "text": "GitHub credentials/tokens are stored only through OS-protected credential facilities appropriate to the platform (for example Windows Credential Manager, macOS/iOS Keychain, Android Keystore-backed protected storage or an equivalent approved abstraction). Tokens, refresh material, authorization codes, private keys, and credential-bearing URLs never appear in repository records, workspace registry JSON, ordinary frontend persistence, logs, evidence payloads, or generated documentation. Disconnect/revoke and expired-token behavior are explicit and tested.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-005",
+      "text": "The Workbench provides a first-class remote repository acquisition UX alongside local-folder/archive/mobile acquisition. A connected user can browse/search only repositories the authorized GitHub identity and GitHub App installation permit, including private repositories and organization installations where granted, with pagination, empty/error states, account/installation identity, and no assumption that every GitHub repository is globally visible.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-006",
+      "text": "Repository selection supports an explicit branch, tag, or commit choice and resolves the selected movable ref to an exact immutable commit SHA before materialization. The workspace provenance records provider, repository identity, selected ref, resolved commit SHA, acquisition time, and snapshot-import semantics without storing credentials or making remote state RepoPact governance authority.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-007",
+      "text": "V1 GitHub acquisition materializes the resolved commit as a bounded authenticated repository archive/snapshot and reuses RepoPact's existing staging, path-containment, collision, resource-bound, archive-security, cleanup, workspace-registry, and ordinary-filesystem repository pipeline rather than creating a second GitHub-specific extraction or repository engine. Public-repository import may operate without login when GitHub permits it, but private/installation-scoped access uses the authorized GitHub App user context.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-008",
+      "text": "GitHub snapshot import is explicitly labeled and represented as a snapshot, not a live clone or synchronized checkout: after successful materialization RepoPact works offline against the local/app-private workspace, local mutations do not silently alter GitHub, and the UI clearly distinguishes snapshot provenance from future clone/fetch/pull/push capability.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-009",
+      "text": "The remote-provider command/API surface is typed and narrow: authenticate/connect, disconnect, enumerate permitted accounts/installations/repositories/refs, resolve a ref, and import a selected repository snapshot. It exposes no generic authenticated HTTP proxy, arbitrary GitHub REST request facility, unrestricted URL fetcher, credential-returning API, generic shell, or caller-controlled filesystem write path.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-010",
+      "text": "Network, redirect, TLS, token, rate-limit, API-error, revoked-installation, private-repository, organization-policy, SSO/authorization, archive-download, cancellation, and partial-download failure behavior is fail-closed and typed. Interrupted or failed remote imports leave no ready workspace and no orphaned credential-bearing temporary state; successful imports pass through the same staging-then-publish transaction used by local/mobile acquisition.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-011",
+      "text": "The design is provider-neutral in executable structure, not naming only: GitHub-specific API/auth code sits behind a remote repository-provider interface or equivalent seam, while workspace materialization consumes provider-neutral snapshot/source descriptors. Tests include a non-GitHub fake/provider fixture proving the kernel does not branch on GitHub to implement repository semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-012",
+      "text": "Desktop and Android runtime evidence proves the user-facing GitHub flow end-to-end where those clients are supported: connect/authorize, list permitted repositories, select a repository/ref, resolve the exact SHA, import through the production materialization path, open via the unchanged DesktopService/RepositorySession, operate offline after acquisition, and disconnect without invalidating already-materialized local workspaces. iOS disposition is recorded honestly if not executed.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-013",
+      "text": "Security and privacy evidence proves least-privilege permissions, protected-token handling, redacted logs/errors, no credential material in RepoPact evidence/workspace metadata, bounded network/download behavior, and no elevation of GitHub metadata into governance/mutation approval authority. Tests cover token leakage attempts and credential-bearing URL/log redaction.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-014",
+      "text": "The architecture records the Stage-2 handoff to true Git synchronization: clone/fetch/pull/push and remote write-back remain separate from v1 snapshot import and must reuse or extend the mobile/desktop GitBackend seam chosen by Decision 0056 rather than retrofitting GitHub API snapshot import into a pseudo-Git synchronization mechanism. Any future request for Contents: write or equivalent remote-write permission requires its own explicit acceptance/security evidence.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GH-015",
+      "text": "Documentation and conformance cover setup/registration of the GitHub App, authorization/disconnect behavior, private/organization repository visibility, exact-SHA provenance, snapshot-vs-clone semantics, offline behavior, security limitations, provider extension guidance, and backward compatibility. Existing repositories and users who never connect GitHub remain fully functional and acquire no new mandatory network or credential dependency.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-14",
+  "updated": "2026-09-14"
+}

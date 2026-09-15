@@ -12,7 +12,7 @@ It is a **repository-native governance system for durable human-agent software e
 >
 > The repository becomes the rendezvous point between humans and agents.
 
-`pip install repopact` · Apache-2.0 · stable release **3.0.2** ([changelog](decisions/0036-release-repopact-3-0-2.md)) · current `main` development label **3.0.2-dev.1**
+`pip install repopact` · Apache-2.0 · stable release **3.1.0** ([changelog](decisions/0058-release-repopact-3-1-0-as-a-compatible-minor-milestone.md))
 
 [Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
 
@@ -42,7 +42,7 @@ The goal is not to slow AI-assisted development back down. The goal is to make h
 
 ## 30-second start
 
-The stable 3.0.2 package is enough to create or adopt governed repository state and run the canonical validator.
+The stable 3.1.0 package creates or adopts governed repository state, runs the canonical validator, and exposes the repository-defined local verification and release surfaces.
 
 ```powershell
 pip install repopact
@@ -103,7 +103,7 @@ Workbench source: [`rust/apps/repopact-desktop/`](rust/apps/repopact-desktop/)
 
 ![RepoPact Workbench on Windows showing the validated Work lifecycle view with proposed, active, deferred, and complete counts, a blocked record, active work, and the selected repository session.](docs/assets/readme/workbench-governance.jpg)
 
-*Current development `main` Workbench capture: a real validated repository session, not an empty shell. The screenshot reflects the development tree and is not a claim that every Workbench surface ships in stable PyPI 3.0.2.*
+*Current-tree Workbench capture: a real validated repository session, not an empty shell. The screenshot is evidence for the repository's Workbench implementation and is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.0 package contract.*
 
 ## Use it with `AGENTS.md`, `CLAUDE.md`, and coding agents
 
@@ -147,7 +147,7 @@ GitHub Actions is an **optional hosted adapter**, disabled by default. Hosted va
 
 Verification, artifact construction, inspection, and publication remain separate operations. Publication requires explicit operator intent and credentials supplied outside the repository.
 
-This local-first architecture was completed under [WI046](work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/). These commands remain development-only relative to the stable 3.0.2 PyPI artifact until a later release is cut.
+This local-first architecture was completed under [WI046](work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/) and is included in the stable 3.1.0 Python/Rust package surface. Workbench, Android, and active research surfaces retain their own validation boundaries and are not silently folded into the PyPI artifact contract.
 
 See [`docs/guides/local-ci-cd.md`](docs/guides/local-ci-cd.md).
 

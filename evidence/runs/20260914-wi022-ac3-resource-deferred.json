@@ -15,6 +15,31 @@
     "registered_model_dependent_cells_executed": 0,
     "resource_deferred": true
   },
+  "commands": [
+    {
+      "command": "evidence-only: record WI022 AC-3 resource deferment after whole-program preflight",
+      "exit_code": 0,
+      "summary": "resource-deferment decision recorded; no model-dependent comparative cells executed"
+    }
+  ],
+  "artifacts": [
+    "20260914-wi022-ac3-execution-manifest-v2",
+    "20260914-wi022-ac3-budget-checkpoint-v2",
+    "20260914-wi022-ac3-admission-v3",
+    "20260914-wi022-ac3-whole-program-preflight"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "candidate": {
+      "commit": "696f602111c0045d0dd38756376165ed5d2261ba",
+      "dirty": false
+    },
+    "execution": {
+      "model_dependent_cells_executed": 0,
+      "resource_deferred": true
+    }
+  },
   "readiness": {
     "whole_program_preflight": "passed",
     "logical_cells_ready": 543,

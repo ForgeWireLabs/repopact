@@ -13,16 +13,16 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 56 |
+| Decision records | 57 |
 | Policy records | 2 |
-| Evidence runs | 119 |
+| Evidence runs | 120 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| proposed | 3 |
-| active | 6 |
+| proposed | 2 |
+| active | 7 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 56 |
@@ -39,4 +39,5 @@ All audit scopes are within their review cadence.
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
+- 065: Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -30,6 +30,7 @@ class IPCIdentity:
     transport: str
     peer_pid: int | None = None
     peer_uid: int | None = None
+    peer_gid: int | None = None
     peer_sid: str = ""
     process_start: str = ""
     service_identity: str = ""
@@ -367,7 +368,7 @@ def peer_identity(sock: Any) -> IPCIdentity:
             if hasattr(socket, "SO_PEERCRED"):
                 raw = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
                 pid, uid, _gid = struct.unpack("3i", raw)
-                return IPCIdentity("unix", peer_pid=pid, peer_uid=uid)
+                return IPCIdentity("unix", peer_pid=pid, peer_uid=uid, peer_gid=_gid)
         except (OSError, AttributeError, ValueError): pass
     if hasattr(sock, "getpeereid"):
         try:
@@ -424,7 +425,8 @@ class UnixGuardListener:
             connection, _ = self._socket.accept()
             identity = peer_identity(connection)
             if identity.transport != "unknown" and identity.peer_uid is not None:
-                return connection, {"transport": identity.transport, "pid": identity.peer_pid, "uid": identity.peer_uid}
+                return connection, {"transport": identity.transport, "pid": identity.peer_pid,
+                                    "uid": identity.peer_uid, "gid": identity.peer_gid}
             connection.close()
 
     def close(self) -> None:

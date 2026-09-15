@@ -1,0 +1,63 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-wi022-ac3-resource-deferred",
+  "timestamp": "2026-09-14T19:28:00-05:00",
+  "work_item": "022",
+  "result": "partial",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-resource-deferment.v1",
+  "classification": "resource-deferred",
+  "acceptance_criterion": "AC-3",
+  "state": {
+    "work_item_status": "active",
+    "ac3_status": "pending",
+    "comparative_inference_started": false,
+    "registered_model_dependent_cells_executed": 0,
+    "resource_deferred": true
+  },
+  "readiness": {
+    "whole_program_preflight": "passed",
+    "logical_cells_ready": 543,
+    "logical_cells_blocked": 0,
+    "execution_slots": 567,
+    "live_model_or_worker_turns": 432,
+    "shared_deterministic_s5_cells": 135,
+    "model_dependent_cells": 408,
+    "admitted_model_families": [
+      "gpt-5.6/openai/gpt-5.6-luna",
+      "gpt-6/openai/gpt-6-astra"
+    ],
+    "proving_ground_preflight_sha": "696f602111c0045d0dd38756376165ed5d2261ba"
+  },
+  "estimated_full_programme_cost": {
+    "internal_inference_requests": 3888,
+    "input_tokens": 92466288,
+    "output_tokens": 2119968,
+    "estimated_runtime_hours": 13.394,
+    "note": "These are the frozen planning estimates for the full AC-3 comparative programme; actual economic/provider cost is not inferred from the authenticated-subscription USD telemetry policy."
+  },
+  "decision": {
+    "reason": "The full comparative programme is intentionally deferred because sufficient execution funding/credits are not currently available for the approximately 92.47M-input-token run.",
+    "protocol_changed": false,
+    "matrix_changed": false,
+    "repetitions_reduced": false,
+    "tasks_removed": false,
+    "model_families_changed": false,
+    "authorization": "No model-dependent AC-3 cell is authorized to run until the operator explicitly re-authorizes comparative execution with adequate resources.",
+    "pilot_policy": "Any future reduced-cost pilot must be separately preregistered and labeled exploratory/pilot; it does not satisfy or modify AC-3."
+  },
+  "resume_boundary": {
+    "require_explicit_operator_authorization": true,
+    "require_adequate_execution_resources": true,
+    "preserve_frozen_queue": true,
+    "preserve_protocol_and_analysis_plan": true,
+    "recommended_first_step": "Revalidate environment, admitted model identities, frozen hashes, and provider/runtime availability before resuming the immutable AC-3 queue."
+  },
+  "evidence": [
+    "20260914-wi022-ac3-execution-manifest-v2",
+    "20260914-wi022-ac3-budget-checkpoint-v2",
+    "20260914-wi022-ac3-admission-v3",
+    "20260914-wi022-ac3-whole-program-preflight"
+  ],
+  "statement": "WI022 remains active and AC-3 remains pending. The full 543-cell comparative programme is deterministically provisioned and ready, but model-dependent comparative inference is resource-deferred. No registered model-dependent AC-3 benchmark cell has been executed."
+}

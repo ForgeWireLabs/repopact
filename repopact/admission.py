@@ -71,7 +71,9 @@ def iso(value: datetime | None = None) -> str:
 
 
 def _git(root: Path, *args: str) -> str:
-    cp = subprocess.run(["git", "-C", str(root), *args], text=True, capture_output=True, check=False)
+    resolved = root.resolve()
+    cp = subprocess.run(["git", "-c", f"safe.directory={resolved}", "-C", str(resolved), *args],
+                         text=True, capture_output=True, check=False)
     if cp.returncode:
         return ""
     return cp.stdout.strip()

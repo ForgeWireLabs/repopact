@@ -1,0 +1,85 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-066-release-artifacts",
+  "timestamp": "2026-09-15T05:22:03Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "repopact release build --root . --outdir C:\\Users\\jerem\\AppData\\Local\\RepoPact-release-out-20260914-31-merged --json",
+      "exit_code": 0,
+      "summary": "the merged final release commit built reproducibly; all Windows host gates passed and the declared aggregate matrix remains incomplete only because Linux and macOS evidence are unavailable"
+    },
+    {
+      "command": "repopact release inspect --dist <release-outdir> --json",
+      "exit_code": 0,
+      "summary": "the local release manifest verified version 3.1.0, exact artifact hashes, reproducible source identity, 17 schemas, 7 templates, one launcher, and one engine script"
+    },
+    {
+      "command": "python -m twine check repopact-3.1.0-py3-none-win_amd64.whl repopact-3.1.0.tar.gz",
+      "exit_code": 0,
+      "summary": "both distributions passed Twine metadata validation"
+    },
+    {
+      "command": "repopact release publish --dist <release-outdir> --confirm-publish --json",
+      "exit_code": 1,
+      "summary": "the Twine upload session was interrupted after remaining stalled at the official PyPI endpoint; no publication is claimed"
+    },
+    {
+      "command": "GET https://pypi.org/pypi/repopact/json",
+      "exit_code": 0,
+      "summary": "the public index still reported 3.0.2 and contained neither 3.1.0 artifact"
+    },
+    {
+      "command": "gh auth status; gh release list --limit 5",
+      "exit_code": 1,
+      "summary": "GitHub CLI is not installed on this host, so the GitHub release remains pending; the v3.1.0 tag itself was pushed successfully"
+    }
+  ],
+  "artifacts": [
+    "repopact-3.1.0-py3-none-win_amd64.whl",
+    "repopact-3.1.0.tar.gz",
+    "release-manifest.json",
+    "release-build-report.json",
+    "release-readiness.json",
+    "v3.1.0"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "pre_release_candidate": {
+      "commit": "a6c0c29a529644cc7bc61de1886bb3d479e71719",
+      "tree": "4427ed453840d469be14b9842cfa91f82cfa2642"
+    },
+    "stable_release": {
+      "commit": "a87ea20e808ba67c04f625d7cc44c7f8f92487eb",
+      "tree": "17e437dd3700594a82eb5e292af3696c47ec8736",
+      "tag": "v3.1.0",
+      "tag_target": "a87ea20e808ba67c04f625d7cc44c7f8f92487eb"
+    },
+    "release": {
+      "version": "3.1.0",
+      "outdir": "C:\\Users\\jerem\\AppData\\Local\\Packages\\OpenAI.Codex_2p2nqsd0c76g0\\LocalCache\\Local\\RepoPact-release-out-20260914-31-merged",
+      "reproducible": true,
+      "host_preparation": "passed",
+      "required_platforms": ["linux", "macos", "windows"],
+      "missing_platforms": ["linux", "macos"],
+      "wheel": {
+        "path": "repopact-3.1.0-py3-none-win_amd64.whl",
+        "sha256": "5aed34eda2ca802ed15c6c1081efc8fe454404da9ddd44be10206ec4b9116ae8",
+        "schemas": 17,
+        "templates": 7,
+        "engine_scripts": ["repopact-3.1.0.data/scripts/repopact-engine.exe"],
+        "launcher_scripts": ["repopact-3.1.0.data/scripts/repopact.exe"]
+      },
+      "sdist": {
+        "path": "repopact-3.1.0.tar.gz",
+        "sha256": "9a84ec74378f61af1469c4e586eeaee0297f821881517d650ba192d27b299904",
+        "rust_sources": 74
+      }
+    }
+  },
+  "statement": "The stable 3.1.0 source commit is tagged and its Windows wheel and sdist are reproducibly built, inspected, and Twine-valid. PyPI publication and the GitHub release are not claimed: the upload did not complete, the public index remains at 3.0.2, and GitHub CLI is unavailable. Linux and macOS release evidence also remain missing."
+}

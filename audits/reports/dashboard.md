@@ -2,7 +2,7 @@
 
 > Canonically generated from source records. Do not edit manually.
 > Validation fails when this file differs from `repopact dashboard` output.
-> RepoPact spec version: 3.0.2
+> RepoPact spec version: 3.1.0
 
 ## Health
 
@@ -13,16 +13,16 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 57 |
+| Decision records | 60 |
 | Policy records | 2 |
-| Evidence runs | 126 |
+| Evidence runs | 138 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 3 |
-| active | 7 |
+| active | 8 |
 | blocked | 1 |
 | deferred | 0 |
 | completed | 56 |
@@ -40,4 +40,5 @@ All audit scopes are within their review cadence.
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 065: Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation (active)
+- 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

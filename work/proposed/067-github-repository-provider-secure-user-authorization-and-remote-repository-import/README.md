@@ -1,4 +1,4 @@
-# WI066 — GitHub Repository Provider, Secure User Authorization, and Remote Repository Import
+# WI067 — GitHub Repository Provider, Secure User Authorization, and Remote Repository Import
 
 ## Purpose
 

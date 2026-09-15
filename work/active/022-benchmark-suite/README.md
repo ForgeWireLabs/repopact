@@ -245,11 +245,11 @@ historical admission records and captures remain unchanged. Evidence:
   fresh operator-authorized attempt each. No registered AC-3 benchmark cell
   has been executed.
 
-## AC-3 post-repair admission checkpoint v3 (2026-09-14)
+## Historical AC-3 post-repair admission checkpoint v3 (2026-09-14)
 
 Following the deterministic Windows workspace repair, exactly one fresh
-non-benchmark admission was run for each permitted family: `gpt-5.6-luna` and
-`gpt-6-astra`. Both passed the full admission contract: the workspace
+non-benchmark admission was run for each family then permitted by the v2 plan:
+`gpt-5.6-luna` and `gpt-6-astra`. Both passed the full admission contract: the workspace
 preflight was green, the real app-server turn completed, strict structured
 output and telemetry reconciled, the model tool operation completed, the host
 read the resulting file with an exact 29-byte match, the empirical envelope
@@ -262,17 +262,18 @@ post-fix-failure, and deterministic workspace-contract records remain
 unchanged. Evidence:
 [`20260914-wi022-ac3-admission-v3`](../../../evidence/runs/20260914-wi022-ac3-admission-v3.json).
 
-The frozen AC-3 programme is technically executable for both admitted model
-families. No comparative benchmark cell has yet been run. AC-3 remains
-pending.
+This is historical v2 admission evidence only. The later pre-inference amendment
+replaced Astra prospectively with Claude Sonnet 5; no comparative benchmark cell
+was run from this v2 plan. AC-3 remains pending.
 
 - [ ] **AC-3** remains pending. No registered AC-3 benchmark cell has been
   executed.
 
-## AC-3 whole-program deterministic preflight (2026-09-14)
+## Historical AC-3 whole-program deterministic preflight v2 (2026-09-14)
 
 The published Proving Ground implementation at `master@696f602111c0045d0dd38756376165ed5d2261ba`
-completed the whole-program pre-inference preflight for both admitted families:
+completed the whole-program pre-inference preflight for the two families admitted by
+the historical v2 plan:
 `gpt-5.6-luna` and `gpt-6-astra`. The machine-readable report records **543 READY /
 0 BLOCKED** logical cells, 567 execution slots, 432 live model/worker turns, 135
 shared deterministic S5 cells, and 408 model-dependent cells. Every cell was
@@ -293,6 +294,53 @@ Evidence: [`20260914-wi022-ac3-whole-program-preflight`](../../../evidence/runs/
 with the full report in the published Proving Ground repository at
 `evidence/runs/20260914-wi022-ac3-whole-program-preflight.json`.
 
-**0 model calls in this session.** Comparative inference has not started. AC-3
-remains pending until the separate live comparative programme is authorized and
-executed.
+**0 model calls in this session.** Comparative inference had not started. This
+preflight remains immutable historical v2 evidence; AC-3 remains pending until the
+amended live comparative programme is separately authorized and executed.
+
+## Current prospective model-family registration after amendment (2026-09-14)
+
+The active prospective AC-3 pair is now unambiguously:
+
+* `gpt-5.6 / openai / gpt-5.6-luna`
+* `claude-sonnet-5 / anthropic / claude-sonnet-5`
+
+This is protocol amendment `2026-09-14.ac3-model-family-amendment.1`, frozen before
+any registered model-dependent AC-3 comparative cell was executed. The prior
+`gpt-6/openai/gpt-6-astra` admission and preflight material above remain immutable
+historical evidence; Astra is not an active prospective participant. The amendment
+changes only the second model/provider/runtime family. Task sets, cases, conditions,
+repetitions, seeds, scorers, frozen corpus, S4/S5 methods, analysis plan, paired
+statistics, uncertainty/multiplicity/missing-run/stopping rules, S2 beds, S3 topology,
+and S6 graders are unchanged.
+
+The explicit limitation is: **Model family is confounded with provider/agent runtime in
+the cross-family comparison. Within-family baseline-vs-RepoPact treatment comparisons
+remain matched because each family's arms use the same provider/runtime configuration.**
+No absolute Luna-vs-Sonnet difference is a pure model-family effect. AC-3 remains
+pending and comparative execution remains resource-deferred.
+
+## AC-3 prospective amendment and Sonnet admission checkpoint (2026-09-15)
+
+The protocol amendment `2026-09-14.ac3-model-family-amendment.1` is now implemented
+and admitted exactly one non-benchmark Claude Code runtime probe. The exact reported
+identity was `claude-sonnet-5 / anthropic / claude-sonnet-5`, using Claude Code 2.1.268,
+structured `stream-json`, four request-level usage records, and no registered AC-3
+benchmark cell. The host verified the exact result-file bytes, the empirical envelope,
+workspace containment, cleanup, and secret scan. No Luna or Astra call was made in this
+checkpoint.
+
+Evidence: [`20260915-wi022-ac3-sonnet-admission-evidence-v1`](../../../evidence/runs/20260915-wi022-ac3-sonnet-admission-evidence-v1.json),
+[`20260915-wi022-ac3-execution-manifest-v3`](../../../evidence/runs/20260915-wi022-ac3-execution-manifest-v3.json),
+[`20260915-wi022-ac3-whole-program-preflight-v3`](../../../evidence/runs/20260915-wi022-ac3-whole-program-preflight-v3.json), and
+[`20260915-wi022-ac3-budget-checkpoint-v3`](../../../evidence/runs/20260915-wi022-ac3-budget-checkpoint-v3.json).
+
+The amended manifest registers exactly `gpt-5.6/openai/gpt-5.6-luna` and
+`claude-sonnet-5/anthropic/claude-sonnet-5`: 543 logical cells, 567 execution slots,
+432 live model/worker turns, 135 shared deterministic S5 cells, 408 model-dependent
+cells, and 204 logical cells per family. The v3 queue digest changes only because the
+prospective Astra IDs were replaced by Sonnet IDs. The deterministic v3 preflight is
+`543 READY / 0 BLOCKED`, with zero additional model calls and no S5 rerun.
+
+AC-3 remains pending and comparative execution remains resource-deferred. GPT-6 Astra
+is historical evidence only and is not an active prospective participant.

@@ -1,7 +1,7 @@
 # RepoPact Conformance
 
 RepoPact conformance is tied to the semantic version in [`VERSION`](VERSION).
-An implementation may claim **RepoPact 3.0.2 conformant** when it passes the
+An implementation may claim **RepoPact 3.1.0 conformant** when it passes the
 published conformance suite in [`conformance/`](conformance/).
 
 The manifest contains the normative machine-enforced rule inventory and its valid
@@ -46,7 +46,11 @@ claim for the named RepoPact version, not a claim about future versions.
 
 WI050 admission conformance is additive: `tests/test_admission.py` exercises
 canonicalization, Ed25519 verification, protected registration/tamper failure,
-policy denials, lease revocation, delegation subset checks, and two reference
-pre-action adapter families. The OS-neutral policy contract is shared by
+policy denials, profile-bounded expiry, lease revocation, delegation subset
+checks, and two reference pre-action adapter families. The platform runner
+also executes real Python, shell, PowerShell, `cmd`, and child-process-shaped
+attempts through the reference pre-action gate from a nested working directory;
+it records sentinel hashes and explicitly labels this as pre-action proof, not
+arbitrary-process confinement. The OS-neutral policy contract is shared by
 Windows, Linux, and macOS backends; this checkout records unavailable host proof
 rather than overstating sandbox coverage.

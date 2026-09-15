@@ -1,6 +1,6 @@
 {
   "$schema": "../../../repopact/schemas/work-item.schema.json",
-  "id": "066",
+  "id": "067",
   "title": "GitHub Repository Provider, Secure User Authorization, and Remote Repository Import",
   "status": "proposed",
   "owner_scope": "tooling",

@@ -1,0 +1,63 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-066-compatibility-audit",
+  "timestamp": "2026-09-14T21:46:15-05:00",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git archive v3.0.2 | tar -xf - -C <temporary-compatibility-probe>; repopact validate --root <temporary-compatibility-probe>",
+      "exit_code": 0,
+      "summary": "the current validator accepted a clean archive of the stable v3.0.2 tree"
+    },
+    {
+      "command": "git diff --name-status v3.0.2..origin/main -- repopact/schemas",
+      "exit_code": 0,
+      "summary": "only the existing adopter schema was modified, adding an optional local_extension; all other new schemas are opt-in record types"
+    },
+    {
+      "command": "compare conformance manifest IDs between v3.0.2 and origin/main",
+      "exit_code": 0,
+      "summary": "old conformance cases and rules were retained; the suite grew from 20 to 35 cases and 18 to 25 rules"
+    },
+    {
+      "command": "inspect current Rust protocol and Python engine client against v3.0.2",
+      "exit_code": 0,
+      "summary": "no Rust engine protocol existed at v3.0.2; the new protocol is major version 1 with request identity, handshake, capability, and product-version checks"
+    },
+    {
+      "command": "compare current CLI parser surface with v3.0.2",
+      "exit_code": 0,
+      "summary": "existing top-level commands were retained and new verify/release/graph/admission/guard/work/assurance/approval capabilities were added"
+    }
+  ],
+  "artifacts": [
+    "v3.0.2 compatibility archive validation result",
+    "origin/main schema and conformance manifest comparison",
+    "WI066 compatibility audit source notes"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "audited_baseline": {
+      "stable_tag": "v3.0.2",
+      "stable_commit": "dfab8cb8ca010a865ebb3291c526179fb5cb4b2c",
+      "stable_tree": "93e3453ecbec91ec1f17f48d0fe0e7c46d636dbe",
+      "development_commit": "8a94cd748a419323975d07037d8a3d38c7a04b6b",
+      "development_tree": "33de309955194ab7835f744773f59a3d9cb5c3a7"
+    },
+    "working_tree_during_recording": "dirty only with WI066 and the narrow WI022 evidence-schema repair"
+  },
+  "audit": {
+    "semver_result": "minor-compatible",
+    "stable_3_0_2_repository_remains_valid": true,
+    "mandatory_behavior_break_found": false,
+    "schema_result": "additive; optional new records and one optional adopter extension",
+    "engine_protocol_result": "new protocol surface; no prior 3.0.2 protocol operation removed; major remains 1",
+    "cli_result": "existing command families retained; new capability groups are additive",
+    "adopter_result": "existing adopters require exact version-pin migration to 3.1.0 after publication; no new record is required merely to remain structurally valid"
+  },
+  "statement": "The compatibility audit supports a 3.1.0 MINOR release. It found no mandatory incompatible schema or semantic rule change, no removal of an existing CLI command family, and no prior engine protocol to break. The release decision must preserve the distinction between additive capabilities and adopter pin migration."
+}

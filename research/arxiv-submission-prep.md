@@ -1,6 +1,6 @@
 # arXiv submission preparation
 
-**Status:** preparation only — **not submitted**.
+**Status:** preparation only — **ARXIV NOT SUBMITTED**.
 
 This file stages the metadata and checklist for a future RepoPact arXiv submission. Publication, account/endorsement steps, final license selection, and operator approval are intentionally not performed in this preparation pass.
 
@@ -35,13 +35,13 @@ We present RepoPact, a repository-native governance kernel for durable human-age
 
 RepoPact models the repository as a six-layer kernel: typed records, work-item lifecycle, invariant monitoring, a typed enforcement lattice, deterministic derived views, and a brownfield adoption boundary. Its central primitive is the binding invariant, a declared guarantee coupled to rationale, escalation, and, where logically possible, machine enforcement. Provenance types distinguish concrete, provisional, and inferred reconstructed state without weakening evidence-gated completion.
 
-We evaluate the system through released packages, the current development implementation, its conformance suite, adversarial findings, naturalistic adoption cases, and a pre-registered comparative benchmark program. The implementation now uses a canonical Rust semantic engine with compatibility tooling and a Tauri 2 Workbench. The stable public boundary is 3.0.2; the reconciled development snapshot described in the manuscript is newer and is not attributed retroactively to that release. Comparative cross-model results remain pending and will be reported whether they support or challenge the claims.
+We evaluate the system through released packages, the current implementation, its conformance suite, adversarial findings, naturalistic adoption cases, and a pre-registered comparative benchmark program. The implementation now uses a canonical Rust semantic engine with compatibility tooling, local-first verification/release operations, and a Tauri 2 Workbench. The stable public boundary is 3.1.0. The manuscript distinguishes stable Python/Rust package surfaces from active WI063/WI065 implementation checkpoints and from research infrastructure. RealRunner smoke execution has been demonstrated, but comparative cross-model results remain pending and will be reported whether they support or challenge the claims.
 
 ## Candidate comments field
 
-The final locally compiled manuscript reports 8 pages and 2 figures:
+The final locally compiled manuscript reports its verified page and figure counts after the 3.1.0 package rebuild:
 
-> Preprint. 8 pages, 2 figures. Artifact repository: https://github.com/ForgeWireLabs/repopact . Frozen implementation/evidence snapshot: `542cd5c01a79942ecb78040b19deb4e82f4f9068`. Comparative cross-model benchmark results are not included in this version.
+> Preprint. 9 pages, 2 figures. Artifact repository: https://github.com/ForgeWireLabs/repopact . Frozen implementation/evidence snapshot: `6d782116fc9762da00439cf079d0f50585fea52`. Comparative cross-model benchmark results are not included in this version.
 
 ## Local build record
 
@@ -51,9 +51,9 @@ The final locally compiled manuscript reports 8 pages and 2 figures:
 - Figures: `figures/repopact-hero-social.png`, `figures/workbench-governance.jpg`
 - Compiler: Tectonic 0.17.0 Windows MSVC binary
 - Clean command from the package directory: `tectonic --outdir build --keep-logs main.tex`
-- Output: `main.pdf`, 8 pages, 330,559 bytes at final inspection
+- Output: `main.pdf`; 9 pages; 332,074 bytes; rebuilt 2026-09-14 from an isolated copy of the source package
 - PDF metadata: title matches the candidate title; author is Jeremy Shows
-- QA: rendered all 8 pages with Poppler `pdftoppm` at 120 dpi and visually inspected the complete output; no clipped figures, missing glyphs, absolute-path dependency, or PII was found
+- QA: rendered all 9 pages with Poppler `pdftoppm` at 120 dpi and visually inspected the complete output; no clipped figures, missing glyphs, absolute-path dependency, or PII was found
 - Build warnings: only non-fatal underfull boxes in the findings table; no overfull boxes remain
 
 ## License decision
@@ -62,16 +62,16 @@ The final locally compiled manuscript reports 8 pages and 2 figures:
 
 ## Required manuscript reconciliation before submission
 
-The September 12 manuscript must not be submitted unchanged. Before final export:
+The September 14 manuscript must not be submitted unchanged. Before final export:
 
-- separate stable public release `3.0.2` from the newer development implementation;
+- identify stable public release `3.1.0` and its exact implementation/evidence snapshot;
 - update the findings discussion from the original fourteen-entry summary through the current findings register, including the F-019 pre-execution-admission boundary;
 - describe WI046 local-first verification/release as completed development architecture rather than future work;
 - replace the statement that a Repository Orientation Graph is merely future work with the current active-implementation boundary;
 - update Workbench future-work wording to reflect completed core operator workflows while keeping newer graph/orientation and platform work explicit;
-- update benchmark maturity to acknowledge deterministic task/harness/materialization infrastructure without turning plumbing into empirical findings;
+- update benchmark maturity to acknowledge RealRunner smoke execution without turning telemetry plumbing into comparative findings;
 - soften the `AGENTS.md` comparison to "records, validates, and where enforceable, enforces";
-- distinguish the stable CLI surface from development-only `verify`, grouped `release`, and graph operations;
+- distinguish the stable 3.1.0 CLI surface from active/incomplete Workbench, mobile, and graph-evaluation boundaries;
 - update the revision date;
 - pin the paper's implementation snapshot to an exact settled `main` commit so claims remain reproducible while development continues;
 - regenerate any paper figures/tables whose counts or implementation-state labels changed.
@@ -89,7 +89,7 @@ Before submission:
 - [x] Confirm every figure is legible at paper width; grayscale suitability remains an operator review item.
 - [x] Confirm references compile without missing bibliography entries.
 - [x] Confirm title, author, affiliation, abstract, and keywords agree between manuscript and arXiv metadata.
-- [x] Confirm no development-only capability is attributed to stable 3.0.2.
+- [x] Confirm active graph/mobile capability is not presented as fully complete or as a causal research result.
 - [x] Confirm findings/results counts match the pinned repository snapshot.
 - [x] Confirm no deterministic/mock benchmark result is described as a real-model empirical result.
 - [x] Confirm Windows/Linux/Android evidence is distinguished from unvalidated macOS/iOS targets.

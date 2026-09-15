@@ -730,3 +730,56 @@ current runtime policy. The two admitted families are `gpt-5.6/openai/gpt-5.6-lu
 and `gpt-6/openai/gpt-6-astra`; no provider diversity is claimed. Both tested families
 are served through the same OpenAI/Codex runtime, so provider/runtime effects are not
 independently identified.
+
+## Dated amendment — 2026-09-14 — WI022 AC-3 model-family replacement
+
+Amendment identity: `2026-09-14.ac3-model-family-amendment.1`.
+
+This is a prospective, pre-inference protocol amendment. It replaces the second
+prospective AC-3 family before any registered model-dependent AC-3 comparative cell was
+executed and before any comparative outcome was available:
+
+| registration | family | provider | exact model |
+| --- | --- | --- | --- |
+| historical v2 pair | `gpt-5.6` | `openai` | `gpt-5.6-luna` |
+| historical v2 pair | `gpt-6` | `openai` | `gpt-6-astra` |
+| amended v3 pair | `gpt-5.6` | `openai` | `gpt-5.6-luna` |
+| amended v3 pair | `claude-sonnet-5` | `anthropic` | `claude-sonnet-5` |
+
+The Astra registration is historical evidence only. It is not an active participant in
+the amended prospective AC-3 queue. The replacement reduces the resource/currency
+burden, broadens external validity across provider/runtime ecosystems, and tests whether
+the within-family RepoPact treatment effect transfers beyond the OpenAI/Codex stack. The
+choice was made with zero registered model-dependent AC-3 cells executed, no comparative
+results available, and no observed AC-3 outcome used to select Sonnet.
+
+The only experimental-factor change is the second registered model/provider/runtime
+family. The following remain frozen and unchanged: task sets, cases, conditions,
+repetitions, seeds, scorers, frozen corpus, S4 methods, S5 methods, analysis plan,
+paired statistics, confidence intervals, multiplicity rules, missing-run handling,
+stopping rules, expected outcomes, S2 task beds, S3 worker topology, and S6 graders.
+The completed 135 model-independent S5 observations are shared evidence and must not be
+duplicated under the amended model labels.
+
+The cross-family limitation is explicit:
+
+> Model family is confounded with provider/agent runtime in the cross-family comparison.
+> Within-family baseline-vs-RepoPact treatment comparisons remain matched because each
+> family's arms use the same provider/runtime configuration.
+
+Accordingly, a Luna-vs-Sonnet absolute difference must not be interpreted as a pure
+model-family effect. The primary scientific object remains the within-family RepoPact
+treatment effect and whether its direction and magnitude generalize across ecosystems.
+
+For the amended family, the frozen provider-default configuration is Claude Code's
+headless structured stream surface with exact model `claude-sonnet-5`, adaptive/default
+thinking behavior, `acceptEdits` permission mode, and the explicitly recorded
+`Read,Write,Edit,Bash` tool set. No OpenAI temperature parameter is forced onto Claude;
+the effective provider-native configuration and any unavailable telemetry fields must be
+captured. Request-level input/output/cache usage is an admission requirement. If the
+public Claude Code stream does not expose strict request-level usage, the admission must
+fail closed and the comparative programme remains deferred; Anthropic's raw API is not a
+fallback.
+
+No comparative inference is authorized by this amendment. AC-3 remains pending and
+resource-deferred.

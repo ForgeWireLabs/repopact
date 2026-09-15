@@ -1,0 +1,146 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-wi022-ac3-budget-checkpoint-v3",
+  "timestamp": "2026-09-15T00:00:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-budget-checkpoint.v3",
+  "classification": "pre-inference-budget",
+  "study_id": "WI022-AC3",
+  "based_on": "20260915-wi022-ac3-execution-manifest-v3",
+  "supersedes": "20260914-wi022-ac3-budget-checkpoint-v2",
+  "budget_projection_status": "provisional",
+  "ac3_started": false,
+  "registered_turn_basis": {
+    "live_model_or_worker_turns": 432,
+    "live_turns_per_model_family": 216,
+    "logical_model_dependent_cells": 408,
+    "logical_cells_per_model_family": 204,
+    "s3_worker_turns_per_logical_cell": 2,
+    "shared_deterministic_s5_cells": 135,
+    "auxiliary_model_turns": 0,
+    "embedding_requests": 0,
+    "memory_service_calls": 0
+  },
+  "observed_calibration": {
+    "luna": {
+      "source": "20260914-wi022-ac3-budget-checkpoint-v2",
+      "status": "historical-observed-projection-source",
+      "requests_per_live_turn": {"point": 9, "min": 7, "max": 11},
+      "input_tokens_per_live_turn": {"point": 214042.333, "min": 121494, "max": 304289},
+      "cached_input_tokens_per_live_turn": {"point": 182869.333},
+      "output_tokens_per_live_turn": {"point": 4907.333, "min": 4149, "max": 6411},
+      "reasoning_output_tokens_per_live_turn": {"point": 2924.333, "min": 2133, "max": 4686},
+      "context_tokens_per_live_turn": {"point": 214015.333, "min": 121477, "max": 304272},
+      "task_tokens_per_live_turn": {"point": 27, "min": 22, "max": 31},
+      "cache_adjusted_input_tokens_per_live_turn": {"point": 31173},
+      "tool_calls_per_live_turn": {"point": 8, "min": 4, "max": 12},
+      "elapsed_ms_per_live_turn": {"point": 111617.06, "min": 86541.496, "max": 138822.759},
+      "cost": {"usd": 0.0, "status": "subscription-policy-from-historical-Codex-evidence"}
+    },
+    "sonnet": {
+      "source": "20260915-wi022-ac3-admission-v4",
+      "status": "single-admission-calibration-only",
+      "attempts": 1,
+      "requests": 4,
+      "input_tokens": 144080,
+      "cached_input_tokens": 55582,
+      "cache_creation_input_tokens": 88490,
+      "cache_adjusted_input_tokens": 8,
+      "context_tokens": 144007,
+      "task_tokens": 73,
+      "output_tokens": 43,
+      "reasoning_output_tokens": null,
+      "tool_calls": 12,
+      "elapsed_ms": 9838.737,
+      "cost_usd": null,
+      "cost_status": "not-exposed-by-Claude-Code-admission-event",
+      "model": "claude-sonnet-5",
+      "provider": "anthropic",
+      "runtime": "Claude Code 2.1.268"
+    }
+  },
+  "projected_programme_usage": {
+    "method": "multiply each family's observed calibration by its 216 live model/worker turns; Luna uses the historical AC-5 projection source, while Sonnet uses one admission only",
+    "luna": {
+      "live_turns": 216,
+      "requests": {"point": 1944, "min": 1512, "max": 2376},
+      "input_tokens": {"point": 46233143.928, "min": 26242704, "max": 65726424},
+      "cached_input_tokens": {"point": 39499775.928},
+      "output_tokens": {"point": 1059983.928, "min": 896184, "max": 1384776},
+      "reasoning_output_tokens": {"point": 631655.928, "min": 460728, "max": 1012176},
+      "context_tokens": {"point": 46227311.928, "min": 26239032, "max": 65722752},
+      "task_tokens": {"point": 5832, "min": 4752, "max": 6696},
+      "cache_adjusted_input_tokens": {"point": 6733368},
+      "tool_calls": {"point": 1728, "min": 864, "max": 2592},
+      "elapsed_ms": {"point": 24109284.96, "min": 18692963.136, "max": 29975915.944},
+      "cost_usd": {"point": 0.0, "status": "subscription-policy; not an external rate estimate"}
+    },
+    "sonnet": {
+      "live_turns": 216,
+      "requests": 864,
+      "input_tokens": 31121280,
+      "cached_input_tokens": 12005712,
+      "cache_creation_input_tokens": 19113840,
+      "cache_adjusted_input_tokens": 1728,
+      "context_tokens": 31105512,
+      "task_tokens": 15768,
+      "output_tokens": 9288,
+      "reasoning_output_tokens": null,
+      "tool_calls": 2592,
+      "elapsed_ms": 2125167.192,
+      "cost_usd": null,
+      "status": "provisional; one admission is not a precise workload forecast"
+    },
+    "combined": {
+      "live_turns": 432,
+      "requests": 2808,
+      "input_tokens": 77354423.928,
+      "output_tokens": 1069271.928,
+      "reasoning_output_tokens": null,
+      "cost_usd": null,
+      "status": "provisional and provider-separated; not the historical Astra estimate"
+    }
+  },
+  "assumptions_and_uncertainty": {
+    "cache_assumption": "The Sonnet scenario repeats the single admission's observed cache-read/cache-creation profile only as a provisional planning sensitivity; workload-dependent cache behavior is unknown.",
+    "high_low_sensitivity": "Luna high/low ranges are carried from the historical source. Sonnet high/low bounds are not supportable from one admission and are intentionally not fabricated.",
+    "billing_mode": "Claude Code was authenticated through claude.ai Pro first-party subscription; the admission exposed no authoritative monetary cost field. Usage is preserved and cost remains null; no Anthropic rate-card or zero-dollar inference is applied.",
+    "inference_boundary": "This is planning evidence only. It does not authorize comparative execution or claim AC-3 outcomes."
+  },
+  "queue_identity": {
+    "historical_manifest": "20260914-wi022-ac3-execution-manifest-v2",
+    "historical_queue_digest": "b1ba75f2401c870e26286059d8eb248bbdf840d2ecc69d66fc56a92988fceada",
+    "amended_manifest": "20260915-wi022-ac3-execution-manifest-v3",
+    "amended_queue_digest": "01f9a946734bd8a6db6e58dd2e8143043c634cf9deb5fd7e587f0e0b00c5bb19",
+    "digest_change_reason": "explicit pre-inference replacement of prospective Astra IDs with Sonnet IDs; not experimental drift"
+  },
+  "commands": [
+    {"command": "python -m benchmarks.harness.ac3_execution_manifest --out evidence/runs/20260915-wi022-ac3-execution-manifest-v3.json", "exit_code": 0, "summary": "generated amended manifest with 543 logical cells and Luna/Sonnet balance"},
+    {"command": "python -m benchmarks.harness.ac3_preflight --manifest evidence/runs/20260915-wi022-ac3-execution-manifest-v3.json --s5-evidence evidence/runs/20260914-wi022-ac3-whole-program-preflight.json", "exit_code": 0, "summary": "deterministic preflight passed 543 READY / 0 BLOCKED with zero model calls"},
+    {"command": "python -m benchmarks.harness.admission_probe --family claude-sonnet-5", "exit_code": 0, "summary": "one non-benchmark Sonnet admission passed; no retries"}
+  ],
+  "artifacts": [
+    "evidence/runs/20260915-wi022-ac3-execution-manifest-v3.json",
+    "evidence/runs/20260915-wi022-ac3-whole-program-preflight-v3.json",
+    "evidence/runs/20260915-wi022-ac3-admission-v4.json",
+    "evidence/runs/20260915-wi022-ac3-sonnet-admission-evidence-v1.json",
+    "evidence/runs/20260914-wi022-ac3-budget-checkpoint-v2.json"
+  ],
+  "environment": {
+    "date": "2026-09-15",
+    "host": "Windows",
+    "python": "3.13",
+    "claude_code_version": "2.1.268",
+    "claude_auth": "claude.ai Pro / firstParty",
+    "comparative_model_dependent_cells_executed": 0,
+    "budget_inference_started": false,
+    "resource_deferred": true
+  },
+  "notes": [
+    "The old Astra budget remains historical and is not reused as a Claude cost forecast.",
+    "The Sonnet programme scenario is a transparent one-admission extrapolation labeled provisional.",
+    "No registered AC-3 benchmark cell has been executed."
+  ]
+}

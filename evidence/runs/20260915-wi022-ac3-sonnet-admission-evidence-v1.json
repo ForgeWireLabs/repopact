@@ -1,0 +1,86 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-wi022-ac3-sonnet-admission-evidence-v1",
+  "timestamp": "2026-09-15T00:00:00-05:00",
+  "work_item": "022",
+  "result": "passed",
+  "provenance": "concrete",
+  "schema_version": "repopact.wi022-ac3-admission-attestation.v4",
+  "classification": "empirical-admission-only",
+  "study_id": "WI022-AC3-admission",
+  "ac3_started": false,
+  "scope": {
+    "registered_benchmark_cells_executed": 0,
+    "comparative_results": 0,
+    "admission_probe_attempts": 1,
+    "sonnet_model_calls": 1,
+    "luna_model_calls": 0,
+    "astra_model_calls": 0,
+    "retries": 0,
+    "auxiliary_model_calls": 0,
+    "model_calls": 1
+  },
+  "identity": {
+    "provider": "anthropic",
+    "family": "claude-sonnet-5",
+    "exact_model": "claude-sonnet-5",
+    "claude_code_version": "2.1.268",
+    "runtime": "Claude Code documented headless stream-json",
+    "auth_mode": "claude.ai Pro / firstParty",
+    "session_id": "7b726ff6-3e6c-41b0-80ca-807e6f0780da",
+    "command": "claude.exe -p --output-format stream-json --json-schema <admission-schema> --verbose --model claude-sonnet-5 --permission-mode acceptEdits --permission-prompts none --tools Read,Write,Edit,Bash --allowedTools Read,Write,Edit,Bash --no-session-persistence",
+    "permission_mode": "acceptEdits",
+    "permission_prompts": "none",
+    "tools": ["Read", "Write", "Edit", "Bash"],
+    "mcp_servers": [],
+    "reported_model_identity": "claude-sonnet-5"
+  },
+  "telemetry": {
+    "request_response_granularity": "4 assistant/message usage events",
+    "requests": 4,
+    "input_tokens": 144080,
+    "output_tokens": 43,
+    "cache_read_input_tokens": 55582,
+    "cache_creation_input_tokens": 88490,
+    "cache_adjusted_input_tokens": 8,
+    "context_tokens": 144007,
+    "task_tokens": 73,
+    "reasoning_output_tokens": null,
+    "tool_calls": 12,
+    "elapsed_ms": 9838.737,
+    "cost_usd": null,
+    "unavailable_fields": ["reasoning_output_tokens", "authoritative monetary cost"],
+    "cost_policy": "Claude Code did not expose an authoritative monetary cost for this claude.ai subscription run; cost remains null and no zero/rate-card inference is applied."
+  },
+  "objective": {
+    "structured_result": "PASS",
+    "workspace_host_postcondition": true,
+    "result_file_exact_bytes": "probe tool operation complete",
+    "workspace_containment": "passed by EmpiricalWorkspace",
+    "evaluator_leakage": "not present in disposable admission workspace",
+    "cleanup": "passed by disposable workspace allocator",
+    "secret_scan": "PASS"
+  },
+  "capture": {
+    "raw_report": "evidence/runs/20260915-wi022-ac3-admission-v4.json",
+    "raw_transcript": "evidence/captures/20260914-wi022-ac3-admission-v4/claude-sonnet-5.json",
+    "capture_digest": "50363a81f85cbe24d4f8a8dc92e543bc9d246b1c2f835ec2747666147ee30df2",
+    "envelope_validation": "PASS"
+  },
+  "commands": [
+    {"command": "claude auth status --json", "exit_code": 0, "summary": "authenticated claude.ai Pro first-party session verified before admission"},
+    {"command": "python -m benchmarks.harness.admission_probe --family claude-sonnet-5 --report-out evidence/runs/20260915-wi022-ac3-admission-v4.json", "exit_code": 0, "summary": "one disposable non-benchmark Sonnet admission passed with no retry"}
+  ],
+  "artifacts": [
+    "evidence/runs/20260915-wi022-ac3-admission-v4.json",
+    "evidence/captures/20260914-wi022-ac3-admission-v4/claude-sonnet-5.json"
+  ],
+  "environment": {
+    "platform": "Windows",
+    "executable_source": "winget Anthropic.ClaudeCode 2.1.268",
+    "model_dependent_comparative_cells_executed": 0,
+    "registered_ac3_cells_executed": 0,
+    "raw_anthropic_api_used": false
+  },
+  "statement": "Exactly one non-benchmark Claude Sonnet 5 admission passed. It establishes runtime/telemetry admission only; it is not a registered AC-3 comparative observation and does not authorize comparative inference."
+}

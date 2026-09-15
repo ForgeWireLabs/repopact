@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -29,6 +30,7 @@ class IPCIdentity:
     transport: str
     peer_pid: int | None = None
     peer_uid: int | None = None
+    peer_gid: int | None = None
     peer_sid: str = ""
     process_start: str = ""
     service_identity: str = ""
@@ -71,6 +73,38 @@ def decode(data: bytes | str) -> dict[str, Any]:
     if not isinstance(value, dict) or value.get("protocol_version") != PROTOCOL_VERSION:
         raise ValueError("unsupported guard IPC protocol")
     return value
+
+
+def _unix_endpoint_is_protected(endpoint: str | Path, *, owner_uid: int = 0) -> tuple[bool, str]:
+    """Require a root-owned, non-writable Unix socket and parent chain."""
+    if os.name == "nt":
+        return False, "Unix socket protection is unavailable on Windows"
+    path = Path(endpoint)
+    try:
+        current = path
+        checked: list[str] = []
+        while True:
+            info = current.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                return False, f"Unix IPC path contains a symlink: {current}"
+            if current == path and not stat.S_ISSOCK(info.st_mode):
+                return False, f"Unix IPC endpoint is not a socket: {current}"
+            if info.st_uid != owner_uid:
+                return False, f"Unix IPC path is not owned by uid {owner_uid}: {current}"
+            # Group read/write on the socket is a deliberate access channel
+            # for the configured gated principal. The parent chain itself may
+            # never be group/world-writable, and the socket may never be
+            # world-writable or user-owned.
+            writable_bits = 0o002 if current == path else 0o022
+            if info.st_mode & writable_bits:
+                return False, f"Unix IPC path is group/world-writable: {current}"
+            checked.append(str(current))
+            if current.parent == current:
+                break
+            current = current.parent
+        return True, "protected Unix IPC path: " + ", ".join(checked)
+    except OSError:
+        return False, f"Unix IPC endpoint is absent or unreadable: {path}"
 
 
 class WindowsPipeConnection:
@@ -259,16 +293,32 @@ def _windows_server_verified(connection: Any, expected_server_path: str | Path |
     if peer.peer_pid is None or server_pid is None or peer.peer_pid != server_pid: return False
     try:
         qc = subprocess.run(["sc.exe", "qc", service_name], text=True, capture_output=True, check=False)
-        text = (qc.stdout + qc.stderr).upper()
-        if "LOCAL SYSTEM" not in text and "NT AUTHORITY\\SYSTEM" not in text: return False
-        if "BINARY_PATH_NAME" not in text: return False
-        protected_runtime = str(Path(os.environ.get("ProgramData", r"C:\\ProgramData")) / "RepoPact" / "Guard" / "runtime").upper()
-        if protected_runtime.replace("/", "\\") not in text.replace("/", "\\"): return False
+        text = qc.stdout + qc.stderr
+        upper = text.upper()
+        if "LOCAL SYSTEM" not in upper and "NT AUTHORITY\\SYSTEM" not in upper and "NT AUTHORITY\\LOCALSYSTEM" not in upper:
+            return False
+        configured_line = next((line.split(":", 1)[1].strip() for line in text.splitlines()
+                                if line.strip().upper().startswith("BINARY_PATH_NAME") and ":" in line), "")
+        configured_executable = configured_line[1:configured_line.find('"', 1)] if configured_line.startswith('"') and '"' in configured_line[1:] else configured_line.split(None, 1)[0] if configured_line else ""
+        if not configured_executable or "BINARY_PATH_NAME" not in upper: return False
+        protected_runtime = str(Path(os.environ.get("ProgramData", r"C:\\ProgramData")) / "RepoPact" / "Guard" / "runtime")
+        if protected_runtime.replace("/", "\\").upper() not in upper.replace("/", "\\"): return False
     except OSError:
         return False
-    if expected_server_path is None: return True
     actual = windows_peer_image_path(connection)
-    return bool(actual) and os.path.normcase(actual) == os.path.normcase(str(Path(expected_server_path).resolve()))
+    if not actual:
+        return False
+    configured_path = Path(configured_executable).resolve(strict=False)
+    if os.path.normcase(actual) != os.path.normcase(str(configured_path)):
+        return False
+    if expected_server_path is not None and os.path.normcase(actual) != os.path.normcase(str(Path(expected_server_path).resolve())):
+        return False
+    try:
+        from .platform_backends import _windows_protected_path_chain
+        protected, _reason = _windows_protected_path_chain(Path(actual))
+        return protected
+    except (ImportError, OSError, ValueError):
+        return False
 
 
 def windows_request(message: Mapping[str, Any], timeout: float = 3.0, expected_server_path: str | Path | None = None,
@@ -290,11 +340,19 @@ def windows_request(message: Mapping[str, Any], timeout: float = 3.0, expected_s
     finally: connection.close()
 
 
-def unix_request(endpoint: str | Path, message: Mapping[str, Any]) -> dict[str, Any]:
+def unix_request(endpoint: str | Path, message: Mapping[str, Any], *, expected_server_uid: int | None = 0) -> dict[str, Any]:
     import socket
     path = str(endpoint)
+    protected, reason = _unix_endpoint_is_protected(path, owner_uid=expected_server_uid or 0)
+    if expected_server_uid is not None and not protected:
+        raise PermissionError(reason)
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.connect(path); sock.sendall(encode(message)); chunks: list[bytes] = []
+        sock.connect(path)
+        if expected_server_uid is not None:
+            identity = peer_identity(sock)
+            if identity.peer_uid != expected_server_uid:
+                raise PermissionError("Unix IPC peer is not the expected protected service identity")
+        sock.sendall(encode(message)); chunks: list[bytes] = []
         while True:
             chunk = sock.recv(65536)
             if not chunk: break
@@ -307,11 +365,78 @@ def peer_identity(sock: Any) -> IPCIdentity:
     if hasattr(sock, "getsockopt") and hasattr(os, "getuid"):
         try:
             import struct, socket
-            raw = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
-            pid, uid, _gid = struct.unpack("3i", raw)
-            return IPCIdentity("unix", peer_pid=pid, peer_uid=uid)
+            if hasattr(socket, "SO_PEERCRED"):
+                raw = sock.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, struct.calcsize("3i"))
+                pid, uid, _gid = struct.unpack("3i", raw)
+                return IPCIdentity("unix", peer_pid=pid, peer_uid=uid, peer_gid=_gid)
         except (OSError, AttributeError, ValueError): pass
+    if hasattr(sock, "getpeereid"):
+        try:
+            uid, _gid = sock.getpeereid()
+            return IPCIdentity("unix", peer_uid=int(uid))
+        except (OSError, AttributeError, TypeError, ValueError):
+            pass
     return IPCIdentity("unknown")
+
+
+class UnixGuardListener:
+    """Protected Unix-domain listener for a root-owned system service.
+
+    The listener refuses to replace an existing endpoint.  An operator or
+    service manager must remove a stale socket explicitly, preventing a
+    user-writable path from being silently adopted as the guard endpoint.
+    """
+
+    def __init__(self, endpoint: str | Path, *, mode: int = 0o660):
+        if os.name == "nt":
+            raise OSError("Unix sockets are unavailable on Windows")
+        self.endpoint = Path(endpoint)
+        self.mode = mode
+        self._socket: Any = None
+
+    def bind(self) -> None:
+        import socket
+        if self.endpoint.exists() or self.endpoint.is_symlink():
+            raise FileExistsError(f"refusing to replace existing Unix guard endpoint: {self.endpoint}")
+        self.endpoint.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(self.endpoint.parent, 0o750)
+        listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            listener.bind(str(self.endpoint))
+            os.chmod(self.endpoint, self.mode)
+            owner_uid = os.geteuid() if hasattr(os, "geteuid") else os.getuid()
+            protected, reason = _unix_endpoint_is_protected(self.endpoint, owner_uid=owner_uid)
+            if not protected:
+                raise PermissionError(reason)
+            listener.listen(16)
+            self._socket = listener
+        except Exception:
+            listener.close()
+            try:
+                self.endpoint.unlink()
+            except OSError:
+                pass
+            raise
+
+    def accept(self) -> tuple[Any, dict[str, Any]]:
+        if self._socket is None:
+            self.bind()
+        while True:
+            connection, _ = self._socket.accept()
+            identity = peer_identity(connection)
+            if identity.transport != "unknown" and identity.peer_uid is not None:
+                return connection, {"transport": identity.transport, "pid": identity.peer_pid,
+                                    "uid": identity.peer_uid, "gid": identity.peer_gid}
+            connection.close()
+
+    def close(self) -> None:
+        if self._socket is not None:
+            self._socket.close()
+            self._socket = None
+        try:
+            self.endpoint.unlink()
+        except OSError:
+            pass
 
 
 class NativeGuardClient(EnforcementProvider):

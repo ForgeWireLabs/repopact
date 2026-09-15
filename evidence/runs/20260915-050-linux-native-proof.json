@@ -1,0 +1,94 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-050-linux-native-proof",
+  "timestamp": "2026-09-15T21:57:51Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "baseline": {
+    "authoritative_ref": "origin/main",
+    "starting_main_sha": "ab58cb20cf4706c40d39a71a4f75f819f6d1b548",
+    "starting_main_tree": "b274f8853c05f31bbfe5d8f62052aef67fd0c071",
+    "working_branch": "codex/wi050-linux-native-proof-20260915",
+    "implementation_checkpoint_sha": "4954605ae4c527cbde8557ee12aa31fb0114fb9a",
+    "implementation_checkpoint_tree": "124cc10f102fd9d4fe19b7f03f002b46ed939501"
+  },
+  "commands": [
+    {"command":"wsl -d Debian -- uname/os-release/id/mount/systemd/python/git inspection","exit_code":0,"summary":"Native WSL2 Debian GNU/Linux 13.5 (trixie), kernel 6.18.33.2-microsoft-standard-WSL2, ext4 checkout under /home/Jeremy-L, Python 3.13.5, Git 2.47.3, unprivileged principal Jeremy-L uid 1000 gid 1000; systemd pid 1."},
+    {"command":".venv/bin/python -m repopact.cli guard install --root /home/Jeremy-L/repopact-wi050-linux-proof-20260915 --interpreter /usr/bin/python3","exit_code":0,"summary":"Installed the root-owned Linux system service and waited for healthy socket attestation."},
+    {"command":"systemctl show/status repopact-guard.service; stat protected paths; sha256sum protected files","exit_code":0,"summary":"Service active as root:users with /usr/bin/python3.13 -I protected runtime; runtime, unit, state, socket directory, socket, and system dependency ownership/modes were recorded."},
+    {"command":"ordinary-user NativeGuardClient health/discover against registered disposable checkout","exit_code":0,"summary":"Healthy linux-system-service, pre-action, root service identity verified; positive registered-repository discovery reached the service."},
+    {"command":"ordinary-user direct attacks on runtime/unit/dependency/state/socket","exit_code":0,"summary":"Root-owned runtime replacement/deletion, systemd unit replacement/deletion, dependency replacement, protected-state writes, socket deletion/replacement, and socket lookalike creation failed with PermissionError; protected regular-file hashes remained unchanged. Socket was root:users 0660 and /run/repopact was root:users 0750."},
+    {"command":"ordinary-user forged health identity claims and direct IPC request","exit_code":0,"summary":"Injected pid/uid/gid/principal/session fields were ignored; response contained no reflected identity claim keys and health was derived from the root-owned service."},
+    {"command":"ordinary-user NativeGuardClient against copied second repository","exit_code":0,"summary":"Wrong/unregistered repository failed closed with GUARD_UNHEALTHY; it did not inherit the registered repository's guard authority."},
+    {"command":"same-peer authorize, root operator_revoke, same-peer check","exit_code":0,"summary":"Fresh lease was authorized, protected operator revocation advanced the epoch, and the still-live unprivileged peer received REVOKED_AUTHORIZATION."},
+    {"command":"same-peer authorize with 12-second expiry, wait 15 seconds, check","exit_code":0,"summary":"Fresh lease authorized and then received EXPIRED_AUTHORIZATION after its issued expiry."},
+    {"command":"same-peer authorize, systemctl restart repopact-guard.service, check","exit_code":0,"summary":"Service restart completed active; the live lease was invalidated and same peer received NO_OPERATOR_PROOF."},
+    {"command":"systemctl stop repopact-guard.service; ordinary-user health/check; systemctl start","exit_code":0,"summary":"While the service was stopped, health was false and mutation check failed closed with GUARD_UNHEALTHY; service was restored active afterward."},
+    {"command":"ordinary-user direct Python/POSIX-shell/child-process writes outside NativeGuardClient","exit_code":0,"summary":"All four out-of-band writes to a user-owned source path succeeded, proving no arbitrary-process/path confinement claim for this adapter."},
+    {"command":"PYTHONPATH=.venv/lib/python3.13/site-packages REPOPACT_ENGINE=.venv/bin/repopact-engine /usr/bin/python3 -m unittest discover -s tests -q","exit_code":0,"summary":"347 tests passed; 3 documented skips (including the Windows-only user-site dependency case and two open formal-model cases)."},
+    {"command":"PYTHONPATH=.venv/lib/python3.13/site-packages /usr/bin/python3 -m unittest tests.test_admission tests.test_admission_security tests.test_guard_authority tests.test_protected_substrate tests.test_opt_in_provider -q","exit_code":0,"summary":"46 focused WI050 tests passed; 1 Windows-only scenario skipped."},
+    {"command":"/usr/bin/python3 -m repopact.run_conformance","exit_code":0,"summary":"Canonical Rust conformance 35/35 and WI050 admission corpus 8/8."},
+    {"command":".venv/bin/python -m repopact.run_admission_platform_conformance --root .","exit_code":0,"summary":"Portable semantic and testing-only real-subprocess matrix passed. Native harness discovery was not counted because its unprivileged local attestation branch cannot read /proc/PID/exe; direct NativeGuardClient proof above is the native record."},
+    {"command":"find repopact -maxdepth 1 -name '*.py' -print0 | xargs -0 /usr/bin/python3 -m py_compile","exit_code":0,"summary":"Changed Python modules compiled successfully."},
+    {"command":"git fetch origin main","exit_code":0,"summary":"origin/main remained ab58cb20cf4706c40d39a71a4f75f819f6d1b548; implementation branch is seven commits ahead and clean before evidence reconciliation."}
+  ],
+  "artifacts": [
+    "repopact/platform_backends.py",
+    "repopact/guard_ipc.py",
+    "repopact/admission.py",
+    "repopact/unix_guard_service.py",
+    "tests/test_guard_authority.py",
+    "evidence/runs/20260915-050-linux-native-proof.json",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"
+  ],
+  "environment": {
+    "os": "Debian GNU/Linux 13.5 (trixie) under WSL2",
+    "kernel": "6.18.33.2-microsoft-standard-WSL2",
+    "filesystem": "native Linux ext4 at /home/Jeremy-L/repopact-wi050-linux-proof-20260915; /mnt/c was not used",
+    "python": "3.13.5",
+    "git": "2.47.3",
+    "privilege": "ordinary evidence principal Jeremy-L uid=1000 gid=1000; installer/operator actions separately run as root",
+    "service_manager": "systemd 257, PID 1",
+    "service_identity": "root:users; ExecStart uses /usr/bin/python3.13 -I /usr/local/lib/repopact/guard/runtime/guard-service.py",
+    "protected_paths": "/usr/local/lib/repopact/guard/runtime, /etc/systemd/system/repopact-guard.service, /var/lib/repopact/registrations, /run/repopact/guard.sock",
+    "concurrent_work": "Windows C:/Projects/repopact dirty WI065 checkout and pre-existing /home/Jeremy-L/repopact-linux checkout were not modified."
+  },
+  "native_results": {
+    "linux": {
+      "protected_guard": "PASS: root-owned runtime, systemd unit, protected state, runtime socket directory, and kernel peer credentials",
+      "protected_mutation_attempts": "PASS: ordinary-principal replacement/deletion attempts failed closed",
+      "registered_positive_admission": "PASS: service health and in-scope authorization",
+      "identity_forgery": "PASS: claimed JSON identity fields ignored; server-derived health remained root service health",
+      "wrong_repository": "PASS: copied/unregistered repository failed closed",
+      "revocation": "PASS: same-peer REVOKED_AUTHORIZATION",
+      "expiry": "PASS: same-peer EXPIRED_AUTHORIZATION",
+      "restart_invalidation": "PASS: same-peer NO_OPERATOR_PROOF after service restart",
+      "service_loss": "PASS: GUARD_UNHEALTHY while service stopped",
+      "arbitrary_process_path_confinement": "NOT PROVEN: direct Python, POSIX shell, Python child, and POSIX child writes succeeded outside the adapter",
+      "security_level": "pre-action"
+    },
+    "windows": {"status":"NOT RUN in this evidence run; native elevation/service proof remains outstanding"},
+    "macos": {"status":"NOT RUN; native macOS host proof remains outstanding"}
+  },
+  "criteria": {
+    "AC-14":"Existing implementation and cross-surface conformance remained green; this run adds native Linux evidence.",
+    "AC-15":"SATISFIED for the enforced Linux adapter: service/runtime/state/configuration are outside ordinary repository-writable state and root-owned host policy blocked tampering; service loss failed closed.",
+    "AC-16":"PENDING: canonical registration and native peer/session binding are evidenced, but this adapter truthfully does not provide arbitrary-process/path confinement; out-of-band writes succeeded.",
+    "AC-18":"PENDING: Linux reference proof is concrete, but required positive and fail-closed native proofs on Windows and macOS are not yet available."
+  },
+  "acceptance_criteria_satisfied": ["AC-14", "AC-15"],
+  "acceptance_criteria_pending": ["AC-16", "AC-18"],
+  "authority": {
+    "frozen_changes": false,
+    "operator_approval_inferred": false,
+    "protected_root_claim": "concretely proven on native Linux only"
+  },
+  "cleanup": {
+    "planned": ["uninstall test-installed guard service", "remove exact disposable Linux fixture directories", "remove ephemeral root operator key"],
+    "performed": ["guard service stopped, disabled, and removed", "exact disposable fixture directories removed", "ephemeral root operator key removed", "unit/runtime/protected-state/socket paths verified absent"],
+    "not_yet_performed_at_recording": false,
+    "scope": "Only test-created service state, fixture paths, and ephemeral key are in cleanup scope; user checkouts are excluded."
+  }
+}

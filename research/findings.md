@@ -484,3 +484,18 @@ would be exactly the kind of retroactive-confirmation dishonesty
 `threats-to-validity.md` (T1, T5) exists to guard against. See
 `formal-model.md`'s new cross-cutting admission-boundary treatment (§7) for
 the formal statement, and `protocol.md`/`benchmark-protocol.md` for H14/S7.
+## Pre-inference design limitation — WI022 AC-3 model-family amendment
+
+The dated amendment `2026-09-14.ac3-model-family-amendment.1` replaces prospective
+`gpt-6/openai/gpt-6-astra` with `claude-sonnet-5/anthropic/claude-sonnet-5` before any
+registered model-dependent AC-3 comparative cell exists. This is a design limitation,
+not a comparative finding:
+
+> Model family is confounded with provider/agent runtime in the cross-family comparison.
+> Within-family baseline-vs-RepoPact treatment comparisons remain matched because each
+> family's arms use the same provider/runtime configuration.
+
+Thus the study cannot identify a pure Luna-vs-Sonnet model-family effect. Its primary
+estimand remains the matched within-family RepoPact treatment effect and the extent to
+which that effect generalizes across provider/runtime ecosystems. Historical Astra
+admission evidence remains immutable and is not a prospective AC-3 participant.

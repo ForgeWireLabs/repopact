@@ -52,7 +52,9 @@ The root README was rewritten as a landing page rather than an internal architec
 8. surface the paper, formal model, conformance suite, and Proving Ground;
 9. state clearly what RepoPact is not.
 
-The README also now distinguishes the stable PyPI release `3.0.2` from current `main` (`3.0.2-dev.1`) so active WI046 commands are not represented as already shipped in the stable package.
+The README now distinguishes the stable PyPI release `3.1.0` from the
+post-release `main` development identity (`3.1.0-dev.1`) so active work is not
+represented as already shipped in the stable package.
 
 Two invisible visual slots were left in the README for a follow-up pass: one hero visual and one real Workbench screenshot. Those should use actual RepoPact product/repository evidence, not generic AI art. The existing `docs/assets/repopact-governance.svg` is stale (`spec 1.0.0`) and the existing flow SVG omits the later `proposed` lifecycle state, so neither should be promoted as the new hero without correction.
 

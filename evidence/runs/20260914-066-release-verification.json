@@ -1,0 +1,77 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260914-066-release-verification",
+  "timestamp": "2026-09-14T23:08:15-05:00",
+  "timestamp_basis": "git-recording",
+  "work_item": "066",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "repopact release verify --root . --json",
+      "exit_code": 2,
+      "summary": "all six required Windows release-profile steps passed; the complete profile remains unsatisfied because Linux and macOS evidence were not executed on this host"
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "346 tests passed with 2 documented skips in 1246.625 seconds"
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "35/35 canonical Rust conformance cases and 8/8 WI050 admission vectors passed"
+    },
+    {
+      "command": "cargo test --workspace --locked --manifest-path rust/Cargo.toml",
+      "exit_code": 0,
+      "summary": "locked Rust workspace tests and doc tests passed"
+    },
+    {
+      "command": "cargo metadata --format-version 1 --locked --manifest-path rust/Cargo.toml",
+      "exit_code": 0,
+      "summary": "locked Cargo metadata completed successfully"
+    },
+    {
+      "command": "repopact validate --root .; repopact check-frozen --root . --base origin/main",
+      "exit_code": 0,
+      "summary": "repository validation passed and no frozen-surface changes were detected"
+    }
+  ],
+  "artifacts": [
+    "release verification JSON report was captured from the command output",
+    "release profile required steps: 6 passed, 0 failed, 0 unavailable",
+    "Windows host readiness: true",
+    "complete-profile missing platforms: linux, macos"
+  ],
+  "environment": {
+    "platform": "windows",
+    "executor": "local",
+    "candidate": {
+      "commit": "c43a14f7cca69512790ecfaa2caeccbb65b7c65f",
+      "tree": "31359664de1c66bfb313c7df96f519b91acc17fe",
+      "dirty": false
+    },
+    "verification": {
+      "profile": "release",
+      "status": "incomplete",
+      "exit_code": 2,
+      "duration_seconds": 1281.786962,
+      "coverage": {
+        "mode": "complete",
+        "satisfied": false,
+        "host_ready": true,
+        "all_declared_executed": true,
+        "required_total": 6,
+        "required_executed": 6,
+        "required_passed": 6,
+        "required_failed": 0,
+        "required_errors": 0,
+        "required_unavailable": 0,
+        "required_platforms": ["linux", "macos", "windows"],
+        "missing_platforms": ["linux", "macos"]
+      }
+    }
+  },
+  "statement": "The local release gate is host-ready on Windows but not complete across the declared Linux/macOS/Windows matrix. This record intentionally preserves the missing-platform state and does not fabricate an aggregate release verdict."
+}

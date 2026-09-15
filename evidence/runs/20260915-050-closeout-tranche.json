@@ -1,0 +1,187 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-050-closeout-tranche",
+  "timestamp": "2026-09-15T18:42:35Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "baseline": {
+    "authoritative_ref": "origin/main",
+    "starting_main_sha": "9370dda8fb1631e2ecde46e033a2e50a9143aca7",
+    "starting_main_tree": "d246366f2e442da64bb02043fd3dc2e6c25f0189",
+    "starting_version": "3.1.0",
+    "starting_release_label": "3.1.0-dev.1",
+    "working_branch": "codex/wi050-protected-enforcement-closeout-20260915",
+    "implementation_checkpoint_sha": "b8b852087865a502bc7ca5fbe9af797fc623aa23",
+    "implementation_checkpoint_tree": "6d404267b4c8445765c8811aba0e0ec6bb5ef2ae"
+  },
+  "commands": [
+    {
+      "command": "git fetch origin main",
+      "exit_code": 0,
+      "summary": "Fetched origin/main and confirmed the authoritative baseline at 9370dda8fb1631e2ecde46e033a2e50a9143aca7."
+    },
+    {
+      "command": "python -m pip install -e \".[dev,enforcement]\"",
+      "exit_code": 0,
+      "summary": "Editable package installed successfully with the optional enforcement dependency; package identity is 3.1.0.dev1."
+    },
+    {
+      "command": "python -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Required development editable install completed successfully."
+    },
+    {
+      "command": "Get-ChildItem repopact -Filter '*.py' | ForEach-Object { python -m py_compile $_.FullName }",
+      "exit_code": 0,
+      "summary": "All Python modules, including the Unix service host, compiled successfully."
+    },
+    {
+      "command": "python -m unittest tests.test_admission tests.test_admission_security tests.test_guard_authority tests.test_protected_substrate tests.test_opt_in_provider -v",
+      "exit_code": 0,
+      "summary": "46/46 focused WI050 tests passed."
+    },
+    {
+      "command": "python -m unittest discover -s tests -v",
+      "exit_code": 0,
+      "summary": "347 tests passed; 2 pre-existing formal-model tests were skipped (O-4 and O-6 open items)."
+    },
+    {
+      "command": "python -m unittest tests.test_protected_substrate tests.test_guard_authority -v",
+      "exit_code": 0,
+      "summary": "17 targeted protected-substrate and guard-authority tests passed after the final Unix peer-identity and symlink checks."
+    },
+    {
+      "command": "python -m repopact.run_conformance",
+      "exit_code": 0,
+      "summary": "Canonical Rust conformance passed 35/35 cases and the WI050 admission corpus passed 8/8 vectors."
+    },
+    {
+      "command": "python -m repopact.run_admission_platform_conformance --root .",
+      "exit_code": 0,
+      "summary": "Windows portable semantic and real-subprocess pre-action matrix passed; native cases remained not-run because the protected service is absent."
+    },
+    {
+      "command": "python -m repopact.run_admission_platform_conformance --root . --require-installed",
+      "exit_code": 1,
+      "summary": "Expected native-gate failure: the Windows protected service is not installed, so this command refuses to claim native coverage."
+    },
+    {
+      "command": "python -m repopact.run_admission_platform_conformance --root .",
+      "exit_code": 0,
+      "summary": "Portable semantic and real-subprocess pre-action matrix passed. Python filesystem, Python child-process, PowerShell, and cmd attempts were denied before child creation; the nested-CWD sentinel SHA-256 remained 2b92ea252be0fbc26f70317cdaa7b6411ea634b50d55338cd8c495e4dbf25d1d before and after. Native service cases were not-run because no service is installed."
+    },
+    {
+      "command": "python -m repopact.cli check-frozen --root . --base 9370dda8fb1631e2ecde46e033a2e50a9143aca7",
+      "exit_code": 0,
+      "summary": "No frozen-surface changes detected; no new INV-6 approval packet was needed."
+    },
+    {
+      "command": "python -m repopact.cli guard status --root . --json",
+      "exit_code": 1,
+      "summary": "Expected fail-closed native status: the Windows RepoPactGuard service is absent and native protection is not covered."
+    },
+    {
+      "command": "python -m repopact.cli validate --root .",
+      "exit_code": 0,
+      "summary": "Repository governance validation passed after evidence and work-item reconciliation."
+    },
+    {
+      "command": "python -m repopact.cli dashboard --root .",
+      "exit_code": 0,
+      "summary": "Generated the derived audit dashboard."
+    },
+    {
+      "command": "python -m repopact.cli spec --root .",
+      "exit_code": 0,
+      "summary": "Regenerated the derived SPEC blocks."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "summary": "No whitespace errors."
+    }
+  ],
+  "artifacts": [
+    "repopact/admission.py",
+    "repopact/guard_ipc.py",
+    "repopact/platform_backends.py",
+    "repopact/run_admission_platform_conformance.py",
+    "repopact/unix_guard_service.py",
+    "tests/test_admission.py",
+    "tests/test_protected_substrate.py",
+    "docs/guides/pre-execution-admission.md",
+    "CONFORMANCE.md",
+    "repopact/_audit/alignment-report.md",
+    "repopact/_audit/inventory.md",
+    "SPEC.md",
+    "audits/reports/dashboard.md",
+    "evidence/runs/20260915-050-closeout-tranche.json",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"
+  ],
+  "environment": {
+    "os": "Windows",
+    "os_version": "Microsoft Windows NT 10.0.26200.0",
+    "python": "3.13.15",
+    "privilege": "non-elevated",
+    "native_windows_guard": "not installed; RepoPactGuard service query returned Windows service error 1060",
+    "program_data_guard_root": "absent",
+    "wsl2_linux": "not available; wsl.exe reported that Windows Subsystem for Linux is not installed",
+    "macos": "not available",
+    "concurrent_work": "Pre-existing user changes were preserved in stash@{0}: codex-preserve-user-work-before-wi050; the feature branch started from fetched origin/main."
+  },
+  "architecture": {
+    "already_present": [
+      "deterministic admission policy and canonical identity",
+      "Ed25519 operator receipts, replay/expiry/revocation checks, leases, drift and delegation semantics",
+      "adopter-neutral EnforcementProvider and adapter/provider assurance intersection",
+      "Windows protected-install/preflight/SCM/named-pipe architecture and Linux/macOS backend contracts"
+    ],
+    "implemented_in_this_tranche": [
+      "profile-bounded authorization request expiry",
+      "Windows SCM PID/live-image and protected path-chain attestation",
+      "Unix root-owned listener/service host, endpoint ownership/mode checks, and kernel peer-credential verification",
+      "real-subprocess pre-action denial matrix with sentinel postcondition hashes"
+    ],
+    "assurance_implemented": "pre-action reference integration",
+    "assurance_natively_proven": "none",
+    "process_path_claim": "not sandbox/process-enforced; no arbitrary-process filesystem boundary is claimed"
+  },
+  "native_results": {
+    "windows": {
+      "service_install": "NOT RUN: non-elevated and no existing RepoPactGuard service",
+      "protected_code_runtime_state": "implemented and attested by code; native OS protection not proven on this host",
+      "ipc_authentication": "implemented: named-pipe SDDL plus SCM PID/LocalSystem/configured executable/live-image/path-chain verification; native execution not proven",
+      "process_path_confinement": "PENDING: no native arbitrary-process proof"
+    },
+    "linux": {
+      "environment": "NOT RUN: WSL2 is not installed",
+      "protected_guard": "implemented reference root-owned Unix service host; native installation/proof absent",
+      "process_path_confinement": "PENDING: no native arbitrary-process proof"
+    },
+    "macos": {
+      "status": "NOT RUN: no native macOS host",
+      "remaining_gate": "Run launch-daemon code identity, protected state/IPC ownership, positive admission, fail-closed service loss, peer binding, and arbitrary-process/path bypass tests on a real macOS host."
+    }
+  },
+  "criteria": {
+    "AC-14": "SATISFIED with this fresh reconciliation: CLI/API, policy/config, validator, init/adopt/doctor, guard, provider/adapter SPI, templates/schemas, docs/SPEC, tests/conformance, audit alignment/inventory, and evidence surfaces were audited; derived dashboard/SPEC regeneration is included in the final validation pass.",
+    "AC-15": "PENDING: native host protection against ordinary-principal deletion/replacement was not executed because Windows elevation/service installation is unavailable; Linux and macOS native hosts are unavailable.",
+    "AC-16": "PENDING: the reference integration proves pre-action interception only. No OS boundary currently proves that arbitrary authorized child processes are confined to lease paths/scopes.",
+    "AC-18": "PENDING: no native Linux or macOS proof and no native Windows service proof are available in this environment."
+  },
+  "acceptance_criteria_satisfied": ["AC-14"],
+  "acceptance_criteria_pending": ["AC-15", "AC-16", "AC-18"],
+  "authority": {
+    "frozen_changes": false,
+    "operator_approval_inferred": false,
+    "protected_root_claim": "not natively proven"
+  },
+  "finalization": {
+    "authoritative_main_sha": "ba7c79496003707aa141f9a64da62f77cb450194",
+    "authoritative_main_tree": "1f657c11a6f88a4cb5a7de63e0414ae0c9226b5d",
+    "working_tree_clean_and_synchronized": false,
+    "note": "The green WI050 integration is authoritative at ba7c79496003707aa141f9a64da62f77cb450194; the working tree deliberately retains the unrelated user changes restored after integration."
+  }
+}

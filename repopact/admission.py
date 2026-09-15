@@ -71,7 +71,9 @@ def iso(value: datetime | None = None) -> str:
 
 
 def _git(root: Path, *args: str) -> str:
-    cp = subprocess.run(["git", "-C", str(root), *args], text=True, capture_output=True, check=False)
+    resolved = root.resolve()
+    cp = subprocess.run(["git", "-c", f"safe.directory={resolved}", "-C", str(resolved), *args],
+                         text=True, capture_output=True, check=False)
     if cp.returncode:
         return ""
     return cp.stdout.strip()
@@ -648,8 +650,21 @@ def make_request(root: Path, work_item: str, session_id: str, principal: str = "
     check = verify_registration(root, protected_dir)
     if not check.allowed: raise RuntimeError(check.reason)
     ident = canonical_identity(root); policy, authority = check.details["policy"], check.details["authority"]
+    profile_config = policy.get("profiles", {}).get(profile)
+    if not isinstance(profile_config, Mapping):
+        raise ValueError(f"authorization profile is not declared: {profile}")
+    try:
+        max_duration = int(profile_config["max_duration_seconds"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"authorization profile has no valid max_duration_seconds: {profile}") from exc
+    issued_at = datetime.now(timezone.utc)
+    requested_expiry = _utc(expires_at) if expires_at is not None else issued_at + timedelta(seconds=max_duration)
+    if requested_expiry <= issued_at:
+        raise ValueError("authorization expiry must be in the future")
+    if requested_expiry > issued_at + timedelta(seconds=max_duration):
+        raise ValueError("authorization expiry exceeds the selected profile duration ceiling")
     frozen = frozen_surface_digest(root)
-    return {"protocol_version": "1", "request_id": str(uuid.uuid4()), "nonce": secrets.token_urlsafe(24), "repository_identity": digest(ident), "repopact_root": ident["repopact_root"], "work_item": work_item, "principal": principal, "adapter_session": session_id, "base": {"head": ident["head"], "tree": ident["tree"]}, "authority_state_digest": digest(authority), "admission_policy_digest": digest(policy), "frozen_surface_digest": frozen, "approval_class": approval_class, "profile": profile, "scopes": sorted(scopes), "paths": sorted(paths), "capabilities": sorted(k for k, v in (capabilities or {}).items() if v), "delegation_ceiling": 0, "mode": mode, "issued_at": iso(), "expires_at": iso(expires_at or (datetime.now(timezone.utc) + timedelta(minutes=30))), "revocation_epoch": check.details.get("revocation_epoch", 0)}
+    return {"protocol_version": "1", "request_id": str(uuid.uuid4()), "nonce": secrets.token_urlsafe(24), "repository_identity": digest(ident), "repopact_root": ident["repopact_root"], "work_item": work_item, "principal": principal, "adapter_session": session_id, "base": {"head": ident["head"], "tree": ident["tree"]}, "authority_state_digest": digest(authority), "admission_policy_digest": digest(policy), "frozen_surface_digest": frozen, "approval_class": approval_class, "profile": profile, "scopes": sorted(scopes), "paths": sorted(paths), "capabilities": sorted(k for k, v in (capabilities or {}).items() if v), "delegation_ceiling": 0, "mode": mode, "issued_at": iso(issued_at), "expires_at": iso(requested_expiry), "revocation_epoch": check.details.get("revocation_epoch", 0)}
 
 
 def issue_receipt(request: Mapping[str, Any], signer: Ed25519Signer, approval_class: str | None = None) -> dict[str, Any]:

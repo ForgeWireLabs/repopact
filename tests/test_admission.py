@@ -77,6 +77,15 @@ class AdmissionTests(unittest.TestCase):
         state.write_text("{}")
         self.assertEqual(verify_registration(self.root, self.protected).code, "AUTHORITY_DRIFT")
 
+    def test_request_expiry_cannot_exceed_profile_ceiling(self):
+        with self.assertRaisesRegex(ValueError, "duration ceiling"):
+            self.request(expires_at=datetime.now(timezone.utc) + timedelta(hours=2))
+        bounded = self.request(expires_at=datetime.now(timezone.utc) + timedelta(minutes=29))
+        self.assertLessEqual(
+            datetime.fromisoformat(bounded["expires_at"].replace("Z", "+00:00")),
+            datetime.fromisoformat(bounded["issued_at"].replace("Z", "+00:00")) + timedelta(minutes=30),
+        )
+
     def test_delegation_only_subsets(self):
         parent = {"lease_id": "parent", "repository_identity": "r", "work_item": "050", "principal": "operator", "approval_class": "activate", "profile": "bounded", "mode": "normal", "delegation_ceiling": 2, "scopes": ["src"], "paths": ["src/a.py"], "capabilities": [], "delegation_lineage": [], "expires_at": "2030-01-01T00:00:00Z"}
         child = {**parent, "lease_id": "child", "principal": "subagent", "parent_lease_id": "parent", "delegation_lineage": ["parent"], "delegation_ceiling": 1, "scopes": ["src"], "paths": ["src/a.py"], "expires_at": "2029-01-01T00:00:00Z"}

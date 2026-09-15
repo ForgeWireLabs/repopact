@@ -13,11 +13,13 @@ import json
 import os
 import platform
 import re
+import shlex
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
@@ -48,6 +50,9 @@ class BackendAttestation:
     reason: str = ""
     assumptions: tuple[str, ...] = ()
     testing_only: bool = False
+    service_pid: int | None = None
+    service_image_path: str = ""
+    protected_path_chain: bool = False
 
     @property
     def security_level(self) -> str:
@@ -55,8 +60,10 @@ class BackendAttestation:
             return "not-covered"
         if self.path_confinement and self.process_confinement:
             return "sandbox/process-enforced"
-        if self.service_identity_verified:
-            return "session-start"
+        # A protected service identity authenticates the guard; it does not
+        # downgrade the guard's per-action check to session-start. The guard
+        # provider is still only pre-action until an OS process/path boundary
+        # is independently attested.
         return "pre-action"
 
     def record(self) -> dict[str, Any]:
@@ -79,6 +86,9 @@ class BackendAttestation:
             "reason": self.reason,
             "assumptions": list(self.assumptions),
             "testing_only": self.testing_only,
+            "service_pid": self.service_pid,
+            "service_image_path": self.service_image_path,
+            "protected_path_chain": self.protected_path_chain,
         }
 
 
@@ -101,6 +111,45 @@ def _command_output(command: list[str]) -> tuple[int, str]:
     except OSError as exc:
         return 127, str(exc)
     return completed.returncode, (completed.stdout or "") + (completed.stderr or "")
+
+
+def _windows_process_image(pid: int | None) -> str:
+    """Resolve a live Windows process image through the OS, not caller data."""
+    if os.name != "nt" or not pid or pid <= 0:
+        return ""
+    try:
+        kernel = ctypes.windll.kernel32
+        from ctypes import wintypes
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+        if not handle:
+            return ""
+        try:
+            size = wintypes.DWORD(32768)
+            buffer = ctypes.create_unicode_buffer(size.value)
+            if kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
+                return buffer.value[:size.value]
+        finally:
+            kernel.CloseHandle(handle)
+    except (AttributeError, OSError, TypeError, ValueError):
+        pass
+    return ""
+
+
+def _windows_command_executable(command_line: str) -> str:
+    """Extract the configured executable from an SCM command line."""
+    value = str(command_line or "").strip()
+    if not value:
+        return ""
+    if value.startswith('"'):
+        end = value.find('"', 1)
+        return value[1:end] if end > 1 else ""
+    return value.split(None, 1)[0]
+
+
+def _windows_is_local_system(identity: str) -> bool:
+    compact = str(identity or "").casefold().replace(" ", "")
+    return compact in {"ntauthority\\system", "ntauthority\\localsystem", "localsystem", "system"}
 
 
 def _windows_acl(path: Path) -> tuple[bool, str]:
@@ -236,6 +285,44 @@ def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
             break
         current = current.parent
     return True, "ACL/path chain protected: " + ", ".join(checked)
+
+
+def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
+    """Attest a protected file or directory and every replaceable parent."""
+    if os.name != "nt":
+        return False, "Windows ACL inspection is unavailable on this host"
+    try:
+        supplied = Path(path).expanduser().absolute()
+        if not supplied.exists():
+            return False, f"protected path is absent: {supplied}"
+        supplied_parts: list[Path] = []
+        current = supplied
+        while True:
+            supplied_parts.append(current)
+            if current.parent == current:
+                break
+            current = current.parent
+        if any(_windows_reparse_point(item) for item in supplied_parts):
+            return False, "protected path hierarchy contains a symlink or reparse point"
+        canonical = supplied.resolve(strict=True)
+    except (OSError, ValueError):
+        return False, "protected path could not be resolved canonically"
+
+    checked: list[str] = []
+    current = canonical
+    while True:
+        if _windows_reparse_point(current):
+            return False, f"protected path hierarchy contains a symlink or reparse point: {current}"
+        code, output = _command_output(["icacls", str(current)])
+        if code != 0:
+            return False, f"icacls could not inspect {current}"
+        if _windows_acl_has_broad_write(output):
+            return False, f"ordinary users can modify or replace {current}"
+        checked.append(str(current))
+        if current.parent == current:
+            break
+        current = current.parent
+    return True, "protected path chain: " + ", ".join(checked)
 
 
 _ISOLATED_DEPENDENCY_SELF_TEST = r'''
@@ -391,6 +478,52 @@ def _isolated_sys_path_is_safe(values: Any, root: Path | None) -> tuple[bool, st
     return True, "isolated sys.path contains no checkout, virtualenv, or user-writable path"
 
 
+def _unix_protected_path(path: Path, *, owner_uid: int = 0, socket_endpoint: bool = False) -> tuple[bool, str]:
+    """Check Unix ownership/mode and the complete parent path chain."""
+    if os.name == "nt":
+        return False, "Unix ownership inspection is unavailable on this host"
+    try:
+        candidate = Path(path)
+        current = candidate
+        checked: list[str] = []
+        while True:
+            info = current.lstat()
+            if stat.S_ISLNK(info.st_mode):
+                return False, f"Unix protected path contains a symlink: {current}"
+            if current == candidate and socket_endpoint:
+                if not stat.S_ISSOCK(info.st_mode):
+                    return False, f"Unix endpoint is not a socket: {current}"
+            if info.st_uid != owner_uid:
+                return False, f"Unix protected path is not owned by uid {owner_uid}: {current}"
+            writable_bits = 0o002 if socket_endpoint and current == candidate else 0o022
+            if info.st_mode & writable_bits:
+                return False, f"Unix protected path is group/world-writable: {current}"
+            checked.append(str(current))
+            if current.parent == current:
+                break
+            current = current.parent
+        return True, "Unix protected path chain: " + ", ".join(checked)
+    except (OSError, ValueError):
+        return False, f"Unix protected path is absent or unreadable: {path}"
+
+
+def _unix_process_image(pid: int | None) -> str:
+    """Resolve a live Unix process image where the kernel exposes it."""
+    if not pid or pid <= 0:
+        return ""
+    if sys.platform.startswith("linux"):
+        try:
+            return os.readlink(f"/proc/{int(pid)}/exe")
+        except OSError:
+            return ""
+    return ""
+
+
+def _systemd_property(service: str, property_name: str) -> str:
+    code, output = _command_output(["systemctl", "show", service, f"--property={property_name}", "--value"])
+    return output.strip() if code == 0 else ""
+
+
 @dataclass(frozen=True)
 class PlatformBackend:
     name: str
@@ -470,6 +603,17 @@ class WindowsBackend(PlatformBackend):
         code, output = _command_output(["sc.exe", "query", self.service_name])
         return code == 0 and "RUNNING" in output.upper()
 
+    def _service_pid(self) -> int | None:
+        code, output = _command_output(["sc.exe", "queryex", self.service_name])
+        if code != 0:
+            return None
+        for line in output.splitlines():
+            if "PID" in line.upper() and ":" in line:
+                value = line.split(":", 1)[1].strip()
+                if value.isdigit():
+                    return int(value)
+        return None
+
     def _service_configuration(self) -> tuple[str, str]:
         code, output = _command_output(["sc.exe", "qc", self.service_name])
         if code != 0:
@@ -508,9 +652,17 @@ class WindowsBackend(PlatformBackend):
         service_running = self._service_running() if installed else False
         configured_identity, configured_image = self._service_configuration() if installed else ("", "")
         service_identity = configured_identity or (str(manifest.get("service_identity", "")) if manifest else "")
-        identity_ok = service_identity.lower() in {"nt authority\\system", "local system"}
-        image_ok = not configured_image or str(self.runtime_path).lower() in configured_image.lower()
-        healthy = bool(installed and digest_ok and acl_ok and service_running and identity_ok and image_ok)
+        identity_ok = _windows_is_local_system(service_identity)
+        configured_executable = _windows_command_executable(configured_image)
+        service_pid = self._service_pid() if installed and service_running else None
+        service_image_path = _windows_process_image(service_pid)
+        image_ok = bool(configured_image and configured_executable and service_image_path
+                        and _normalise(service_image_path) == _normalise(configured_executable)
+                        and str(self.runtime_path).lower() in configured_image.lower())
+        chain_results = [_windows_protected_path_chain(path) for path in
+                         (self.install_root, self.runtime_path, self.protected_state_location)]
+        path_chain_ok = bool(chain_results) and all(result[0] for result in chain_results)
+        healthy = bool(installed and digest_ok and acl_ok and path_chain_ok and service_running and identity_ok and image_ok)
         reason = "healthy protected Windows service" if healthy else (
             "protected Windows service is absent, stopped, tampered, or ACL protection is unproven"
         )
@@ -521,13 +673,15 @@ class WindowsBackend(PlatformBackend):
         )
         if not acl_ok and acl_detail:
             assumptions += ("ACL attestation detail: " + acl_detail[:300],)
+        if not path_chain_ok:
+            assumptions += ("; ".join(result[1] for result in chain_results if result[1])[:500],)
         return BackendAttestation(
             backend_id=self.name,
             os_name=self.os_name,
             installed=installed,
             healthy=healthy,
             integrity_checked=digest_ok,
-            protected_from_gated_principal=acl_ok,
+            protected_from_gated_principal=bool(acl_ok and path_chain_ok),
             service_identity_verified=identity_ok,
             path_confinement=False,
             process_confinement=False,
@@ -538,6 +692,9 @@ class WindowsBackend(PlatformBackend):
             ipc_endpoint=self.ipc_endpoint,
             reason=reason,
             assumptions=assumptions,
+            service_pid=service_pid,
+            service_image_path=service_image_path,
+            protected_path_chain=path_chain_ok,
         )
 
     def _require_admin(self) -> None:
@@ -732,29 +889,256 @@ class LinuxBackend(PlatformBackend):
         super().__init__("linux-system-service", "linux", location or Path("/var/lib/repopact/registrations"))
         object.__setattr__(self, "service_name", "repopact-guard.service")
         object.__setattr__(self, "ipc_endpoint", "/run/repopact/guard.sock")
-        object.__setattr__(self, "runtime_path", Path("/usr/local/lib/repopact/guard"))
+        object.__setattr__(self, "runtime_path", Path("/usr/local/lib/repopact/guard/runtime"))
+        object.__setattr__(self, "install_root", Path("/usr/local/lib/repopact/guard"))
+        object.__setattr__(self, "manifest_path", Path("/usr/local/lib/repopact/guard/install.json"))
+        object.__setattr__(self, "unit_path", Path("/etc/systemd/system") / self.service_name)
+
+    def _runtime_digest(self, runtime: Path | None = None) -> str:
+        base = runtime or self.runtime_path
+        result = hashlib.sha256()
+        for path in sorted(base.rglob("*.py")):
+            if path.is_file():
+                result.update(str(path.relative_to(base)).replace("\\", "/").encode("utf-8"))
+                result.update(path.read_bytes())
+        return result.hexdigest()
+
+    def _manifest(self) -> Mapping[str, Any] | None:
+        try:
+            value = json.loads(self.manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, json.JSONDecodeError):
+            return None
+        return value if isinstance(value, Mapping) else None
+
+    def _service_command(self, interpreter: Path | None = None) -> list[str]:
+        selected = (interpreter or Path("/usr/bin/python3")).resolve(strict=True)
+        return [str(selected), "-I", str(self.runtime_path / "guard-service.py"),
+                "--endpoint", self.ipc_endpoint, "--state-root", str(self.protected_state_location.parent)]
+
+    def preflight(self, root: Path | None = None, *, interpreter: Path | None = None) -> dict[str, Any]:
+        """Run non-mutating checks for the root-owned Linux service install."""
+        requested = interpreter or Path("/usr/bin/python3")
+        checks: dict[str, bool] = {
+            "linux_host": platform.system().lower() == "linux" and os.name == "posix",
+            "running_as_root": hasattr(os, "geteuid") and os.geteuid() == 0,
+            "systemd_running": False,
+            "source_package": (Path(__file__).resolve().parent / "unix_guard_service.py").is_file(),
+            "source_tree_clean": True,
+            "interpreter_protected": False,
+            "runtime_target_absent": not self.install_root.exists(),
+            "unit_target_absent": not self.unit_path.exists(),
+            "state_target_absent": not self.protected_state_location.exists(),
+        }
+        code, output = _command_output(["systemctl", "is-system-running"])
+        checks["systemd_running"] = code == 0 and output.strip() in {"running", "degraded"}
+        source_root = root.resolve() if root is not None else Path.cwd().resolve()
+        git = ["git", "-c", f"safe.directory={source_root}", "-C", str(source_root)]
+        code, output = _command_output(git + ["status", "--porcelain", "--untracked-files=all"])
+        checks["source_tree_clean"] = code == 0 and not output.strip()
+        try:
+            canonical_interpreter = requested.resolve(strict=True)
+            checks["interpreter_protected"] = _unix_protected_path(canonical_interpreter)[0]
+        except (OSError, ValueError):
+            canonical_interpreter = requested.absolute()
+        revision_code, revision = _command_output(git + ["rev-parse", "HEAD"])
+        command = self._service_command(canonical_interpreter) if canonical_interpreter.is_file() else []
+        ready = all(checks.values())
+        return {
+            "backend": self.name, "service_name": self.service_name,
+            "install_root": str(self.install_root), "runtime_path": str(self.runtime_path),
+            "state_path": str(self.protected_state_location), "ipc_endpoint": self.ipc_endpoint,
+            "unit_path": str(self.unit_path), "interpreter": str(canonical_interpreter),
+            "source_revision": revision.strip() if revision_code == 0 else "",
+            "service_command_argv": command, "service_command": shlex.join(command),
+            "checks": checks, "mutations": [], "ready": ready,
+            "rollback": "not-needed" if ready else "no machine mutation performed",
+        }
 
     def attest(self, root: Path | None = None, protected_dir: Path | None = None) -> BackendAttestation:
         unit = Path("/etc/systemd/system") / self.service_name
         socket = Path(self.ipc_endpoint)
-        installed = unit.is_file() and self.runtime_path.is_dir() and self.protected_state_location.is_dir()
+        manifest = self._manifest()
+        installed = unit.is_file() and self.runtime_path.is_dir() and self.protected_state_location.is_dir() and manifest is not None
         service_running = False
         if installed:
             code, output = _command_output(["systemctl", "is-active", self.service_name])
             service_running = code == 0 and output.strip() == "active"
-        state_ok = self.protected_state_location.exists() and (self.protected_state_location.stat().st_mode & 0o077) == 0
-        socket_ok = socket.exists() and (socket.stat().st_mode & 0o077) == 0
-        healthy = bool(installed and service_running and state_ok and socket_ok)
-        return BackendAttestation(self.name, self.os_name, installed, healthy, installed, healthy, healthy,
-                                  False, False, healthy, "repopact-guard.service", str(self.runtime_path),
-                                  str(self.protected_state_location), str(socket),
-                                  "healthy Linux system service" if healthy else "protected Linux system service is unavailable",
-                                  ("system service runs under a distinct service identity", "Unix socket uses peer credentials and restrictive mode"))
+        service_pid_text = _systemd_property(self.service_name, "MainPID") if service_running else ""
+        service_pid = int(service_pid_text) if service_pid_text.isdigit() and int(service_pid_text) > 0 else None
+        service_identity = _systemd_property(self.service_name, "User") if installed else ""
+        # A blank systemd User means the documented default: root.  Any named
+        # non-root service identity needs a separate, explicit protected-group
+        # contract and must not be treated as covered by this backend.
+        identity_ok = service_identity in {"", "root", "0"} and service_pid is not None
+        service_image_path = _unix_process_image(service_pid)
+        identity_ok = bool(identity_ok and service_image_path)
+        runtime_ok, runtime_reason = _unix_protected_path(self.runtime_path)
+        state_ok, state_reason = _unix_protected_path(self.protected_state_location)
+        socket_ok, socket_reason = _unix_protected_path(socket, socket_endpoint=True)
+        unit_ok, unit_reason = _unix_protected_path(unit)
+        manifest_ok = bool(manifest and manifest.get("runtime_digest") == self._runtime_digest()
+                           and manifest.get("installed_code_path") == str(self.runtime_path)
+                           and manifest.get("ipc_endpoint") == self.ipc_endpoint)
+        command_text = ""
+        if installed:
+            _code, command_text = _command_output(["systemctl", "show", self.service_name,
+                                                    "--property=ExecStart", "--value"])
+        command_ok = bool(command_text and str(self.runtime_path / "guard-service.py") in command_text
+                          and " -I " in f" {command_text} ")
+        path_chain_ok = bool(runtime_ok and state_ok and socket_ok and unit_ok)
+        healthy = bool(installed and service_running and identity_ok and path_chain_ok and manifest_ok and command_ok)
+        assumptions = (
+            "systemd service is root-owned and peer identity is checked with SO_PEERCRED",
+            "Unix socket and all protected parent directories are root-owned and not group/world-writable",
+            "installed manifest digest and systemd ExecStart bind the live service to the protected runtime",
+            "this backend proves session-start/pre-action guard health only; it does not claim arbitrary process confinement",
+        )
+        if not path_chain_ok:
+            assumptions += tuple(reason for ok, reason in ((runtime_ok, runtime_reason), (state_ok, state_reason),
+                                                            (socket_ok, socket_reason), (unit_ok, unit_reason)) if not ok)
+        if not manifest_ok:
+            assumptions += ("installed runtime manifest is absent, mismatched, or tampered",)
+        if not command_ok:
+            assumptions += ("systemd ExecStart is absent or does not select the protected isolated runtime",)
+        return BackendAttestation(
+            backend_id=self.name, os_name=self.os_name, installed=installed, healthy=healthy,
+            integrity_checked=bool(installed and runtime_ok and state_ok and unit_ok and manifest_ok and command_ok),
+            protected_from_gated_principal=bool(healthy), service_identity_verified=identity_ok,
+            path_confinement=False, process_confinement=False, host_configuration_protected=bool(path_chain_ok),
+            service_identity=service_identity or "root", installed_code_path=str(self.runtime_path),
+            protected_state_path=str(self.protected_state_location), ipc_endpoint=str(socket),
+            reason="healthy Linux system service" if healthy else "protected Linux system service is unavailable",
+            assumptions=assumptions, service_pid=service_pid, service_image_path=service_image_path,
+            protected_path_chain=path_chain_ok,
+        )
 
-    def install(self, root: Path | None = None, **_: Any) -> dict[str, Any]:
+    def install(self, root: Path | None = None, *, preflight: bool = False,
+                interpreter: Path | None = None, **_: Any) -> dict[str, Any]:
+        report = self.preflight(root, interpreter=interpreter)
+        if preflight:
+            return report
+        if not report["ready"]:
+            failures = [key for key, value in report["checks"].items() if not value]
+            raise RuntimeError("Linux guard install preflight failed (zero machine mutation): " + ", ".join(failures))
+        source_package = Path(__file__).resolve().parent
+        staging = self.install_root.parent / f".repopact-guard-install-{os.getpid()}-{os.urandom(6).hex()}"
+        unit_created = False
+        state_created = False
+        try:
+            staging.mkdir(parents=True, exist_ok=False)
+            stage_runtime = staging / "runtime"
+            stage_runtime.mkdir(parents=True, exist_ok=False)
+            for source in source_package.rglob("*.py"):
+                relative = source.relative_to(source_package)
+                target = stage_runtime / "repopact" / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            launcher = stage_runtime / "guard-service.py"
+            launcher.write_text(
+                "#!/usr/bin/python3\n"
+                "import sys\n"
+                "from pathlib import Path\n"
+                "sys.path.insert(0, str(Path(__file__).resolve().parent))\n"
+                "from repopact.unix_guard_service import main\n"
+                "raise SystemExit(main())\n",
+                encoding="utf-8",
+            )
+            for directory in (staging, stage_runtime, stage_runtime / "repopact"):
+                os.chmod(directory, 0o755)
+            for path in stage_runtime.rglob("*.py"):
+                os.chmod(path, 0o644)
+            os.chmod(launcher, 0o755)
+            digest_value = self._runtime_digest(stage_runtime)
+            source_root = (root or Path.cwd()).resolve()
+            code, revision = _command_output(["git", "-c", f"safe.directory={source_root}", "-C", str(source_root), "rev-parse", "HEAD"])
+            command = self._service_command(Path(report["interpreter"]))
+            manifest = {
+                "protocol_version": "1", "service_name": self.service_name, "service_identity": "root",
+                "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
+                "ipc_endpoint": self.ipc_endpoint, "runtime_digest": digest_value,
+                "source_revision": revision.strip() if code == 0 else "", "interpreter": report["interpreter"],
+                "service_command": shlex.join(command), "isolation": ["-I"],
+            }
+            (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            os.chmod(staging / "install.json", 0o644)
+            staging.replace(self.install_root)
+            self.protected_state_location.mkdir(parents=True, exist_ok=False)
+            os.chmod(self.protected_state_location, 0o700)
+            state_created = True
+            unit = "\n".join((
+                "[Unit]", "Description=RepoPact protected admission guard", "After=local-fs.target", "",
+                "[Service]", "Type=simple", "User=root", "Group=users",
+                "RuntimeDirectory=repopact", "RuntimeDirectoryMode=0750",
+                f"ExecStart={shlex.join(command)}", "Restart=on-failure", "RestartSec=1",
+                "NoNewPrivileges=true", "PrivateTmp=true", "ProtectHome=true", "ProtectSystem=strict",
+                f"ReadWritePaths={self.protected_state_location.parent} /run/repopact", "",
+                "[Install]", "WantedBy=multi-user.target", "",
+            ))
+            self.unit_path.write_text(unit, encoding="utf-8")
+            os.chmod(self.unit_path, 0o644)
+            unit_created = True
+            for command_line in ((["systemctl", "daemon-reload"]),
+                                 (["systemctl", "enable", "--now", self.service_name])):
+                code, output = _command_output(command_line)
+                if code != 0:
+                    raise RuntimeError(f"systemd guard activation failed: {output.strip()}")
+            deadline = time.monotonic() + 5
+            attestation = self.attest(root)
+            while not attestation.healthy and time.monotonic() < deadline:
+                time.sleep(0.05)
+                attestation = self.attest(root)
+            if not attestation.healthy:
+                raise RuntimeError("Linux guard started without a healthy attestation: " + attestation.reason)
+            return attestation.record()
+        except Exception:
+            if unit_created:
+                _command_output(["systemctl", "disable", "--now", self.service_name])
+                try:
+                    self.unit_path.unlink()
+                except OSError:
+                    pass
+                _command_output(["systemctl", "daemon-reload"])
+            if state_created:
+                shutil.rmtree(self.protected_state_location, ignore_errors=True)
+            if self.install_root.exists():
+                shutil.rmtree(self.install_root, ignore_errors=True)
+            if staging.exists():
+                shutil.rmtree(staging, ignore_errors=True)
+            raise
+
+    def register(self, root: Path, **kwargs: Any) -> dict[str, Any]:
         if os.name != "posix" or os.geteuid() != 0:
-            raise PrivilegeRequired("Linux guard installation requires root; install a system service and 0600 Unix socket")
-        raise RuntimeError("Linux installer is intentionally explicit: package the protected runtime and systemd unit before enabling it")
+            raise PrivilegeRequired("Linux guard registration requires root")
+        signer = kwargs.get("signer")
+        if signer is None:
+            raise PrivilegeRequired("guard register requires an explicit external operator signer")
+        from .admission import setup_admission, verify_registration
+        if not self.attest(root).healthy:
+            raise PrivilegeRequired("guard must be installed and healthy before repository registration")
+        if verify_registration(root.resolve(), self.protected_state_location).allowed:
+            raise RuntimeError("repository is already registered; explicit rotation/unregister is required")
+        result = setup_admission(root.resolve(), self.protected_state_location, signer, registry_key="adoption")
+        return {"backend": self.name, "root": str(root.resolve()), "status": "registered",
+                **{key: str(value) for key, value in result.items() if key != "signer"}}
+
+    def uninstall(self, **_: Any) -> dict[str, Any]:
+        if os.name != "posix" or os.geteuid() != 0:
+            raise PrivilegeRequired("Linux guard uninstall requires root")
+        _command_output(["systemctl", "disable", "--now", self.service_name])
+        if self.unit_path.exists():
+            self.unit_path.unlink()
+        _command_output(["systemctl", "daemon-reload"])
+        shutil.rmtree(self.install_root, ignore_errors=True)
+        shutil.rmtree(self.protected_state_location, ignore_errors=True)
+        try:
+            Path(self.ipc_endpoint).unlink()
+        except OSError:
+            pass
+        try:
+            Path(self.ipc_endpoint).parent.rmdir()
+        except OSError:
+            pass
+        return {"backend": self.name, "status": "service-removed", "state": str(self.protected_state_location)}
 
 
 class MacOSBackend(PlatformBackend):

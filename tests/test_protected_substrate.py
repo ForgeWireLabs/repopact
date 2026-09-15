@@ -31,6 +31,7 @@ class ProtectedSubstrateTests(unittest.TestCase):
         self.assertTrue(testing.protected)
         self.assertTrue(testing.testing_only)
         self.assertEqual(testing.backend_id, "testing-only-attested-backend")
+        self.assertEqual(testing.security_level, "pre-action")
 
     def test_windows_backend_is_not_covered_before_install(self):
         attestation = WindowsBackend().attest(self.root)

@@ -303,3 +303,27 @@
   dependency failure is non-mutating and leaves `mutations=[]`.
 - Native installation remains unperformed; AC-14, AC-15, AC-16, and AC-18
   remain pending, and Linux/macOS proof remains reserved for their machines.
+
+## 2026-09-15 WI050 closeout tranche
+
+- Authorization requests now enforce each selected profile's
+  `max_duration_seconds` at request construction. A caller-supplied later
+  expiry cannot widen the profile's lease ceiling.
+- Windows attestation now requires the SCM service PID, LocalSystem identity,
+  configured executable, live process image, protected runtime/state parent
+  chains, digest, and ACL checks to agree. Named-pipe client verification also
+  rejects a server whose live image does not match its SCM configuration or
+  whose executable path is not host-protected.
+- Added the provider-neutral Unix listener/service host and made the Unix
+  client verify a root-owned, non-world-writable endpoint plus kernel-reported
+  server peer credentials. The listener refuses to replace a pre-existing
+  endpoint. This is an implementation boundary, not native Linux evidence.
+- The platform conformance runner now executes real process-shaped Python,
+  shell, PowerShell/`cmd` where available, nested-CWD, child-process, and
+  direct-callback denial cases through the explicit testing backend. It records
+  before/after sentinel hashes and labels the result `pre-action`; no
+  process/path confinement claim is derived from this matrix.
+- The live host has no elevated Windows service, ProgramData installation, or
+  WSL2/Linux environment. AC-15, AC-16, and AC-18 therefore remain pending;
+  AC-14 is reconciled by the fresh closeout evidence after the implementation
+  and product-surface audit.

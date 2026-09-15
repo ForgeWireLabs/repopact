@@ -28,7 +28,10 @@ in the repository. Existing protected registration is not silently replaced.
 
 `repopact admission begin --work-item NNN --session ID` creates a canonical
 request. An operator signs that request with the approval CLI in an interactive
-terminal. The guard verifies the receipt and issues a short-lived lease. Every
+terminal. Each request is bounded by the selected profile's
+`max_duration_seconds` ceiling; callers cannot request a longer lease merely by
+supplying a later expiry. The guard verifies the receipt and issues a
+short-lived lease. Every
 mutation, process, repair, or frozen-surface action must present that
 operator-derived lease; only read/orientation and bounded proposed-work or
 approval-request operations are lease-free. Lease paths, scopes, profile, mode,
@@ -71,13 +74,23 @@ operator token and installs the runtime outside the checkout as the
 `RepoPactGuard` LocalSystem service using an authenticated named pipe. The
 follow-up `repopact guard register --root <repo> --key-file <external-key>`
 binds the repository to the service-owned state; private keys remain external.
-`guard uninstall` is likewise elevation-gated. Missing, stopped, tampered, or
-unattested native services fail closed; the session-start launcher does not
-claim arbitrary child path/process confinement.
+`guard uninstall` is likewise elevation-gated. Native Windows health requires
+the running SCM PID, LocalSystem identity, configured executable, live process
+image, protected runtime/state path chain, digest, and ACL checks to agree;
+failure of any fact reports `not-covered`. Missing, stopped, tampered, or
+unattested native services fail closed; the launcher does not claim arbitrary
+child path/process confinement.
 
-Linux uses a system service, restrictive state directory, and authenticated
-Unix socket when installed; macOS uses a protected launch daemon and local IPC.
+Linux's reference service host is `repopact.unix_guard_service`: the service
+manager must run it as root, and `NativeGuardClient` accepts only a root-owned,
+non-world-writable endpoint whose connected peer is root according to
+`SO_PEERCRED` (or the native macOS peer-credential API). The listener refuses
+to replace an existing socket. Linux uses a system service, restrictive state
+directory, and authenticated Unix socket when installed; macOS uses a
+protected launch daemon and local IPC.
 Neither same-user service class is reported as protected without verified host
 ownership. Run `python -m repopact.run_admission_platform_conformance` for the
-portable semantic corpus; `--require-installed` additionally requires the
-native platform guard to be installed and healthy.
+portable semantic corpus and its real-subprocess pre-action denial matrix;
+those testing-only cases prove callback/child admission ordering, not
+arbitrary-process confinement. `--require-installed` additionally requires
+the native platform guard to be installed and healthy.

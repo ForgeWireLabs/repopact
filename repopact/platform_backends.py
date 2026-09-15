@@ -931,14 +931,15 @@ class LinuxBackend(PlatformBackend):
         code, output = _command_output(["systemctl", "is-system-running"])
         checks["systemd_running"] = code == 0 and output.strip() in {"running", "degraded"}
         source_root = root.resolve() if root is not None else Path.cwd().resolve()
-        code, output = _command_output(["git", "-C", str(source_root), "status", "--porcelain", "--untracked-files=all"])
+        git = ["git", "-c", f"safe.directory={source_root}", "-C", str(source_root)]
+        code, output = _command_output(git + ["status", "--porcelain", "--untracked-files=all"])
         checks["source_tree_clean"] = code == 0 and not output.strip()
         try:
             canonical_interpreter = requested.resolve(strict=True)
             checks["interpreter_protected"] = _unix_protected_path(canonical_interpreter)[0]
         except (OSError, ValueError):
             canonical_interpreter = requested.absolute()
-        revision_code, revision = _command_output(["git", "-C", str(source_root), "rev-parse", "HEAD"])
+        revision_code, revision = _command_output(git + ["rev-parse", "HEAD"])
         command = self._service_command(canonical_interpreter) if canonical_interpreter.is_file() else []
         ready = all(checks.values())
         return {
@@ -1048,7 +1049,7 @@ class LinuxBackend(PlatformBackend):
             os.chmod(launcher, 0o755)
             digest_value = self._runtime_digest(stage_runtime)
             source_root = (root or Path.cwd()).resolve()
-            code, revision = _command_output(["git", "-C", str(source_root), "rev-parse", "HEAD"])
+            code, revision = _command_output(["git", "-c", f"safe.directory={source_root}", "-C", str(source_root), "rev-parse", "HEAD"])
             command = self._service_command(Path(report["interpreter"]))
             manifest = {
                 "protocol_version": "1", "service_name": self.service_name, "service_identity": "root",

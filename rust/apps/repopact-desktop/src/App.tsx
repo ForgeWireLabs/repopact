@@ -19,6 +19,7 @@ import type {
 import { LIFECYCLE_STATUSES } from "./generated/types";
 import { desktopApi, type DesktopFailure } from "./lib/api";
 import { GraphOperatorMap } from "./GraphOperatorMap";
+import { MobileAcquisitionPanel } from "./MobileAcquisitionPanel";
 
 /**
  * WI060 AND-011: the Android system-Back unwind order, factored out as a
@@ -404,6 +405,14 @@ function App() {
     }
   };
 
+  // WI065 Checkpoint B: a mobile workspace was opened through
+  // `mobile_workspace_open` (an opaque workspace id, never a path) --
+  // reuses the exact same view-loading path desktop's `select_repository`
+  // already uses, since DesktopService/RepositorySession are unchanged.
+  const onMobileWorkspaceOpened = async (overview: RepositoryOverview) => {
+    await loadViews(overview, true);
+  };
+
   const refresh = async () => {
     setBusy(true);
     setError("");
@@ -566,7 +575,7 @@ function App() {
         </nav>
         {navOpen && <button className="nav-scrim" type="button" aria-label="Close navigation" onClick={() => setNavOpen(false)} />}
         <main className="main-content" tabIndex={-1}>
-          {!overview ? <EmptyRepository onSelect={selectRepository} busy={busy} /> : <>
+          {!overview ? <EmptyRepository onSelect={selectRepository} busy={busy} onMobileWorkspaceOpened={onMobileWorkspaceOpened} /> : <>
             <div className="page-heading"><div><p className="eyebrow">ACTIVE REPOSITORY</p><h2>{primaryTabs.find((item) => item.id === tab)?.label}</h2><p className="muted path-text">{overview.identity.root}{overview.identity.linked_worktree ? " · linked Git worktree" : ""}</p></div><span className={overview.validation.valid ? "health-pill healthy" : "health-pill unhealthy"}>{overview.validation.valid ? "Validated" : "Needs attention"}</span></div>
             {tab === "dashboard" && <Dashboard overview={overview} value={sectionTabs.dashboard as DashboardTab} onChange={(value) => setSectionTab("dashboard", value)} onOpen={navigate} />}
             {tab === "work" && <WorkPage items={workItems} query={workQuery} setQuery={(value) => { setWorkQuery(value); setSectionPage("work", 0); }} selected={selectedWork} value={sectionTabs.work as WorkTab} onChange={(value) => setSectionTab("work", value)} page={pages.work} onPageChange={(value) => setSectionPage("work", value)} compact={compact} detail={detail?.kind === "work" ? detail : null} onOpen={openWorkItem} onBack={() => setDetail(null)} onPlan={submitPlan} />}
@@ -586,8 +595,8 @@ function App() {
   );
 }
 
-function EmptyRepository({ onSelect, busy }: { onSelect: () => void; busy: boolean }) {
-  return <section className="empty-state"><div className="empty-icon" aria-hidden="true">◎</div><p className="eyebrow">START A SESSION</p><h2>Select a repository to begin</h2><p>RepoPact keeps repository reads, validation, graph analysis, and approved typed changes behind a Rust-owned desktop session.</p><button className="primary-button" onClick={onSelect} disabled={busy}>Choose repository</button></section>;
+function EmptyRepository({ onSelect, busy, onMobileWorkspaceOpened }: { onSelect: () => void; busy: boolean; onMobileWorkspaceOpened: (overview: RepositoryOverview) => void | Promise<void> }) {
+  return <section className="empty-state"><div className="empty-icon" aria-hidden="true">◎</div><p className="eyebrow">START A SESSION</p><h2>Select a repository to begin</h2><p>RepoPact keeps repository reads, validation, graph analysis, and approved typed changes behind a Rust-owned desktop session.</p><button className="primary-button" onClick={onSelect} disabled={busy}>Choose repository</button><MobileAcquisitionPanel onWorkspaceOpened={onMobileWorkspaceOpened} /></section>;
 }
 
 function Dashboard({ overview, value, onChange, onOpen }: { overview: RepositoryOverview; value: DashboardTab; onChange: (value: DashboardTab) => void; onOpen: (tab: PrimaryTab) => void }) {

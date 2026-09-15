@@ -888,7 +888,7 @@ class LinuxBackend(PlatformBackend):
         super().__init__("linux-system-service", "linux", location or Path("/var/lib/repopact/registrations"))
         object.__setattr__(self, "service_name", "repopact-guard.service")
         object.__setattr__(self, "ipc_endpoint", "/run/repopact/guard.sock")
-        object.__setattr__(self, "runtime_path", Path("/usr/local/lib/repopact/guard"))
+        object.__setattr__(self, "runtime_path", Path("/usr/local/lib/repopact/guard/runtime"))
         object.__setattr__(self, "install_root", Path("/usr/local/lib/repopact/guard"))
         object.__setattr__(self, "manifest_path", Path("/usr/local/lib/repopact/guard/install.json"))
         object.__setattr__(self, "unit_path", Path("/etc/systemd/system") / self.service_name)

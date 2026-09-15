@@ -179,9 +179,9 @@
     "protected_root_claim": "not natively proven"
   },
   "finalization": {
-    "authoritative_main_sha": null,
-    "authoritative_main_tree": null,
+    "authoritative_main_sha": "ba7c79496003707aa141f9a64da62f77cb450194",
+    "authoritative_main_tree": "1f657c11a6f88a4cb5a7de63e0414ae0c9226b5d",
     "working_tree_clean_and_synchronized": false,
-    "note": "This progress record is completed after final validation, main integration, remote verification, and restoration of the preserved unrelated user work."
+    "note": "The green WI050 integration is authoritative at ba7c79496003707aa141f9a64da62f77cb450194; the working tree deliberately retains the unrelated user changes restored after integration."
   }
 }

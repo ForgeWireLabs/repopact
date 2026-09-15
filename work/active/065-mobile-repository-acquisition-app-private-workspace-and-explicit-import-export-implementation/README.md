@@ -168,18 +168,74 @@ full record of each):
   primary AC-5 requirement -- one complete, valid plan/review/apply cycle
   proven through the real UI -- was already fully satisfied. See
   `evidence/runs/20260915-065-checkpoint-c-android-mutation-cycle.json`.
-- **Checkpoint D (export/share-back wiring, including the typed export
-  commands AC-7 also requires), Checkpoint E (adversarial device tests +
-  final closeout) — not started.**
+- **Checkpoint D — done, explicit SAF export/share-back and product
+  cancellation UX.** Added a platform-neutral `ExportSink`/`ExportFileWriter`
+  pair (`repopact-mobile-acquisition::sink`) mirroring `AcquisitionSource`'s
+  layering exactly, an `export_tree` walker with the same bounds/path-safety/
+  cancellation/progress discipline as import (`export.rs`), and a
+  non-cryptographic `SourceStatus` divergence check (`divergence.rs`) that
+  compares a fresh, read-only re-listing against the import-time
+  `SourceFingerprint`. On Android, a real `AndroidExportSink` stages each
+  file locally and uploads it to a SAF destination only in `finish()`,
+  exactly mirroring the import-side staging-file pattern; a new export root
+  is always created fresh beneath a picked parent (Decision 0057 §6/§7),
+  never writing into an arbitrary pre-existing tree, with a typed
+  `export_conflict` when a same-named child already exists. Three real
+  defects were found and fixed by the first genuine build/on-device
+  attempts (not fabricated): a missing `uuid` dependency in
+  `repopact-mobile-saf`'s own `Cargo.toml`; the four new `mobile_*` export
+  commands being registered in `invoke_handler` but missing from the Tauri
+  capability's `commands.allow` list (a real `not allowed` runtime error on
+  the first on-device tap); and a cosmetic double-extension
+  (`saf-fixture.zip.zip`) in the suggested archive-export filename for a
+  workspace whose display name already ended in `.zip`. All three fixed,
+  rebuilt, reinstalled, and reverified.
 
-AC-1, AC-2, AC-3, AC-4, and now AC-5 are `satisfied` in `work-item.json`,
-backed by the real on-device evidence above. AC-7 stays `pending`: its
-exact wording requires the mobile command surface to expose typed
-**export** operations too, and those belong to Checkpoint D, not yet built.
-AC-6, AC-8, and AC-9 stay `pending` as Checkpoint D/E's job outright (AC-8
-in particular still needs export/share-back runtime proof on top of this
-checkpoint's mutation-apply proof). This work item stays `active` rather
-than being closed against partial evidence.
+  Real on-device proof: a 400-file directory export (`cancel-fixture`)
+  through the real `ACTION_OPEN_DOCUMENT_TREE` picker, with the app-private
+  workspace, the new SAF export, and the original external source all
+  hashing identically (`3e32e0bd…`) — full-fidelity, no silent write-back.
+  The strongest available proof reused Checkpoint C's mutated workspace: the
+  original external source stayed at its original hash (`430c135a…`), the
+  app-private workspace stayed at its mutated hash (`1b0d7f9e…`), and the
+  freshly exported SAF copy matched the *mutated* hash exactly — all three
+  Decision 0056 boundaries proven in one export. Archive export was proven
+  for both acquisition kinds: a directory-imported workspace exported as a
+  new ZIP (content diffed byte-for-byte against the app-private tree, no
+  registry/local-metadata leakage), and the one archive-imported workspace
+  (`saf-fixture.zip`) exported as a fresh archive too, closing AC-6's
+  "both... acquisition kinds" requirement. A real destination-name conflict
+  (re-exporting into an existing export root) surfaced the typed
+  `ExportConflict` live, with no silent merge. `MobileAcquisitionPanel.tsx`
+  now shows Open/Export folder/Export ZIP/Check source (`saf_directory`
+  only)/Remove local copy per workspace, an export-state badge, and — closing
+  the real product gap Checkpoint B.5 found — a live progress line and a
+  working **Cancel** button whenever any operation is running, verified live
+  and tappable during a real 2000-file import. **Honest gap:** despite four
+  genuine real-device attempts (two directory exports, two directory
+  imports, the largest practical fixture within this session), every
+  attempt's own operation completed before this turn-based session's
+  screenshot/tap round-trip could land the Cancel tap mid-flight — a
+  limitation of this testing methodology's latency, not of the Cancel
+  mechanism itself, which is independently proven at the host-test level and
+  was directly observed live and tappable. No source change was needed
+  anywhere in `DesktopService`, `RepositorySession`, `RepositoryTopology`,
+  or the mutation engine. Post-session permission and log-privacy audits
+  stayed clean. An unrelated host-emulator (qemu) crash and restart occurred
+  mid-session; all workspaces survived except the mutation-carrying one
+  (lost at the emulator's own storage layer, not through any RepoPact code
+  path) — its export proof above was already captured and recorded before
+  the crash. See
+  `evidence/runs/20260915-065-checkpoint-d-android-export-shareback.json`.
+- **Checkpoint E (adversarial device tests + final closeout) — not
+  started.**
+
+AC-1 through AC-8 are now `satisfied` in `work-item.json`, backed by the
+real on-device evidence above. AC-9 stays `pending`: the future embedded-Git
+seam already exists structurally in the registry/command-surface shape, but
+allocating the Stage-2 follow-up work item is Checkpoint E/closeout's job,
+not this one's. This work item stays `active` rather than being closed
+against partial evidence.
 
 ## Scope
 

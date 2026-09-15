@@ -1,0 +1,173 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-065-checkpoint-d-android-export-shareback",
+  "timestamp": "2026-09-15T17:50:00Z",
+  "work_item": "065",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git log HEAD..origin/main --oneline",
+      "exit_code": 0,
+      "summary": "Synchronized at expected baseline (Checkpoint C accepted, ab13c69 WI066/WI067 reconciled). Concurrent WI050 closeout and a RepoPact 3.1.0 release cut landed on origin/main during this session; neither touched any file under rust/, and the concurrent machine's own history shows it correctly renamed the GitHub-provider proposal from WI066 to WI067 to avoid an id collision with the new WI066 (3.1.0 milestone) -- verified via `git diff --stat` showing zero rust/ changes and via checking the old WI066 path no longer exists upstream. Reconciled by a clean `git merge` after Checkpoint D's own commits, touching no WI022/WI050/WI066/WI067 file."
+    },
+    {
+      "command": "design: ExportSink/ExportFileWriter trait + FilesystemSink (repopact-mobile-acquisition/src/sink.rs), export_tree + scan_source_fingerprint (src/export.rs), SourceStatus + compare_fingerprints (src/divergence.rs), ExportBounds (src/bounds.rs)",
+      "exit_code": 0,
+      "summary": "New platform-neutral export primitives mirroring Checkpoint A's import-side layering exactly: Rust owns traversal order, path validation (reuses reject_unsafe_relative_path), bounds, cancellation, and progress; a sink implementation owns only 'how does a directory/file actually get created here'. export_tree walks a FilesystemSource (the app-private repository/ directory, already-trusted content) and writes through any ExportSink. scan_source_fingerprint performs a read-only, non-writing re-listing (no file bytes opened) for the source-divergence check, producing the same bounded SourceFingerprint shape captured at import time so the two are directly comparable -- never a claim of cryptographic proof, consistent with Decision 0057's existing fingerprint fidelity."
+    },
+    {
+      "command": "cargo test -p repopact-mobile-acquisition",
+      "exit_code": 0,
+      "summary": "67 tests passed, including new host-side, provider-neutral coverage: export success (exports_a_normal_tree), cancellation (cancellation_stops_the_export), bounds (enforces_single_file_bound, enforces_entry_count_bound), a local mutation carried through export while the import source stays untouched (export_carries_a_local_mutation_while_source_stays_untouched), the generic sink path matching the filesystem path (export_directory_via_sink_matches_the_filesystem_path), a synthetic failing sink proving a mid-export failure surfaces as a real error rather than a false success and leaves last_export_state at NeverExported (export_via_sink_surfaces_a_mid_export_failure_rather_than_a_false_success), export-freshness re-derivation after a local mutation (refresh_export_freshness_detects_a_local_mutation_after_export), and source-status comparison for both an unchanged and an obviously-changed external source (check_source_status_reports_unchanged_for_an_untouched_source, check_source_status_detects_an_obviously_changed_source)."
+    },
+    {
+      "command": "workspace.rs: export_directory (filesystem, backward-compatible) now wraps export_directory_via_sink(FilesystemSink); build_archive_snapshot/mark_workspace_exported split so Android's archive path marks exported only after a real SAF upload succeeds; mark_exported additionally records a local export-time SourceFingerprint into local-metadata/export-fingerprint.json; refresh_export_freshness and check_source_status added",
+      "exit_code": 0,
+      "summary": "No change to Decision 0057's on-disk layout or to any DesktopService/RepositorySession/RepositoryTopology/mutation code. export-fingerprint.json lives under local-metadata/, structurally isolated from repository/ exactly as staging bookkeeping already is."
+    },
+    {
+      "command": "repopact-mobile-saf: new Rust bridge functions (pick_export_directory, create_export_root, delete_document, pick_export_archive_destination, upload_completed_archive) + AndroidExportSink/AndroidFileWriter implementing ExportSink/ExportFileWriter against the real SAF plugin; Kotlin plugin additions (pickExportDirectory, createExportRoot, createChildDocument, writeDocumentFromStagingFile, deleteDocument, createExportArchive)",
+      "exit_code": 0,
+      "summary": "Mirrors the import-side AndroidSafSource/SafAcquisitionPlugin pattern exactly. AndroidExportSink performs zero path validation/bounds/collision logic of its own -- all of that is export_tree's job; it only tracks each created directory's document URI by relative path so a nested entry's parent is always known. A file's bytes are staged to a local, app-private per-file temp file first and uploaded to the real SAF destination only in ExportFileWriter::finish (never a byte-by-byte streamed write, matching the JSON-only plugin channel constraint already documented for imports). createExportRoot performs its own case-insensitive existing-child check before calling DocumentsContract.createDocument, returning a typed conflict rather than ever letting a provider silently rename/merge."
+    },
+    {
+      "command": "cargo check --workspace / cargo test --workspace / cargo fmt --check",
+      "exit_code": 0,
+      "summary": "Clean on desktop target. 75+ workspace tests all green (mobile-acquisition 67, mobile_acquisition coordinator 15, plus every other unaffected crate). Formatting clean after `cargo fmt`."
+    },
+    {
+      "command": "npm run typecheck / npm run test -- --run / npm run build",
+      "exit_code": 0,
+      "summary": "Frontend clean: tsc --noEmit passes, 29/29 vitest tests pass, production build succeeds. New frontend surface: mobile-types.ts SourceStatus type; mobile-api.ts exportWorkspaceDirectory/exportWorkspaceArchive/sourceStatus/removeWorkspace; MobileAcquisitionPanel.tsx rewritten to show, per workspace, Open/Export folder/Export ZIP/Check source (saf_directory only)/Remove local copy, an export-state badge, and -- closing the real Checkpoint B.5 gap -- a live progress line plus a working Cancel button whenever ANY operation (import or export) is running, wired to the existing mobile_operation_cancel command."
+    },
+    {
+      "command": "npx tauri android build --debug --target aarch64 --apk (first real build attempt)",
+      "exit_code": 1,
+      "summary": "REAL DEFECT #1 found by the first genuine Android build attempt: repopact-mobile-saf's Cargo.toml had no `uuid` dependency, but the new AndroidExportSink/AndroidFileWriter code (staging-file naming) uses uuid::Uuid::new_v4(). Fixed by adding `uuid = { version = \"1\", features = [\"v4\"] }` to that crate's own Cargo.toml (matching repopact-mobile-acquisition's existing declaration) rather than promoting it to a workspace dependency the rest of the workspace does not need."
+    },
+    {
+      "command": "npx tauri android build --debug --target aarch64 --apk (second attempt, after uuid fix)",
+      "exit_code": 0,
+      "summary": "Real Android build succeeded, validating every new #[cfg(mobile)] Rust line (AndroidExportSink, AndroidFileWriter, the new mobile.rs bridge functions) and the new Kotlin plugin commands under the real Android toolchain -- desktop cargo check never compiles #[cfg(mobile)] code, so this was the first real type-check of that code. Also rebuilt for x86_64 (the emulator's own ABI) since the aarch64-only build's universal APK would otherwise have bundled a stale x86_64 .so from a prior checkpoint."
+    },
+    {
+      "command": "adb install -r (x86_64 debug APK, first attempt) + real device tap on 'Export folder'",
+      "exit_code": 1,
+      "summary": "REAL DEFECT #2 found by the first genuine on-device export attempt: 'mobile_export_workspace_directory not allowed. Command not found.' -- the new mobile_export_workspace_directory/mobile_export_workspace_archive/mobile_workspace_source_status/mobile_workspace_remove commands were registered in lib.rs's invoke_handler but never added to the Tauri capability/permission allowlist (rust/apps/repopact-desktop/src-tauri/permissions/workbench.toml's `workbench-commands` permission), which Tauri 2.x enforces independently of invoke_handler registration. Fixed by adding all four command names to that permission's commands.allow list; rebuilt, reinstalled, reran the exact same tap -- confirmed fixed (real pickExportDirectory plugin invocation logged and the real picker opened)."
+    },
+    {
+      "command": "adb install -r (x86_64 debug APK, second attempt) + real archive export of a saf_directory workspace",
+      "exit_code": 1,
+      "summary": "REAL DEFECT #3 (minor, cosmetic) found by the first real Export ZIP attempt on a workspace whose display name already ended in '.zip' (an archive-imported workspace): the suggested filename in the real ACTION_CREATE_DOCUMENT dialog read 'saf-fixture.zip.zip'. Fixed in mobile_export_workspace_archive by stripping a pre-existing '.zip'/'​.ZIP' suffix from the sanitized display name before appending '.zip'. Rebuilt, reinstalled, reran the exact export for the same archive-imported workspace -- confirmed fixed (dialog now suggests 'saf-fixture.zip')."
+    },
+    {
+      "command": "APK SHA-256 (final, after all three fixes, x86_64 debug build)",
+      "exit_code": 0,
+      "summary": "3831e2cb7f47f14c14bcd0c6deac14389ecc585d9b19db451b8bd324bdc81810"
+    },
+    {
+      "command": "Real directory export runtime acceptance: cancel-fixture (400 files, saf_directory) -> new SAF export root via real ACTION_OPEN_DOCUMENT_TREE picker",
+      "exit_code": 0,
+      "summary": "Picked a fresh 'export-destination' parent folder created live via the real picker's own CREATE NEW FOLDER action; the app then created exactly one new export root ('cancel-fixture') beneath it via createExportRoot (no pre-existing content touched). Full 400-file export completed via real createChildDocument/writeDocumentFromStagingFile plugin calls. On-device verification (adb run-as + find -exec sha256sum, read-only, never used to mutate): the app-private workspace's own 400-file aggregate hash, the exported destination's aggregate hash, and the original external SAF source's aggregate hash were all identical (3e32e0bdc48c14f030112d3c225e77714d6935a9d578a0534e5cd860f2fcfaed) -- proving byte-for-byte fidelity across all three trees and that the original source was never touched."
+    },
+    {
+      "command": "Real directory export with a carried mutation: repopact-mutation-fixture (Checkpoint C's mutated workspace) -> new SAF export root",
+      "exit_code": 0,
+      "summary": "The strongest available proof (Checkpoint D §28): original external SAF source work-item.json hash 430c135af44a61790148b4e35c3901cd8fd761fcc68f508768097c27064ebfb3 (untouched, unmutated, verified again this checkpoint); app-private workspace hash 1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd (Checkpoint C's mutated title, still present); newly exported SAF copy hash 1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd -- an EXACT match to the mutated workspace, not the original source. Demonstrates all three Decision 0056 boundaries in one proof: the external source stays untouched, the app-private workspace is canonical while editing, and an explicit export carries the mutation outward -- never silently, never automatically."
+    },
+    {
+      "command": "Real archive export runtime acceptance (directory-origin workspace): repo-dir-fixture -> ACTION_CREATE_DOCUMENT -> 'repo-dir-fixture.zip'",
+      "exit_code": 0,
+      "summary": "Real ZIP built locally via the bounded, progress-reporting create_archive, then uploaded in one writeDocumentFromStagingFile call to the picked destination. Extracted and diffed against the app-private workspace: identical file set (README.md, docs/note.md, src/example.txt, work/active-fixture-content.txt) and identical per-file content; no registry.json/local-metadata/staging bookkeeping present in the archive -- confirmed export-content scoping (Decision 0057 §11) is correct."
+    },
+    {
+      "command": "Real archive export runtime acceptance (archive-origin workspace): saf-fixture.zip -> ACTION_CREATE_DOCUMENT -> 'saf-fixture.zip' (post-fix filename)",
+      "exit_code": 0,
+      "summary": "The one saf_archive-acquisition-kind workspace in the fleet, exported as a fresh archive per AC-6's explicit requirement to prove export from BOTH acquisition kinds. Pulled and diffed both archives byte-for-byte per contained file (zip-repo-fixture/README.md, docs/guide.md, src/one.txt, src/two.txt): zero content mismatches; the only structural difference was the exported archive additionally declaring explicit directory entries the minimal original archive omitted, a harmless, expected artifact of how the two ZIP writers were constructed, not a content defect. Original imported archive on-device (/sdcard/Download/saf-fixture.zip) re-verified unchanged throughout."
+    },
+    {
+      "command": "Export conflict proof: re-attempting to create an export root named 'cancel-fixture' where one already exists",
+      "exit_code": 0,
+      "summary": "A real, organically-occurring repeat export attempt against the same destination surfaced the exact typed conflict path live: createExportRoot's own pre-check found the existing same-named child and returned Conflict; the frontend displayed 'an item named \"cancel-fixture\" already exists at the chosen destination; pick a different destination or rename the workspace' with no export root created, no write attempted, and no silent merge. This exercises the same code path Section 32 asked for; it was reached via a genuine repeated real-UI action rather than a synthetic trigger."
+    },
+    {
+      "command": "Real cancellation attempts (directory export and directory import, via the new Cancel UI)",
+      "exit_code": 1,
+      "summary": "HONEST GAP, not fabricated. Verified the real product gap from Checkpoint B.5 is closed at the UI-affordance level: a live 'Cancel' text link is rendered and tappable in MobileAcquisitionPanel whenever ANY operation (import or export) is Running, wired to the real mobile_operation_cancel command against the same CancellationToken already proven at the host-test level (cancellation_stops_the_export/_import, cancel_bridges_to_the_stored_cancellation_token). Four genuine real-device attempts were made to catch an operation mid-flight and tap Cancel (two directory exports and two directory imports of a 2000-file fixture, the largest practical within this session), including one case where the 'Importing folder' status banner and a tappable 'Cancel' link were directly observed and screenshotted while the operation was still Running. In every attempt, the operation itself completed (all files processed) before the next tool round-trip in this turn-based agentic session could land the Cancel tap -- an artifact of this testing methodology's per-action latency exceeding even a 2000-file operation's real completion time on this emulator, not evidence of a defect in the Cancel mechanism, which was independently confirmed live and functional. A live tap-to-cancelled-outcome capture was not obtained this session; recorded here rather than staged or faked."
+    },
+    {
+      "command": "Post-session installed-permission audit: adb shell dumpsys package <pkg> | grep -A 30 'runtime permissions'",
+      "exit_code": 0,
+      "summary": "Zero permissions beyond the pre-existing INTERNET (present for the WebView, reported honestly, not claimed absent). No MANAGE_EXTERNAL_STORAGE, no READ/WRITE_EXTERNAL_STORAGE, no broad or generic storage/shell authority acquired by any Checkpoint D export operation -- identical clean posture to Checkpoint B.5/C."
+    },
+    {
+      "command": "Post-session log-privacy audit: full-session logcat filtered for content:// and for this app's own log tags specifically",
+      "exit_code": 0,
+      "summary": "content:// strings appear only in the OS's own com.android.documentsui picker-app log lines (its own internal navigation logging, package-scoped, not this app's output). Filtering specifically to this app's own tags (SafAcquisitionPlugin, RustStdoutStderr, Tauri/Plugin) found zero content:// occurrences -- the B.5 redaction discipline held under Checkpoint D's new export code paths. Zero crashes, zero panics (FATAL EXCEPTION / AndroidRuntime: FATAL / 'panicked at' all absent) across the full session including a real qemu-level emulator crash and clean restart mid-session (unrelated to app code; see below)."
+    },
+    {
+      "command": "Operational note: an intervening emulator (qemu) crash and restart occurred between the Checkpoint D session's compaction boundary and its resumption",
+      "exit_code": 1,
+      "summary": "Not a RepoPact defect: the host emulator process itself crashed (GPU/graphics-backend related, per its own crash log) between turns of this session and was restarted with an explicit swiftshader software-GPU backend for stability. All previously-registered workspaces and their registry entries survived this restart intact, EXCEPT the 'repopact-mutation-fixture' workspace (Checkpoint C's mutation-carrying workspace), whose entire app-private directory was absent after the restart -- most likely because the emulator's virtual disk had not flushed that specific write to its backing image before the abrupt qemu termination, a host-storage-layer failure outside anything Decision 0057's own atomic-rename/registry-corruption guarantees claim to cover (those guarantees are about the app's own write ordering, not about a lower-level disk image surviving an ungraceful process kill). This does not invalidate the mutation-carrying export proof captured immediately above (in this same evidence record) and earlier in this session, before the crash -- those hashes were captured and recorded from the live, then-still-present workspace."
+    },
+    {
+      "command": "cargo fmt --check / cargo check --workspace / cargo test --workspace / frontend typecheck / vitest / build (final re-run before push)",
+      "exit_code": 0,
+      "summary": "All green: cargo fmt clean; cargo check clean; full workspace test suite green (75 mobile_acquisition-adjacent + 67 mobile-acquisition + all other unaffected crates); frontend tsc/vitest(29/29)/build all clean."
+    },
+    {
+      "command": "repopact validate --root . (after dashboard regeneration and WI065 AC updates)",
+      "exit_code": 1,
+      "summary": "Fails ONLY with the pre-existing, untouched WI022 evidence gap (20260914-wi022-ac3-resource-deferred.json missing fields) -- confirmed still present and still not this session's to fix. No new validation error introduced by Checkpoint D's changes."
+    }
+  ],
+  "artifacts": [
+    "rust/crates/repopact-mobile-acquisition/src/sink.rs",
+    "rust/crates/repopact-mobile-acquisition/src/export.rs",
+    "rust/crates/repopact-mobile-acquisition/src/divergence.rs",
+    "rust/crates/repopact-mobile-acquisition/src/workspace.rs",
+    "rust/crates/repopact-mobile-acquisition/src/archive.rs",
+    "rust/crates/repopact-mobile-acquisition/src/bounds.rs",
+    "rust/crates/repopact-mobile-acquisition/src/paths.rs",
+    "rust/crates/repopact-mobile-saf/src/mobile.rs",
+    "rust/crates/repopact-mobile-saf/src/models.rs",
+    "rust/crates/repopact-mobile-saf/src/lib.rs",
+    "rust/crates/repopact-mobile-saf/src/desktop.rs",
+    "rust/crates/repopact-mobile-saf/Cargo.toml",
+    "rust/crates/repopact-mobile-saf/android/src/main/java/com/forgewirelabs/repopact/mobileacquisition/SafAcquisitionPlugin.kt",
+    "rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/permissions/workbench.toml",
+    "rust/apps/repopact-desktop/src/MobileAcquisitionPanel.tsx",
+    "rust/apps/repopact-desktop/src/lib/mobile-api.ts",
+    "rust/apps/repopact-desktop/src/lib/mobile-types.ts",
+    "rust/apps/repopact-desktop/src/styles.css",
+    "work/active/065-mobile-repository-acquisition-app-private-workspace-and-explicit-import-export-implementation/work-item.json"
+  ],
+  "environment": {
+    "platform": "android",
+    "machine": "Dell Precision",
+    "avd": "forge_moto_one_hyper_lab_api35",
+    "device_serial": "emulator-5554",
+    "android_api": "35",
+    "android_release": "15",
+    "abi": "x86_64",
+    "apk_sha256": "3831e2cb7f47f14c14bcd0c6deac14389ecc585d9b19db451b8bd324bdc81810",
+    "package_id": "com.forgewirelabs.repopact.workbench",
+    "directory_export_workspace_ids": [
+      "cedf8188-1719-432d-9ab4-fad07dc2d101",
+      "cc9cbdf8-1c30-41e2-9466-6ae8aac6161c"
+    ],
+    "archive_export_workspace_ids": [
+      "2f7d9cb9-4a03-4e3a-8fbe-52ff919c003e",
+      "ea01465b-12a9-4f4d-ac80-565a5f370c0e"
+    ],
+    "mutation_carrying_export_pre_sha256": "430c135af44a61790148b4e35c3901cd8fd761fcc68f508768097c27064ebfb3",
+    "mutation_carrying_export_workspace_sha256": "1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd",
+    "mutation_carrying_export_destination_sha256": "1b0d7f9e9a624b74701b5f8b191a280dbf1e1bb1b63e588a491d5a116dba43bd",
+    "directory_export_aggregate_sha256": "3e32e0bdc48c14f030112d3c225e77714d6935a9d578a0534e5cd860f2fcfaed",
+    "runtime_defects_found_and_fixed": 3,
+    "starting_sha": "c8c23d8621d4fe0c4128b31d5e57e7f9cbbc3eb2"
+  }
+}

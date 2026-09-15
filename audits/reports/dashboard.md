@@ -21,7 +21,7 @@
 
 | Status | Count |
 | --- | ---: |
-| proposed | 2 |
+| proposed | 3 |
 | active | 7 |
 | blocked | 1 |
 | deferred | 0 |

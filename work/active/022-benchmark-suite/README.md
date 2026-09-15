@@ -296,3 +296,25 @@ with the full report in the published Proving Ground repository at
 **0 model calls in this session.** Comparative inference has not started. AC-3
 remains pending until the separate live comparative programme is authorized and
 executed.
+
+## Current prospective model-family registration after amendment (2026-09-14)
+
+The active prospective AC-3 pair is now unambiguously:
+
+* `gpt-5.6 / openai / gpt-5.6-luna`
+* `claude-sonnet-5 / anthropic / claude-sonnet-5`
+
+This is protocol amendment `2026-09-14.ac3-model-family-amendment.1`, frozen before
+any registered model-dependent AC-3 comparative cell was executed. The prior
+`gpt-6/openai/gpt-6-astra` admission and preflight material above remain immutable
+historical evidence; Astra is not an active prospective participant. The amendment
+changes only the second model/provider/runtime family. Task sets, cases, conditions,
+repetitions, seeds, scorers, frozen corpus, S4/S5 methods, analysis plan, paired
+statistics, uncertainty/multiplicity/missing-run/stopping rules, S2 beds, S3 topology,
+and S6 graders are unchanged.
+
+The explicit limitation is: **Model family is confounded with provider/agent runtime in
+the cross-family comparison. Within-family baseline-vs-RepoPact treatment comparisons
+remain matched because each family's arms use the same provider/runtime configuration.**
+No absolute Luna-vs-Sonnet difference is a pure model-family effect. AC-3 remains
+pending and comparative execution remains resource-deferred.

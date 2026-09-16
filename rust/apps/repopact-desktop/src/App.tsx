@@ -20,6 +20,7 @@ import { LIFECYCLE_STATUSES } from "./generated/types";
 import { desktopApi, type DesktopFailure } from "./lib/api";
 import { GraphOperatorMap } from "./GraphOperatorMap";
 import { MobileAcquisitionPanel } from "./MobileAcquisitionPanel";
+import { RemoteRepositoryPanel } from "./RemoteRepositoryPanel";
 
 /**
  * WI060 AND-011: the Android system-Back unwind order, factored out as a
@@ -596,7 +597,7 @@ function App() {
 }
 
 function EmptyRepository({ onSelect, busy, onMobileWorkspaceOpened }: { onSelect: () => void; busy: boolean; onMobileWorkspaceOpened: (overview: RepositoryOverview) => void | Promise<void> }) {
-  return <section className="empty-state"><div className="empty-icon" aria-hidden="true">◎</div><p className="eyebrow">START A SESSION</p><h2>Select a repository to begin</h2><p>RepoPact keeps repository reads, validation, graph analysis, and approved typed changes behind a Rust-owned desktop session.</p><button className="primary-button" onClick={onSelect} disabled={busy}>Choose repository</button><MobileAcquisitionPanel onWorkspaceOpened={onMobileWorkspaceOpened} /></section>;
+  return <section className="empty-state"><div className="empty-icon" aria-hidden="true">◎</div><p className="eyebrow">START A SESSION</p><h2>Select a repository to begin</h2><p>RepoPact keeps repository reads, validation, graph analysis, and approved typed changes behind a Rust-owned desktop session.</p><button className="primary-button" onClick={onSelect} disabled={busy}>Choose repository</button><RemoteRepositoryPanel /><MobileAcquisitionPanel onWorkspaceOpened={onMobileWorkspaceOpened} /></section>;
 }
 
 function Dashboard({ overview, value, onChange, onOpen }: { overview: RepositoryOverview; value: DashboardTab; onChange: (value: DashboardTab) => void; onOpen: (tab: PrimaryTab) => void }) {

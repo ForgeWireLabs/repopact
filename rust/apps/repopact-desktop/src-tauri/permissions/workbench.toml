@@ -31,5 +31,16 @@ commands.allow = [
   "mobile_export_workspace_directory",
   "mobile_export_workspace_archive",
   "mobile_workspace_source_status",
-  "mobile_workspace_remove"
+  "mobile_workspace_remove",
+  "remote_provider_capabilities",
+  "remote_connections",
+  "remote_connect_start",
+  "remote_connect_status",
+  "remote_connect_cancel",
+  "remote_open_verification_url",
+  "remote_disconnect",
+  "remote_accounts",
+  "remote_repositories",
+  "remote_repository_refs",
+  "remote_resolve_ref"
 ]

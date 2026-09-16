@@ -855,8 +855,12 @@ class WindowsBackend(PlatformBackend):
             staging.replace(self.install_root)
             commands = [["icacls", str(self.install_root), "/inheritance:r"],
                         ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
-                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"]]
+                        # Set ownership before the explicit deny. The deny
+                        # includes WRITE_OWNER/WRITE_DAC and would otherwise
+                        # prevent an elevated administrator from completing
+                        # the ownership transition or rolling back safely.
+                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"],
+                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"]]
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")

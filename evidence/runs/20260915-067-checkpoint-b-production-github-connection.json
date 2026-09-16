@@ -1,0 +1,125 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-067-checkpoint-b-production-github-connection",
+  "timestamp": "2026-09-15T22:00:00Z",
+  "work_item": "067",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD origin/main && git log --oneline --decorate -40",
+      "exit_code": 0,
+      "summary": "Synchronized at the expected Checkpoint B baseline 5d4096d28d68c65d8a5b03e35994bbf61b8231c7, matching origin/main exactly, working tree clean. No concurrent WI066/WI050/WI022/WI068 commits to reconcile at HEAD."
+    },
+    {
+      "command": "cargo test -p repopact-mutation ; cargo test --workspace",
+      "exit_code": 0,
+      "summary": "Confirmed the prior session's audit-freshness fixture fix holds: repopact-mutation 13/13 passed (typed_edit_updates_only_allowed_fields_and_validates and unrelated_file_not_in_read_set_does_not_stale_plan both pass). Full workspace baseline green before feature work began."
+    },
+    {
+      "command": "cargo new / edit: repopact-provider-github/src/{headers.rs,rest.rs}; extend transport.rs with ReqwestTransport/RestTransport; extend device_flow.rs with refresh_access_token; add repopact-remote-provider/src/credential_os.rs; add keyring + reqwest to rust/Cargo.toml workspace.dependencies",
+      "exit_code": 0,
+      "summary": "Real production HTTP transport: reqwest blocking client, rustls-tls (no OpenSSL/native-tls Android cross-compilation burden), redirect::Policy::none() with a hand-rolled redirect loop enforcing Decision 0061's Authorization-header allowlist, explicit connect (10s)/overall (30s) timeouts, and a bounded (8MB) streamed read via Read::take rather than trusting Content-Length. Centralized headers (headers.rs): Accept, X-GitHub-Api-Version, User-Agent (GitHub rejects requests with no User-Agent), Authorization built once per request. Real OS-protected credential store: keyring crate (windows-native/apple-native/sync-secret-service backends), OsCredentialStore implementing put/get/delete against the real Windows Credential Manager on this machine; Android has no backend here and is not silently faked (see Android disposition below)."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github transport::",
+      "exit_code": 0,
+      "summary": "authorization_survives_redirect_only_to_an_allowlisted_host (pure policy-decision unit test) and a_real_redirect_to_a_non_allowlisted_host_does_not_carry_the_authorization_header (a genuine integration test: two real local TCP servers, a real HTTP 302 redirect from one to the other, the second server's actually-received request headers inspected on the wire) both pass. The Authorization header is provably absent at the second hop -- not merely asserted never sent by mock bookkeeping."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github rest:: -- --ignored (live, unauthenticated public GitHub endpoints)",
+      "exit_code": 0,
+      "summary": "4/4 live tests passed against real api.github.com, no client ID/auth needed: live_resolves_a_real_public_branch_to_its_commit_sha (octocat/Hello-World heads/master -> 40-char hex SHA); live_peels_a_real_annotated_tag_on_a_well_known_public_repository (torvalds/linux tags/v6.1, a real GPG-signed annotated kernel-release tag -- proves the object.type==\"tag\" peel path against live data, not only a scripted fixture); live_canonicalizes_a_short_sha_on_a_real_public_repository (7fd1a60 -> the full documented 40-char SHA); live_lists_branches_on_a_real_public_repository. This is real, live proof of GH-006's ref-resolution/immutable-revision requirement independent of the operator's GitHub App registration gate."
+    },
+    {
+      "command": "cargo test -p repopact-remote-provider credential_os",
+      "exit_code": 0,
+      "summary": "5 non-ignored tests pass against the real Windows Credential Manager (put/get round-trip, delete, missing-entry-is-None, overwrite, distinct-kinds-do-not-collide). Discovered and fixed a real flakiness: Windows Credential Manager occasionally returns a transient error on a delete issued immediately after a put/overwrite in the same process; CleanupGuard now retries up to 5 times with a 50ms backoff and panics loudly (rather than silently leaving a real OS entry behind) if all retries fail. Verified reliable across 3 consecutive full runs with zero stray entries confirmed via `cmdkey /list` after each."
+    },
+    {
+      "command": "cargo test -p repopact-remote-provider -- --ignored leaves_a_real_entry_for_cross_process_inspection ; cmdkey /list ; cargo test ... reads_the_cross_process_inspection_entry_written_by_a_separate_process -- --ignored ; cargo test ... deletes_the_cross_process_inspection_entry -- --ignored ; cmdkey /list",
+      "exit_code": 0,
+      "summary": "The strongest available automated proof of GH-004 restart persistence in this non-interactive session (standing in for a manual close-Workbench/reopen-Workbench cycle): process A wrote a real access-token-shaped credential to the real Windows Credential Manager and exited; a separate OS process (`cmdkey /list`) independently confirmed the entry existed with the expected target name; process C (a fresh cargo test invocation) read the value back correctly with no shared in-memory state; process D deleted it; a final `cmdkey /list` confirmed zero remaining RepoPact entries. Credential persistence and deletion are proven at the real OS level, not merely within one process's lifetime."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github provider:: (token refresh/expiry, disconnect, restore, account/repository mapping)",
+      "exit_code": 0,
+      "summary": "GitHubProvider refactored to own Arc<dyn HttpTransport>/Arc<dyn RestTransport>/Arc<dyn CredentialStore> (from Checkpoint A's borrowed-reference shape) so it can be a long-lived, 'static Tauri-managed service without a self-referential lifetime. New tests, all passing: poll_authorization_fetches_identity_and_persists_tokens_on_success (device flow success -> real GET /user call -> tokens persisted to the credential store); disconnect_clears_stored_credentials_and_state; restore_from_credential_store_recovers_a_prior_session_without_a_network_call and ...with_nothing_stored_is_disconnected_not_an_error; an_expired_access_token_is_refreshed_atomically_before_the_next_call (injectable clock, refresh response applied atomically, refreshed token used for the pending call, refresh request itself asserted to never carry a client_secret); a_denied_refresh_clears_credentials_and_reports_expired; an_expired_token_with_no_refresh_token_reports_expired_without_a_network_call; list_accounts_maps_installations_to_remote_accounts; search_repositories_filters_within_the_authorized_installation_set (never a global search endpoint -- item 25)."
+    },
+    {
+      "command": "apps/repopact-desktop/src-tauri/src/remote_provider.rs (new): RemoteProviderService, bounded frontend DTOs, 11 typed Tauri commands; wired into lib.rs invoke_handler + permissions/workbench.toml (desktop-only via #[cfg(not(target_os = \"android\"))])",
+      "exit_code": 0,
+      "summary": "Commands: remote_provider_capabilities, remote_connections, remote_connect_start, remote_connect_status, remote_connect_cancel, remote_open_verification_url, remote_disconnect, remote_accounts, remote_repositories, remote_repository_refs, remote_resolve_ref. remote_import_snapshot intentionally not implemented (Checkpoint C). No command accepts a raw method/URL/path; remote_open_verification_url takes no frontend argument at all and re-reads/re-validates the pending device-flow verification_uri from the provider's own AuthState before opening the system browser via tauri-plugin-opener (item 18/19) -- there is nothing for the frontend to supply or tamper with. Client ID read once from REPOPACT_GITHUB_CLIENT_ID (native env var, never frontend-supplied); a real bug was caught and fixed during manual verification where a set-but-empty env var (VAR=) was incorrectly treated as configured."
+    },
+    {
+      "command": "npm run typecheck ; npm run test -- --run ; npm run build (apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "New remote-types.ts/remote-api.ts/RemoteRepositoryPanel.tsx added; wired as a first-class 'GitHub' entry alongside 'Choose repository' in App.tsx's empty-state. UI labels 'Snapshot at <sha>' / 'Import snapshot (coming soon)' -- never Clone/Pull/Push/Sync. tsc --noEmit clean; vitest 29/29 passed (one real pre-existing security test, tauri-security.test.ts, initially failed because its /remote/i blocklist regex matched the substring 'remote' inside the new remote_* command names; fixed precisely to /\\bremote\\b/i, a word-boundary match that still catches a genuine standalone 'remote'/'remote:' capability token but no longer false-positives on an underscore-joined command name); production vite build succeeded."
+    },
+    {
+      "command": "Real Windows Workbench launch (npx tauri dev, target/debug/repopact-desktop.exe, screenshot-verified via computer-use)",
+      "exit_code": 0,
+      "summary": "Launched the actual compiled Workbench on this Dell Precision. The Dashboard's empty-state now shows a first-class 'GitHub' section with a 'Connect GitHub' button, correctly disabled, with the exact operator-gate text displayed: 'No GitHub App is configured yet. An operator must register one (see docs/guides/github-app-setup.md) and set REPOPACT_GITHUB_CLIENT_ID before Connect GitHub can start.' Per instruction, stopped exactly at this gate rather than fabricating live device-flow authorization. No GitHub App has been registered as of this checkpoint; the exact registration values needed are in docs/guides/github-app-setup.md (Checkpoint A)."
+    },
+    {
+      "command": "cargo fmt --check ; cargo check --workspace ; cargo check --workspace --all-targets ; cargo test --workspace ; repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "All green. cargo fmt clean; check/check --all-targets clean across the whole workspace including the new reqwest/keyring/tauri-plugin-opener dependencies; full cargo test --workspace: every crate green, 0 failures (repopact-remote-provider 16/16 non-ignored + 3 ignored, repopact-provider-github 44/44 non-ignored + 4 ignored, plus every other unaffected crate at its prior pass count including the now-fixed repopact-mutation 13/13). repopact validate/dashboard clean after the WI067 AC update."
+    },
+    {
+      "command": "git fetch origin && git log HEAD..origin/main --oneline (pre-push concurrency check)",
+      "exit_code": 0,
+      "summary": "No concurrent commits landed on origin/main during this checkpoint; nothing from WI066/WI050/WI022/WI068 to reconcile."
+    }
+  ],
+  "artifacts": [
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/README.md",
+    "rust/crates/repopact-provider-github/src/headers.rs",
+    "rust/crates/repopact-provider-github/src/rest.rs",
+    "rust/crates/repopact-provider-github/src/transport.rs",
+    "rust/crates/repopact-provider-github/src/device_flow.rs",
+    "rust/crates/repopact-provider-github/src/provider.rs",
+    "rust/crates/repopact-remote-provider/src/credential_os.rs",
+    "rust/crates/repopact-remote-provider/src/error.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/remote_provider.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/Cargo.toml",
+    "rust/apps/repopact-desktop/src-tauri/permissions/workbench.toml",
+    "rust/apps/repopact-desktop/src/RemoteRepositoryPanel.tsx",
+    "rust/apps/repopact-desktop/src/lib/remote-api.ts",
+    "rust/apps/repopact-desktop/src/lib/remote-types.ts",
+    "rust/apps/repopact-desktop/src/App.tsx",
+    "rust/apps/repopact-desktop/src/tauri-security.test.ts",
+    "rust/Cargo.toml"
+  ],
+  "environment": {
+    "platform": "desktop-windows",
+    "machine": "Dell Precision",
+    "synchronized_starting_sha": "5d4096d28d68c65d8a5b03e35994bbf61b8231c7",
+    "http_transport": "reqwest 0.12 blocking, rustls-tls, manual redirect handling",
+    "credential_backend_windows": "Windows Credential Manager via keyring 3.x (windows-native)",
+    "credential_backend_android": "not implemented; recorded gate, not a plaintext fallback",
+    "github_app_registered": false,
+    "client_id_configured": false,
+    "live_device_flow_result": "blocked_on_operator_gate",
+    "live_unauthenticated_ref_resolution": "proven against octocat/Hello-World and torvalds/linux",
+    "ac_dispositions": {
+      "GH-001": "satisfied",
+      "GH-002": "satisfied",
+      "GH-003": "satisfied",
+      "GH-004": "pending",
+      "GH-005": "pending",
+      "GH-006": "satisfied",
+      "GH-007": "pending",
+      "GH-008": "pending",
+      "GH-009": "pending",
+      "GH-010": "pending",
+      "GH-011": "satisfied",
+      "GH-012": "pending",
+      "GH-013": "pending",
+      "GH-014": "satisfied",
+      "GH-015": "pending"
+    }
+  }
+}

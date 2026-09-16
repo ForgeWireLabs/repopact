@@ -58,32 +58,42 @@
     {
       "id": "GH-006",
       "text": "Repository selection supports an explicit branch, tag, or commit choice and resolves the selected movable ref to an exact immutable commit SHA before materialization. The workspace provenance records provider, repository identity, selected ref, resolved commit SHA, acquisition time, and snapshot-import semantics without storing credentials or making remote state RepoPact governance authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-b-production-github-connection"
+      ]
     },
     {
       "id": "GH-007",
       "text": "V1 GitHub acquisition materializes the resolved commit as a bounded authenticated repository archive/snapshot and reuses RepoPact's existing staging, path-containment, collision, resource-bound, archive-security, cleanup, workspace-registry, and ordinary-filesystem repository pipeline rather than creating a second GitHub-specific extraction or repository engine. Public-repository import may operate without login when GitHub permits it, but private/installation-scoped access uses the authorized GitHub App user context.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-c-snapshot-materialization"
+      ]
     },
     {
       "id": "GH-008",
       "text": "GitHub snapshot import is explicitly labeled and represented as a snapshot, not a live clone or synchronized checkout: after successful materialization RepoPact works offline against the local/app-private workspace, local mutations do not silently alter GitHub, and the UI clearly distinguishes snapshot provenance from future clone/fetch/pull/push capability.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-c-snapshot-materialization"
+      ]
     },
     {
       "id": "GH-009",
       "text": "The remote-provider command/API surface is typed and narrow: authenticate/connect, disconnect, enumerate permitted accounts/installations/repositories/refs, resolve a ref, and import a selected repository snapshot. It exposes no generic authenticated HTTP proxy, arbitrary GitHub REST request facility, unrestricted URL fetcher, credential-returning API, generic shell, or caller-controlled filesystem write path.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-c-snapshot-materialization"
+      ]
     },
     {
       "id": "GH-010",
       "text": "Network, redirect, TLS, token, rate-limit, API-error, revoked-installation, private-repository, organization-policy, SSO/authorization, archive-download, cancellation, and partial-download failure behavior is fail-closed and typed. Interrupted or failed remote imports leave no ready workspace and no orphaned credential-bearing temporary state; successful imports pass through the same staging-then-publish transaction used by local/mobile acquisition.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-d-failure-security"
+      ]
     },
     {
       "id": "GH-011",
@@ -102,8 +112,10 @@
     {
       "id": "GH-013",
       "text": "Security and privacy evidence proves least-privilege permissions, protected-token handling, redacted logs/errors, no credential material in RepoPact evidence/workspace metadata, bounded network/download behavior, and no elevation of GitHub metadata into governance/mutation approval authority. Tests cover token leakage attempts and credential-bearing URL/log redaction.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-d-failure-security"
+      ]
     },
     {
       "id": "GH-014",
@@ -121,5 +133,5 @@
     }
   ],
   "created": "2026-09-14",
-  "updated": "2026-09-15"
+  "updated": "2026-09-16"
 }

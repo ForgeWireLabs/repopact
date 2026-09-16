@@ -1,0 +1,155 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260916-067-checkpoint-d-failure-security",
+  "timestamp": "2026-09-16T05:00:00Z",
+  "work_item": "067",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD origin/main && git checkout -b claude/wi067-checkpoint-d-failure-security-20260916",
+      "exit_code": 0,
+      "summary": "Synchronized at the expected Checkpoint D baseline 5d6f2b6bee006827621d79e994a502037e158e9f, matching origin/main exactly, working tree clean. Feature branch created from that point."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github transport::download_rejects_a_truncated_body (new test, no production code change needed)",
+      "exit_code": 0,
+      "summary": "Empirically verified, rather than assumed, that a server declaring a Content-Length larger than what it actually sends before closing the connection is already caught by the underlying HTTP stack (hyper's length-framed body reader surfaces an io error on early close) and correctly propagates through ReqwestTransport::download as a typed download failure with the partial destination file removed by the existing error path. No new truncation-detection code was needed; this closes the exact Checkpoint C gap by proving the existing architecture already handles it correctly, which was previously merely assumed."
+    },
+    {
+      "command": "New: real 5xx tests (500, 503) and a real redirect-loop-exhaustion test (a persistent, non-one-shot local server answering every connection with a 302 back to itself) against ReqwestTransport::download",
+      "exit_code": 0,
+      "summary": "Closes the remaining two Checkpoint C gaps. The redirect-loop test proves MAX_REDIRECTS is enforced against a server that never stops redirecting -- the test server accepts at most MAX_REDIRECTS+1 connections total and then completes normally (a correctly-bounded client makes no more than that), rather than merely asserting a documented constant."
+    },
+    {
+      "command": "New: live_download_rejects_a_self_signed_certificate + live_rest_get_rejects_a_self_signed_certificate against https://self-signed.badssl.com/ (real network, #[ignore])",
+      "exit_code": 0,
+      "summary": "A genuine TLS certificate-validation failure through the production rustls-backed reqwest client on both the download and REST GET code paths -- no insecure-TLS bypass exists anywhere in this codebase to disable for the test. badssl.com is a long-standing public test service purpose-built for exactly this class of test, the same live-network-proof convention this module already uses for octocat/Hello-World. Both tests pass: the self-signed certificate is rejected, no partial file is left behind."
+    },
+    {
+      "command": "Fixed a real gap in transport.rs's download error-body handling: a non-2xx response body was previously embedded into the TransportError message via String::from_utf8_lossy with only a raw 2048-byte cap and no redaction",
+      "exit_code": 0,
+      "summary": "Now passes through repopact_remote_provider::redact::redact() and is additionally bounded to 200 characters after redaction, mirroring rest.rs's own error-body handling for the REST GET path. New download_error_body_is_bounded_and_redacted_even_when_hostile test proves a hostile response body containing a synthetic canary token, an Authorization-shaped value, and a 10,000-character padding string never survives into the resulting error message and that the message stays well under 500 characters regardless."
+    },
+    {
+      "command": "New: download_reports_retry_after_on_a_secondary_rate_limit_403 (real local socket) + provider.rs map_download_error extended to recognize a 403 accompanied by Retry-After as ProviderRateLimited (secondary rate limit), and 5xx statuses generically as ProviderProtocolError, mirroring rest.rs's own REST-path rate-limit/error taxonomy",
+      "exit_code": 0,
+      "summary": "GitHub rate-limit semantics (Phase 4) are now represented identically on both the REST and download paths: primary rate limit (429 or X-RateLimit-Remaining=0), and secondary rate limit (403 + Retry-After) both map to the same typed ProviderRateLimited code with the server-reported retry timing carried in the (bounded, redacted) detail text. No automatic retry loop exists anywhere in this codebase."
+    },
+    {
+      "command": "New dedicated token-canary redaction sweep: repopact-remote-provider/src/error.rs gains 4 tests injecting synthetic ghu_REPOPACT_CANARY_.../ghr_REPOPACT_CANARY_... tokens and a credential-bearing URL into RemoteProviderError::new's detail argument, asserting absence from .detail, Display, Debug, and serialized JSON",
+      "exit_code": 0,
+      "summary": "Dedicated GH-013 evidence, not merely incidental: proves RemoteProviderError::new's existing redact() call actually closes this leakage vector for every consumer of the type (not just the specific call sites Checkpoint A/B/C happened to test), across every representation (struct field, Display, Debug, serde). Combined with the new transport-level hostile-body test above, this covers the token-leakage requirement across both the construction boundary and the network-response boundary."
+    },
+    {
+      "command": "New structural governance-boundary test: rust/crates/repopact-mutation/tests/remote_provider_governance_boundary.rs (3 tests) asserting repopact-mutation/repopact-graph/repopact-core's Cargo.toml manifests never depend on repopact-mobile-acquisition, repopact-remote-provider, or repopact-provider-github",
+      "exit_code": 0,
+      "summary": "Dedicated GH-013/Phase 8 evidence that GitHub/remote-provider metadata cannot be elevated into governance/mutation approval authority: confirmed none of the three crates depend on any remote-provider-related crate today, so WorkspaceRecord::remote_snapshot_provenance (or any other remote/provider value) is not merely unused by governance/mutation logic -- it is not even reachable at compile time. This is a regression test, not a one-off manual check: it fails loudly if a future change ever adds that dependency edge."
+    },
+    {
+      "command": "New defense-in-depth: #[serde(deny_unknown_fields)] added to RemoteRepositoryRefDto/RemoteRefRefDto (apps/repopact-desktop/src-tauri/src/remote_provider.rs); 4 new tests proving an injected url/destinationPath/headers field is rejected at deserialization (the command handler body never runs) while an ordinary well-formed payload still deserializes",
+      "exit_code": 0,
+      "summary": "GH-010/Phase 9 re-audit now that remote_import_snapshot exists: confirmed (and hardened) that the frontend cannot smuggle an arbitrary url/header-map/filesystem-destination field alongside a legitimate repository/ref identity. Verified the actual frontend source (RemoteRepositoryPanel.tsx) only ever constructs these DTOs with exactly their declared fields -- no extra fields anywhere in the real call sites."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github ; cargo test -p repopact-remote-provider credential_os ; cargo test -p repopact-desktop ; cargo test -p repopact-mutation --test remote_provider_governance_boundary ; cargo test --workspace",
+      "exit_code": 0,
+      "summary": "repopact-provider-github: 63 non-ignored passed (up from 57), 7 ignored (all run explicitly below) -- 0 failures. repopact-remote-provider: 20 non-ignored passed (up from 16), 3 ignored -- 0 failures. repopact-desktop: 19 passed including 4 new DTO-rejection tests -- 0 failures. repopact-mutation governance-boundary suite: 3/3 passed. Full cargo test --workspace: 0 failures across every crate."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github -- --ignored (live, real network)",
+      "exit_code": 0,
+      "summary": "7/7 live tests passed: the 4 original live GitHub ref-resolution tests, the new live TLS self-signed-certificate rejection test on both the download and REST paths, and the full live end-to-end public-snapshot materialization test against octocat/Hello-World (re-run, still passing after this checkpoint's error-mapping and redaction changes)."
+    },
+    {
+      "command": "cargo test -p repopact-remote-provider credential_os (real Windows Credential Manager)",
+      "exit_code": 0,
+      "summary": "Re-verified the real Windows Credential Manager round-trip tests from Checkpoint B still pass unchanged after this checkpoint's changes (5 non-ignored, 3 ignored cross-process tests available but not re-run this checkpoint since no credential-store code changed)."
+    },
+    {
+      "command": "New documentation: docs/guides/github-snapshot-import.md",
+      "exit_code": 0,
+      "summary": "Documents the concretely-implemented snapshot behavior: architecture, network/resource bounds, cancellation, error taxonomy, credential storage (Windows proven, Android an explicit gap), the operator gate, and provider-extension guidance -- without speculating about private/organization/mobile behavior that has not been exercised. Does not claim a ForgeWire Labs GitHub App already exists."
+    },
+    {
+      "command": "npm run typecheck ; npm run test -- --run ; npm run build (apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "tsc --noEmit clean; vitest 31/31 passed; production vite build succeeded. No frontend behavior changed this checkpoint beyond the (already-covered) DTO shape, which is enforced server-side."
+    },
+    {
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check ; cargo check --workspace ; cargo check --workspace --all-targets ; repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "All green. cargo fmt clean; check/check --all-targets clean across the whole workspace. repopact validate/dashboard clean after the WI067 AC update and this evidence record's own creation."
+    },
+    {
+      "command": "git fetch origin && git log HEAD..origin/main --oneline (pre-push concurrency check)",
+      "exit_code": 0,
+      "summary": "No concurrent commits landed on origin/main during this checkpoint; nothing from WI066/WI050/WI022/WI068 to reconcile."
+    }
+  ],
+  "artifacts": [
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/README.md",
+    "rust/crates/repopact-provider-github/src/transport.rs",
+    "rust/crates/repopact-provider-github/src/provider.rs",
+    "rust/crates/repopact-remote-provider/src/error.rs",
+    "rust/crates/repopact-mutation/tests/remote_provider_governance_boundary.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/remote_provider.rs",
+    "docs/guides/github-snapshot-import.md"
+  ],
+  "environment": {
+    "platform": "desktop-windows",
+    "machine": "Dell Precision",
+    "synchronized_starting_sha": "5d6f2b6bee006827621d79e994a502037e158e9f",
+    "feature_branch": "claude/wi067-checkpoint-d-failure-security-20260916",
+    "tls_failure_test_endpoint": "self-signed.badssl.com",
+    "real_native": [
+      "Windows Credential Manager round trips (5 non-ignored tests, re-verified)",
+      "production HTTP client behavior (real sockets: 5xx, redirect loop, truncation, secondary rate limit, hostile body)",
+      "production materialization cleanup behavior (no partial file/workspace on any injected failure)",
+      "live public GitHub behavior re-run: ref resolution, annotated-tag peel, full snapshot end-to-end"
+    ],
+    "controlled_executable_proof": [
+      "TLS failure (live, self-signed.badssl.com)",
+      "5xx (500, 503)",
+      "redirect-loop/exhaustion at MAX_REDIRECTS",
+      "truncated body (verified already handled by the underlying HTTP stack)",
+      "secondary rate limiting (403 + Retry-After)",
+      "token-canary leakage across RemoteProviderError construction",
+      "hostile/oversized error-response-body redaction and bounding",
+      "structural governance-non-escalation (dependency-graph regression test)",
+      "frontend DTO field-injection rejection (deny_unknown_fields)"
+    ],
+    "still_operator_or_platform_gated": [
+      "live GitHub App device authorization",
+      "live private-repository import",
+      "live organization-installation import",
+      "Android protected credential store",
+      "Android authenticated GitHub runtime",
+      "iOS disposition not evaluated"
+    ],
+    "acknowledged_residual_gh010_scope": [
+      "no deterministic slow-drip overall/deadline-timeout test (timeout is configured but not exercised under a genuinely slow server)",
+      "no dedicated malformed-Location-string test distinct from missing-Location",
+      "no low-level staging/registry-write fault injection (disk-full-style); existing extraction/malformed-archive failure tests exercise the same cleanup code path",
+      "no GitHub-specific SSO/organization-policy typed error code distinct from the generic 403/ProviderForbidden mapping (GitHub's own API does not appear to expose a distinct status for this case on the endpoints used here)"
+    ],
+    "ac_dispositions": {
+      "GH-001": "satisfied",
+      "GH-002": "satisfied",
+      "GH-003": "satisfied",
+      "GH-004": "pending",
+      "GH-005": "pending",
+      "GH-006": "satisfied",
+      "GH-007": "satisfied",
+      "GH-008": "satisfied",
+      "GH-009": "satisfied",
+      "GH-010": "satisfied",
+      "GH-011": "satisfied",
+      "GH-012": "pending",
+      "GH-013": "satisfied",
+      "GH-014": "satisfied",
+      "GH-015": "pending"
+    }
+  }
+}

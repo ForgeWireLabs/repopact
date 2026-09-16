@@ -22,11 +22,19 @@ repopact-analysis.workspace = true
 repopact-desktop-api.workspace = true
 repopact-mobile-acquisition.workspace = true
 repopact-mobile-saf.workspace = true
+repopact-remote-provider.workspace = true
+repopact-provider-github.workspace = true
 repopact-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-dialog = "2.7.3"
+# WI067 Checkpoint B (item 19): opens the GitHub device-flow verification
+# URL in the user's real system browser, never an embedded WebView --
+# only via the native `remote_open_verification_url` command, which reads
+# and re-validates the URL from RemoteProviderService's own state rather
+# than accepting one from the frontend.
+tauri-plugin-opener = "2"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

@@ -16,6 +16,7 @@ use crate::transport::{FormRequest, HttpTransport};
 pub const DEVICE_CODE_URL: &str = "https://github.com/login/device/code";
 pub const ACCESS_TOKEN_URL: &str = "https://github.com/login/oauth/access_token";
 pub const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_code";
+pub const REFRESH_GRANT_TYPE: &str = "refresh_token";
 
 /// Internal-only: never derives `Serialize`, never crosses the Tauri
 /// command boundary. The frontend receives only
@@ -165,6 +166,77 @@ pub fn poll_device_flow(
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct RefreshOutcome {
+    pub access_token: Secret,
+    pub refresh_token: Option<Secret>,
+    pub expires_in_secs: Option<u64>,
+}
+
+/// Refreshes an expiring GitHub App user access token (item 11). Verified
+/// against GitHub's own token-refresh documentation during Checkpoint B:
+/// `client_secret` is documented as "Required unless the user access
+/// token was generated using the device flow" -- exactly this crate's
+/// case -- so this request, like the device-flow requests above, never
+/// includes one.
+pub fn refresh_access_token(
+    transport: &dyn HttpTransport,
+    client_id: &str,
+    refresh_token: &Secret,
+) -> RemoteProviderResult<RefreshOutcome> {
+    let request = FormRequest {
+        url: ACCESS_TOKEN_URL.to_string(),
+        fields: vec![
+            ("client_id".to_string(), client_id.to_string()),
+            ("grant_type".to_string(), REFRESH_GRANT_TYPE.to_string()),
+            (
+                "refresh_token".to_string(),
+                refresh_token.expose().to_string(),
+            ),
+        ],
+        headers: vec![("Accept".to_string(), "application/json".to_string())],
+    };
+    let response = transport
+        .post_form(&request)
+        .map_err(|error| RemoteProviderError::new(ErrorCode::NetworkUnavailable, error.message))?;
+    let parsed: serde_json::Value = serde_json::from_str(&response.body).map_err(|error| {
+        RemoteProviderError::new(
+            ErrorCode::ProviderProtocolError,
+            format!("malformed refresh response: {error}"),
+        )
+    })?;
+
+    if let Some(error) = parsed.get("error").and_then(|v| v.as_str()) {
+        let code = match error {
+            "access_denied" | "bad_refresh_token" => ErrorCode::AuthorizationDenied,
+            "expired_token" | "token_expired" => ErrorCode::AuthorizationExpired,
+            _ => ErrorCode::RefreshFailed,
+        };
+        return Err(RemoteProviderError::new(
+            code,
+            format!("GitHub refresh failed: {error}"),
+        ));
+    }
+
+    let access_token = parsed
+        .get("access_token")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| {
+            RemoteProviderError::new(
+                ErrorCode::ProviderProtocolError,
+                "refresh response missing access_token",
+            )
+        })?;
+    Ok(RefreshOutcome {
+        access_token: Secret::new(access_token),
+        refresh_token: parsed
+            .get("refresh_token")
+            .and_then(|v| v.as_str())
+            .map(Secret::new),
+        expires_in_secs: parsed.get("expires_in").and_then(|v| v.as_u64()),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -301,6 +373,52 @@ mod tests {
             }
             other => panic!("expected Authorized, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn refresh_never_sends_a_client_secret_and_returns_a_new_pair() {
+        let transport = ScriptedTransport::new();
+        transport.push_response(Ok(json_response(
+            200,
+            &[
+                ("access_token", "new-access"),
+                ("refresh_token", "new-refresh"),
+                ("expires_in", "28800"),
+            ],
+        )));
+        let outcome =
+            refresh_access_token(&transport, "client-id", &Secret::new("old-refresh")).unwrap();
+        assert_eq!(outcome.access_token.expose(), "new-access");
+        assert_eq!(outcome.refresh_token.unwrap().expose(), "new-refresh");
+        assert_eq!(outcome.expires_in_secs, Some(28800));
+
+        let requests = transport.received_requests();
+        assert!(requests[0]
+            .fields
+            .iter()
+            .all(|(key, _)| key != "client_secret"));
+        assert!(requests[0]
+            .fields
+            .iter()
+            .any(|(k, v)| k == "grant_type" && v == "refresh_token"));
+    }
+
+    #[test]
+    fn refresh_denied_maps_to_authorization_denied() {
+        let transport = ScriptedTransport::new();
+        transport.push_response(Ok(json_response(200, &[("error", "access_denied")])));
+        let error =
+            refresh_access_token(&transport, "client-id", &Secret::new("revoked")).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AuthorizationDenied);
+    }
+
+    #[test]
+    fn refresh_expired_maps_to_authorization_expired() {
+        let transport = ScriptedTransport::new();
+        transport.push_response(Ok(json_response(200, &[("error", "expired_token")])));
+        let error =
+            refresh_access_token(&transport, "client-id", &Secret::new("stale")).unwrap_err();
+        assert_eq!(error.code, ErrorCode::AuthorizationExpired);
     }
 }
 

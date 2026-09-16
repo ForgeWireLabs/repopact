@@ -9,6 +9,7 @@ serde.workspace = true
 serde_json.workspace = true
 regex = { workspace = true, features = ["unicode-case"] }
 once_cell = "1"
+keyring.workspace = true
 
 [dev-dependencies]
 repopact-mobile-acquisition.workspace = true

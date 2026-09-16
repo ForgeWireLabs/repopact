@@ -1,0 +1,135 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260916-067-checkpoint-c-snapshot-materialization",
+  "timestamp": "2026-09-16T02:00:00Z",
+  "work_item": "067",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD origin/main && git checkout -b claude/wi067-checkpoint-c-snapshot-materialization-20260916",
+      "exit_code": 0,
+      "summary": "Synchronized at the expected Checkpoint C baseline f7f7f4d14799c29f7b14100dc9894f74c7410820, matching origin/main exactly, working tree clean. Feature branch created from that point. No concurrent divergence to reconcile at start."
+    },
+    {
+      "command": "Design change: repopact_remote_provider::provider::RemoteRepositoryProvider::open_snapshot signature extended with a new SnapshotDownloadOptions { destination_path, max_compressed_bytes, should_cancel } parameter; SnapshotDescriptor gains owner_label/repository_name fields",
+      "exit_code": 0,
+      "summary": "Checkpoint A's original open_snapshot(&self, descriptor) could not support a caller-chosen staging destination, a compressed-byte bound enforced while streaming, or cancellation -- discovered as a real defect only once Checkpoint C had to stream a real multi-megabyte archive rather than stat a test fixture. Refined per the standing instruction to change Checkpoint A/B abstractions only where production integration proves a defect. FakeProvider and the provider_neutrality.rs integration test updated to the new signature and re-verified (GH-011 unaffected)."
+    },
+    {
+      "command": "New: repopact_mobile_acquisition::workspace::WorkspaceManager::import_remote_snapshot (+ normalize_single_root_directory helper); AcquisitionKind::RemoteSnapshot, distinct from WI068's reserved RemoteGit, reused from Checkpoint A/B",
+      "exit_code": 0,
+      "summary": "Reuses the exact same staging-then-publish transaction and the exact same, unmodified archive::import_archive as WI065's own SafArchive import path -- no second extractor. The only new step is an optional, purely-filesystem post-extraction promotion of a single top-level wrapper directory (GitHub zipballs always wrap in owner-repo-shortsha/), which runs strictly after import_archive's own zip-slip/symlink/bounds validation already accepted every path, so it cannot itself escape the workspace root or bypass any archive-security check. cargo test -p repopact-mobile-acquisition: 75/75 passed, including 5 new remote_snapshot_import_* tests: case-collision rejection, entry-count-bound rejection, malformed-archive rejection, credential-free-provenance publication, and single-root-directory stripping -- all leaving no ready workspace and no staging residue on failure."
+    },
+    {
+      "command": "New: repopact_provider_github::transport::{StreamingDownloadTransport, StreamingRequest, StreamingDownloadOutcome} + ReqwestTransport::download (a second, longer-timeout blocking client; manual redirect loop reusing the exact same Decision 0061 Authorization-header allowlist logic as the REST GET path; streamed to disk in 256KB chunks via a bounded loop that checks should_cancel and the byte count every chunk; partial destination file removed on any error)",
+      "exit_code": 0,
+      "summary": "Deliberately does not reuse Checkpoint B's 8MB REST-JSON response ceiling (item Phase 5): a new SNAPSHOT_DOWNLOAD_MAX_COMPRESSED_BYTES = 300MiB bound is defined in the app layer, distinct from both that ceiling and from WI065's own ArchiveBounds::max_expanded_bytes (1GiB). Rejects an https-to-http redirect downgrade (checked only on redirect hops reached via a redirect, verified via a pure-function unit test plus real local-socket tests -- the original request's own scheme is never itself constrained, since production always builds https://api.github.com/... and this module's own tests intentionally use plain http://127.0.0.1 test servers end-to-end)."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github transport::",
+      "exit_code": 0,
+      "summary": "11 real local-socket tests, 0 failures: a successful streamed download to the destination file; a compressed-byte-bound rejection mid-stream with the partial file removed; cancellation (checked before the first read) leaving no partial file; a rejected 404; a rejected redirect with a missing Location header; a rejected connection-refused host; a rejected empty body; a pure-function proof that an https-original redirect downgrading to http is rejected while an already-http chain is not treated as a downgrade; and -- mirroring Checkpoint B's own successful pattern -- two independent local TCP servers proving on the wire that the Authorization header does not survive either a REST GET redirect or a download redirect to a non-allowlisted host."
+    },
+    {
+      "command": "GitHubProvider::describe_snapshot/open_snapshot wired to the real zipball endpoint (GET /repos/{owner}/{repo}/zipball/{sha}) and the new StreamingDownloadTransport; typed error mapping (map_download_error) for cancellation/oversized/401/403/404/429/protocol errors",
+      "exit_code": 0,
+      "summary": "The download URL is built entirely from the already-resolved typed descriptor (owner/name + the exact immutable commit SHA that produced the request) -- never from an archive filename, Content-Disposition header, or redirect target, and never accepted from a caller (Phase 9). cargo test -p repopact-provider-github provider::: unit tests prove the exact URL construction, that Authorization is attached only when actually connected (never for an unauthenticated/public request), and that download errors map to the correct typed ErrorCode (SnapshotTooLarge, DownloadCancelled). Full crate: 57 non-ignored tests passed, 5 ignored (live)."
+    },
+    {
+      "command": "cargo test -p repopact-provider-github -- --ignored (live, real GitHub, no authentication)",
+      "exit_code": 0,
+      "summary": "5/5 live tests passed, including live_downloads_and_publishes_a_real_public_snapshot_end_to_end: resolved octocat/Hello-World's real 'master' branch to its 40-character commit SHA; described and downloaded the real GitHub zipball archive (real bytes received, real TLS, real redirect from api.github.com to codeload.github.com followed correctly); passed the downloaded bytes through repopact_mobile_acquisition::workspace::WorkspaceManager::import_remote_snapshot completely unmodified; verified the published workspace's acquisition_kind is RemoteSnapshot with credential-free provenance recording the exact resolved SHA; verified the synthetic GitHub wrapper directory did not survive; then reopened a *fresh* WorkspaceManager instance against the same on-disk root and confirmed the workspace and its files are readable via ordinary filesystem I/O with zero further network calls (the offline proof -- GH-008)."
+    },
+    {
+      "command": "New Tauri command: remote_import_snapshot (+ remote_import_cancel); apps/repopact-desktop/src-tauri/src/remote_provider.rs; registered in lib.rs invoke_handler and permissions/workbench.toml",
+      "exit_code": 0,
+      "summary": "Accepts only typed repository/ref identifiers (repositoryId/owner/name, displayName/kind/refId) -- no URL, header map, or filesystem destination is ever accepted from the frontend. The exact commit SHA is re-resolved natively inside this command from repository+reference, never trusted from any value the frontend already displayed (Phase 4/9/31 -- the frontend's RemoteRefRef DTO has no SHA field to even supply). Staging/download destinations are allocated entirely by the native backend under the same WorkspaceManager root Decision 0057 already specifies. A single active-import cancellation token (Mutex<Option<CancellationToken>>) rejects a second concurrent import attempt and is cancellable via the new remote_import_cancel command."
+    },
+    {
+      "command": "npm run typecheck ; npm run test -- --run ; npm run build (apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "New remote-types.ts/remote-api.ts additions (RemoteImportResult, importSnapshot, importCancel); RemoteRepositoryPanel.tsx extended with a real 'Import Snapshot' button, progress/cancel during import, and a post-import message stating the workspace is local/offline and that local edits never write back to GitHub -- labels throughout remain 'Snapshot'/'Resolved commit'/'Imported', never Clone/Pull/Push/Sync (Phase 18/37). New remote-frontend-boundary.test.ts (Phase 20) statically proves the frontend GitHub surface never references an arbitrary url/headers/destination field, never calls fetch(), and only ever invokes remote_*-prefixed commands. tsc --noEmit clean; vitest 31/31 passed (one iteration caught and fixed a self-inflicted false positive: the boundary test initially tripped on the word 'github_request' appearing inside remote-api.ts's own explanatory doc comment, not in any real call -- reworded the comment); production vite build succeeded."
+    },
+    {
+      "command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check ; cargo check --workspace ; cargo check --workspace --all-targets ; cargo test --workspace ; repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "All green. cargo fmt clean; check/check --all-targets clean across the whole workspace. Full cargo test --workspace: 0 failures across every crate, including repopact-mobile-acquisition 75/75 (5 new remote-snapshot tests), repopact-provider-github 57/57 non-ignored (11 new transport-download tests, 3 new provider-level open_snapshot tests) + 5 ignored/live all separately run and passing, repopact-remote-provider 16/16 non-ignored + 3 ignored, and every other unaffected crate at its prior pass count. repopact validate/dashboard clean after the WI067 AC update and this evidence record's own creation (validate initially, correctly, rejected the AC update for referencing this evidence file before it existed -- confirms the evidence-reference check is live, not decorative)."
+    }
+  ],
+  "artifacts": [
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/README.md",
+    "rust/crates/repopact-remote-provider/src/provider.rs",
+    "rust/crates/repopact-remote-provider/src/snapshot.rs",
+    "rust/crates/repopact-remote-provider/src/fake.rs",
+    "rust/crates/repopact-remote-provider/tests/provider_neutrality.rs",
+    "rust/crates/repopact-mobile-acquisition/src/workspace.rs",
+    "rust/crates/repopact-provider-github/src/transport.rs",
+    "rust/crates/repopact-provider-github/src/provider.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/remote_provider.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/permissions/workbench.toml",
+    "rust/apps/repopact-desktop/src/RemoteRepositoryPanel.tsx",
+    "rust/apps/repopact-desktop/src/lib/remote-api.ts",
+    "rust/apps/repopact-desktop/src/lib/remote-types.ts",
+    "rust/apps/repopact-desktop/src/remote-frontend-boundary.test.ts"
+  ],
+  "environment": {
+    "platform": "desktop-windows",
+    "machine": "Dell Precision",
+    "synchronized_starting_sha": "f7f7f4d14799c29f7b14100dc9894f74c7410820",
+    "feature_branch": "claude/wi067-checkpoint-c-snapshot-materialization-20260916",
+    "live_public_repository": "octocat/Hello-World",
+    "live_selected_ref": "master",
+    "snapshot_download_max_compressed_bytes": 314572800,
+    "github_app_registered": false,
+    "live_proven": [
+      "public GitHub exact-SHA resolution",
+      "live snapshot zipball download",
+      "live api.github.com -> codeload.github.com redirect followed correctly",
+      "bounded streaming to disk",
+      "real WI065 archive extraction",
+      "real workspace publication with credential-free provenance",
+      "single-root-directory wrapper stripping",
+      "fresh WorkspaceManager reopen and offline local read with zero further network calls"
+    ],
+    "deterministically_tested_not_live": [
+      "authenticated download request construction (Authorization attached only when connected)",
+      "download error-code mapping (401/403/404/429/oversized/cancelled)",
+      "redirect Authorization-header allowlist enforcement on the download path (real local sockets)",
+      "insecure-redirect-downgrade rejection (pure-function + real sockets)",
+      "adversarial archive cases through the remote-snapshot route (case-collision, entry-count bound, malformed archive)",
+      "cancellation before first byte and mid-stream"
+    ],
+    "still_blocked": [
+      "real GitHub App device authorization",
+      "live private-repository import",
+      "live organization-installation import",
+      "Android protected credential backend",
+      "full Android GitHub end-to-end runtime proof"
+    ],
+    "known_gaps_this_checkpoint": [
+      "no live TLS-failure, 5xx, redirect-loop-exceeded, or truncated-body test executed (GH-010 left pending rather than satisfied on partial matrix coverage)",
+      "no dedicated fresh log/evidence redaction sweep specifically for the new download code path this checkpoint (GH-013 left pending; prior checkpoints' redaction tests still hold)",
+      "granular phase-by-phase progress events (resolving/downloading/staging/extracting/...) not implemented -- remote_import_snapshot is a single blocking call with real cancellation but only a single 'importing' UI state, not per-phase progress"
+    ],
+    "ac_dispositions": {
+      "GH-001": "satisfied",
+      "GH-002": "satisfied",
+      "GH-003": "satisfied",
+      "GH-004": "pending",
+      "GH-005": "pending",
+      "GH-006": "satisfied",
+      "GH-007": "satisfied",
+      "GH-008": "satisfied",
+      "GH-009": "satisfied",
+      "GH-010": "pending",
+      "GH-011": "satisfied",
+      "GH-012": "pending",
+      "GH-013": "pending",
+      "GH-014": "satisfied",
+      "GH-015": "pending"
+    }
+  }
+}

@@ -6,9 +6,11 @@
 
 pub mod api_version;
 pub mod device_flow;
+pub mod headers;
 pub mod permissions;
 pub mod provider;
 pub mod redirect_policy;
+pub mod rest;
 pub mod transport;
 
 pub use provider::{GitHubProvider, GitHubProviderConfig};

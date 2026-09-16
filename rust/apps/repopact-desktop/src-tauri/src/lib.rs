@@ -20,6 +20,12 @@ mod android_validation;
 // app actually registers any of these commands (see `run()` below).
 mod mobile_acquisition;
 
+// WI067 Checkpoint B: desktop-only for now (item 8/9 record Android
+// credential storage as a distinct, tracked gate rather than forcing a
+// substantial new mobile plugin into this checkpoint).
+#[cfg(not(target_os = "android"))]
+mod remote_provider;
+
 use std::thread;
 use std::time::Duration;
 
@@ -263,6 +269,7 @@ pub fn run() {
     #[cfg(not(target_os = "android"))]
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(service.clone())
         .invoke_handler(tauri::generate_handler![
             select_repository,
@@ -285,7 +292,20 @@ pub fn run() {
             plan_mutation,
             apply_mutation_plan,
             discard_mutation_plan,
-            poll_repository_events
+            poll_repository_events,
+            remote_provider::remote_provider_capabilities,
+            remote_provider::remote_connections,
+            remote_provider::remote_connect_start,
+            remote_provider::remote_connect_status,
+            remote_provider::remote_connect_cancel,
+            remote_provider::remote_open_verification_url,
+            remote_provider::remote_disconnect,
+            remote_provider::remote_accounts,
+            remote_provider::remote_repositories,
+            remote_provider::remote_repository_refs,
+            remote_provider::remote_resolve_ref,
+            remote_provider::remote_import_snapshot,
+            remote_provider::remote_import_cancel
         ]);
     #[cfg(target_os = "android")]
     let builder = tauri::Builder::default()
@@ -338,6 +358,27 @@ pub fn run() {
                     let _ = handle.emit("repository-changed", event);
                 }
             });
+            // WI067 Checkpoint B (§15): the production remote-provider
+            // service is initialized exactly once here, from the real
+            // app-private data directory, and managed for the app's whole
+            // lifetime. Restores a prior GitHub connection from the real
+            // OS credential store synchronously if one exists; a missing
+            // GitHub App client ID (operator has not yet registered one,
+            // see docs/guides/github-app-setup.md) is not a startup
+            // failure -- only `remote_connect_start` fails typed
+            // (`ProviderNotConfigured`) if actually invoked.
+            #[cfg(not(target_os = "android"))]
+            {
+                let root = app
+                    .path()
+                    .app_data_dir()
+                    .map_err(|error| format!("unable to resolve app_data_dir: {error}"))?;
+                let service =
+                    remote_provider::RemoteProviderService::open(root).map_err(|error| {
+                        format!("unable to initialize the remote provider service: {error}")
+                    })?;
+                app.manage(std::sync::Arc::new(service));
+            }
             // WI065 Checkpoint B (§15/§16): the production mobile workspace
             // registry/importer is initialized exactly once here, from the
             // real app-private data directory (Decision 0057 -- never

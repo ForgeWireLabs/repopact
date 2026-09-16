@@ -9,8 +9,14 @@ describe("Tauri capability boundary", () => {
     const capability = readFileSync(join(appRoot, "capabilities/main-window.json"), "utf8");
     const permission = readFileSync(join(appRoot, "permissions/workbench.toml"), "utf8");
     const config = readFileSync(join(appRoot, "tauri.conf.json"), "utf8");
-    expect(capability).not.toMatch(/core:default|fs:|shell:|http:|remote/i);
-    expect(permission).not.toMatch(/read_file|write_file|fs:|shell:|http:|remote/i);
+    // `\bremote\b` (not a bare `remote` substring): WI067 introduces typed
+    // `remote_*` commands (Decision 0061 -- "remote repository provider"),
+    // which must not trip this check merely for containing the word
+    // "remote" in an underscore-joined command name. The boundary
+    // pattern still catches a genuine standalone/colon-suffixed dangerous
+    // token such as a `"remote"` or `remote:` capability/permission scope.
+    expect(capability).not.toMatch(/core:default|fs:|shell:|http:|\bremote\b/i);
+    expect(permission).not.toMatch(/read_file|write_file|fs:|shell:|http:|\bremote\b/i);
     expect(config).toContain('"withGlobalTauri": false');
     expect(config).toContain('"devUrl": "http://127.0.0.1:1420"');
     const nonLocalConfig = config

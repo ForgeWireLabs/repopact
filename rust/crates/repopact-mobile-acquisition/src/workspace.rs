@@ -27,7 +27,7 @@ use crate::import::{import_directory, ImportSummary};
 use crate::operation::{CancellationToken, OperationCoordinator, OperationProgress};
 use crate::registry::{
     clean_stale_registry_temp_files, AcquisitionKind, ExportState, GitState, LifecycleState,
-    SourceFingerprint, WorkspaceRecord, WorkspaceRegistry,
+    RemoteSnapshotProvenance, SourceFingerprint, WorkspaceRecord, WorkspaceRegistry,
 };
 use crate::sink::{ExportSink, FilesystemSink};
 use crate::source::{AcquisitionSource, FilesystemSource};
@@ -190,6 +190,7 @@ impl WorkspaceManager {
             display_name,
             source_reference,
             AcquisitionKind::SafDirectory,
+            None,
         )
     }
 
@@ -214,6 +215,58 @@ impl WorkspaceManager {
             display_name,
             source_reference,
             AcquisitionKind::SafArchive,
+            None,
+        )
+    }
+
+    /// WI067 Checkpoint C: imports a provider-supplied bounded snapshot
+    /// archive (already downloaded to local app-private staging by the
+    /// caller -- this method never performs network I/O) into a brand-new
+    /// app-private workspace, through the *same* staging-then-publish
+    /// transaction and the *same* bounded archive extractor as
+    /// [`Self::import_archive`]. The only difference is the acquisition
+    /// kind (`RemoteSnapshot`, never `SafArchive` or `RemoteGit` -- see
+    /// `registry::AcquisitionKind`'s own doc comments for why those two are
+    /// wrong here) and the attached, credential-free provenance record.
+    ///
+    /// If `strip_single_root_directory` is set (Decision 0061: GitHub's
+    /// zipball archives always wrap their contents in one synthetic
+    /// `owner-repo-shortsha/` directory), the extracted tree is verified to
+    /// contain exactly one top-level directory entry and its contents are
+    /// promoted up one level via ordinary same-filesystem renames -- a
+    /// purely local filesystem step that runs strictly *after* the
+    /// extractor's own zip-slip/symlink/bounds validation already accepted
+    /// every path, so it cannot itself escape the workspace root or bypass
+    /// any archive-security check.
+    #[allow(clippy::too_many_arguments)]
+    pub fn import_remote_snapshot<R: Read + Seek>(
+        &self,
+        reader: R,
+        display_name: String,
+        source_reference: String,
+        bounds: &ArchiveBounds,
+        cancel: &CancellationToken,
+        on_progress: impl FnMut(OperationProgress),
+        provenance: RemoteSnapshotProvenance,
+        strip_single_root_directory: bool,
+    ) -> AcquisitionResult<WorkspaceRecord> {
+        let (operation_id, workspace_id, staging_dir) = self.begin_import()?;
+        let result =
+            import_archive(reader, &staging_dir, bounds, cancel, on_progress).and_then(|summary| {
+                if strip_single_root_directory {
+                    normalize_single_root_directory(&staging_dir)?;
+                }
+                Ok(summary)
+            });
+        self.finish_import(
+            operation_id,
+            workspace_id,
+            staging_dir,
+            result.map(ImportOutcome::from_archive),
+            display_name,
+            source_reference,
+            AcquisitionKind::RemoteSnapshot,
+            Some(provenance),
         )
     }
 
@@ -239,6 +292,7 @@ impl WorkspaceManager {
         display_name: String,
         source_reference: String,
         acquisition_kind: AcquisitionKind,
+        remote_snapshot_provenance: Option<RemoteSnapshotProvenance>,
     ) -> AcquisitionResult<WorkspaceRecord> {
         self.coordinator.end(&operation_id);
         match result {
@@ -269,7 +323,7 @@ impl WorkspaceManager {
                     imported_at: Some(now_rfc3339()),
                     last_export_state: ExportState::NeverExported,
                     source_fingerprint: Some(outcome.fingerprint()),
-                    remote_snapshot_provenance: None,
+                    remote_snapshot_provenance,
                 };
                 if let Err(error) = self.registry.upsert(record.clone()) {
                     let _ = fs::remove_dir_all(&workspace_dir);
@@ -536,6 +590,52 @@ fn io_err(error: std::io::Error) -> AcquisitionError {
     AcquisitionError::new(ErrorCode::InternalIo, error.to_string())
 }
 
+/// WI067 Checkpoint C, Phase 7/9: normalizes a `SnapshotLayout::
+/// SingleRootDirectory`-shaped extracted tree (e.g. GitHub's zipball
+/// archives, which always wrap their contents in one synthetic
+/// `owner-repo-shortsha/` directory) by promoting that one directory's
+/// contents up to `staging_dir` and removing the now-empty wrapper.
+///
+/// Fails closed rather than guessing: exactly one top-level entry, and it
+/// must be a directory, or this returns `ArchiveInvalid` and the caller's
+/// existing staging-cleanup path removes the whole tree -- never a partial
+/// or silently-wrong promotion. Runs strictly after `import_archive`'s own
+/// zip-slip/symlink/bounds validation already accepted every path in the
+/// tree, so every rename here moves an already-validated path within the
+/// same staging root; it cannot itself escape the workspace or bypass any
+/// archive-security check.
+fn normalize_single_root_directory(staging_dir: &Path) -> AcquisitionResult<()> {
+    let mut entries: Vec<fs::DirEntry> = fs::read_dir(staging_dir)
+        .map_err(io_err)?
+        .collect::<Result<_, _>>()
+        .map_err(io_err)?;
+    if entries.len() != 1 {
+        return Err(AcquisitionError::new(
+            ErrorCode::ArchiveInvalid,
+            format!(
+                "expected exactly one top-level entry for a single-root-directory snapshot, found {}",
+                entries.len()
+            ),
+        ));
+    }
+    let wrapper = entries.remove(0);
+    let wrapper_path = wrapper.path();
+    let wrapper_type = wrapper.file_type().map_err(io_err)?;
+    if !wrapper_type.is_dir() {
+        return Err(AcquisitionError::new(
+            ErrorCode::ArchiveInvalid,
+            "expected the single top-level entry of a single-root-directory snapshot to be a directory",
+        ));
+    }
+    for child in fs::read_dir(&wrapper_path).map_err(io_err)? {
+        let child = child.map_err(io_err)?;
+        let destination = staging_dir.join(child.file_name());
+        fs::rename(child.path(), destination).map_err(io_err)?;
+    }
+    fs::remove_dir(&wrapper_path).map_err(io_err)?;
+    Ok(())
+}
+
 fn clean_stale_staging(root: &Path) -> AcquisitionResult<()> {
     let staging = root.join("staging");
     let entries = match fs::read_dir(&staging) {
@@ -700,6 +800,217 @@ mod tests {
         // No leftover workspace directories either.
         let workspace_entries: Vec<_> = fs::read_dir(root.join("workspaces")).unwrap().collect();
         assert!(workspace_entries.is_empty());
+    }
+
+    fn sample_provenance() -> RemoteSnapshotProvenance {
+        RemoteSnapshotProvenance {
+            provider: "github".to_owned(),
+            provider_repository_id: "1".to_owned(),
+            owner_label: "octocat".to_owned(),
+            repository_name: "Hello-World".to_owned(),
+            selected_ref: "master".to_owned(),
+            ref_kind: "branch".to_owned(),
+            resolved_commit_sha: "a".repeat(40),
+            acquired_at: "2026-09-16T00:00:00Z".to_owned(),
+            snapshot_semantics: "immutable_snapshot".to_owned(),
+        }
+    }
+
+    // WI067 Checkpoint C, Phase 14: proof that the remote-snapshot import
+    // route genuinely passes through WI065's *existing*, unmodified
+    // archive-security machinery -- not a second, weaker copy of it. Does
+    // not re-derive every adversarial case archive.rs's own test suite
+    // already covers (zip-slip, symlink escape, absolute paths, etc.); it
+    // proves the pass-through itself, via two cases exercised through
+    // `import_remote_snapshot` specifically.
+
+    #[test]
+    fn remote_snapshot_import_rejects_a_case_colliding_archive_and_leaves_no_ready_workspace() {
+        let mut zip_buffer = Cursor::new(Vec::new());
+        {
+            use zip::write::SimpleFileOptions;
+            let mut writer = zip::ZipWriter::new(&mut zip_buffer);
+            writer
+                .start_file("A.txt", SimpleFileOptions::default())
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"1").unwrap();
+            writer
+                .start_file("a.txt", SimpleFileOptions::default())
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"2").unwrap();
+            writer.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let app_data = tempfile::tempdir().unwrap();
+        let root = app_data.path().join("repositories");
+        let manager = WorkspaceManager::open(&root).unwrap();
+        let cancel = CancellationToken::new();
+        let err = manager
+            .import_remote_snapshot(
+                Cursor::new(zip_bytes),
+                "octocat/Hello-World".to_owned(),
+                "github:octocat/Hello-World@aaaa".to_owned(),
+                &archive_bounds(),
+                &cancel,
+                |_| {},
+                sample_provenance(),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(err.code, crate::error::ErrorCode::CaseConflict);
+        assert!(manager.list_workspaces().is_empty());
+        assert!(fs::read_dir(root.join("staging")).unwrap().next().is_none());
+        assert!(fs::read_dir(root.join("workspaces"))
+            .unwrap()
+            .next()
+            .is_none());
+    }
+
+    #[test]
+    fn remote_snapshot_import_rejects_an_archive_exceeding_the_entry_bound() {
+        let mut zip_buffer = Cursor::new(Vec::new());
+        {
+            use zip::write::SimpleFileOptions;
+            let mut writer = zip::ZipWriter::new(&mut zip_buffer);
+            for index in 0..10 {
+                writer
+                    .start_file(format!("file-{index}.txt"), SimpleFileOptions::default())
+                    .unwrap();
+                std::io::Write::write_all(&mut writer, b"x").unwrap();
+            }
+            writer.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let app_data = tempfile::tempdir().unwrap();
+        let root = app_data.path().join("repositories");
+        let manager = WorkspaceManager::open(&root).unwrap();
+        let mut bounds = archive_bounds();
+        bounds.max_entries = 5; // fewer than the 10 entries above
+        let cancel = CancellationToken::new();
+        let err = manager
+            .import_remote_snapshot(
+                Cursor::new(zip_bytes),
+                "octocat/Hello-World".to_owned(),
+                "github:octocat/Hello-World@aaaa".to_owned(),
+                &bounds,
+                &cancel,
+                |_| {},
+                sample_provenance(),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(err.code, crate::error::ErrorCode::ResourceLimit);
+        assert!(manager.list_workspaces().is_empty());
+        assert!(fs::read_dir(root.join("staging")).unwrap().next().is_none());
+    }
+
+    #[test]
+    fn remote_snapshot_import_rejects_a_malformed_archive() {
+        let app_data = tempfile::tempdir().unwrap();
+        let root = app_data.path().join("repositories");
+        let manager = WorkspaceManager::open(&root).unwrap();
+        let cancel = CancellationToken::new();
+        let err = manager
+            .import_remote_snapshot(
+                Cursor::new(b"this is not a zip file".to_vec()),
+                "octocat/Hello-World".to_owned(),
+                "github:octocat/Hello-World@aaaa".to_owned(),
+                &archive_bounds(),
+                &cancel,
+                |_| {},
+                sample_provenance(),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(err.code, crate::error::ErrorCode::ArchiveInvalid);
+        assert!(manager.list_workspaces().is_empty());
+    }
+
+    #[test]
+    fn remote_snapshot_import_publishes_with_credential_free_provenance_and_snapshot_kind() {
+        let mut zip_buffer = Cursor::new(Vec::new());
+        {
+            use zip::write::SimpleFileOptions;
+            let mut writer = zip::ZipWriter::new(&mut zip_buffer);
+            writer
+                .start_file("README.md", SimpleFileOptions::default())
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"hi").unwrap();
+            writer.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_remote_snapshot(
+                Cursor::new(zip_bytes),
+                "octocat/Hello-World".to_owned(),
+                "github:octocat/Hello-World@aaaa".to_owned(),
+                &archive_bounds(),
+                &cancel,
+                |_| {},
+                sample_provenance(),
+                false,
+            )
+            .unwrap();
+        assert_eq!(record.acquisition_kind, AcquisitionKind::RemoteSnapshot);
+        let provenance = record.remote_snapshot_provenance.unwrap();
+        assert_eq!(provenance.resolved_commit_sha, "a".repeat(40));
+        assert_eq!(provenance.snapshot_semantics, "immutable_snapshot");
+        let published = manager.repository_path(&record.workspace_id).unwrap();
+        assert!(published.join("README.md").exists());
+    }
+
+    #[test]
+    fn remote_snapshot_import_strips_a_single_root_wrapper_directory_when_requested() {
+        let mut zip_buffer = Cursor::new(Vec::new());
+        {
+            use zip::write::SimpleFileOptions;
+            let mut writer = zip::ZipWriter::new(&mut zip_buffer);
+            // GitHub's real zipball shape: everything nested one level
+            // under a single synthetic `owner-repo-sha/` directory.
+            writer
+                .start_file(
+                    "octocat-Hello-World-aaaaaaa/README.md",
+                    SimpleFileOptions::default(),
+                )
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"hi").unwrap();
+            writer
+                .start_file(
+                    "octocat-Hello-World-aaaaaaa/src/main.rs",
+                    SimpleFileOptions::default(),
+                )
+                .unwrap();
+            std::io::Write::write_all(&mut writer, b"fn main() {}").unwrap();
+            writer.finish().unwrap();
+        }
+        let zip_bytes = zip_buffer.into_inner();
+
+        let app_data = tempfile::tempdir().unwrap();
+        let manager = WorkspaceManager::open(app_data.path().join("repositories")).unwrap();
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_remote_snapshot(
+                Cursor::new(zip_bytes),
+                "octocat/Hello-World".to_owned(),
+                "github:octocat/Hello-World@aaaa".to_owned(),
+                &archive_bounds(),
+                &cancel,
+                |_| {},
+                sample_provenance(),
+                true,
+            )
+            .unwrap();
+        let published = manager.repository_path(&record.workspace_id).unwrap();
+        // The wrapper directory itself must not survive.
+        assert!(!published.join("octocat-Hello-World-aaaaaaa").exists());
+        assert!(published.join("README.md").exists());
+        assert!(published.join("src/main.rs").exists());
     }
 
     #[test]

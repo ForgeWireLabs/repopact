@@ -130,6 +130,24 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertTrue(platform_backends._windows_acl_has_broad_write(writable))
         self.assertTrue(platform_backends._windows_acl_has_broad_write(authenticated))
 
+    @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
+    def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):
+        """Standard C:\\ root inheritance must not block Program Files trust."""
+        interpreter = Path(sys.executable).resolve(strict=True)
+        inspected: list[str] = []
+
+        def fake_command(command):
+            inspected.append(str(command[-1]))
+            if Path(command[-1]).anchor == Path(command[-1]).parent:
+                return 0, r"C:\ NT AUTHORITY\Authenticated Users:(I)(M)"
+            return 0, r"C:\protected BUILTIN\Users:(I)(RX)"
+
+        with patch.object(platform_backends, "_command_output", side_effect=fake_command):
+            protected, reason = platform_backends._windows_path_chain_is_protected(interpreter)
+
+        self.assertTrue(protected, reason)
+        self.assertNotIn(str(Path(interpreter.anchor)), inspected)
+
     def test_binding_has_host_pid_not_claimed_session(self):
         binding = local_peer_binding()
         self.assertEqual(binding["pid"], __import__("os").getpid())

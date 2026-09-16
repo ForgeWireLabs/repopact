@@ -275,6 +275,15 @@ def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
     while True:
         if _windows_reparse_point(current):
             return False, f"path hierarchy contains a symlink or reparse point: {current}"
+        # A normal Windows volume root may grant broad inherited create rights
+        # while the existing directory chain below it remains protected (the
+        # stock C:\ ACL commonly grants Authenticated Users Modify).  The
+        # volume root cannot replace an already-existing protected child such
+        # as C:\Program Files, so it is not a replaceable component of a
+        # descendant path.  A file or directory directly in the volume root is
+        # still checked because that root is its immediate container.
+        if current.parent == current and canonical.parent != current:
+            break
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
@@ -313,6 +322,10 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
     while True:
         if _windows_reparse_point(current):
             return False, f"protected path hierarchy contains a symlink or reparse point: {current}"
+        # See _windows_path_chain_is_protected: broad create rights on the
+        # volume root do not make an existing protected descendant replaceable.
+        if current.parent == current and canonical.parent != current:
+            break
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
@@ -842,8 +855,12 @@ class WindowsBackend(PlatformBackend):
             staging.replace(self.install_root)
             commands = [["icacls", str(self.install_root), "/inheritance:r"],
                         ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
-                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"]]
+                        # Set ownership before the explicit deny. The deny
+                        # includes WRITE_OWNER/WRITE_DAC and would otherwise
+                        # prevent an elevated administrator from completing
+                        # the ownership transition or rolling back safely.
+                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"],
+                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"]]
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")

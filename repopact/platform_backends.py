@@ -704,11 +704,12 @@ class WindowsBackend(PlatformBackend):
         except (OSError, ValueError, json.JSONDecodeError):
             return None
 
-    def _runtime_digest(self) -> str:
-        files = sorted(self.runtime_path.rglob("*.py")) if self.runtime_path.is_dir() else []
+    def _runtime_digest(self, runtime: Path | None = None) -> str:
+        base = runtime or self.runtime_path
+        files = sorted(base.rglob("*.py")) if base.is_dir() else []
         h = hashlib.sha256()
         for path in files:
-            h.update(_normalise(path).encode("utf-8"))
+            h.update(str(path.relative_to(base)).replace("\\", "/").encode("utf-8"))
             h.update(path.read_bytes())
         return h.hexdigest() if files else ""
 
@@ -903,9 +904,7 @@ class WindowsBackend(PlatformBackend):
             stage_state.mkdir(parents=True, exist_ok=True)
             service_entry = stage_runtime / "repopact" / "windows_guard_service.py"
             if not service_entry.exists(): raise RuntimeError("installed guard runtime is missing windows_guard_service.py")
-            stage_digest = hashlib.sha256()
-            for path in sorted(stage_runtime.rglob("*.py")):
-                stage_digest.update(_normalise(path).encode()); stage_digest.update(path.read_bytes())
+            stage_digest = self._runtime_digest(stage_runtime)
             code, revision = _command_output(["git", "-C", str(root or Path.cwd()), "rev-parse", "HEAD"])
             selected_interpreter = str(report["interpreter"]["canonical_path"] or report["interpreter"]["path"])
             manifest = {"protocol_version": "1", "service_name": self.service_name, "service_identity": "NT AUTHORITY\\SYSTEM",

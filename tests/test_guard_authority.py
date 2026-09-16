@@ -164,6 +164,15 @@ class GuardAuthorityTests(unittest.TestCase):
             protected, _reason = platform_backends._windows_acl(Path(r"C:\ProgramData\RepoPact\Guard"))
         self.assertTrue(protected)
 
+    def test_windows_runtime_digest_is_independent_of_install_location(self):
+        first = self.tmp / "runtime-first" / "repopact"
+        second = self.tmp / "runtime-second" / "repopact"
+        for base in (first, second):
+            base.mkdir(parents=True, exist_ok=True)
+            (base / "service.py").write_text("print('stable')\n", encoding="utf-8")
+        backend = WindowsBackend()
+        self.assertEqual(backend._runtime_digest(first), backend._runtime_digest(second))
+
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):
         """Standard C:\\ root inheritance must not block Program Files trust."""

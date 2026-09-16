@@ -14,6 +14,12 @@
     "implementation_checkpoint_sha": "49e473cdee46b3bf7980d5b133136160b98f9e69",
     "implementation_checkpoint_tree": "12a3499a96a93219e3ee03d17d287c95a8cd23f0"
   },
+  "final_remote_state": {
+    "origin_main_sha": "b2bd8cfd1b62d2b711440b8bc2b91013ecd9db5a",
+    "origin_main_tree": "e0a497179bce3c18fd4415dcd7ab3fba997bf4eb",
+    "feature_relation": "feature is ahead by the two WI050 commits and behind by seven concurrent WI065/WI067 commits",
+    "integration": "deferred because required native Landlock proof is unavailable; no concurrent changes were overwritten"
+  },
   "commands": [
     {"command": "git fetch origin main", "exit_code": 0, "summary": "origin/main remained d5c4e23; the fetched tip includes the concurrent WI065 merge and was the feature-branch base."},
     {"command": "wsl.exe -l -v", "exit_code": 1, "summary": "WSL is not installed; no Debian 13 environment is available on this host."},

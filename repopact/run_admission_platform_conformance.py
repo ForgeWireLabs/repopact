@@ -128,7 +128,7 @@ def run(root: Path) -> dict[str, Any]:
         native = {"executed": False, "cases": {name: "not-run" for name in native_cases},
                   "reason": "native protected service is not installed"}
         if backend.attest(root).healthy:
-            client = NativeGuardClient(root=root)
+            client = NativeGuardClient()
             # These initial native cases prove transport and server identity,
             # not repository authorization.  Supplying the temporary
             # semantic fixture root would correctly make the machine-wide

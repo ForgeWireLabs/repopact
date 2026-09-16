@@ -69,6 +69,14 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(client.health().healthy)
         self.assertFalse(client.check({}, None).allowed)
 
+    def test_native_client_without_root_queries_machine_health(self):
+        client = NativeGuardClient()
+        response = {"healthy": True, "backend_id": "windows-service", "service_identity_verified": True}
+        with patch.object(client, "_call", return_value=response) as call:
+            health = client.health()
+        self.assertTrue(health.healthy)
+        call.assert_called_once_with("health", {})
+
     def test_windows_pipe_listener_recreates_instance_after_normal_disconnect(self):
         import ctypes
 

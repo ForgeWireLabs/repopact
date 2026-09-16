@@ -529,8 +529,8 @@ class NativeGuardClient(EnforcementProvider):
         from .admission import GuardHealth
         from dataclasses import fields
         selected = root or self.root
-        if selected is None: return GuardHealth(False, security_level="not-covered", reason="native guard client has no repository root", backend_id="native-ipc")
-        try: result = self._call("health", {"root": str(selected)})
+        payload = {"root": str(selected)} if selected is not None else {}
+        try: result = self._call("health", payload)
         except Exception as exc: return GuardHealth(False, security_level="not-covered", reason=str(exc), backend_id="native-ipc")
         names = {f.name for f in fields(GuardHealth)}
         return GuardHealth(**{k: v for k, v in result.items() if k in names})

@@ -507,7 +507,12 @@ def evaluate_action(root: Path, action: Mapping[str, Any], lease: Mapping[str, A
     # legacy corpus; it is allowed to exercise policy checks without claiming
     # host/process protection.  Production/provider health remains subject to
     # the required-class comparison below.
-    if (requirement.required and not health.testing_only
+    # A read/orientation check may revalidate a lease for a higher-assurance
+    # provider without claiming that the guard itself confines a process. The
+    # Landlock launcher performs the actual process admission only after its
+    # own kernel domain is installed; mutation/process actions still require
+    # the effective required class at this boundary.
+    if (requirement.required and action_kind not in {"read/orient", "approval-request"} and not health.testing_only
             and enforcement_rank(health.security_level) < enforcement_rank(requirement.minimum_class)):
         return AdmissionDecision.deny(
             "NOT_COVERED",
@@ -699,6 +704,28 @@ def issue_lease(request: Mapping[str, Any], receipt: Mapping[str, Any], root: Pa
     if not check.allowed: return check, None
     vr = verify_receipt(request, receipt, check.details["authority"], now)
     if not vr.allowed: return vr, None
+    policy = check.details.get("policy", {})
+    profile_name = str(request.get("profile", ""))
+    profile = policy.get("profiles", {}).get(profile_name) if isinstance(policy, Mapping) else None
+    if not isinstance(profile, Mapping):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "authorization profile is not declared"), None
+    requested_capabilities = _capability_names(request.get("capabilities", []))
+    configured_capabilities = _capability_names(profile.get("capabilities", {}))
+    if not requested_capabilities.issubset(configured_capabilities):
+        return AdmissionDecision.deny("PROFILE_ESCALATION", "authorization capability exceeds the selected profile"), None
+    requested_scopes = {str(value) for value in request.get("scopes", [])}
+    configured_scopes = {str(value) for value in profile.get("writable_scopes", [])}
+    if requested_scopes - configured_scopes and "*" not in configured_scopes:
+        return AdmissionDecision.deny("SCOPE_VIOLATION", "authorization scope exceeds the selected profile"), None
+    frozen_approval = (request.get("approval_class") == "frozen"
+                       and request.get("frozen_surface_digest") == frozen_surface_digest(root))
+    configured_paths = profile.get("writable_paths", [])
+    for value in request.get("paths", []):
+        relative = str(value).replace("\\", "/")
+        if relative.startswith("../") or "/../" in relative or relative.startswith("/"):
+            return AdmissionDecision.deny("PATH_VIOLATION", "authorization path escapes repository"), None
+        if not frozen_approval and not any(_match_path(relative, str(pattern).replace("\\", "/")) for pattern in configured_paths):
+            return AdmissionDecision.deny("PATH_VIOLATION", f"authorization path is outside profile: {relative}"), None
     state, state_path = _protected_state(root, protected_dir)
     request_digest = digest(request)
     if state is None: return AdmissionDecision.deny("GUARD_UNHEALTHY", "protected state unavailable"), None

@@ -1,6 +1,6 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (protected enforcement substrate phase; AC-14, AC-15, AC-16, and AC-18 remain pending)
+> **Status**: Active (optional Linux Landlock implementation phase; AC-14, AC-15, and AC-16 are satisfied, AC-18 remains pending)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
@@ -71,9 +71,11 @@ keeps the prior evidence unchanged and adds:
   preflight rejects dirty source, unprotected interpreters, missing dependency
   closure, API gaps, or service collisions before machine mutation.
 
-Native destructive proof is intentionally not run in this correction pass.
-AC-14, AC-15, AC-16, and AC-18 remain pending until an operator performs the
-elevated installation and the real multi-process Windows/Linux/macOS proofs.
+The native Linux proof recorded in `20260915-050-linux-native-proof` satisfies
+AC-15 for the protected guard substrate. The follow-up concrete run
+`20260916-050-linux-landlock-native-proof` satisfies AC-16 for the Linux
+reference path. AC-18 remains pending until the independent Windows/Linux/macOS
+native-reference proof gates are complete.
 
 ## Opt-in capability boundary (clarification pass)
 
@@ -99,6 +101,49 @@ The built-in reference provider and platform backends remain optional and
 platform-specific. This clarification does not alter historical Decision
 0038; it records the implementation boundary that keeps support separate from
 requirement.
+
+## Optional Linux process confinement
+
+Decision [0060](../../../decisions/0060-optional-sandbox-process-enforced-reference-confinement.md)
+adds an optional Linux reference path without changing the portable baseline.
+`repopact.confinement.LandlockConfinementProvider` composes the protected
+`NativeGuardClient` with a host-controlled `repopact-sandbox` helper. The
+helper connects to the protected Unix guard itself, obtains the opaque
+peer-bound lease and guard-derived metadata, revalidates that lease, compiles
+only the authorized relative path ceiling, sanitizes inherited descriptors,
+and enters Landlock before executing explicit argv. Caller-supplied paths,
+repository identities, expiry, approval, and capability claims are not
+authority; a request that is broader than the guard response is rejected by the
+guard or the compiler.
+
+The sandbox class requires Landlock ABI 3 or newer. It handles the complete
+RepoPact mutation matrix: `WRITE_FILE`, `REMOVE_FILE`, `REMOVE_DIR`, all ABI-1
+`MAKE_*` filesystem rights, ABI-2 `REFER`, and ABI-3 `TRUNCATE`. The compiler
+supports exact existing paths and trailing `/**` directory roots, rejects
+symlink components, traversal, unsupported globs, missing exact paths, and a
+broad root that would include `governance/`, `repopact/schemas/`, or
+`.github/workflows/` without the matching frozen approval. An unrepresentable
+ceiling fails closed.
+
+The helper sets `no_new_privs`, applies the ruleset before target creation, and
+closes descriptors above standard error. Writable regular-file standard
+streams are retained only when they are inside an authorized root; directory
+capabilities and unapproved writable devices are rejected. Landlock is
+inherited by descendants, while the helper polls the guard during a running
+execution and terminates its process group when expiry, revocation, authority
+drift, or guard loss is observed. Landlock itself is monotonic and does not
+revoke an already-running process; detached descendants retain the narrower
+Landlock boundary even if best-effort process-group termination cannot reach
+them.
+
+The provider reports `sandbox/process-enforced` only when the protected helper
+path is root-owned and non-writable through its parent chain and the helper's
+native probe passes. An ordinary `NativeGuardClient` and the existing
+`PreActionAdapter` remain `pre-action`. This backend does not claim read or
+confidentiality isolation, network or syscall isolation, namespaces, PID
+isolation, container equivalence, or Windows/macOS parity. A native Linux
+The adversarial proof is recorded in `20260916-050-linux-landlock-native-proof`;
+AC-16 is closed for the Linux reference path, while AC-18 remains independent.
 
 ## Interpreter trust-chain correction pass
 

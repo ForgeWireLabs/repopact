@@ -1,0 +1,78 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260916-050-linux-landlock-native-proof",
+  "timestamp": "2026-09-16T02:19:55Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "passed",
+  "provenance": "concrete",
+  "baseline": {
+    "authoritative_ref": "origin/main",
+    "origin_main_sha": "5d4096d28d68c65d8a5b03e35994bbf61b8231c7",
+    "origin_main_tree": "e1e5d15e33d297a8cbe9ef2779a7a71034987e30",
+    "merge_base": "5d4096d28d68c65d8a5b03e35994bbf61b8231c7",
+    "implementation_checkpoint_sha": "17328246b0f1c9a07c307ead24d2f893b593ab31",
+    "implementation_checkpoint_tree": "ba95aae7c093bf646c58cdd255044eac454993e4",
+    "working_branch": "codex/wi050-linux-landlock-confinement-20260915"
+  },
+  "commands": [
+    {"command":"wsl.exe -d Debian -- uname -a; cat /etc/os-release; id; findmnt -T /home/Jeremy-L/repopact-wi050-landlock-proof; systemctl --version; python3.13 --version; git --version; rg --version","exit_code":0,"summary":"Debian GNU/Linux 13.5 (trixie), WSL2 kernel 6.18.33.2-microsoft-standard-WSL2, native ext4 checkout under /home, ordinary principal uid 1000 with users supplementary group, systemd 257, Python 3.13.5, Git 2.47.3, ripgrep 14.1.1."},
+    {"command":"git fetch origin main; git merge origin/main","exit_code":0,"summary":"Current origin/main was reconciled by a normal merge before implementation; no dirty Windows checkout was used or modified."},
+    {"command":"python3 -m pip install --break-system-packages --user -e \".[dev]\"","exit_code":0,"summary":"Installed the required project and development dependencies into the Linux host user environment after the distribution-managed Python rejected an unscoped PEP 668 install; no dependency fallback was used."},
+    {"command":"apt-get update; apt-get install -y ripgrep","exit_code":0,"summary":"Installed the missing native search utility rather than substituting another search implementation."},
+    {"command":"cargo fmt --manifest-path rust/Cargo.toml --all -- --check; cargo check --manifest-path rust/Cargo.toml --workspace; cargo build --release --manifest-path rust/Cargo.toml -p repopact-sandbox","exit_code":0,"summary":"Rust formatting, workspace compilation, and the release Landlock helper build passed from the checkpoint source."},
+    {"command":"/usr/local/lib/repopact/guard/repopact-sandbox --probe; /usr/local/lib/repopact/guard/repopact-sandbox --capabilities","exit_code":0,"summary":"Native probe passed with Landlock ABI 7; minimum required ABI is 3 and the helper reports handled mutation rights mask 32754."},
+    {"command":"LinuxBackend().install(Path.cwd()) as root; install helper root:root mode 0755; systemctl is-active repopact-guard.service","exit_code":0,"summary":"Supported installer created the root-owned protected runtime, systemd service, state root, socket, and native helper; service active."},
+    {"command":"ordinary-user NativeGuardClient health/discover against registered repo-c","exit_code":0,"summary":"Protected IPC returned healthy=true, protected=true, service identity root verified, runtime and state paths attested, backend linux-system-service, security level pre-action."},
+    {"command":"python3.13 -I scripts/wi050_native_matrix.py as root operator harness","exit_code":0,"summary":"44/44 native cases passed as ordinary uid-1000 targets: direct Python, POSIX shell redirection, child/grandchild, touch/cp/mv positives; write/append/truncate, shell/printf, touch/cp/mv, unlink/rename/link/symlink, cross-repository, protected-state, mkdir/rmdir, parent/home, child/shell-child/grandchild/execve, nested and linked-worktree denials; signed request widening/identity/work-item/principal/session rejection; helper option bypass, inherited writable-FD closure, expiry, revocation, guard loss, authority drift, and detached-descendant spatial/lifecycle observation."},
+    {"command":"REPOPACT_ENGINE=/home/Jeremy-L/.local/bin/repopact-engine python3 -m unittest discover -s tests -q","exit_code":0,"summary":"352 Python tests passed; 3 documented skips."},
+    {"command":"cargo test --manifest-path rust/Cargo.toml --workspace","exit_code":0,"summary":"Rust workspace tests passed, including confinement and sandbox root-walk regressions."},
+    {"command":"REPOPACT_ENGINE=/home/Jeremy-L/.local/bin/repopact-engine python3 -m repopact.run_conformance","exit_code":0,"summary":"Canonical Rust conformance 35/35 and WI050 admission corpus 8/8 passed."},
+    {"command":"REPOPACT_ENGINE=/home/Jeremy-L/.local/bin/repopact-engine python3 -m repopact.cli validate --root .","exit_code":0,"summary":"Repository governance validation passed."},
+    {"command":"REPOPACT_ENGINE=/home/Jeremy-L/.local/bin/repopact-engine python3 -m repopact.cli check-frozen --base origin/main","exit_code":0,"summary":"No frozen-surface changes detected."},
+    {"command":"sha256sum /usr/local/lib/repopact/guard/repopact-sandbox; stat protected paths; cat install.json","exit_code":0,"summary":"Helper hash a7d2423fde4eafbcd44f77394db41df792b53db0cc98ca6329d66128245376bb matches the release build; the supported install manifest binds the runtime to the final source revision; runtime/state/unit/socket ownership and modes are root-protected."}
+  ],
+  "architecture": {
+    "authority_flow":"The ordinary principal supplies only a signed request and receipt. The protected root service derives the lease and path metadata; the helper validates that metadata and canonical repository root, sanitizes descriptors, applies Landlock before target creation, rechecks the opaque lease, then executes explicit argv.",
+    "effective_ceiling":"repo-c/src/allowed/** only; the caller cannot widen it or substitute repository identity.",
+    "handled_mutation_rights":["WRITE_FILE","REMOVE_DIR","REMOVE_FILE","MAKE_CHAR","MAKE_DIR","MAKE_REG","MAKE_SOCK","MAKE_FIFO","MAKE_BLOCK","MAKE_SYM","REFER","TRUNCATE"],
+    "network_rights":[],
+    "claims_excluded":["read/confidentiality isolation","network isolation","syscall isolation","namespace/container equivalence","Windows/macOS parity"]
+  },
+  "landlock": {
+    "detected_abi":7,
+    "minimum_abi":3,
+    "handled_access_fs_mask":32754,
+    "no_new_privs":"set by the helper before landlock_restrict_self; successful native probe and all positive launches establish the restriction path completed.",
+    "ruleset_application":"native probe and 6 positive authorized launches passed; all out-of-ceiling mutation attempts received OS permission failures or were prevented before target start.",
+    "representability":"Existing exact paths and trailing /** directory roots are canonicalized under the repository; symlink components, traversal, unsupported patterns, missing exact paths, and broad roots containing frozen descendants without protected approval fail closed.",
+    "helper_sha256":"a7d2423fde4eafbcd44f77394db41df792b53db0cc98ca6329d66128245376bb"
+  },
+  "native_matrix": {
+    "status":"44/44 passed",
+    "positive_cases":["direct Python in-scope write","POSIX shell redirection in-scope","child and grandchild in-scope writes","touch in-scope","cp in-scope","mv in-scope"],
+    "negative_cases":["Python write","Python append","Python truncate","shell redirect","shell append","printf redirect","touch","cp","mv","unlink","rename","hard link","symlink-mediated escape","second repository","protected guard state","mkdir","rmdir","parent directory escape","home directory escape","child outside","shell child outside","grandchild outside","execve replacement","nested CWD","linked worktree","caller path widening","caller repository substitution","work-item substitution","principal substitution","adapter-session substitution","helper option bypass","inherited writable FD","lease expiry","operator revocation","guard loss","authority drift","detached descendant"],
+    "sentinel_sha256":"586cced0aafa4fa867ae179d27212682161d814f6ba88fc94a9bbb8c95037c6a",
+    "unrelated_repo_sentinel_sha256":"002ab97caaec4d03986c3f65b7e41c6e48d572fd22c7c315e5e0a88a02f0b793",
+    "descendant_inheritance":"child and grandchild writes succeeded only inside the allowed root; out-of-ceiling child, shell-child, grandchild, and execve replacement attempts failed at the OS boundary.",
+    "inherited_descriptors":"a pre-opened writable FD to the denied sentinel was closed by the launcher; the target observed EBADF and the sentinel remained unchanged.",
+    "lifecycle":"expiry returned EXPIRED_AUTHORIZATION and terminated the supervised group; operator revocation returned REVOKED_AUTHORIZATION and terminated it; socket/service loss returned GUARD_UNHEALTHY and terminated it; authority drift was rejected and terminated. Finished markers were absent in all four cases. The detached descendant produced no outside write and was terminated in this environment; that observation is not generalized beyond the tested host behavior."
+  },
+  "capability_resolution": {
+    "ordinary_native_guard":"pre-action",
+    "healthy_landlock_provider":"sandbox/process-enforced only after helper attestation and ABI probe",
+    "unsupported_or_lost_guard":"not-covered / fail closed; target does not start or is terminated",
+    "this_evidence":"native Linux process/path enforcement concretely proven; cross-platform AC-18 remains pending"
+  },
+  "criteria": {
+    "AC-14":"Existing implementation surfaces and generated artifacts remained validated; this proof adds the reproducible native harness.",
+    "AC-15":"Already satisfied by the prior native protected-guard evidence; final reinstall also independently attested root-owned runtime/state/unit/socket and service identity.",
+    "AC-16":"SATISFIED by this concrete Linux-native 44/44 matrix: canonical registration, ordinary-principal IPC binding, direct/shell/child/descendant/nested/linked/cross-repository/protected-state bypasses, representability, all listed mutation forms, signed request substitutions, inherited-FD, and lifecycle fail-closed cases passed.",
+    "AC-18":"PENDING: Linux native reference proof is complete, but required native Windows and macOS reference proofs remain unavailable."
+  },
+  "validation": {"python":"352 passed, 3 skipped","rust":"workspace passed; confinement and sandbox tests passed","conformance":"Rust 35/35; WI050 8/8","repository_validate":"passed","frozen_check":"passed; no frozen changes","native_matrix":"44/44 passed"},
+  "artifacts":["rust/crates/repopact-confinement/src/lib.rs","rust/apps/repopact-sandbox/src/main.rs","repopact/platform_backends.py","repopact/unix_guard_service.py","tests/test_protected_substrate.py","scripts/wi050_native_matrix.py","evidence/runs/20260916-050-linux-landlock-native-proof.json","work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"],
+  "environment":{"os":"Debian GNU/Linux 13.5 (trixie) under WSL2","kernel":"6.18.33.2-microsoft-standard-WSL2","filesystem":"native ext4 at /home/Jeremy-L/repopact-wi050-landlock-proof; /mnt/c was not used","python":"3.13.5","git":"2.47.3","ripgrep":"14.1.1 installed during this run","privilege":"ordinary targets uid=1000/gid=1000 with users supplementary group; installation/operator harness root","service":"systemd 257; root:users; /usr/bin/python3.13 -I protected runtime","protected_paths":"/usr/local/lib/repopact/guard/runtime; /usr/local/lib/repopact/guard/repopact-sandbox; /etc/systemd/system/repopact-guard.service; /var/lib/repopact/registrations; /run/repopact/guard.sock"},
+  "cleanup":{"native_fixture":"created for this run and removed after final proof; all matrix-created files were disposable fixture content","linked_worktree":"removed by the harness","operator_key":"created outside the repository for the operator-controlled fixture and removed after final proof","service":"installed through the supported Linux backend for proof, then removed through the supported uninstall path; no fallback service or runtime state was used","user_checkouts":"Windows C:/Projects/repopact dirty checkout was preserved and not modified"},
+  "authority":{"frozen_changes":false,"operator_approval_inferred":false,"protected_root_claim":"concretely proven on native Linux only"}
+}

@@ -102,7 +102,9 @@ If policy only requires `pre-action`, the existing reference behavior remains va
 
 ## Acceptance impact
 
-AC-16 remains **pending** until this tranche has native executable evidence satisfying the existing criterion. Do not weaken or reinterpret AC-16 to close it.
+AC-16 is **satisfied** by the concrete native Linux evidence run
+`20260916-050-linux-landlock-native-proof`. This closes only the Linux
+reference-path criterion; it does not weaken or reinterpret AC-18.
 
 AC-18 remains **pending** until its Windows, Linux, and macOS native reference-proof requirement is independently satisfied.
 

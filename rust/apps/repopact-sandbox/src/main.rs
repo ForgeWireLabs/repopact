@@ -418,7 +418,7 @@ mod unix {
             )
         })?;
         stream
-            .write_all(&[&bytes[..], b"\n"[..]].concat())
+            .write_all(&[&bytes[..], &b"\n"[..]].concat())
             .map_err(|error| io_error("guard request write failed", error))?;
         let mut response = Vec::new();
         stream

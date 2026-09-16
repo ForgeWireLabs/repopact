@@ -31,14 +31,14 @@ const FROZEN_RELATIVE_PATHS: &[&str] = &["governance", "repopact/schemas", ".git
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfinementError {
-    pub kind: &'static str,
+    pub kind: String,
     pub message: String,
 }
 
 impl ConfinementError {
-    fn new(kind: &'static str, message: impl Into<String>) -> Self {
+    pub fn new(kind: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
-            kind,
+            kind: kind.into(),
             message: message.into(),
         }
     }
@@ -262,7 +262,6 @@ mod linux {
     use super::*;
     use std::ffi::CString;
     use std::os::fd::RawFd;
-    use std::os::unix::fs::MetadataExt;
 
     const LANDLOCK_CREATE_RULESET_VERSION: libc::c_int = 1;
     const LANDLOCK_RULE_TYPE_PATH_BENEATH: libc::c_int = 1;
@@ -562,6 +561,13 @@ pub fn sanitize_inherited_fds(_: &[PathBuf]) -> Result<FdSanitization, Confineme
 mod tests {
     use super::*;
     use std::fs;
+
+    #[test]
+    fn launcher_can_construct_typed_errors_across_crate_boundary() {
+        let error = ConfinementError::new("TEST_FAILURE", "launcher-facing error");
+        assert_eq!(error.kind, "TEST_FAILURE");
+        assert_eq!(error.to_string(), "TEST_FAILURE: launcher-facing error");
+    }
 
     #[test]
     fn rejects_broad_root_containing_frozen_subtree_without_approval() {

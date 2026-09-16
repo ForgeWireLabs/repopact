@@ -115,6 +115,27 @@ class GuardAuthorityTests(unittest.TestCase):
         kernel.OpenProcess.assert_called_once_with(0x1000, False, 1234)
         kernel.CloseHandle.assert_called_once()
 
+    def test_windows_pipe_connection_declares_message_api_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.WriteFile.return_value = True
+        kernel.ReadFile.side_effect = lambda _handle, buffer, _size, read, _overlapped: (
+            setattr(buffer, "value", b'{"protocol_version":"1"}\n')
+            or setattr(read._obj, "value", len(b'{"protocol_version":"1"}\n'))
+            or True
+        )
+        connection = guard_ipc.WindowsPipeConnection(ctypes.c_void_p(0x123456789))
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            connection.send_bytes(b"request\n")
+            self.assertEqual(connection.recv_bytes(), b'{"protocol_version":"1"}\n')
+            connection.close()
+
+        kernel.WriteFile.assert_called_once()
+        kernel.ReadFile.assert_called_once()
+        kernel.CloseHandle.assert_called_once()
+
     def test_windows_server_verifier_accepts_scm_localsystem_name(self):
         qc = (
             "        BINARY_PATH_NAME   : \"C:\\Program Files\\Python312\\python.exe\" -I "

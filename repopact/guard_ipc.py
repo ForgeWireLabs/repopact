@@ -114,19 +114,31 @@ class WindowsPipeConnection:
     def send_bytes(self, data: bytes) -> None:
         import ctypes
         from ctypes import wintypes
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.WriteFile.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
+        ]
+        kernel.WriteFile.restype = wintypes.BOOL
         written = wintypes.DWORD()
         buf = ctypes.create_string_buffer(data)
-        if not ctypes.windll.kernel32.WriteFile(self.handle, buf, len(data), ctypes.byref(written), None):
+        if not kernel.WriteFile(self.handle, buf, len(data), ctypes.byref(written), None):
             raise OSError(ctypes.get_last_error(), "WriteFile failed")
 
     def recv_bytes(self) -> bytes:
         import ctypes
         from ctypes import wintypes
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.ReadFile.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
+        ]
+        kernel.ReadFile.restype = wintypes.BOOL
         chunks: list[bytes] = []
         while True:
             buf = ctypes.create_string_buffer(1024 * 1024)
             read = wintypes.DWORD()
-            ok = ctypes.windll.kernel32.ReadFile(self.handle, buf, len(buf), ctypes.byref(read), None)
+            ok = kernel.ReadFile(self.handle, buf, len(buf), ctypes.byref(read), None)
             if not ok and ctypes.get_last_error() not in (109, 234):  # broken pipe / more data
                 raise OSError(ctypes.get_last_error(), "ReadFile failed")
             chunks.append(buf.raw[:read.value])
@@ -137,7 +149,11 @@ class WindowsPipeConnection:
         if self.handle:
             try:
                 import ctypes
-                ctypes.windll.kernel32.CloseHandle(self.handle)
+                from ctypes import wintypes
+                kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+                kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+                kernel.CloseHandle.restype = wintypes.BOOL
+                kernel.CloseHandle(self.handle)
             finally:
                 self.handle = 0
 

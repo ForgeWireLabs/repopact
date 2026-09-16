@@ -327,3 +327,27 @@
   WSL2/Linux environment. AC-15, AC-16, and AC-18 therefore remain pending;
   AC-14 is reconciled by the fresh closeout evidence after the implementation
   and product-surface audit.
+
+## 2026-09-15 WI050 optional Landlock confinement implementation
+
+- Added the Linux-only `repopact-confinement` crate and `repopact-sandbox`
+  launcher. The launcher is a consumer of protected guard authority: it sends
+  the signed request/receipt over its own Unix transport peer, validates the
+  guard-derived metadata, compiles a non-broadening path ceiling, sanitizes
+  inherited descriptors, sets `no_new_privs`, applies Landlock, and only then
+  executes explicit argv.
+- The minimum advertised contract is Landlock ABI 3 with all RepoPact
+  mutation rights, including ABI-2 `REFER` and ABI-3 `TRUNCATE`. Unsupported
+  ABI, unavailable/disabled Landlock, ruleset or restriction errors,
+  unrepresentable roots, or invalid guard authority fail before target start.
+- Added `LandlockConfinementProvider` and `LandlockSandboxAdapter` as an
+  opt-in capability composition. Ordinary `NativeGuardClient` plus
+  `PreActionAdapter` remains `pre-action`; sandbox capability requires a
+  protected helper and its native mutation probe. Lease revalidation uses a
+  read/orientation guard check while the helper supplies the actual kernel
+  boundary, so a weak guard cannot be mistaken for process confinement.
+- The implementation is portable-tested and Windows-compiled in this
+  checkout, but no Linux kernel is available here (`wsl.exe` reports WSL is not
+  installed). AC-16 remains pending until the required Debian/ext4 native
+  adversarial matrix proves the full process-tree boundary. AC-18 remains
+  pending for the independent Windows/Linux/macOS native reference proofs.

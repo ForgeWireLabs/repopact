@@ -121,6 +121,31 @@ class LauncherAdapter(PreActionAdapter):
         return decision, subprocess.Popen(list(launch), cwd=str(cwd) if cwd else None, env=dict(env) if env else None)
 
 
+class LandlockSandboxAdapter(LauncherAdapter):
+    """Optional Linux launcher whose provider owns the Landlock handoff."""
+
+    def __init__(self, provider: EnforcementProvider | Any, capabilities: AdapterCapabilities | None = None):
+        super().__init__(provider, capabilities or AdapterCapabilities(
+            "repopact-landlock-reference", host="coding-surface", os="linux",
+            pre_action_interception=False, path_reporting=True,
+            path_confinement=True, process_confinement=True,
+            protected_host_config=True, session_start_gate=True,
+        ))
+
+    def launch_authorized(self, request: Mapping[str, Any], receipt: Mapping[str, Any],
+                          launch: list[str] | tuple[str, ...], *, root: Path | None = None,
+                          cwd: str | Path | None = None, env: Mapping[str, str] | None = None):
+        method = getattr(self.provider, "launch_authorized", None)
+        if not callable(method):
+            return AdmissionDecision.deny("NOT_COVERED", "provider has no confinement launcher"), None
+        return method(request, receipt, launch, root=root, cwd=cwd, env=env)
+
+
+# A short neutral name is convenient for adopters; the explicit class name is
+# retained for capability records and source-level clarity.
+SandboxAdapter = LandlockSandboxAdapter
+
+
 class CodexReferenceAdapter(PreActionAdapter):
     def __init__(self, provider: EnforcementProvider | Any): super().__init__(provider, AdapterCapabilities("repopact-codex-reference", host="coding-surface"))
 

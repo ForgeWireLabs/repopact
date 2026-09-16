@@ -5,8 +5,8 @@
       "path": ".",
       "owner": "governance-owner",
       "contract": "AGENTS.md",
-      "last_reviewed": "2026-06-15",
-      "next_review": "2026-09-15",
+      "last_reviewed": "2026-09-15",
+      "next_review": "2026-12-15",
       "alignment": "current",
       "notes": "Conformance fixture root contract."
     }

@@ -10,11 +10,13 @@ members = [
     "crates/repopact-analysis",
     "crates/repopact-mutation",
     "crates/repopact-core",
+    "crates/repopact-confinement",
     "crates/repopact-desktop-api",
     "crates/repopact-mobile-acquisition",
     "crates/repopact-mobile-saf",
     "apps/repopact-cli",
     "apps/repopact-engine",
+    "apps/repopact-sandbox",
     "apps/repopact-desktop/src-tauri",
 ]
 
@@ -36,6 +38,7 @@ repopact-validation = { path = "crates/repopact-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 sha2 = "0.10"
+libc = "0.2"
 # Deterministic TOML metadata extraction (WI063 metadata/operational-
 # topology checkpoint, Decision 0048) -- Cargo.toml/pyproject.toml.
 toml = { version = "0.8", default-features = false, features = ["parse"] }

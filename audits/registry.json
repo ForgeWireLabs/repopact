@@ -5,8 +5,8 @@
       "path": ".",
       "owner": "governance-owner",
       "contract": "AGENTS.md",
-      "last_reviewed": "2026-09-12",
-      "next_review": "2026-12-11",
+      "last_reviewed": "2026-09-15",
+      "next_review": "2026-12-15",
       "alignment": "current",
       "notes": "Repository-level governance contract, including exact tracked-path ownership, semantic-claim freshness, and the WI046 local-first verification/release policy boundary."
     },
@@ -23,8 +23,8 @@
       "path": "docs",
       "owner": "docs-owner",
       "contract": "docs/AGENTS.md",
-      "last_reviewed": "2026-09-12",
-      "next_review": "2026-12-11",
+      "last_reviewed": "2026-09-15",
+      "next_review": "2026-12-15",
       "alignment": "current",
       "notes": "Diataxis documentation set, including the canonical-projection semantic boundary and the WI046 local-first CI/CD how-to; governed lightly with no per-page audit inventories (policies 001 and 002)."
     },

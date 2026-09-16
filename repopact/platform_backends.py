@@ -72,6 +72,7 @@ class BackendAttestation:
             "os": self.os_name,
             "installed": self.installed,
             "healthy": self.healthy,
+            "protected": self.protected_from_gated_principal,
             "integrity_checked": self.integrity_checked,
             "protected_from_gated_principal": self.protected_from_gated_principal,
             "service_identity_verified": self.service_identity_verified,

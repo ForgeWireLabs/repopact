@@ -209,6 +209,40 @@ GitHub integration is optional. Existing repositories and users who never connec
   App client ID, and Android credential storage remains an explicit,
   recorded gap rather than a plaintext fallback.
 
+- **Checkpoint C — Bounded Snapshot Materialization — done.** See
+  `evidence/runs/20260916-067-checkpoint-c-snapshot-materialization.json`.
+  Landed: `WorkspaceManager::import_remote_snapshot`
+  (`repopact-mobile-acquisition`), reusing WI065's *unmodified*
+  staging-then-publish transaction and archive extractor, plus a purely
+  filesystem-level post-extraction step that strips GitHub's synthetic
+  zipball wrapper directory when requested; a real, bounded, streaming
+  `StreamingDownloadTransport`/`ReqwestTransport::download` (a separate,
+  longer-timeout HTTP client; manual redirect handling reusing Decision
+  0061's Authorization-header allowlist; a 300MiB compressed-byte bound
+  distinct from Checkpoint B's REST-JSON ceiling and from WI065's own
+  expanded-byte bound); `GitHubProvider::describe_snapshot`/
+  `open_snapshot` wired to the real `zipball` endpoint; the completed
+  typed command surface (`remote_import_snapshot` + `remote_import_cancel`,
+  accepting only typed repository/ref identifiers and re-resolving the
+  exact commit SHA natively rather than trusting any value the frontend
+  already displayed); and a real "Import Snapshot" UI action with
+  cancellation and honest post-import offline/no-write-back messaging.
+  **Live-proven** end-to-end against `octocat/Hello-World` (no
+  authentication needed): ref resolution, real zipball download, the real
+  `api.github.com` → `codeload.github.com` redirect, bounded streaming,
+  real WI065 extraction, real publication with credential-free
+  `RemoteSnapshot` provenance, the synthetic wrapper directory correctly
+  stripped, and a fresh `WorkspaceManager` reopen reading the workspace via
+  ordinary filesystem I/O with zero further network calls. GH-007, GH-008,
+  and GH-009 become `satisfied`. GH-010 and GH-013 advanced substantially
+  (redirect/auth/cancellation/adversarial-archive proof; download error
+  mapping) but stay `pending` -- the full documented failure taxonomy
+  (TLS failure, 5xx, redirect-loop-exceeded, truncated body) and a
+  dedicated log-redaction sweep for the new download path were not
+  exercised this checkpoint. GH-004/005/012/015 remain `pending`,
+  unchanged -- still blocked on an operator registering a real GitHub App
+  client ID and on Android protected credential storage.
+
 ## Status
 
-Active (Checkpoint B complete; Checkpoint C not started -- blocked on operator GitHub App registration for live end-to-end auth).
+Active (Checkpoint C complete; Checkpoint D and beyond -- full GH-010/013 failure-matrix closure, GH-015 documentation, and any live authenticated/private/organization/Android work -- remain blocked on operator GitHub App registration and Android credential-store implementation).

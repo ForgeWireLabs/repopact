@@ -90,8 +90,10 @@
     {
       "id": "GH-010",
       "text": "Network, redirect, TLS, token, rate-limit, API-error, revoked-installation, private-repository, organization-policy, SSO/authorization, archive-download, cancellation, and partial-download failure behavior is fail-closed and typed. Interrupted or failed remote imports leave no ready workspace and no orphaned credential-bearing temporary state; successful imports pass through the same staging-then-publish transaction used by local/mobile acquisition.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-d-failure-security"
+      ]
     },
     {
       "id": "GH-011",
@@ -110,8 +112,10 @@
     {
       "id": "GH-013",
       "text": "Security and privacy evidence proves least-privilege permissions, protected-token handling, redacted logs/errors, no credential material in RepoPact evidence/workspace metadata, bounded network/download behavior, and no elevation of GitHub metadata into governance/mutation approval authority. Tests cover token leakage attempts and credential-bearing URL/log redaction.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-d-failure-security"
+      ]
     },
     {
       "id": "GH-014",

@@ -363,9 +363,13 @@ fn repository_from_dto(dto: &RemoteRepositoryRefDto) -> RemoteRepository {
 
 /// The minimal repository identity a browse/ref-resolution command needs
 /// from the frontend -- never a raw provider URL, never credential
-/// material.
+/// material. `deny_unknown_fields` (WI067 Checkpoint D, Phase 9) is
+/// defense-in-depth: even though nothing in this codebase reads an
+/// unexpected field, an attempt to smuggle one in (e.g. a `url` or
+/// `destination` alongside the legitimate identity fields) is now
+/// rejected outright at deserialization rather than silently ignored.
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RemoteRepositoryRefDto {
     pub repository_id: String,
     pub owner: String,
@@ -373,7 +377,7 @@ pub struct RemoteRepositoryRefDto {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RemoteRefRefDto {
     pub display_name: String,
     pub kind: RemoteRefKindDto,
@@ -749,5 +753,46 @@ fn rfc3339_from_unix_seconds(unix_seconds: u64) -> String {
 pub fn remote_import_cancel(service: State<'_, Arc<RemoteProviderService>>) {
     if let Some(token) = service.active_import.lock().unwrap().as_ref() {
         token.cancel();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// WI067 Checkpoint D, Phase 9: an attempt to smuggle an arbitrary
+    /// `url`/`headers`/`destination` field alongside the legitimate
+    /// repository identity is rejected at deserialization -- the command
+    /// handler body (and therefore any network/filesystem action) never
+    /// even runs.
+    #[test]
+    fn a_repository_ref_with_an_injected_url_field_is_rejected() {
+        let json = r#"{"repositoryId":"1","owner":"octocat","name":"Hello-World","url":"https://evil.example/"}"#;
+        let result: Result<RemoteRepositoryRefDto, _> = serde_json::from_str(json);
+        assert!(
+            result.is_err(),
+            "an injected url field must be rejected, not silently ignored"
+        );
+    }
+
+    #[test]
+    fn a_repository_ref_with_an_injected_destination_field_is_rejected() {
+        let json = r#"{"repositoryId":"1","owner":"octocat","name":"Hello-World","destinationPath":"C:\\evil"}"#;
+        let result: Result<RemoteRepositoryRefDto, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn a_ref_with_an_injected_headers_field_is_rejected() {
+        let json = r#"{"displayName":"main","kind":"branch","refId":"heads/main","headers":{"Authorization":"Bearer x"}}"#;
+        let result: Result<RemoteRefRefDto, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn an_ordinary_repository_ref_still_deserializes() {
+        let json = r#"{"repositoryId":"1","owner":"octocat","name":"Hello-World"}"#;
+        let result: Result<RemoteRepositoryRefDto, _> = serde_json::from_str(json);
+        assert!(result.is_ok());
     }
 }

@@ -243,6 +243,33 @@ GitHub integration is optional. Existing repositories and users who never connec
   unchanged -- still blocked on an operator registering a real GitHub App
   client ID and on Android protected credential storage.
 
+- **Checkpoint D — Failure-Surface and Security/Privacy Closure — done.**
+  See `evidence/runs/20260916-067-checkpoint-d-failure-security.json`.
+  Closed the exact four gaps Checkpoint C left open: a real TLS
+  certificate-validation failure through the production client (live,
+  `self-signed.badssl.com`), real 5xx (500/503) handling, a real redirect-
+  loop/`MAX_REDIRECTS`-exhaustion proof against a server that never stops
+  redirecting, and confirmation that a truncated (short-Content-Length)
+  transfer is already correctly rejected by the underlying HTTP stack.
+  Fixed a real gap where a non-2xx download response body was embedded
+  into an error message unredacted and only size-capped, not
+  content-bounded -- now redacted and bounded, proven against a
+  deliberately hostile response body containing a canary token and 10KB
+  of padding. Added dedicated GH-013 evidence: token-canary redaction
+  tests on `RemoteProviderError` construction itself (not only incidental
+  coverage), and a structural regression test proving
+  `repopact-mutation`/`repopact-graph`/`repopact-core` do not and cannot
+  depend on any remote-provider crate, so GitHub metadata cannot reach
+  governance/mutation authority even in principle. Hardened the typed
+  command DTOs with `deny_unknown_fields` so an injected `url`/
+  `destinationPath`/`headers` field is rejected at deserialization, not
+  merely ignored. New `docs/guides/github-snapshot-import.md` documents
+  the concretely-implemented behavior without speculating about
+  private/organization/mobile behavior. GH-010 and GH-013 become
+  `satisfied`; GH-015 stays `pending` (its private/organization/mobile
+  documentation would still be speculative); GH-004/005/012 remain
+  `pending`, unchanged.
+
 ## Status
 
-Active (Checkpoint C complete; Checkpoint D and beyond -- full GH-010/013 failure-matrix closure, GH-015 documentation, and any live authenticated/private/organization/Android work -- remain blocked on operator GitHub App registration and Android credential-store implementation).
+Active. Remaining work is entirely gated on an operator registering a real GitHub App (GH-005, GH-012, GH-015's remaining sections) and on Android protected credential storage (GH-004, GH-012's Android half). No further RepoPact-side implementation work is pending for the currently-scoped desktop/public-repository snapshot-import feature.

@@ -501,6 +501,7 @@ def main() -> int:
     if args.delete_key:
         cleanup_ok = cleanup_ok and cleanup.get("external_key_removed") is True
     evidence["result"] = "passed" if evidence["result"] == "passed" and cleanup_ok else "failed"
+    evidence["commands"][0]["exit_code"] = 0 if evidence["result"] == "passed" else 1
     output = Path(args.evidence_output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(_json(evidence) + "\n", encoding="utf-8", newline="\n")

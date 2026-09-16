@@ -140,6 +140,31 @@ class GuardAuthorityTests(unittest.TestCase):
         kernel.OpenProcess.assert_called_once_with(0x1000, False, 1234)
         kernel.CloseHandle.assert_called_once()
 
+    def test_windows_peer_binding_declares_64_bit_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.OpenProcess.return_value = ctypes.c_void_p(0x123456789)
+        kernel.GetProcessTimes.return_value = False
+        advapi = Mock()
+        advapi.OpenProcessToken.return_value = False
+
+        def load_library(name, **_kwargs):
+            return advapi if name.lower() == "advapi32" else kernel
+
+        connection = object()
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(guard_ipc, "windows_peer_identity",
+                             return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(ctypes, "WinDLL", side_effect=load_library, create=True):
+            binding = guard_ipc.windows_peer_binding(connection)
+
+        self.assertEqual(binding["pid"], 1234)
+        self.assertEqual(binding["transport"], "windows-named-pipe")
+        self.assertEqual(kernel.OpenProcess.argtypes[2], ctypes.wintypes.DWORD)
+        self.assertEqual(kernel.CloseHandle.argtypes[0], ctypes.wintypes.HANDLE)
+        self.assertEqual(advapi.OpenProcessToken.argtypes[0], ctypes.wintypes.HANDLE)
+
     def test_windows_pipe_connection_declares_message_api_handle_types(self):
         import ctypes
 

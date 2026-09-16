@@ -303,8 +303,18 @@ def windows_peer_binding(connection: Any, *, client: bool = True) -> dict[str, A
     try:
         import ctypes
         from ctypes import wintypes
-        kernel = ctypes.windll.kernel32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetProcessTimes.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+        ]
+        kernel.GetProcessTimes.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
         handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, identity.peer_pid)
         if handle:
             try:
@@ -317,7 +327,23 @@ def windows_peer_binding(connection: Any, *, client: bool = True) -> dict[str, A
     try:
         import ctypes
         from ctypes import wintypes
-        kernel, advapi = ctypes.windll.kernel32, ctypes.windll.advapi32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        advapi = ctypes.WinDLL("Advapi32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        kernel.LocalFree.argtypes = [wintypes.LPVOID]
+        kernel.LocalFree.restype = wintypes.LPVOID
+        advapi.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+        advapi.OpenProcessToken.restype = wintypes.BOOL
+        advapi.GetTokenInformation.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID,
+            wintypes.DWORD, ctypes.POINTER(wintypes.DWORD),
+        ]
+        advapi.GetTokenInformation.restype = wintypes.BOOL
+        advapi.ConvertSidToStringSidW.argtypes = [wintypes.LPVOID, ctypes.POINTER(wintypes.LPWSTR)]
+        advapi.ConvertSidToStringSidW.restype = wintypes.BOOL
         process = kernel.OpenProcess(0x1000, False, identity.peer_pid)
         if process:
             try:

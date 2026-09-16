@@ -1,0 +1,114 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-067-checkpoint-a-provider-auth-architecture",
+  "timestamp": "2026-09-15T21:00:00Z",
+  "work_item": "067",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD origin/main && git log --oneline --decorate -40",
+      "exit_code": 0,
+      "summary": "Synchronized at the expected Checkpoint A baseline 42ff7c7236f570096d33797b644106d1732dbd44, matching origin/main exactly, working tree clean. No divergence to reconcile at HEAD."
+    },
+    {
+      "command": "work/proposed/067-... -> work/active/067-...; status: proposed -> active; repopact validate --root .",
+      "exit_code": 0,
+      "summary": "WI067 activated via the normal lifecycle move (a plain directory move plus status-field update, matching the mechanic used for WI065's closeout -- RepoPact's `repopact new`/`validate`/`dashboard` CLI has no separate lifecycle-transition subcommand). GH-001..GH-015 left verbatim. `repopact dashboard --root .` regenerated to clear a `dashboard.stale` validation error; `repopact validate --root .` then passed clean."
+    },
+    {
+      "command": "Re-read WI067 README/work-item.json, Decision 0041, Decision 0056, Decision 0057, WI065 final closeout, WI068, DesktopService/RepositorySession (repopact-desktop-api/src/lib.rs), repopact-mobile-acquisition (registry.rs/archive.rs/workspace.rs/operation.rs), mobile_acquisition.rs, permissions/workbench.toml, Cargo.lock",
+      "exit_code": 0,
+      "summary": "Recorded in work/active/067-.../architecture-review.md. Confirmed DesktopService/RepositorySession/RepositoryTopology are PathBuf-based and already provider-agnostic (grep-confirmed at repopact-desktop-api/src/lib.rs:8,502,511); confirmed repopact_mobile_acquisition::archive::import_archive is a Read+Seek-generic materializer already suitable for a GitHub-downloaded ZIP without a second extractor; confirmed AcquisitionKind::RemoteGit is WI068's reserved variant, not WI067's; confirmed zero HTTP client crate (reqwest/ureq/hyper) exists anywhere in Cargo.lock, meaning no transport library selection was silently inherited."
+    },
+    {
+      "command": "decisions/0061-... (id availability check: ls decisions/ | grep 006 -> 0060 is the highest existing id, 0061 free)",
+      "exit_code": 0,
+      "summary": "Decision 0061 -- Remote Repository Providers Materialize Immutable Snapshots Through Native-Owned Authorization and the Existing Workspace Pipeline -- created and accepted. Binds: provider-neutral remote acquisition; GitHub as first provider; native-owned authentication; GitHub App (not classic OAuth App); least privilege (contents:read, metadata:read only); the auth-flow threat model and comparison; the credential storage boundary; immutable revision resolution; bounded snapshot download; reuse of the existing safe archive materializer; snapshot provenance; typed native commands (named, not yet implemented); offline post-import behavior; and the Stage-2 Git separation from WI068."
+    },
+    {
+      "command": "WebFetch https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps ; WebFetch https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-user-access-token-for-a-github-app ; WebSearch 'GitHub App device flow authorizing users client_secret required'",
+      "exit_code": 0,
+      "summary": "Live GitHub documentation consulted 2026-09-15 (not assumed from training knowledge alone). Confirmed: (1) the web+PKCE flow's token-exchange step still lists client_secret as required despite PKCE support -- rejected for a distributed native client that cannot keep a secret confidential; (2) GitHub's own documentation states a client_secret is required to generate access tokens 'unless your app uses the device flow' -- device flow confirmed as the one no-secret path; (3) exact device-flow request/response shape (device_code/user_code/verification_uri/expires_in/interval; grant_type=urn:ietf:params:oauth:grant-type:device_code; polling errors authorization_pending/slow_down/expired_token/access_denied/device_flow_disabled); (4) token expiration model (access token 8h/28800s, refresh token 6 months/15897600s when 'Expire user authorization tokens' is enabled); (5) GitHub's own guidance names desktop applications as an intended device-flow audience. This confirmed rather than assumed the operator's stated architectural preference; the alternative (hosted ForgeWire Labs broker) was rejected per WI067 GH-003's own text that a hosted service is not required merely to import a repository."
+    },
+    {
+      "command": "cargo new crate scaffolding: rust/crates/repopact-remote-provider, rust/crates/repopact-provider-github; registered in rust/Cargo.toml workspace members + workspace.dependencies",
+      "exit_code": 0,
+      "summary": "repopact-remote-provider: account.rs, auth.rs, credential.rs, error.rs, fake.rs, provider.rs, redact.rs, refs.rs, repository.rs, snapshot.rs, lib.rs. repopact-provider-github: api_version.rs, device_flow.rs, permissions.rs, provider.rs, redirect_policy.rs, transport.rs, lib.rs. GitHub-specific code (device flow protocol, permission matrix, API version, redirect allowlist) lives entirely in repopact-provider-github; DesktopService, RepositorySession, mobile_acquisition.rs, and the frontend reference neither crate yet (no command wiring in this checkpoint)."
+    },
+    {
+      "command": "cargo test -p repopact-remote-provider -p repopact-provider-github",
+      "exit_code": 0,
+      "summary": "30 tests passed (17 in repopact-provider-github, 11 unit + 2 integration in repopact-remote-provider), 0 failed. Includes: FakeProvider -> resolve_ref -> describe_snapshot -> open_snapshot -> repopact_mobile_acquisition::archive::import_archive end-to-end proof (tests/provider_neutrality.rs) with zero GitHub-specific branching; device-flow tests proving no request ever includes a client_secret field (start_device_flow_never_sends_a_client_secret, poll_never_sends_a_client_secret_and_reports_pending); device-flow polling-error coverage for all five documented codes; an untrusted verification_uri rejection test; permission-matrix tests asserting no matrix row requires a write-level permission and that requested permissions are exactly contents:read + metadata:read; redirect-policy tests for the trusted origin and the two authorized header hosts; redaction tests using synthetic ghu_/ghr_-prefixed canaries proving they never survive Secret's Debug impl or the free-text redact() scrubber; a compile-time proof that Secret carries no Serialize/Deserialize/Display impl."
+    },
+    {
+      "command": "AcquisitionKind::RemoteSnapshot added (repopact-mobile-acquisition/src/registry.rs), distinct from the WI068-reserved RemoteGit; RemoteSnapshotProvenance struct + WorkspaceRecord.remote_snapshot_provenance: Option<...> field added",
+      "exit_code": 0,
+      "summary": "Provenance fields limited to: provider, provider_repository_id, owner_label, repository_name, selected_ref, ref_kind, resolved_commit_sha, acquired_at, snapshot_semantics -- no credential field exists on the type. cargo test -p repopact-mobile-acquisition: 70 tests passed (67 pre-existing + 3 new): remote_snapshot_is_distinct_from_remote_git, remote_snapshot_provenance_round_trips_with_no_credential_fields (asserts the raw on-disk JSON never contains access_token/refresh_token/Authorization/ghu_/ghr_ substrings), and a_record_without_remote_snapshot_provenance_still_deserializes (WI065-era registry documents with no remote_snapshot_provenance key remain readable via #[serde(default)])."
+    },
+    {
+      "command": "docs/guides/github-app-setup.md created",
+      "exit_code": 0,
+      "summary": "Durable operator-facing GitHub App registration spec: app identity, Device Flow=ON, Contents:Read + Metadata:Read only, 'Expire user authorization tokens'=ON, no callback URL required for v1 (device flow has none), Webhooks=OFF (no receiver exists), no private key, and that only the resulting Client ID (not confidential) is ever supplied back to RepoPact. No GitHub App has been registered yet; nothing in Checkpoint A's code assumes a specific client ID."
+    },
+    {
+      "command": "cargo fmt --check ; cargo check --workspace ; cargo check --workspace --all-targets ; cargo test --workspace",
+      "exit_code": 1,
+      "summary": "cargo fmt clean after formatting the two new crates' source. cargo check --workspace and --all-targets clean (caught and fixed three WorkspaceRecord struct-literal call sites -- workspace.rs, mobile_acquisition.rs x2, registry.rs test helper -- that needed the new remote_snapshot_provenance field). cargo test --workspace: every crate touched or newly added by this checkpoint is green -- repopact-mobile-acquisition 70/70, repopact-remote-provider 11 unit + 2 integration/13, repopact-provider-github 17/17, and every other unaffected crate at its prior pass count. HONEST GAP, pre-existing and unrelated to WI067: repopact-mutation::tests::{typed_edit_updates_only_allowed_fields_and_validates, unrelated_file_not_in_read_set_does_not_stale_plan} now fail with 'audit scope . freshness expired on 2026-09-15'. Root-caused (not merely observed): conformance/fixtures/valid/audits/registry.json hardcodes next_review: '2026-09-15' for its test fixture, and repopact-validation's freshness check compares that against the real wall-clock date rather than an injected test date in this code path -- so this fixture was always going to start failing on this exact calendar date, on any machine, regardless of any WI067 change. Neither failing test, nor repopact-mutation, nor conformance/fixtures/valid/audits/registry.json was touched by this checkpoint. Left unfixed as out-of-scope for WI067 Checkpoint A (a conformance-fixture/date-freshness issue in an unrelated crate); flagged here rather than silently ignored."
+    },
+    {
+      "command": "No frontend types changed this checkpoint (no Tauri command wired yet) -- frontend typecheck/vitest/build not re-run per instruction to run them only if corresponding product surfaces changed",
+      "exit_code": 0,
+      "summary": "Confirmed no edit touched rust/apps/repopact-desktop/src or src-tauri's command registration/permissions in this checkpoint; frontend surface is unaffected."
+    },
+    {
+      "command": "repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "Clean after regenerating the dashboard following WI067's active-status move and the new work-item.json AC updates."
+    },
+    {
+      "command": "git fetch origin && git log HEAD..origin/main --oneline (pre-push concurrency check)",
+      "exit_code": 0,
+      "summary": "No concurrent commits landed on origin/main during this checkpoint; nothing from WI066/WI050/WI022/WI068 to reconcile."
+    }
+  ],
+  "artifacts": [
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/architecture-review.md",
+    "decisions/0061-remote-repository-providers-materialize-immutable-snapshots-through-native-owned-authorization-and-the-existing-workspace-pipeline.md",
+    "docs/guides/github-app-setup.md",
+    "rust/crates/repopact-remote-provider/",
+    "rust/crates/repopact-provider-github/",
+    "rust/crates/repopact-mobile-acquisition/src/registry.rs",
+    "rust/crates/repopact-mobile-acquisition/src/workspace.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs",
+    "rust/Cargo.toml"
+  ],
+  "environment": {
+    "platform": "desktop-architecture",
+    "machine": "Dell Precision",
+    "synchronized_starting_sha": "42ff7c7236f570096d33797b644106d1732dbd44",
+    "decision_id": "0061",
+    "selected_v1_auth_flow": "github_app_device_flow",
+    "github_app_permissions_requested": ["contents:read", "metadata:read"],
+    "new_crates": ["repopact-remote-provider", "repopact-provider-github"],
+    "new_acquisition_kind": "remote_snapshot",
+    "ac_dispositions": {
+      "GH-001": "satisfied",
+      "GH-002": "satisfied",
+      "GH-003": "satisfied",
+      "GH-004": "pending",
+      "GH-005": "pending",
+      "GH-006": "pending",
+      "GH-007": "pending",
+      "GH-008": "pending",
+      "GH-009": "pending",
+      "GH-010": "pending",
+      "GH-011": "satisfied",
+      "GH-012": "pending",
+      "GH-013": "pending",
+      "GH-014": "satisfied",
+      "GH-015": "pending"
+    }
+  }
+}

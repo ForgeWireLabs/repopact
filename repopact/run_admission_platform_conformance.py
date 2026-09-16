@@ -129,7 +129,11 @@ def run(root: Path) -> dict[str, Any]:
                   "reason": "native protected service is not installed"}
         if backend.attest(root).healthy:
             client = NativeGuardClient(root=root)
-            health = client.health(root)
+            # These initial native cases prove transport and server identity,
+            # not repository authorization.  Supplying the temporary
+            # semantic fixture root would correctly make the machine-wide
+            # service reject the request because that fixture is unregistered.
+            health = client.health()
             native["executed"] = bool(health.healthy)
             native["cases"]["connect_real_service"] = "passed" if health.healthy else "failed"
             native["cases"]["verify_server_identity"] = "passed" if health.service_identity_verified else "failed"

@@ -377,7 +377,15 @@ def windows_request(message: Mapping[str, Any], timeout: float = 3.0, expected_s
     import ctypes
     from ctypes import wintypes
     GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING = 0x80000000, 0x40000000, 3
-    handle = ctypes.windll.kernel32.CreateFileW(WINDOWS_PIPE, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
+    kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    handle = kernel.CreateFileW(
+        WINDOWS_PIPE, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None,
+    )
     if handle in (0, ctypes.c_void_p(-1).value): raise OSError(ctypes.get_last_error(), "guard named pipe unavailable")
     connection = WindowsPipeConnection(handle)
     try:

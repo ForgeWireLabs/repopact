@@ -341,6 +341,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
         # Unregistered repository denial, before any authorization for it.
         other_sentinel = other / "src" / "wi050-independent-sentinel.txt"
+        other_sentinel.parent.mkdir(parents=True, exist_ok=True)
         other_sentinel.write_text("unchanged\n", encoding="utf-8")
         unregistered_before = _hash(other_sentinel)
         unregistered_action = {"kind": "mutation", "work_item": "050", "paths": ["src/wi050-independent-sentinel.txt"],

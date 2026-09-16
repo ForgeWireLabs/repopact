@@ -206,9 +206,11 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
     """Run bounded write/config attempts without the Administrators SID."""
     if os.name != "nt":
         raise RuntimeError("restricted-token proof requires Windows")
-    output_handle = tempfile.NamedTemporaryFile(prefix="wi050-restricted-", suffix=".json", delete=False)
-    output = Path(output_handle.name)
-    output_handle.close()
+    # Leave the result path absent so the restricted child creates it under
+    # the interactive user's temp-directory ACL. A file pre-created by the
+    # elevated harness can carry an integrity label that prevents the stripped
+    # token from reopening it for write.
+    output = Path(tempfile.gettempdir()) / f"wi050-restricted-{uuid.uuid4().hex}.json"
     child = (
         "import json, pathlib, subprocess, sys; "
         "paths=[pathlib.Path(x) for x in json.loads(sys.argv[1])]; out=pathlib.Path(sys.argv[2]); "
@@ -237,6 +239,8 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
     advapi.CreateProcessAsUserW.restype = ctypes.c_int
     kernel.CloseHandle.argtypes = [ctypes.c_void_p]
     kernel.LocalFree.argtypes = [ctypes.c_void_p]
+    kernel.GetExitCodeProcess.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+    kernel.GetExitCodeProcess.restype = ctypes.c_int
     token = ctypes.c_void_p()
     new_token = ctypes.c_void_p()
     sid = ctypes.c_void_p()
@@ -268,12 +272,19 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
                                            None, str(Path.cwd()), ctypes.byref(startup), ctypes.byref(process)):
             raise ctypes.WinError(ctypes.get_last_error())
         try:
-            kernel.WaitForSingleObject(process.hProcess, 15000)
+            wait_result = kernel.WaitForSingleObject(process.hProcess, 15000)
+            if wait_result != 0:
+                raise RuntimeError(f"restricted child wait failed: {wait_result}")
+            child_exit = ctypes.c_uint32()
+            if not kernel.GetExitCodeProcess(process.hProcess, ctypes.byref(child_exit)):
+                raise ctypes.WinError(ctypes.get_last_error())
         finally:
             kernel.CloseHandle(process.hThread); kernel.CloseHandle(process.hProcess)
     finally:
         kernel.CloseHandle(new_token)
     try:
+        if not output.is_file() or output.stat().st_size == 0:
+            raise RuntimeError(f"restricted child produced no result (exit code {child_exit.value})")
         return json.loads(output.read_text())
     finally:
         output.unlink(missing_ok=True)

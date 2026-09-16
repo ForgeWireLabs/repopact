@@ -218,10 +218,26 @@ class WindowsPipeListener:
         kernel.ConnectNamedPipe.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
         kernel.ConnectNamedPipe.restype = wintypes.BOOL
         ERROR_PIPE_CONNECTED, ERROR_PIPE_LISTENING, ERROR_NO_DATA = 535, 536, 232
+        PIPE_READMODE_MESSAGE = 2
         while self._handle:
             connected = kernel.ConnectNamedPipe(self._handle, None)
             if connected or ctypes.get_last_error() == ERROR_PIPE_CONNECTED:
-                handle = self._handle; self._handle = 0
+                handle = self._handle
+                # The listener uses PIPE_NOWAIT so ConnectNamedPipe can poll
+                # for service shutdown.  Accepted connections must use
+                # blocking message reads; otherwise a client that has opened
+                # the pipe but has not completed its first WriteFile can make
+                # ReadFile fail with ERROR_NO_DATA (232), causing the service
+                # to close the connection before the request arrives.
+                kernel.SetNamedPipeHandleState.argtypes = [
+                    wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD),
+                    ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+                ]
+                kernel.SetNamedPipeHandleState.restype = wintypes.BOOL
+                mode = wintypes.DWORD(PIPE_READMODE_MESSAGE)
+                if not kernel.SetNamedPipeHandleState(handle, ctypes.byref(mode), None, None):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                self._handle = 0
                 return WindowsPipeConnection(handle)
             error = ctypes.get_last_error()
             if error == ERROR_NO_DATA:

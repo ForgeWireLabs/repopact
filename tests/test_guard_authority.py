@@ -101,6 +101,23 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertEqual(listener.close.call_count, 2)
         self.assertEqual(kernel.ConnectNamedPipe.call_count, 2)
 
+    def test_windows_pipe_listener_switches_accepted_instance_to_blocking_reads(self):
+        import ctypes
+
+        listener = WindowsPipeListener.__new__(WindowsPipeListener)
+        listener._handle = 7
+        kernel = Mock()
+        kernel.ConnectNamedPipe.return_value = True
+        with patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            connection = listener.accept()
+
+        self.assertIsInstance(connection, guard_ipc.WindowsPipeConnection)
+        self.assertEqual(connection.handle, 7)
+        self.assertEqual(listener._handle, 0)
+        kernel.SetNamedPipeHandleState.assert_called_once()
+        mode = kernel.SetNamedPipeHandleState.call_args.args[1]._obj
+        self.assertEqual(mode.value, 2)  # PIPE_READMODE_MESSAGE; PIPE_WAIT is zero.
+
     def test_windows_peer_image_probe_declares_native_handle_types(self):
         import ctypes
 

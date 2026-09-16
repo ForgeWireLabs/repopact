@@ -910,7 +910,7 @@ class WindowsBackend(PlatformBackend):
             manifest = {"protocol_version": "1", "service_name": self.service_name, "service_identity": "NT AUTHORITY\\SYSTEM",
                         "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
                         "registrations_path": str(self.registrations_path), "ipc_endpoint": self.ipc_endpoint,
-                        "runtime_digest": stage_digest.hexdigest(), "source_revision": revision.strip() if code == 0 else "",
+                        "runtime_digest": stage_digest, "source_revision": revision.strip() if code == 0 else "",
                         "interpreter": selected_interpreter, "interpreter_requested": report["interpreter"]["path"],
                         "dependency_closure": report["dependency_origins"],
                         "dependency_modules": report["dependencies"], "service_command": report["service_command"],

@@ -11,3 +11,8 @@ serde_json.workspace = true
 reqwest.workspace = true
 
 [dev-dependencies]
+# WI067 Checkpoint C: the live end-to-end evidence test proves a real
+# GitHub snapshot flows through WI065's actual production workspace
+# pipeline, not a stand-in.
+repopact-mobile-acquisition.workspace = true
+tempfile = "3.23.0"

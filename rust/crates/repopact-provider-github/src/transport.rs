@@ -82,12 +82,56 @@ pub const MAX_REST_RESPONSE_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_REDIRECTS: u8 = 5;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 const OVERALL_TIMEOUT: Duration = Duration::from_secs(30);
+/// WI067 Checkpoint C (Phase 5): a repository archive download is
+/// legitimately much larger and slower than a REST/JSON call -- reusing
+/// the 30s API-call timeout here would abort a real download on an
+/// ordinary connection. A deliberately longer deadline, still finite (this
+/// is a whole-request timeout, not an unbounded wait): long enough for a
+/// several-hundred-MB archive on a slow link, short enough to fail closed
+/// rather than hang indefinitely.
+const DOWNLOAD_OVERALL_TIMEOUT: Duration = Duration::from_secs(600);
+/// Chunk size for streaming a download to disk. Small enough to check
+/// `should_cancel`/the byte bound frequently; large enough not to dominate
+/// download time with syscall overhead.
+const DOWNLOAD_CHUNK_BYTES: usize = 256 * 1024;
+
+/// A GET request whose response body must be streamed to a local file
+/// rather than buffered in memory (item: Phase 5 -- "do not load a
+/// potentially large repository archive wholly into memory").
+#[derive(Debug, Clone)]
+pub struct StreamingRequest {
+    pub url: String,
+    pub headers: Vec<(String, String)>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct StreamingDownloadOutcome {
+    pub bytes_written: u64,
+}
+
+pub trait StreamingDownloadTransport: Send + Sync {
+    /// Streams the response body to `destination` (created fresh; any
+    /// pre-existing file at that path is an implementation-detail
+    /// overwrite, not append), enforcing `max_bytes` while streaming and
+    /// polling `should_cancel` between chunks. On any error (including
+    /// cancellation and the byte bound), the partial destination file is
+    /// removed before returning -- the caller's own staging cleanup is a
+    /// backstop, not the primary mechanism.
+    fn download(
+        &self,
+        request: &StreamingRequest,
+        destination: &std::path::Path,
+        max_bytes: u64,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<StreamingDownloadOutcome, TransportError>;
+}
 
 /// The production transport. Built once and reused (a fresh
 /// `reqwest::blocking::Client` per call would rebuild the connection
 /// pool/TLS session cache every time).
 pub struct ReqwestTransport {
     client: reqwest::blocking::Client,
+    download_client: reqwest::blocking::Client,
 }
 
 impl ReqwestTransport {
@@ -100,7 +144,18 @@ impl ReqwestTransport {
             .map_err(|error| TransportError {
                 message: format!("failed to construct HTTP client: {error}"),
             })?;
-        Ok(Self { client })
+        let download_client = reqwest::blocking::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .connect_timeout(CONNECT_TIMEOUT)
+            .timeout(DOWNLOAD_OVERALL_TIMEOUT)
+            .build()
+            .map_err(|error| TransportError {
+                message: format!("failed to construct download HTTP client: {error}"),
+            })?;
+        Ok(Self {
+            client,
+            download_client,
+        })
     }
 
     fn read_bounded_body(response: reqwest::blocking::Response) -> Result<Vec<u8>, TransportError> {
@@ -215,6 +270,162 @@ impl RestTransport for ReqwestTransport {
     }
 }
 
+impl StreamingDownloadTransport for ReqwestTransport {
+    fn download(
+        &self,
+        request: &StreamingRequest,
+        destination: &std::path::Path,
+        max_bytes: u64,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<StreamingDownloadOutcome, TransportError> {
+        let outcome = self.download_inner(request, destination, max_bytes, should_cancel);
+        if outcome.is_err() {
+            let _ = std::fs::remove_file(destination);
+        }
+        outcome
+    }
+}
+
+impl ReqwestTransport {
+    fn download_inner(
+        &self,
+        request: &StreamingRequest,
+        destination: &std::path::Path,
+        max_bytes: u64,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<StreamingDownloadOutcome, TransportError> {
+        let mut current_url =
+            reqwest::Url::parse(&request.url).map_err(|error| TransportError {
+                message: format!("invalid URL: {error}"),
+            })?;
+        // Phase 6: reject a redirect that downgrades from https to http.
+        // Compared against the *original* request's own scheme, not a
+        // fixed "https required" rule -- production always builds
+        // `https://api.github.com/...` itself, so any redirect away from
+        // https is a genuine downgrade there, while this module's own
+        // local-socket tests intentionally use plain `http://127.0.0.1`
+        // test servers end-to-end (never claiming to be secure to begin
+        // with, so there is no downgrade to detect).
+        let original_scheme_was_https = current_url.scheme() == "https";
+        let had_authorization = request
+            .headers
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("authorization"));
+        let mut headers = request.headers.clone();
+
+        for hop in 0..=MAX_REDIRECTS {
+            if should_cancel() {
+                return Err(TransportError {
+                    message: "cancelled".to_string(),
+                });
+            }
+            if hop > 0
+                && redirect_is_insecure_downgrade(original_scheme_was_https, current_url.scheme())
+            {
+                return Err(TransportError {
+                    message: format!(
+                        "refusing a redirect that downgrades to an insecure ({}) URL",
+                        current_url.scheme()
+                    ),
+                });
+            }
+            let mut builder = self.download_client.get(current_url.clone());
+            for (name, value) in &headers {
+                builder = builder.header(name, value);
+            }
+            let response = builder.send().map_err(|error| TransportError {
+                message: format!("request failed: {error}"),
+            })?;
+            let status = response.status();
+
+            if status.is_redirection() {
+                let location = response
+                    .headers()
+                    .get(reqwest::header::LOCATION)
+                    .and_then(|value| value.to_str().ok())
+                    .ok_or_else(|| TransportError {
+                        message: format!("redirect status {status} had no Location header"),
+                    })?;
+                let next_url = current_url.join(location).map_err(|error| TransportError {
+                    message: format!("invalid redirect Location: {error}"),
+                })?;
+                let next_host = next_url.host_str().unwrap_or("");
+                if !authorization_survives_redirect(had_authorization, next_host) {
+                    headers.retain(|(name, _)| !name.eq_ignore_ascii_case("authorization"));
+                }
+                current_url = next_url;
+                continue;
+            }
+
+            if !status.is_success() {
+                let mut snippet = Vec::new();
+                let _ = response.take(2048).read_to_end(&mut snippet);
+                return Err(TransportError {
+                    message: format!(
+                        "download failed with status {status}: {}",
+                        String::from_utf8_lossy(&snippet)
+                    ),
+                });
+            }
+
+            return self.stream_to_file(response, destination, max_bytes, should_cancel);
+        }
+
+        Err(TransportError {
+            message: format!("exceeded {MAX_REDIRECTS} redirects"),
+        })
+    }
+
+    fn stream_to_file(
+        &self,
+        mut response: reqwest::blocking::Response,
+        destination: &std::path::Path,
+        max_bytes: u64,
+        should_cancel: &dyn Fn() -> bool,
+    ) -> Result<StreamingDownloadOutcome, TransportError> {
+        use std::io::Write;
+        let mut file = std::fs::File::create(destination).map_err(|error| TransportError {
+            message: format!("failed to create staging file: {error}"),
+        })?;
+        let mut buffer = vec![0u8; DOWNLOAD_CHUNK_BYTES];
+        let mut total: u64 = 0;
+        loop {
+            if should_cancel() {
+                return Err(TransportError {
+                    message: "cancelled mid-download".to_string(),
+                });
+            }
+            let read = response.read(&mut buffer).map_err(|error| TransportError {
+                message: format!("download read failed: {error}"),
+            })?;
+            if read == 0 {
+                break;
+            }
+            total += read as u64;
+            if total > max_bytes {
+                return Err(TransportError {
+                    message: format!("download exceeded the {max_bytes}-byte compressed bound"),
+                });
+            }
+            file.write_all(&buffer[..read])
+                .map_err(|error| TransportError {
+                    message: format!("failed to write staging file: {error}"),
+                })?;
+        }
+        file.flush().map_err(|error| TransportError {
+            message: format!("failed to flush staging file: {error}"),
+        })?;
+        if total == 0 {
+            return Err(TransportError {
+                message: "download produced an empty body".to_string(),
+            });
+        }
+        Ok(StreamingDownloadOutcome {
+            bytes_written: total,
+        })
+    }
+}
+
 /// WI067 item 5: the exact policy decision the redirect loop applies at
 /// every hop. An `Authorization` header only ever survives a redirect if
 /// the request had one to begin with (an unauthenticated request never
@@ -222,6 +433,15 @@ impl RestTransport for ReqwestTransport {
 /// allowlist (`crate::redirect_policy::may_receive_authorization_header`).
 fn authorization_survives_redirect(had_authorization: bool, next_host: &str) -> bool {
     had_authorization && crate::redirect_policy::may_receive_authorization_header(next_host)
+}
+
+/// WI067 Checkpoint C, Phase 6: a redirect only counts as an insecure
+/// *downgrade* -- and is rejected -- if the original request was itself
+/// https. An already-insecure chain (only ever exercised by this module's
+/// own local-socket tests; production always starts from
+/// `https://api.github.com/...`) has nothing to downgrade from.
+fn redirect_is_insecure_downgrade(original_scheme_was_https: bool, next_scheme: &str) -> bool {
+    original_scheme_was_https && next_scheme != "https"
 }
 
 fn header_u64(response: &reqwest::blocking::Response, name: &str) -> Option<u64> {
@@ -327,6 +547,50 @@ pub fn rest_json_response(status: u16, json: serde_json::Value) -> RestResponse 
         status,
         body: serde_json::to_vec(&json).unwrap(),
         ..Default::default()
+    }
+}
+
+/// A scripted `StreamingDownloadTransport` for `GitHubProvider`-level unit
+/// tests (auth-header construction, error-code mapping) that do not need a
+/// real socket -- the streaming mechanics themselves (redirect handling,
+/// byte bounding, cancellation) are proven against real local sockets in
+/// this module's own `#[cfg(test)]` suite below, not re-mocked here.
+#[derive(Default)]
+pub struct ScriptedStreamingTransport {
+    responses: std::sync::Mutex<Vec<Result<StreamingDownloadOutcome, TransportError>>>,
+    received: std::sync::Mutex<Vec<StreamingRequest>>,
+}
+
+impl ScriptedStreamingTransport {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn push_response(&self, response: Result<StreamingDownloadOutcome, TransportError>) {
+        self.responses.lock().unwrap().push(response);
+    }
+
+    pub fn received_requests(&self) -> Vec<StreamingRequest> {
+        self.received.lock().unwrap().clone()
+    }
+}
+
+impl StreamingDownloadTransport for ScriptedStreamingTransport {
+    fn download(
+        &self,
+        request: &StreamingRequest,
+        _destination: &std::path::Path,
+        _max_bytes: u64,
+        _should_cancel: &dyn Fn() -> bool,
+    ) -> Result<StreamingDownloadOutcome, TransportError> {
+        self.received.lock().unwrap().push(request.clone());
+        let mut responses = self.responses.lock().unwrap();
+        if responses.is_empty() {
+            return Err(TransportError {
+                message: "ScriptedStreamingTransport exhausted: no more queued responses".into(),
+            });
+        }
+        responses.remove(0)
     }
 }
 
@@ -440,6 +704,265 @@ mod tests {
         assert!(
             !saw_authorization,
             "the Authorization header must not survive a redirect to a non-allowlisted host, but server B received: {headers_b:?}"
+        );
+    }
+
+    /// Spawns a one-shot local HTTP/1.1 server that replies to the first
+    /// connection with exactly `raw_response` and then exits. Used for the
+    /// Checkpoint C streaming-download failure matrix (WI067 item Phase
+    /// 13) -- real sockets, not a mocked transport.
+    fn spawn_one_shot_server(raw_response: Vec<u8>) -> u16 {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                let _ = read_request_headers(&stream);
+                let _ = stream.write_all(&raw_response);
+            }
+        });
+        port
+    }
+
+    fn ok_zip_body_response(body: &[u8]) -> Vec<u8> {
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: application/zip\r\nConnection: close\r\n\r\n",
+            body.len()
+        )
+        .into_bytes()
+        .into_iter()
+        .chain(body.iter().copied())
+        .collect()
+    }
+
+    #[test]
+    fn download_streams_a_successful_response_to_the_destination_file() {
+        let body = b"pretend-zip-bytes-0123456789".to_vec();
+        let port = spawn_one_shot_server(ok_zip_body_response(&body));
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-ok-{}", std::process::id()));
+        let cancelled = false;
+        let outcome = transport
+            .download(
+                &StreamingRequest {
+                    url: format!("http://127.0.0.1:{port}/archive.zip"),
+                    headers: vec![],
+                },
+                &dest,
+                1024,
+                &|| cancelled,
+            )
+            .unwrap();
+        assert_eq!(outcome.bytes_written, body.len() as u64);
+        assert_eq!(std::fs::read(&dest).unwrap(), body);
+        let _ = std::fs::remove_file(&dest);
+    }
+
+    #[test]
+    fn download_rejects_a_response_exceeding_the_compressed_byte_bound_while_streaming() {
+        let body = vec![b'x'; 5000];
+        let port = spawn_one_shot_server(ok_zip_body_response(&body));
+        let transport = ReqwestTransport::new().unwrap();
+        let dest =
+            std::env::temp_dir().join(format!("repopact-dl-oversized-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1000,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("compressed bound"));
+        // The partial file must not survive a failed download.
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_honors_cancellation_and_leaves_no_partial_file() {
+        let body = vec![b'y'; 500];
+        let port = spawn_one_shot_server(ok_zip_body_response(&body));
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-cancel-{}", std::process::id()));
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| true, // cancel immediately
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("cancel"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_rejects_a_404() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 404 Not Found\r\nContent-Length: 9\r\nConnection: close\r\n\r\nnot found"
+                .to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-404-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("404"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_rejects_a_redirect_with_a_missing_location() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-noloc-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .message
+            .to_lowercase()
+            .contains("location"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn redirect_is_insecure_downgrade_only_when_the_original_request_was_https() {
+        // A real https-original download redirected to http is a genuine
+        // downgrade and must be rejected.
+        assert!(redirect_is_insecure_downgrade(true, "http"));
+        assert!(!redirect_is_insecure_downgrade(true, "https"));
+        // This module's own local-socket tests intentionally run an
+        // all-http chain end-to-end (see
+        // `a_real_download_redirect_does_not_carry_authorization_to_a_non_allowlisted_host`
+        // below) -- that is not a downgrade, since there was nothing
+        // secure to downgrade from.
+        assert!(!redirect_is_insecure_downgrade(false, "http"));
+    }
+
+    #[test]
+    fn download_rejects_an_empty_body() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-empty-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("empty"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_rejects_a_connection_refused_host() {
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-refused-{}", std::process::id()));
+        let cancelled = false;
+        // Port 1 is reserved and nothing listens on it locally.
+        let result = transport.download(
+            &StreamingRequest {
+                url: "http://127.0.0.1:1/archive.zip".to_string(),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn a_real_download_redirect_does_not_carry_authorization_to_a_non_allowlisted_host() {
+        let body = b"redirected-zip-bytes".to_vec();
+        let server_b_response = ok_zip_body_response(&body);
+        let server_b = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port_b = server_b.local_addr().unwrap().port();
+        let received_by_b: Arc<std::sync::Mutex<Option<Vec<String>>>> =
+            Arc::new(std::sync::Mutex::new(None));
+        let received_by_b_clone = received_by_b.clone();
+        let handle_b = std::thread::spawn(move || {
+            let (stream, _) = server_b.accept().unwrap();
+            let headers = read_request_headers(&stream);
+            *received_by_b_clone.lock().unwrap() = Some(headers);
+            let mut stream = stream;
+            stream.write_all(&server_b_response).unwrap();
+        });
+
+        let server_a = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port_a = server_a.local_addr().unwrap().port();
+        let handle_a = std::thread::spawn(move || {
+            let (mut stream, _) = server_a.accept().unwrap();
+            let _ = read_request_headers(&stream);
+            let location = format!("http://127.0.0.1:{port_b}/target.zip");
+            let response = format!(
+                "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            );
+            stream.write_all(response.as_bytes()).unwrap();
+        });
+
+        let transport = ReqwestTransport::new().unwrap();
+        let dest =
+            std::env::temp_dir().join(format!("repopact-dl-redirect-auth-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port_a}/start.zip"),
+                headers: vec![(
+                    "Authorization".to_string(),
+                    "Bearer super-secret".to_string(),
+                )],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+
+        handle_a.join().unwrap();
+        handle_b.join().unwrap();
+
+        assert!(
+            result.is_ok(),
+            "download should succeed following the local redirect"
+        );
+        let _ = std::fs::remove_file(&dest);
+
+        let headers_b = received_by_b.lock().unwrap().clone().unwrap();
+        assert!(
+            headers_b.iter().all(|line| !line.to_ascii_lowercase().starts_with("authorization:")),
+            "Authorization must not survive a download redirect to a non-allowlisted host: {headers_b:?}"
         );
     }
 }

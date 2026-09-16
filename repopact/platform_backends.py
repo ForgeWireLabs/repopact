@@ -275,6 +275,15 @@ def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
     while True:
         if _windows_reparse_point(current):
             return False, f"path hierarchy contains a symlink or reparse point: {current}"
+        # A normal Windows volume root may grant broad inherited create rights
+        # while the existing directory chain below it remains protected (the
+        # stock C:\ ACL commonly grants Authenticated Users Modify).  The
+        # volume root cannot replace an already-existing protected child such
+        # as C:\Program Files, so it is not a replaceable component of a
+        # descendant path.  A file or directory directly in the volume root is
+        # still checked because that root is its immediate container.
+        if current.parent == current and canonical.parent != current:
+            break
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
@@ -313,6 +322,10 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
     while True:
         if _windows_reparse_point(current):
             return False, f"protected path hierarchy contains a symlink or reparse point: {current}"
+        # See _windows_path_chain_is_protected: broad create rights on the
+        # volume root do not make an existing protected descendant replaceable.
+        if current.parent == current and canonical.parent != current:
+            break
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"

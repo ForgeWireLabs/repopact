@@ -4,12 +4,14 @@ import contextlib
 import io
 import json
 import unittest
+from unittest.mock import patch
 
 from repopact import cli
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import ProtectedGuard
 from repopact.guard_ipc import decode, encode, envelope
 from repopact.platform_backends import PrivilegeRequired, TestingBackend, WindowsBackend
+from repopact import unix_guard_service
 
 
 class ProtectedSubstrateTests(unittest.TestCase):
@@ -65,6 +67,50 @@ class ProtectedSubstrateTests(unittest.TestCase):
         self.assertEqual(decode(encode(message)), message)
         with self.assertRaises(ValueError):
             decode(b'{"protocol_version":"unsupported"}')
+
+    def test_unix_service_returns_protocol_error_before_closing_connection(self):
+        class Connection:
+            def __init__(self):
+                self.responses = []
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def recv(self, _size):
+                return b'{}\n'
+
+            def sendall(self, payload):
+                self.responses.append(payload)
+
+        class Listener:
+            def __init__(self, _endpoint):
+                self.connection = Connection()
+                self.served = None
+
+            def bind(self):
+                return None
+
+            def accept(self):
+                if self.connection is not None:
+                    connection, self.connection = self.connection, None
+                    self.served = connection
+                    return connection, {"transport": "unix", "uid": 1000}
+                raise KeyboardInterrupt
+
+            def close(self):
+                return None
+
+        listener = Listener(unix_guard_service.Path("/tmp/guard.sock"))
+        with patch.object(unix_guard_service.os, "geteuid", return_value=0), patch.object(
+            unix_guard_service, "UnixGuardListener", return_value=listener
+        ):
+            unix_guard_service.serve(unix_guard_service.Path("/tmp/guard.sock"), self.tmp / "state")
+        self.assertIsNotNone(listener.served)
+        response = decode(listener.served.responses[0])
+        self.assertEqual(response["code"], "GUARD_UNHEALTHY")
 
 
 if __name__ == "__main__":

@@ -26,22 +26,27 @@ def serve(endpoint: Path, state_root: Path) -> None:
             connection, binding = listener.accept()
             try:
                 with connection:
-                    chunks: list[bytes] = []
-                    while True:
-                        chunk = connection.recv(1024 * 1024)
-                        if not chunk:
-                            break
-                        chunks.append(chunk)
-                        if b"\n" in chunk:
-                            break
-                    request = decode(b"".join(chunks))
-                    payload = request.get("payload", {})
-                    if not isinstance(payload, dict):
-                        raise ValueError("guard payload must be an object")
-                    response = service.dispatch(
-                        {"op": request.get("op"), "payload": payload},
-                        transport_binding=binding,
-                    )
+                    try:
+                        chunks: list[bytes] = []
+                        while True:
+                            chunk = connection.recv(1024 * 1024)
+                            if not chunk:
+                                break
+                            chunks.append(chunk)
+                            if b"\n" in chunk:
+                                break
+                        request = decode(b"".join(chunks))
+                        payload = request.get("payload", {})
+                        if not isinstance(payload, dict):
+                            raise ValueError("guard payload must be an object")
+                        response = service.dispatch(
+                            {"op": request.get("op"), "payload": payload},
+                            transport_binding=binding,
+                        )
+                    except Exception as exc:
+                        response = {
+                            "allowed": False, "code": "GUARD_UNHEALTHY", "reason": str(exc),
+                        }
                     connection.sendall(encode({"protocol_version": "1", **response}))
             except Exception as exc:
                 try:

@@ -449,12 +449,17 @@ mod unix {
                 "guard endpoint is not a protected root-owned Unix socket",
             ));
         }
-        let mut current = endpoint
+        let current = endpoint
             .parent()
             .ok_or_else(|| {
                 ConfinementError::new("GUARD_UNHEALTHY", "guard endpoint has no parent")
             })?
             .to_path_buf();
+        verify_protected_parent_chain(current)?;
+        Ok(())
+    }
+
+    fn verify_protected_parent_chain(mut current: PathBuf) -> Result<(), ConfinementError> {
         loop {
             let metadata = fs::symlink_metadata(&current)
                 .map_err(|error| io_error("guard endpoint parent is unavailable", error))?;
@@ -473,7 +478,10 @@ mod unix {
             if current.parent() == Some(current.as_path()) {
                 break;
             }
-            current = current.parent().unwrap().to_path_buf();
+            let Some(parent) = current.parent() else {
+                break;
+            };
+            current = parent.to_path_buf();
         }
         Ok(())
     }
@@ -524,6 +532,17 @@ mod unix {
 
     fn io_error(prefix: &str, error: impl std::fmt::Display) -> ConfinementError {
         ConfinementError::new("LAUNCH_FAILURE", format!("{prefix}: {error}"))
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::verify_protected_parent_chain;
+        use std::path::PathBuf;
+
+        #[test]
+        fn protected_parent_walk_terminates_at_filesystem_root() {
+            verify_protected_parent_chain(PathBuf::from("/")).unwrap();
+        }
     }
 }
 

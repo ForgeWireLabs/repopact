@@ -2,10 +2,16 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "067",
   "title": "GitHub Repository Provider, Secure User Authorization, and Remote Repository Import",
-  "status": "proposed",
+  "status": "active",
   "owner_scope": "tooling",
-  "affected_scopes": ["tooling", "docs", "evidence"],
-  "depends_on": ["065"],
+  "affected_scopes": [
+    "tooling",
+    "docs",
+    "evidence"
+  ],
+  "depends_on": [
+    "065"
+  ],
   "provenance": "concrete",
   "preflight": {
     "created_before_work_started": true,
@@ -16,20 +22,26 @@
     {
       "id": "GH-001",
       "text": "A durable architecture decision defines a provider-neutral remote repository-source boundary in which GitHub is the first implementation but RepoPact repository semantics remain provider-independent: GitHub/GitLab/Forgejo/generic-Git sources may materialize an ordinary local/app-private filesystem workspace, and no provider-specific Repository, DesktopService, RepositorySession, mutation, graph, or governance authority is introduced.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-a-provider-auth-architecture"
+      ]
     },
     {
       "id": "GH-002",
       "text": "The GitHub integration uses a GitHub App rather than a classic broad OAuth App unless implementation-time evidence demonstrates a stronger alternative. The permission model is least-privilege and records the exact GitHub App permissions required for v1 snapshot import; repository contents are read-only in v1 and write/push permission is not requested merely for possible future Git synchronization.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-a-provider-auth-architecture"
+      ]
     },
     {
       "id": "GH-003",
       "text": "Native desktop/mobile authentication is implemented without embedding a reusable GitHub App private key or treating a bundled client secret as confidential. The selected authorization flow is appropriate for a public/native client, records the threat model and redirect/device-flow trade-offs, supports login cancellation/retry/expiry, and does not require a ForgeWire Labs hosted auth service merely to import a repository unless a separate explicit architecture decision later chooses one.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-a-provider-auth-architecture"
+      ]
     },
     {
       "id": "GH-004",
@@ -76,8 +88,10 @@
     {
       "id": "GH-011",
       "text": "The design is provider-neutral in executable structure, not naming only: GitHub-specific API/auth code sits behind a remote repository-provider interface or equivalent seam, while workspace materialization consumes provider-neutral snapshot/source descriptors. Tests include a non-GitHub fake/provider fixture proving the kernel does not branch on GitHub to implement repository semantics.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-a-provider-auth-architecture"
+      ]
     },
     {
       "id": "GH-012",
@@ -94,8 +108,10 @@
     {
       "id": "GH-014",
       "text": "The architecture records the Stage-2 handoff to true Git synchronization: clone/fetch/pull/push and remote write-back remain separate from v1 snapshot import and must reuse or extend the mobile/desktop GitBackend seam chosen by Decision 0056 rather than retrofitting GitHub API snapshot import into a pseudo-Git synchronization mechanism. Any future request for Contents: write or equivalent remote-write permission requires its own explicit acceptance/security evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-a-provider-auth-architecture"
+      ]
     },
     {
       "id": "GH-015",
@@ -105,5 +121,5 @@
     }
   ],
   "created": "2026-09-14",
-  "updated": "2026-09-14"
+  "updated": "2026-09-15"
 }

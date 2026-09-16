@@ -1,5 +1,9 @@
 # WI067 — GitHub Repository Provider, Secure User Authorization, and Remote Repository Import
 
+> **Status**: 🔨 Active
+> **Coding agent**: Claude Code. **Architecture reviewer**: GPT-5.6 Sol High.
+> **Depends on**: WI065 (completed).
+
 ## Purpose
 
 RepoPact repository acquisition must not require the repository to already exist as a local filesystem tree or user-selected archive. GitHub is the first remote repository provider: a user should be able to connect GitHub, select an authorized repository and ref, and have RepoPact materialize an exact commit snapshot into the same ordinary local/app-private workspace model already proven by WI065.
@@ -142,6 +146,32 @@ This item does **not** implement real Git clone/fetch/pull/push synchronization.
 
 GitHub integration is optional. Existing repositories and users who never connect GitHub must continue to work with no mandatory network, account, token, or provider dependency.
 
+## Progress
+
+- **Checkpoint A — Provider-Neutral Architecture, GitHub Auth Contract, and
+  Remote Snapshot Foundation — done.** See
+  `architecture-review.md`, Decision 0061, and
+  `evidence/runs/20260915-067-checkpoint-a-provider-auth-architecture.json`.
+  Landed: a provider-neutral core crate (`repopact-remote-provider`:
+  `RemoteRepositoryProvider` trait, `AuthState` machine, `CredentialStore`
+  trait + in-memory test double, typed `RemoteProviderError` taxonomy,
+  `Secret`/`redact` credential hygiene, a `FakeProvider` proven end-to-end
+  through WI065's *existing* archive materializer with zero GitHub-specific
+  branching); a GitHub adapter crate (`repopact-provider-github`: the
+  device-flow protocol against a mocked `HttpTransport`, the exact
+  permission matrix, the API version constant, and the trusted-origin/
+  header-authorization allowlist); a new, distinct
+  `AcquisitionKind::RemoteSnapshot` and `RemoteSnapshotProvenance` on the
+  workspace registry (never to be confused with WI068's `RemoteGit`); and
+  a GitHub App registration spec (`docs/guides/github-app-setup.md`) with
+  no secret values, so an operator can register a real app for a later
+  checkpoint to consume. GH-001, GH-002, GH-003, GH-011, and GH-014 are
+  `satisfied`; all other criteria remain `pending` -- no live GitHub
+  authorization, no OS credential-store backend, no repository-browsing
+  UI, and no production Tauri commands exist yet. Not started: Checkpoint
+  B and beyond (real REST client, live device-flow UX, platform credential
+  backends, repository/ref browsing, typed commands, runtime evidence).
+
 ## Status
 
-Proposed. Do not begin implementation while WI065 Checkpoint D/E is active unless explicitly scheduled as a separate non-conflicting session.
+Active (Checkpoint A complete; Checkpoint B not started).

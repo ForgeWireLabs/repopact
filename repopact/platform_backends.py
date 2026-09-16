@@ -933,7 +933,14 @@ class WindowsBackend(PlatformBackend):
             created_service = True
             start_code, start_output = _command_output(["sc.exe", "start", self.service_name])
             if start_code != 0: raise RuntimeError(f"Windows service start failed: {start_output.strip()}")
-            return self.attest(root).record()
+            deadline = time.monotonic() + 5
+            attestation = self.attest(root)
+            while not attestation.healthy and time.monotonic() < deadline:
+                time.sleep(0.05)
+                attestation = self.attest(root)
+            if not attestation.healthy:
+                raise RuntimeError("Windows guard started without a healthy attestation: " + attestation.reason)
+            return attestation.record()
         except Exception:
             if created_service: _command_output(["sc.exe", "stop", self.service_name]); _command_output(["sc.exe", "delete", self.service_name])
             if self.install_root.exists(): shutil.rmtree(self.install_root, ignore_errors=True)

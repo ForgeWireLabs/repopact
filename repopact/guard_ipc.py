@@ -201,13 +201,22 @@ class WindowsPipeListener:
         kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
         kernel.ConnectNamedPipe.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
         kernel.ConnectNamedPipe.restype = wintypes.BOOL
-        ERROR_PIPE_CONNECTED, ERROR_PIPE_LISTENING = 535, 536
+        ERROR_PIPE_CONNECTED, ERROR_PIPE_LISTENING, ERROR_NO_DATA = 535, 536, 232
         while self._handle:
             connected = kernel.ConnectNamedPipe(self._handle, None)
             if connected or ctypes.get_last_error() == ERROR_PIPE_CONNECTED:
                 handle = self._handle; self._handle = 0
                 return WindowsPipeConnection(handle)
             error = ctypes.get_last_error()
+            if error == ERROR_NO_DATA:
+                # The previous client closed its instance before the next
+                # ConnectNamedPipe call. This is a normal disconnect, not a
+                # service-start failure; create a fresh pipe instance.
+                self.close()
+                if stop_event is not None and stop_event.is_set():
+                    return None
+                self.open()
+                continue
             if error != ERROR_PIPE_LISTENING:
                 raise ctypes.WinError(error)
             if stop_event is not None and stop_event.wait(0.05):

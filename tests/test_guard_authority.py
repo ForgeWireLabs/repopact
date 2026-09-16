@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from pathlib import Path
 import sys
 
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
-from repopact.guard_ipc import NativeGuardClient, local_peer_binding
+from repopact.guard_ipc import NativeGuardClient, WindowsPipeListener, local_peer_binding
 from repopact.platform_backends import TestingBackend, WindowsBackend, _windows_install_acl_commands
 import repopact.platform_backends as platform_backends
 
@@ -60,6 +60,30 @@ class GuardAuthorityTests(unittest.TestCase):
         client = NativeGuardClient(self.tmp / "missing.sock", root=self.root)
         self.assertFalse(client.health().healthy)
         self.assertFalse(client.check({}, None).allowed)
+
+    def test_windows_pipe_listener_recreates_instance_after_normal_disconnect(self):
+        import ctypes
+
+        listener = WindowsPipeListener.__new__(WindowsPipeListener)
+        listener._handle = 1
+        kernel = Mock()
+        kernel.ConnectNamedPipe.side_effect = [False, False]
+        stop_event = Mock()
+        stop_event.is_set.return_value = False
+        stop_event.wait.return_value = True
+
+        def close():
+            listener._handle = 0
+
+        listener.close = Mock(side_effect=close)
+        listener.open = Mock(side_effect=lambda: setattr(listener, "_handle", 2))
+        with patch.object(ctypes, "WinDLL", return_value=kernel, create=True), \
+                patch.object(ctypes, "get_last_error", side_effect=[232, 232, 536, 536], create=True):
+            self.assertIsNone(listener.accept(stop_event))
+
+        self.assertEqual(listener.open.call_count, 2)
+        self.assertEqual(listener.close.call_count, 2)
+        self.assertEqual(kernel.ConnectNamedPipe.call_count, 2)
 
     def test_install_preflight_is_non_mutating_and_rejects_dirty_source(self):
         backend = WindowsBackend()

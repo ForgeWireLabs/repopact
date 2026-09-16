@@ -351,3 +351,20 @@
   installed). AC-16 remains pending until the required Debian/ext4 native
   adversarial matrix proves the full process-tree boundary. AC-18 remains
   pending for the independent Windows/Linux/macOS native reference proofs.
+
+## 2026-09-16 WI050 Linux-native Landlock proof reconciliation
+
+- The prior unavailable-host note remains historical evidence and is not
+  rewritten. A Linux-native Debian 13/WSL2 ext4 checkout was subsequently used
+  with the installed dependencies and a root-owned systemd guard.
+- The protected service was corrected to expose repositories read-only under
+  systemd `ProtectHome=read-only`; Unix dispatch errors now return a versioned
+  fail-closed response before connection close. The Rust launcher root-walk
+  regression and Python IPC regression are covered by tests.
+- Evidence run `20260916-050-linux-landlock-native-proof` records Landlock ABI
+  7, the root-owned helper hash, a 44/44 native matrix, six positive
+  executions, OS-boundary denials, nested/linked-worktree and symlink escapes,
+  inherited-FD closure, request-integrity rejection, expiry, revocation,
+  authority drift, and service-loss/detached-descendant termination. AC-16 is
+  satisfied for the Linux reference path;
+  AC-18 remains pending for independent native Windows and macOS proofs.

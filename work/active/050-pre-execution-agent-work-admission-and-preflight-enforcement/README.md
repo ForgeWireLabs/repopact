@@ -1,6 +1,6 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (optional Linux Landlock implementation phase; AC-14 and AC-15 are satisfied, AC-16 and AC-18 remain pending)
+> **Status**: Active (optional Linux Landlock implementation phase; AC-14, AC-15, and AC-16 are satisfied, AC-18 remains pending)
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
 
@@ -72,9 +72,10 @@ keeps the prior evidence unchanged and adds:
   closure, API gaps, or service collisions before machine mutation.
 
 The native Linux proof recorded in `20260915-050-linux-native-proof` satisfies
-AC-15 for the protected guard substrate. AC-14 and AC-15 remain satisfied;
-AC-16 and AC-18 remain pending until the Landlock path and the independent
-three-OS proof gates are complete.
+AC-15 for the protected guard substrate. The follow-up concrete run
+`20260916-050-linux-landlock-native-proof` satisfies AC-16 for the Linux
+reference path. AC-18 remains pending until the independent Windows/Linux/macOS
+native-reference proof gates are complete.
 
 ## Opt-in capability boundary (clarification pass)
 
@@ -141,7 +142,8 @@ native probe passes. An ordinary `NativeGuardClient` and the existing
 `PreActionAdapter` remain `pre-action`. This backend does not claim read or
 confidentiality isolation, network or syscall isolation, namespaces, PID
 isolation, container equivalence, or Windows/macOS parity. A native Linux
-adversarial proof is required before AC-16 can close.
+The adversarial proof is recorded in `20260916-050-linux-landlock-native-proof`;
+AC-16 is closed for the Linux reference path, while AC-18 remains independent.
 
 ## Interpreter trust-chain correction pass
 

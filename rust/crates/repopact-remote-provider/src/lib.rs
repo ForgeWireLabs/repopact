@@ -17,6 +17,7 @@
 pub mod account;
 pub mod auth;
 pub mod credential;
+pub mod credential_os;
 pub mod error;
 pub mod fake;
 pub mod provider;
@@ -28,6 +29,7 @@ pub mod snapshot;
 pub use account::{ProviderScope, RemoteAccount, RemoteAccountId};
 pub use auth::AuthState;
 pub use credential::{CredentialKey, CredentialKind, CredentialStore, InMemoryCredentialStore};
+pub use credential_os::OsCredentialStore;
 pub use error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
 pub use provider::{ProviderCapabilities, RemoteRepositoryProvider};
 pub use redact::{redact, Secret};

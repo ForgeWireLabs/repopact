@@ -31,7 +31,7 @@ pub use auth::AuthState;
 pub use credential::{CredentialKey, CredentialKind, CredentialStore, InMemoryCredentialStore};
 pub use credential_os::OsCredentialStore;
 pub use error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
-pub use provider::{ProviderCapabilities, RemoteRepositoryProvider};
+pub use provider::{ProviderCapabilities, RemoteRepositoryProvider, SnapshotDownloadOptions};
 pub use redact::{redact, Secret};
 pub use refs::{RefKind, RemoteRef, ResolvedRevision};
 pub use repository::{RemoteRepository, RepositoryVisibility};

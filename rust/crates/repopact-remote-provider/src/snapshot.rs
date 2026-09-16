@@ -30,6 +30,15 @@ pub enum SnapshotLayout {
 pub struct SnapshotDescriptor {
     pub provider: String,
     pub provider_repository_id: String,
+    /// WI067 Checkpoint C: `open_snapshot` needs enough typed repository
+    /// identity to actually build the provider's download request -- a
+    /// numeric/opaque `provider_repository_id` alone is not addressable.
+    /// Non-secret, identical in shape to `RemoteRepository`'s own fields
+    /// (Phase 9: repository identity must come from the already-resolved
+    /// typed provider context, never from an archive filename/redirect
+    /// URL/synthetic root name).
+    pub owner_label: String,
+    pub repository_name: String,
     pub revision: ResolvedRevision,
     pub layout: SnapshotLayout,
     /// Best-effort size hint from provider metadata. Never trusted as the

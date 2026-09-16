@@ -17,8 +17,16 @@ use crate::error::{AcquisitionError, AcquisitionResult, ErrorCode};
 pub enum AcquisitionKind {
     SafDirectory,
     SafArchive,
-    /// Reserved for Stage 2 (Decision 0056/0057); not produced by this work
-    /// item.
+    /// WI067 (Decision 0061): an immutable archive/ZIP snapshot resolved
+    /// from a remote provider (GitHub first) at an exact revision. No
+    /// `.git` directory, no live remote relationship after import --
+    /// distinct from `RemoteGit` below. Reuses this same safe archive
+    /// materializer as `SafArchive`; only the source of the bytes differs.
+    RemoteSnapshot,
+    /// Reserved for WI068 (Stage 2, Decision 0056/0057): real `clone`/
+    /// `fetch`/`pull`/`push` against a real `.git` working tree. Not
+    /// produced by WI065 or WI067 -- never use this for a WI067 snapshot
+    /// import, even though both ultimately originate from a Git remote.
     RemoteGit,
 }
 
@@ -64,6 +72,28 @@ pub struct SourceFingerprint {
     pub provider_markers: Vec<String>,
 }
 
+/// WI067 item 32: bounded, non-secret provenance for a `RemoteSnapshot`
+/// acquisition. Never includes an access/refresh token, auth code, device
+/// code, credential-bearing URL, or `Authorization` header value --
+/// `repopact_remote_provider::redact`'s `Secret` type is deliberately not
+/// `Serialize`, so a credential cannot compile into this struct by
+/// accident; this record only ever holds the fields listed here.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RemoteSnapshotProvenance {
+    pub provider: String,
+    pub provider_repository_id: String,
+    pub owner_label: String,
+    pub repository_name: String,
+    pub selected_ref: String,
+    pub ref_kind: String,
+    pub resolved_commit_sha: String,
+    pub acquired_at: String,
+    /// Always `"immutable_snapshot"` for WI067 -- present so a future
+    /// on-disk registry that also stores WI068 `RemoteGit` provenance
+    /// cannot be misread as a live/synchronized checkout.
+    pub snapshot_semantics: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkspaceRecord {
     pub workspace_id: String,
@@ -79,6 +109,9 @@ pub struct WorkspaceRecord {
     pub imported_at: Option<String>,
     pub last_export_state: ExportState,
     pub source_fingerprint: Option<SourceFingerprint>,
+    /// Populated only when `acquisition_kind == RemoteSnapshot`.
+    #[serde(default)]
+    pub remote_snapshot_provenance: Option<RemoteSnapshotProvenance>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -264,7 +297,79 @@ mod tests {
             imported_at: Some("2026-09-14T00:00:05Z".to_owned()),
             last_export_state: ExportState::NeverExported,
             source_fingerprint: None,
+            remote_snapshot_provenance: None,
         }
+    }
+
+    #[test]
+    fn remote_snapshot_is_distinct_from_remote_git() {
+        assert_ne!(AcquisitionKind::RemoteSnapshot, AcquisitionKind::RemoteGit);
+    }
+
+    #[test]
+    fn remote_snapshot_provenance_round_trips_with_no_credential_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("registry.json");
+        let registry = WorkspaceRegistry::open(&path).unwrap();
+
+        let mut record = sample_record("ws-remote-1");
+        record.acquisition_kind = AcquisitionKind::RemoteSnapshot;
+        record.remote_snapshot_provenance = Some(RemoteSnapshotProvenance {
+            provider: "github".to_owned(),
+            provider_repository_id: "123456".to_owned(),
+            owner_label: "octo-org".to_owned(),
+            repository_name: "octo-repo".to_owned(),
+            selected_ref: "main".to_owned(),
+            ref_kind: "branch".to_owned(),
+            resolved_commit_sha: "f".repeat(40),
+            acquired_at: "2026-09-15T00:00:00Z".to_owned(),
+            snapshot_semantics: "immutable_snapshot".to_owned(),
+        });
+        registry.upsert(record).unwrap();
+
+        // The raw on-disk JSON must never contain a token-shaped string or
+        // an Authorization header, even though this test never puts one in
+        // the typed struct -- this is a structural proof, not just a unit
+        // test of the struct's own fields.
+        let raw = fs::read_to_string(&path).unwrap();
+        assert!(!raw.contains("access_token"));
+        assert!(!raw.contains("refresh_token"));
+        assert!(!raw.contains("Authorization"));
+        assert!(!raw.contains("ghu_"));
+        assert!(!raw.contains("ghr_"));
+
+        let reopened = WorkspaceRegistry::open(&path).unwrap();
+        let stored = reopened.get("ws-remote-1").unwrap();
+        assert_eq!(stored.acquisition_kind, AcquisitionKind::RemoteSnapshot);
+        let provenance = stored.remote_snapshot_provenance.unwrap();
+        assert_eq!(provenance.snapshot_semantics, "immutable_snapshot");
+        assert_eq!(provenance.resolved_commit_sha.len(), 40);
+    }
+
+    #[test]
+    fn a_record_without_remote_snapshot_provenance_still_deserializes() {
+        // Backward compatibility: a WI065-era registry document has no
+        // `remote_snapshot_provenance` key at all.
+        let json = r#"{
+            "workspaces": [{
+                "workspace_id": "ws-1",
+                "display_name": "Example",
+                "acquisition_kind": "saf_directory",
+                "source_reference": "ref",
+                "git_state": "non_git",
+                "lifecycle_state": "ready",
+                "created_at": "2026-09-14T00:00:00Z",
+                "imported_at": null,
+                "last_export_state": "never_exported",
+                "source_fingerprint": null
+            }]
+        }"#;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("registry.json");
+        fs::write(&path, json).unwrap();
+        let registry = WorkspaceRegistry::open(&path).unwrap();
+        let record = registry.get("ws-1").unwrap();
+        assert!(record.remote_snapshot_provenance.is_none());
     }
 
     #[test]

@@ -269,6 +269,7 @@ impl WorkspaceManager {
                     imported_at: Some(now_rfc3339()),
                     last_export_state: ExportState::NeverExported,
                     source_fingerprint: Some(outcome.fingerprint()),
+                    remote_snapshot_provenance: None,
                 };
                 if let Err(error) = self.registry.upsert(record.clone()) {
                     let _ = fs::remove_dir_all(&workspace_dir);

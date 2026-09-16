@@ -154,7 +154,7 @@ def _windows_is_local_system(identity: str) -> bool:
 
 def _windows_acl(path: Path) -> tuple[bool, str]:
     """Return whether an installed path has a verifiable protected ACL."""
-    if os.name != "nt" or not path.exists():
+    if os.name != "nt":
         return False, "path is absent or Windows ACL inspection is unavailable"
     code, output = _command_output(["icacls", str(path)])
     if code != 0:
@@ -164,6 +164,17 @@ def _windows_acl(path: Path) -> tuple[bool, str]:
     deny_present = "(DENY)" in upper or "DENY" in upper
     users_present = "BUILTIN\\USERS" in upper or "NT AUTHORITY\\AUTHENTICATED USERS" in upper
     return bool(owner_protected and deny_present and users_present), output.strip()
+
+
+def _windows_path_present(path: Path) -> bool:
+    """Check presence without requiring a metadata read denied by the DACL."""
+    try:
+        return path.exists()
+    except OSError:
+        if os.name != "nt":
+            return False
+        code, _ = _command_output(["icacls", str(path)])
+        return code == 0
 
 
 def _windows_runtime_is_protected(path: Path) -> bool:
@@ -302,7 +313,7 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
         return False, "Windows ACL inspection is unavailable on this host"
     try:
         supplied = Path(path).expanduser().absolute()
-        if not supplied.exists():
+        if not _windows_path_present(supplied):
             return False, f"protected path is absent: {supplied}"
         supplied_parts: list[Path] = []
         current = supplied

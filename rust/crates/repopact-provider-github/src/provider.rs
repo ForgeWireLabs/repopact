@@ -624,6 +624,13 @@ impl RemoteRepositoryProvider for GitHubProvider {
     }
 }
 
+/// WI067 Checkpoint D (GH-010): the download path's typed error mapping,
+/// extended to cover 5xx and secondary rate-limiting (a 403 accompanied by
+/// a server-supplied `Retry-After`, mirroring `rest.rs`'s own convention
+/// for the REST GET path) in addition to Checkpoint C's original
+/// cancellation/oversized/401/403/404/429 mapping. `error.message` is
+/// already bounded and redacted by `transport::download_inner` before it
+/// ever reaches this function.
 fn map_download_error(error: &crate::transport::TransportError) -> RemoteProviderError {
     let message = error.message.as_str();
     if message.contains("cancelled") {
@@ -637,6 +644,11 @@ fn map_download_error(error: &crate::transport::TransportError) -> RemoteProvide
         RemoteProviderError::new(
             ErrorCode::CredentialExpired,
             "GitHub rejected the download request (401)",
+        )
+    } else if message.contains("status 403") && message.contains("retry after") {
+        RemoteProviderError::new(
+            ErrorCode::ProviderRateLimited,
+            "GitHub secondary rate limit on the download request",
         )
     } else if message.contains("status 403") {
         RemoteProviderError::new(
@@ -653,13 +665,35 @@ fn map_download_error(error: &crate::transport::TransportError) -> RemoteProvide
             ErrorCode::ProviderRateLimited,
             "GitHub rate-limited the download request",
         )
+    } else if is_server_error_status(message) {
+        RemoteProviderError::new(
+            ErrorCode::ProviderProtocolError,
+            "GitHub reported a server error for the download request",
+        )
     } else if message.contains("empty body")
-        || message.contains("exceeded") && message.contains("redirects")
+        || (message.contains("exceeded") && message.contains("redirects"))
     {
         RemoteProviderError::new(ErrorCode::ProviderProtocolError, message.to_string())
     } else {
+        // Includes a genuinely truncated transfer (the underlying HTTP
+        // stack surfaces a short-body read error with its own message
+        // text, not one of the categories matched above) -- still a fail-
+        // closed, typed outcome, just a network-layer one rather than a
+        // GitHub API response.
         RemoteProviderError::new(ErrorCode::NetworkUnavailable, message.to_string())
     }
+}
+
+/// Matches `"...status 5XX..."` for any 5xx code without hardcoding each
+/// one individually.
+fn is_server_error_status(message: &str) -> bool {
+    message.match_indices("status 5").any(|(index, _)| {
+        let after = &message[index + "status ".len()..];
+        after.len() >= 3
+            && after.as_bytes()[0] == b'5'
+            && after.as_bytes()[1].is_ascii_digit()
+            && after.as_bytes()[2].is_ascii_digit()
+    })
 }
 
 impl GitHubProvider {

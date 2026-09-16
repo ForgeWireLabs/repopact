@@ -358,12 +358,25 @@ impl ReqwestTransport {
             }
 
             if !status.is_success() {
-                let mut snippet = Vec::new();
-                let _ = response.take(2048).read_to_end(&mut snippet);
+                let retry_after = header_u64(&response, "retry-after");
+                // Phase 10: a hostile or merely verbose error body must
+                // never leak a credential-shaped string into an error
+                // message that could reach evidence/logs/UI, and must
+                // never be embedded in full -- bounded to a short,
+                // redacted snippet, mirroring rest.rs's own error-body
+                // handling for the REST GET path.
+                let mut raw_snippet = Vec::new();
+                let _ = response.take(2048).read_to_end(&mut raw_snippet);
+                let redacted = repopact_remote_provider::redact::redact(&String::from_utf8_lossy(
+                    &raw_snippet,
+                ));
+                let bounded: String = redacted.chars().take(200).collect();
+                let retry_suffix = retry_after
+                    .map(|seconds| format!(" (retry after {seconds}s)"))
+                    .unwrap_or_default();
                 return Err(TransportError {
                     message: format!(
-                        "download failed with status {status}: {}",
-                        String::from_utf8_lossy(&snippet)
+                        "download failed with status {status}{retry_suffix}: {bounded}"
                     ),
                 });
             }
@@ -885,6 +898,217 @@ mod tests {
         assert!(!dest.exists());
     }
 
+    /// WI067 Checkpoint D, Phase 2: a server that declares a
+    /// `Content-Length` larger than what it actually sends, then closes
+    /// the connection -- a genuine truncated transfer, not a scripted
+    /// error. Proves the production HTTP stack itself detects the short
+    /// body (HTTP/1.1 length-framed bodies are a hard protocol violation
+    /// when the connection closes early) rather than this module silently
+    /// treating early EOF as a normal, if short, success.
+    #[test]
+    fn download_rejects_a_truncated_body() {
+        let declared_len = 5000;
+        let actual_body = vec![b'z'; 200]; // far short of the declared length
+        let mut raw = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {declared_len}\r\nConnection: close\r\n\r\n"
+        )
+        .into_bytes();
+        raw.extend_from_slice(&actual_body);
+        let port = spawn_one_shot_server(raw);
+        let transport = ReqwestTransport::new().unwrap();
+        let dest =
+            std::env::temp_dir().join(format!("repopact-dl-truncated-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1_000_000,
+            &|| cancelled,
+        );
+        assert!(
+            result.is_err(),
+            "a truncated transfer must be a typed download failure, not a false success"
+        );
+        assert!(
+            !dest.exists(),
+            "no partial archive may survive a truncated download"
+        );
+    }
+
+    #[test]
+    fn download_rejects_a_500() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 500 Internal Server Error\r\nContent-Length: 5\r\nConnection: close\r\n\r\noops!"
+                .to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-500-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("500"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_rejects_a_503() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-503-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("503"));
+        assert!(!dest.exists());
+    }
+
+    #[test]
+    fn download_reports_retry_after_on_a_secondary_rate_limit_403() {
+        let port = spawn_one_shot_server(
+            b"HTTP/1.1 403 Forbidden\r\nRetry-After: 30\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                .to_vec(),
+        );
+        let transport = ReqwestTransport::new().unwrap();
+        let dest =
+            std::env::temp_dir().join(format!("repopact-dl-secondary-rl-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        let error = result.unwrap_err();
+        assert!(error.message.contains("status 403"));
+        assert!(error.message.contains("retry after"));
+        assert!(!dest.exists());
+    }
+
+    /// WI067 Checkpoint D, Phase 6/10: a hostile error-response body must
+    /// never leak a credential-shaped token, must not blow past the
+    /// bounded snippet length, and must be redacted -- proven against the
+    /// *production* download path, not a unit test of the redact()
+    /// function in isolation.
+    #[test]
+    fn download_error_body_is_bounded_and_redacted_even_when_hostile() {
+        let canary = "ghu_REPOPACT_CANARY_dO_NOT_USE_0000000000";
+        let hostile_body = format!(
+            "<html><body>Error: token {canary} rejected. Authorization: Bearer {canary}. {}</body></html>",
+            "A".repeat(10_000)
+        );
+        let response = format!(
+            "HTTP/1.1 403 Forbidden\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{hostile_body}",
+            hostile_body.len()
+        );
+        let port = spawn_one_shot_server(response.into_bytes());
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-hostile-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/archive.zip"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        let error = result.unwrap_err();
+        assert!(
+            !error.message.contains(canary),
+            "the canary token must never appear in a transport error message"
+        );
+        assert!(
+            !error.message.contains("Bearer"),
+            "an Authorization-shaped value must never survive into the error message"
+        );
+        assert!(
+            error.message.len() < 500,
+            "the error message must stay bounded even when the hostile server sends a huge body: got {} chars",
+            error.message.len()
+        );
+        assert!(!dest.exists());
+    }
+
+    /// WI067 Checkpoint D, Phase 2/3: a real redirect loop -- a persistent
+    /// (not one-shot) local server that answers every connection with a
+    /// 302 pointing back at itself -- proving `MAX_REDIRECTS` is actually
+    /// enforced by the production redirect loop against a server that
+    /// never stops redirecting, not merely by a documented constant.
+    #[test]
+    fn download_rejects_a_real_redirect_loop_at_the_max_redirect_bound() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let accept_count = Arc::new(std::sync::atomic::AtomicU32::new(0));
+        let accept_count_clone = accept_count.clone();
+        let handle = std::thread::spawn(move || {
+            // A correctly-bounded client makes at most MAX_REDIRECTS + 1
+            // requests total (the initial request plus MAX_REDIRECTS
+            // follow-ups) before giving up -- exactly this many accepts,
+            // so the server thread completes normally rather than blocking
+            // forever on a connection that (correctly) never arrives.
+            for _ in 0..(MAX_REDIRECTS as u32 + 1) {
+                let Ok((mut stream, _)) = listener.accept() else {
+                    break;
+                };
+                accept_count_clone.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let _ = read_request_headers(&stream);
+                let location = format!("http://127.0.0.1:{port}/loop");
+                let response = format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                );
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-loop-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: format!("http://127.0.0.1:{port}/loop"),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        handle.join().unwrap();
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().message.contains("redirect"));
+        assert!(!dest.exists());
+        assert!(
+            accept_count.load(std::sync::atomic::Ordering::SeqCst) <= MAX_REDIRECTS as u32 + 1,
+            "the client must stop following redirects at MAX_REDIRECTS, not loop indefinitely"
+        );
+    }
+
     #[test]
     fn download_rejects_a_connection_refused_host() {
         let transport = ReqwestTransport::new().unwrap();
@@ -902,6 +1126,59 @@ mod tests {
         );
         assert!(result.is_err());
         assert!(!dest.exists());
+    }
+
+    /// WI067 Checkpoint D, Phase 2: a genuine TLS certificate-validation
+    /// failure through the *production* client (rustls-backed, default
+    /// certificate verification -- no insecure-TLS bypass exists anywhere
+    /// in this codebase to disable for the test). `self-signed.badssl.com`
+    /// is a long-standing, purpose-built public test service maintained
+    /// specifically for this class of test (the same convention this
+    /// module already uses for live GitHub proof against
+    /// octocat/Hello-World). Not run by default; run explicitly with
+    /// `--ignored` for checkpoint evidence.
+    #[test]
+    #[ignore]
+    fn live_download_rejects_a_self_signed_certificate() {
+        let transport = ReqwestTransport::new().unwrap();
+        let dest = std::env::temp_dir().join(format!("repopact-dl-tls-{}", std::process::id()));
+        let cancelled = false;
+        let result = transport.download(
+            &StreamingRequest {
+                url: "https://self-signed.badssl.com/".to_string(),
+                headers: vec![],
+            },
+            &dest,
+            1024,
+            &|| cancelled,
+        );
+        assert!(
+            result.is_err(),
+            "a self-signed certificate must be rejected, not silently accepted"
+        );
+        assert!(
+            !dest.exists(),
+            "no partial file may survive a TLS validation failure"
+        );
+    }
+
+    /// The same proof against the plain REST GET path (used for API
+    /// calls, not archive downloads) -- both HTTP client instances inside
+    /// `ReqwestTransport` share the same rustls default verification, but
+    /// this proves it explicitly for the path GH-010's "API-error"
+    /// category actually exercises.
+    #[test]
+    #[ignore]
+    fn live_rest_get_rejects_a_self_signed_certificate() {
+        let transport = ReqwestTransport::new().unwrap();
+        let result = transport.get(&RestRequest {
+            url: "https://self-signed.badssl.com/".to_string(),
+            headers: vec![],
+        });
+        assert!(
+            result.is_err(),
+            "a self-signed certificate must be rejected on the REST path too"
+        );
     }
 
     #[test]

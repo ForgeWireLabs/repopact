@@ -61,6 +61,9 @@ def _run_as_native_service(state_root: Path) -> int:
                     ("service_specific_exit_code", wintypes.DWORD), ("check_point", wintypes.DWORD),
                     ("wait_hint", wintypes.DWORD)]
 
+    advapi.SetServiceStatus.argtypes = [wintypes.HANDLE, ctypes.POINTER(SERVICE_STATUS)]
+    advapi.SetServiceStatus.restype = wintypes.BOOL
+
     SERVICE_MAIN = ctypes.WINFUNCTYPE(None, wintypes.DWORD, ctypes.POINTER(wintypes.LPWSTR))
     SERVICE_HANDLER = ctypes.WINFUNCTYPE(wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID, wintypes.LPVOID)
     stop = threading.Event(); status_handle = wintypes.HANDLE()
@@ -79,11 +82,15 @@ def _run_as_native_service(state_root: Path) -> int:
         advapi.RegisterServiceCtrlHandlerExW.argtypes = [wintypes.LPCWSTR, SERVICE_HANDLER, wintypes.LPVOID]
         advapi.RegisterServiceCtrlHandlerExW.restype = wintypes.HANDLE
         status_handle = advapi.RegisterServiceCtrlHandlerExW("RepoPactGuard", handler, None)
+        if not status_handle:
+            raise ctypes.WinError(ctypes.get_last_error())
         status.current_state = SERVICE_RUNNING; status.controls_accepted = SERVICE_ACCEPT_STOP
-        advapi.SetServiceStatus(status_handle, ctypes.byref(status))
+        if not advapi.SetServiceStatus(status_handle, ctypes.byref(status)):
+            raise ctypes.WinError(ctypes.get_last_error())
         try: serve(state_root)
         finally:
-            status.current_state = SERVICE_STOPPED; advapi.SetServiceStatus(status_handle, ctypes.byref(status))
+            status.current_state = SERVICE_STOPPED
+            advapi.SetServiceStatus(status_handle, ctypes.byref(status))
 
     class SERVICE_TABLE_ENTRY(ctypes.Structure):
         _fields_ = [("service_name", wintypes.LPWSTR), ("service_proc", SERVICE_MAIN)]

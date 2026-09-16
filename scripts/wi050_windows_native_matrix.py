@@ -240,7 +240,11 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
     token = ctypes.c_void_p()
     new_token = ctypes.c_void_p()
     sid = ctypes.c_void_p()
-    token_access = 0x0002 | 0x0008 | 0x0001 | 0x0080 | 0x0100 | 0x0200
+    # CreateRestrictedToken only requires TOKEN_DUPLICATE on the source;
+    # CreateProcessAsUser additionally needs QUERY and ASSIGN_PRIMARY on the
+    # resulting primary token. Requesting adjustment rights from the current
+    # token is unnecessary and is denied on correctly filtered UAC tokens.
+    token_access = 0x0002 | 0x0008 | 0x0001
     if not advapi.OpenProcessToken(kernel.GetCurrentProcess(), token_access, ctypes.byref(token)):
         raise ctypes.WinError(ctypes.get_last_error())
     try:

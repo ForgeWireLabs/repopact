@@ -3,11 +3,13 @@
 //! React components never see this module -- they only ever see
 //! `repopact_remote_provider::provider::RemoteRepositoryProvider`.
 //!
-//! Checkpoint B wires real network calls (current user, installations,
+//! Checkpoint B wired real network calls (current user, installations,
 //! repositories, branches/tags, ref resolution) and real credential
-//! persistence through an injected `CredentialStore`. `describe_snapshot`/
-//! `open_snapshot` remain explicit "not yet implemented" errors -- archive
-//! download/materialization is Checkpoint C's boundary, not this one's.
+//! persistence through an injected `CredentialStore`. Checkpoint C wires
+//! `describe_snapshot`/`open_snapshot` to a real bounded, streaming zipball
+//! download -- extraction/materialization/publication remain entirely
+//! WI065's job (`repopact_mobile_acquisition::workspace::WorkspaceManager
+//! ::import_remote_snapshot`), never duplicated here.
 
 use std::sync::{Arc, Mutex};
 
@@ -15,15 +17,19 @@ use repopact_remote_provider::account::{ProviderScope, RemoteAccount, RemoteAcco
 use repopact_remote_provider::auth::AuthState;
 use repopact_remote_provider::credential::{CredentialKey, CredentialKind, CredentialStore};
 use repopact_remote_provider::error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
-use repopact_remote_provider::provider::{ProviderCapabilities, RemoteRepositoryProvider};
+use repopact_remote_provider::provider::{
+    ProviderCapabilities, RemoteRepositoryProvider, SnapshotDownloadOptions,
+};
 use repopact_remote_provider::redact::Secret;
 use repopact_remote_provider::refs::{RefKind, RemoteRef, ResolvedRevision};
 use repopact_remote_provider::repository::{RemoteRepository, RepositoryVisibility};
-use repopact_remote_provider::snapshot::{SnapshotArtifact, SnapshotDescriptor};
+use repopact_remote_provider::snapshot::{SnapshotArtifact, SnapshotDescriptor, SnapshotLayout};
 
 use crate::device_flow::{self, DeviceAuthorization, DevicePollOutcome};
 use crate::rest;
-use crate::transport::{HttpTransport, RestTransport};
+use crate::transport::{
+    HttpTransport, RestTransport, StreamingDownloadTransport, StreamingRequest,
+};
 
 /// No private key, no client secret: a GitHub App's `client_id` is not
 /// confidential (Decision 0061, item 12).
@@ -68,6 +74,7 @@ pub struct GitHubProvider {
     config: GitHubProviderConfig,
     form_transport: Arc<dyn HttpTransport>,
     rest_transport: Arc<dyn RestTransport>,
+    snapshot_transport: Arc<dyn StreamingDownloadTransport>,
     credential_store: Arc<dyn CredentialStore>,
     state: Mutex<InternalAuthState>,
     now_epoch_seconds: fn() -> u64,
@@ -101,12 +108,14 @@ impl GitHubProvider {
         config: GitHubProviderConfig,
         form_transport: Arc<dyn HttpTransport>,
         rest_transport: Arc<dyn RestTransport>,
+        snapshot_transport: Arc<dyn StreamingDownloadTransport>,
         credential_store: Arc<dyn CredentialStore>,
     ) -> Self {
         Self {
             config,
             form_transport,
             rest_transport,
+            snapshot_transport,
             credential_store,
             state: Mutex::new(InternalAuthState::Disconnected),
             now_epoch_seconds: real_now_epoch_seconds,
@@ -163,13 +172,6 @@ impl GitHubProvider {
             InternalAuthState::Cancelled => AuthState::Cancelled,
             InternalAuthState::Failed(code) => AuthState::Failed { code: *code },
         }
-    }
-
-    fn not_yet_implemented(operation: &str) -> RemoteProviderError {
-        RemoteProviderError::new(
-            ErrorCode::ProviderProtocolError,
-            format!("{operation} is not implemented in WI067 Checkpoint B (Checkpoint C)"),
-        )
     }
 
     /// Persists a fresh token pair to the credential store and (item 12)
@@ -559,17 +561,104 @@ impl RemoteRepositoryProvider for GitHubProvider {
 
     fn describe_snapshot(
         &self,
-        _repository: &RemoteRepository,
-        _revision: &ResolvedRevision,
+        repository: &RemoteRepository,
+        revision: &ResolvedRevision,
     ) -> RemoteProviderResult<SnapshotDescriptor> {
-        Err(Self::not_yet_implemented("describe_snapshot"))
+        // GitHub's zipball archives always wrap their contents in one
+        // synthetic `owner-repo-shortsha/` directory -- verified against
+        // real downloaded archives, not assumed (see the live Checkpoint C
+        // evidence). WI065's materializer is the only thing that strips it,
+        // via `SnapshotLayout::SingleRootDirectory`.
+        Ok(SnapshotDescriptor {
+            provider: self.provider_id().to_string(),
+            provider_repository_id: repository.provider_repository_id.clone(),
+            owner_label: repository.owner_label.clone(),
+            repository_name: repository.name.clone(),
+            revision: revision.clone(),
+            layout: SnapshotLayout::SingleRootDirectory,
+            reported_size_hint_bytes: None,
+        })
     }
 
     fn open_snapshot(
         &self,
-        _descriptor: &SnapshotDescriptor,
+        descriptor: &SnapshotDescriptor,
+        options: &SnapshotDownloadOptions,
     ) -> RemoteProviderResult<SnapshotArtifact> {
-        Err(Self::not_yet_implemented("open_snapshot"))
+        // Item 9/Phase 9: the download URL is derived entirely from the
+        // already-resolved typed descriptor (owner/name + the immutable
+        // commit SHA that produced this exact request) -- never from an
+        // archive filename, a Content-Disposition header, or a redirect
+        // target. No caller (frontend or otherwise) supplies this URL.
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/zipball/{}",
+            descriptor.owner_label,
+            descriptor.repository_name,
+            descriptor.revision.immutable_revision_id
+        );
+        let token = self.optional_access_token();
+        let headers = match &token {
+            Some(token) => crate::headers::RequestHeaders::with_bearer_token(token),
+            None => crate::headers::RequestHeaders::new(),
+        }
+        .as_pairs()
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value))
+        .collect();
+
+        let outcome = self
+            .snapshot_transport
+            .download(
+                &StreamingRequest { url, headers },
+                options.destination_path,
+                options.max_compressed_bytes,
+                options.should_cancel,
+            )
+            .map_err(|error| map_download_error(&error))?;
+
+        Ok(SnapshotArtifact {
+            descriptor: descriptor.clone(),
+            staged_path: options.destination_path.to_string_lossy().into_owned(),
+            received_bytes: outcome.bytes_written,
+        })
+    }
+}
+
+fn map_download_error(error: &crate::transport::TransportError) -> RemoteProviderError {
+    let message = error.message.as_str();
+    if message.contains("cancelled") {
+        RemoteProviderError::new(
+            ErrorCode::DownloadCancelled,
+            "snapshot download was cancelled",
+        )
+    } else if message.contains("compressed bound") {
+        RemoteProviderError::new(ErrorCode::SnapshotTooLarge, message.to_string())
+    } else if message.contains("status 401") {
+        RemoteProviderError::new(
+            ErrorCode::CredentialExpired,
+            "GitHub rejected the download request (401)",
+        )
+    } else if message.contains("status 403") {
+        RemoteProviderError::new(
+            ErrorCode::ProviderForbidden,
+            "GitHub forbade the download request (403)",
+        )
+    } else if message.contains("status 404") {
+        RemoteProviderError::new(
+            ErrorCode::ProviderNotFound,
+            "GitHub reported the requested snapshot does not exist or is not visible",
+        )
+    } else if message.contains("status 429") {
+        RemoteProviderError::new(
+            ErrorCode::ProviderRateLimited,
+            "GitHub rate-limited the download request",
+        )
+    } else if message.contains("empty body")
+        || message.contains("exceeded") && message.contains("redirects")
+    {
+        RemoteProviderError::new(ErrorCode::ProviderProtocolError, message.to_string())
+    } else {
+        RemoteProviderError::new(ErrorCode::NetworkUnavailable, message.to_string())
     }
 }
 
@@ -588,7 +677,8 @@ impl GitHubProvider {
 mod tests {
     use super::*;
     use crate::transport::{
-        json_response, rest_json_response, ScriptedRestTransport, ScriptedTransport,
+        json_response, rest_json_response, ScriptedRestTransport, ScriptedStreamingTransport,
+        ScriptedTransport,
     };
     use repopact_remote_provider::credential::InMemoryCredentialStore;
     use serde_json::json;
@@ -616,10 +706,16 @@ mod tests {
     fn begin_authorization_transitions_to_awaiting_user_without_a_client_secret() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         form.push_response(Ok(device_code_response()));
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         let state = provider.begin_authorization().unwrap();
         match state {
             AuthState::AwaitingUser {
@@ -642,6 +738,7 @@ mod tests {
     fn poll_authorization_fetches_identity_and_persists_tokens_on_success() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         form.push_response(Ok(device_code_response()));
         form.push_response(Ok(json_response(
@@ -657,8 +754,13 @@ mod tests {
             json!({"id": 42, "login": "octocat"}),
         )));
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         provider.begin_authorization().unwrap();
         let state = provider.poll_authorization().unwrap();
         match state {
@@ -682,6 +784,7 @@ mod tests {
     fn disconnect_clears_stored_credentials_and_state() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         form.push_response(Ok(device_code_response()));
         form.push_response(Ok(json_response(
@@ -690,8 +793,13 @@ mod tests {
         )));
         rest.push_response(Ok(rest_json_response(200, json!({"id": 1, "login": "x"}))));
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         provider.begin_authorization().unwrap();
         provider.poll_authorization().unwrap();
         assert!(credentials.get(&access_token_key()).unwrap().is_some());
@@ -708,6 +816,7 @@ mod tests {
     fn restore_from_credential_store_recovers_a_prior_session_without_a_network_call() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(
@@ -716,8 +825,13 @@ mod tests {
             )
             .unwrap();
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         let state = provider
             .restore_from_credential_store("octocat".to_string(), 42, Some(9_999_999_999))
             .unwrap();
@@ -731,9 +845,15 @@ mod tests {
     fn restore_from_credential_store_with_nothing_stored_is_disconnected_not_an_error() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         let state = provider
             .restore_from_credential_store("octocat".to_string(), 42, None)
             .unwrap();
@@ -744,6 +864,7 @@ mod tests {
     fn an_expired_access_token_is_refreshed_atomically_before_the_next_call() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(&access_token_key(), Secret::new("old-access"))
@@ -764,9 +885,14 @@ mod tests {
         // The actual call the refreshed token is used for.
         rest.push_response(Ok(rest_json_response(200, json!({"installations": []}))));
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone())
-                .with_clock(|| 1_000_000_000);
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        )
+        .with_clock(|| 1_000_000_000);
         provider
             .restore_from_credential_store("octocat".to_string(), 42, Some(1_000_000_000 - 10))
             .unwrap();
@@ -807,6 +933,7 @@ mod tests {
     fn a_denied_refresh_clears_credentials_and_reports_expired() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(&access_token_key(), Secret::new("old-access"))
@@ -817,9 +944,14 @@ mod tests {
 
         form.push_response(Ok(json_response(200, &[("error", "access_denied")])));
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone())
-                .with_clock(|| 1_000_000_000);
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        )
+        .with_clock(|| 1_000_000_000);
         provider
             .restore_from_credential_store("octocat".to_string(), 42, Some(1_000_000_000 - 10))
             .unwrap();
@@ -834,14 +966,20 @@ mod tests {
     fn an_expired_token_with_no_refresh_token_reports_expired_without_a_network_call() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(&access_token_key(), Secret::new("old-access"))
             .unwrap();
 
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone())
-                .with_clock(|| 1_000_000_000);
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        )
+        .with_clock(|| 1_000_000_000);
         provider
             .restore_from_credential_store("octocat".to_string(), 42, Some(1_000_000_000 - 10))
             .unwrap();
@@ -855,6 +993,7 @@ mod tests {
     fn list_accounts_maps_installations_to_remote_accounts() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(&access_token_key(), Secret::new("token"))
@@ -865,8 +1004,13 @@ mod tests {
                 {"id": 7, "account": {"login": "acme", "type": "Organization"}, "repository_selection": "all"}
             ]}),
         )));
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         provider
             .restore_from_credential_store("x".into(), 1, None)
             .unwrap();
@@ -880,6 +1024,7 @@ mod tests {
     fn search_repositories_filters_within_the_authorized_installation_set() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         credentials
             .put(&access_token_key(), Secret::new("token"))
@@ -891,8 +1036,13 @@ mod tests {
                 {"id": 2, "name": "beta", "full_name": "acme/beta", "owner": {"login": "acme"}, "private": true, "default_branch": "main", "archived": false}
             ]}),
         )));
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         provider
             .restore_from_credential_store("x".into(), 1, None)
             .unwrap();
@@ -916,9 +1066,15 @@ mod tests {
     fn repository_materialization_operations_are_explicitly_not_implemented_this_checkpoint() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
-        let provider =
-            GitHubProvider::new(config(), form.clone(), rest.clone(), credentials.clone());
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
         let repository = RemoteRepository {
             provider: "github".into(),
             provider_repository_id: "1".into(),
@@ -936,6 +1092,319 @@ mod tests {
             },
             immutable_revision_id: "a".repeat(40),
         };
-        assert!(provider.describe_snapshot(&repository, &revision).is_err());
+        let descriptor = provider.describe_snapshot(&repository, &revision).unwrap();
+        assert_eq!(descriptor.owner_label, "o");
+        assert_eq!(descriptor.repository_name, "r");
+        assert!(matches!(
+            descriptor.layout,
+            repopact_remote_provider::snapshot::SnapshotLayout::SingleRootDirectory
+        ));
+    }
+
+    fn snapshot_descriptor() -> SnapshotDescriptor {
+        SnapshotDescriptor {
+            provider: "github".into(),
+            provider_repository_id: "1".into(),
+            owner_label: "octocat".into(),
+            repository_name: "Hello-World".into(),
+            revision: ResolvedRevision {
+                selected_ref: RemoteRef {
+                    display_name: "master".into(),
+                    kind: RefKind::Branch,
+                    provider_ref_id: "heads/master".into(),
+                },
+                immutable_revision_id: "a".repeat(40),
+            },
+            layout: repopact_remote_provider::snapshot::SnapshotLayout::SingleRootDirectory,
+            reported_size_hint_bytes: None,
+        }
+    }
+
+    #[test]
+    fn open_snapshot_builds_the_zipball_url_from_typed_descriptor_fields_only() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        snapshot.push_response(Ok(crate::transport::StreamingDownloadOutcome {
+            bytes_written: 42,
+        }));
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
+
+        let destination =
+            std::env::temp_dir().join(format!("repopact-test-{}", std::process::id()));
+        let cancelled = false;
+        let artifact = provider
+            .open_snapshot(
+                &snapshot_descriptor(),
+                &SnapshotDownloadOptions {
+                    destination_path: &destination,
+                    max_compressed_bytes: 1024,
+                    should_cancel: &|| cancelled,
+                },
+            )
+            .unwrap();
+        assert_eq!(artifact.received_bytes, 42);
+
+        let sent = snapshot.received_requests();
+        assert_eq!(sent.len(), 1);
+        assert_eq!(
+            sent[0].url,
+            format!(
+                "https://api.github.com/repos/octocat/Hello-World/zipball/{}",
+                "a".repeat(40)
+            )
+        );
+        // Unauthenticated (not connected): no Authorization header at all.
+        assert!(sent[0].headers.iter().all(|(k, _)| k != "Authorization"));
+    }
+
+    #[test]
+    fn open_snapshot_attaches_authorization_only_when_connected() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        credentials
+            .put(&access_token_key(), Secret::new("ghu_test_token"))
+            .unwrap();
+        snapshot.push_response(Ok(crate::transport::StreamingDownloadOutcome {
+            bytes_written: 1,
+        }));
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
+        provider
+            .restore_from_credential_store("octocat".into(), 1, None)
+            .unwrap();
+
+        let destination =
+            std::env::temp_dir().join(format!("repopact-test-auth-{}", std::process::id()));
+        let cancelled = false;
+        provider
+            .open_snapshot(
+                &snapshot_descriptor(),
+                &SnapshotDownloadOptions {
+                    destination_path: &destination,
+                    max_compressed_bytes: 1024,
+                    should_cancel: &|| cancelled,
+                },
+            )
+            .unwrap();
+
+        let sent = snapshot.received_requests();
+        assert!(sent[0]
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Authorization" && v.contains("ghu_test_token")));
+    }
+
+    #[test]
+    fn open_snapshot_maps_download_errors_to_typed_codes() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        snapshot.push_response(Err(crate::transport::TransportError {
+            message: "download exceeded the 10-byte compressed bound".into(),
+        }));
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
+        let destination =
+            std::env::temp_dir().join(format!("repopact-test-oversized-{}", std::process::id()));
+        let cancelled = false;
+        let error = provider
+            .open_snapshot(
+                &snapshot_descriptor(),
+                &SnapshotDownloadOptions {
+                    destination_path: &destination,
+                    max_compressed_bytes: 10,
+                    should_cancel: &|| cancelled,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::SnapshotTooLarge);
+    }
+
+    #[test]
+    fn open_snapshot_maps_cancellation() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        snapshot.push_response(Err(crate::transport::TransportError {
+            message: "cancelled mid-download".into(),
+        }));
+        let provider = GitHubProvider::new(
+            config(),
+            form.clone(),
+            rest.clone(),
+            snapshot.clone(),
+            credentials.clone(),
+        );
+        let destination =
+            std::env::temp_dir().join(format!("repopact-test-cancel-{}", std::process::id()));
+        let cancelled = true;
+        let error = provider
+            .open_snapshot(
+                &snapshot_descriptor(),
+                &SnapshotDownloadOptions {
+                    destination_path: &destination,
+                    max_compressed_bytes: 1024,
+                    should_cancel: &|| cancelled,
+                },
+            )
+            .unwrap_err();
+        assert_eq!(error.code, ErrorCode::DownloadCancelled);
+    }
+
+    // WI067 Checkpoint C, Phase 10/21: the live, end-to-end public-
+    // repository proof. Not run by default (`cargo test` skips `#[ignore]`)
+    // to avoid spending unauthenticated GitHub rate-limit budget on every
+    // routine test run; run explicitly with `--ignored` for checkpoint
+    // evidence. Requires no client ID, no device flow, no operator gate --
+    // proves the whole snapshot pipeline (resolve -> describe -> download
+    // -> WI065's real WorkspaceManager::import_remote_snapshot -> publish
+    // -> open) against real GitHub data, entirely unauthenticated.
+    #[test]
+    #[ignore]
+    fn live_downloads_and_publishes_a_real_public_snapshot_end_to_end() {
+        use repopact_mobile_acquisition::bounds::ArchiveBounds;
+        use repopact_mobile_acquisition::operation::CancellationToken;
+        use repopact_mobile_acquisition::registry::RemoteSnapshotProvenance;
+        use repopact_mobile_acquisition::workspace::WorkspaceManager;
+
+        let transport = Arc::new(crate::transport::ReqwestTransport::new().unwrap());
+        let http = transport.clone() as Arc<dyn HttpTransport>;
+        let rest = transport.clone() as Arc<dyn RestTransport>;
+        let snapshot_transport = transport as Arc<dyn StreamingDownloadTransport>;
+        let credentials =
+            Arc::new(repopact_remote_provider::credential::InMemoryCredentialStore::new());
+        let provider = GitHubProvider::new(
+            GitHubProviderConfig {
+                client_id: String::new(),
+            },
+            http,
+            rest,
+            snapshot_transport,
+            credentials,
+        );
+
+        let repository = RemoteRepository {
+            provider: "github".into(),
+            provider_repository_id: "1".into(),
+            owner_label: "octocat".into(),
+            name: "Hello-World".into(),
+            full_display_name: "octocat/Hello-World".into(),
+            visibility: RepositoryVisibility::Public,
+            default_branch: Some("master".into()),
+        };
+        let reference = RemoteRef {
+            display_name: "master".into(),
+            kind: RefKind::Branch,
+            provider_ref_id: "heads/master".into(),
+        };
+        let resolved = provider.resolve_ref(&repository, &reference).unwrap();
+        assert_eq!(resolved.immutable_revision_id.len(), 40);
+
+        let descriptor = provider.describe_snapshot(&repository, &resolved).unwrap();
+
+        let temp = tempfile::tempdir().unwrap();
+        let download_path = temp.path().join("snapshot.zip");
+        let cancelled = false;
+        let artifact = provider
+            .open_snapshot(
+                &descriptor,
+                &SnapshotDownloadOptions {
+                    destination_path: &download_path,
+                    max_compressed_bytes: 50 * 1024 * 1024,
+                    should_cancel: &|| cancelled,
+                },
+            )
+            .unwrap();
+        assert!(artifact.received_bytes > 0);
+
+        let manager = WorkspaceManager::open(temp.path().join("workspace-root")).unwrap();
+        let staged = std::fs::File::open(&artifact.staged_path).unwrap();
+        let provenance = RemoteSnapshotProvenance {
+            provider: "github".into(),
+            provider_repository_id: repository.provider_repository_id.clone(),
+            owner_label: repository.owner_label.clone(),
+            repository_name: repository.name.clone(),
+            selected_ref: resolved.selected_ref.display_name.clone(),
+            ref_kind: "branch".into(),
+            resolved_commit_sha: resolved.immutable_revision_id.clone(),
+            acquired_at: "2026-09-16T00:00:00Z".into(),
+            snapshot_semantics: "immutable_snapshot".into(),
+        };
+        let cancel = CancellationToken::new();
+        let record = manager
+            .import_remote_snapshot(
+                staged,
+                "octocat/Hello-World".into(),
+                format!(
+                    "github:octocat/Hello-World@{}",
+                    resolved.immutable_revision_id
+                ),
+                &ArchiveBounds::default(),
+                &cancel,
+                |_| {},
+                provenance,
+                true, // GitHub zipballs always wrap in a synthetic owner-repo-sha/ root.
+            )
+            .unwrap();
+
+        assert_eq!(
+            record.acquisition_kind,
+            repopact_mobile_acquisition::registry::AcquisitionKind::RemoteSnapshot
+        );
+        let stored_provenance = record.remote_snapshot_provenance.clone().unwrap();
+        assert_eq!(
+            stored_provenance.resolved_commit_sha,
+            resolved.immutable_revision_id
+        );
+
+        let published = manager.repository_path(&record.workspace_id).unwrap();
+        let entries: Vec<_> = std::fs::read_dir(&published).unwrap().collect();
+        assert!(
+            !entries.is_empty(),
+            "the published workspace must contain real repository files"
+        );
+        // The synthetic GitHub wrapper directory must not survive.
+        assert!(!entries.iter().any(|entry| entry
+            .as_ref()
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with("octocat-Hello-World-")));
+
+        // Offline proof (Phase 11): reading the already-published workspace
+        // is ordinary local filesystem I/O -- no further network call is
+        // made or needed. `manager`/`provider` above are dropped after
+        // this point without ever contacting GitHub again.
+        let reopened_manager = WorkspaceManager::open(temp.path().join("workspace-root")).unwrap();
+        let reopened_record = reopened_manager
+            .get_workspace(&record.workspace_id)
+            .unwrap();
+        assert_eq!(reopened_record.workspace_id, record.workspace_id);
+        let reopened_path = reopened_manager
+            .repository_path(&record.workspace_id)
+            .unwrap();
+        assert!(std::fs::read_dir(&reopened_path).unwrap().next().is_some());
     }
 }

@@ -303,7 +303,9 @@ pub fn run() {
             remote_provider::remote_accounts,
             remote_provider::remote_repositories,
             remote_provider::remote_repository_refs,
-            remote_provider::remote_resolve_ref
+            remote_provider::remote_resolve_ref,
+            remote_provider::remote_import_snapshot,
+            remote_provider::remote_import_cancel
         ]);
     #[cfg(target_os = "android")]
     let builder = tauri::Builder::default()

@@ -8,19 +8,33 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
+use repopact_mobile_acquisition::bounds::ArchiveBounds;
+use repopact_mobile_acquisition::operation::CancellationToken;
+use repopact_mobile_acquisition::registry::RemoteSnapshotProvenance;
+use repopact_mobile_acquisition::workspace::WorkspaceManager;
 use repopact_provider_github::provider::{GitHubProvider, GitHubProviderConfig};
 use repopact_provider_github::transport::ReqwestTransport;
 use repopact_remote_provider::account::RemoteAccount;
 use repopact_remote_provider::auth::AuthState;
 use repopact_remote_provider::credential::CredentialStore;
 use repopact_remote_provider::error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
-use repopact_remote_provider::provider::RemoteRepositoryProvider;
+use repopact_remote_provider::provider::{RemoteRepositoryProvider, SnapshotDownloadOptions};
 use repopact_remote_provider::refs::{RefKind, RemoteRef, ResolvedRevision};
 use repopact_remote_provider::repository::RemoteRepository;
+use repopact_remote_provider::snapshot::SnapshotLayout;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+
+/// WI067 Checkpoint C, Phase 5: a repository archive is legitimately much
+/// larger than any REST/JSON API response. Deliberately chosen distinct
+/// from Checkpoint B's 8MB REST-response ceiling and from WI065's own
+/// `ArchiveBounds::max_expanded_bytes` (1 GiB) -- a compressed download
+/// should almost always be smaller than its expanded size, so this sits
+/// below that, in the same order of magnitude as
+/// `ArchiveBounds::max_single_entry_bytes` (256 MiB).
+const SNAPSHOT_DOWNLOAD_MAX_COMPRESSED_BYTES: u64 = 300 * 1024 * 1024;
 
 /// The GitHub App client ID is public configuration (Decision 0061, item
 /// 16), never a secret -- but it is still native-owned configuration, not
@@ -62,6 +76,13 @@ pub struct RemoteProviderService {
     github: GitHubProvider,
     metadata_path: PathBuf,
     client_configured: bool,
+    workspace_manager: WorkspaceManager,
+    /// A single active remote-import cancellation token (item 15's "active
+    /// auth operations" scope: one active connection, and likewise one
+    /// active import, matching v1's single-connection model). A second
+    /// `remote_import_snapshot` call while one is already running is
+    /// rejected rather than silently sharing/overwriting this slot.
+    active_import: Mutex<Option<CancellationToken>>,
 }
 
 impl RemoteProviderService {
@@ -89,10 +110,18 @@ impl RemoteProviderService {
         let http_transport =
             transport.clone() as Arc<dyn repopact_provider_github::transport::HttpTransport>;
         let rest_transport =
-            transport as Arc<dyn repopact_provider_github::transport::RestTransport>;
+            transport.clone() as Arc<dyn repopact_provider_github::transport::RestTransport>;
+        let snapshot_transport =
+            transport as Arc<dyn repopact_provider_github::transport::StreamingDownloadTransport>;
         let credential_store: Arc<dyn CredentialStore> =
             Arc::new(repopact_remote_provider::credential_os::OsCredentialStore::new());
-        let github = GitHubProvider::new(config, http_transport, rest_transport, credential_store);
+        let github = GitHubProvider::new(
+            config,
+            http_transport,
+            rest_transport,
+            snapshot_transport,
+            credential_store,
+        );
 
         let metadata_path = app_data_dir
             .join("local-metadata")
@@ -110,10 +139,21 @@ impl RemoteProviderService {
             );
         }
 
+        // WI067 Checkpoint C: the same production workspace registry/
+        // import pipeline WI065 built, rooted at the same app-private
+        // location Decision 0057 already specifies -- never a second
+        // GitHub-specific registry or extractor.
+        let workspace_manager =
+            WorkspaceManager::open(app_data_dir.join("repositories")).map_err(|error| {
+                RemoteProviderError::new(ErrorCode::MaterializationFailed, error.to_string())
+            })?;
+
         Ok(Self {
             github,
             metadata_path,
             client_configured,
+            workspace_manager,
+            active_import: Mutex::new(None),
         })
     }
 
@@ -496,4 +536,218 @@ pub fn remote_open_verification_url(
                 format!("failed to open system browser: {error}"),
             )
         })
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoteImportResultDto {
+    pub workspace_id: String,
+    pub display_name: String,
+    pub resolved_commit_sha: String,
+}
+
+/// WI067 Checkpoint C (Phase 4): the narrow typed snapshot-import command.
+/// Accepts only typed repository/ref identifiers -- never a URL, header
+/// map, filesystem destination, or the ref/SHA text alone taken on trust.
+/// The exact commit SHA that gets imported is *re-resolved here*, natively,
+/// from `repository`/`reference` -- never accepted as a caller-supplied
+/// value -- so a stale or tampered frontend-held SHA can never diverge
+/// from what this command actually requests and records (Phase 4/9).
+#[tauri::command]
+pub fn remote_import_snapshot(
+    repository: RemoteRepositoryRefDto,
+    reference: RemoteRefRefDto,
+    service: State<'_, Arc<RemoteProviderService>>,
+) -> Result<RemoteImportResultDto, RemoteProviderError> {
+    {
+        let mut active = service.active_import.lock().unwrap();
+        if active.is_some() {
+            return Err(RemoteProviderError::new(
+                ErrorCode::ProviderProtocolError,
+                "a remote snapshot import is already in progress",
+            ));
+        }
+        *active = Some(CancellationToken::new());
+    }
+    let result = run_remote_import_snapshot(&service, repository, reference);
+    *service.active_import.lock().unwrap() = None;
+    result
+}
+
+fn run_remote_import_snapshot(
+    service: &RemoteProviderService,
+    repository: RemoteRepositoryRefDto,
+    reference: RemoteRefRefDto,
+) -> Result<RemoteImportResultDto, RemoteProviderError> {
+    let cancel = service
+        .active_import
+        .lock()
+        .unwrap()
+        .as_ref()
+        .expect("set by remote_import_snapshot before calling this function")
+        .clone();
+
+    let repo = repository_from_dto(&repository);
+    let remote_ref = RemoteRef {
+        display_name: reference.display_name,
+        kind: match reference.kind {
+            RemoteRefKindDto::Branch => RefKind::Branch,
+            RemoteRefKindDto::Tag => RefKind::Tag,
+            RemoteRefKindDto::Commit => RefKind::Commit,
+        },
+        provider_ref_id: reference.ref_id,
+    };
+
+    // Phase 3/9/31: resolve now, natively -- this is the exact immutable
+    // SHA this request is frozen to. It is never re-resolved later in this
+    // same flow even if the branch moves mid-download.
+    let resolved = service.github.resolve_ref(&repo, &remote_ref)?;
+    if cancel.is_cancelled() {
+        return Err(cancelled_error());
+    }
+
+    let descriptor = service.github.describe_snapshot(&repo, &resolved)?;
+    if cancel.is_cancelled() {
+        return Err(cancelled_error());
+    }
+
+    let staging_root = service.workspace_manager.root().join("staging");
+    fs::create_dir_all(&staging_root).map_err(io_to_provider_error)?;
+    let download_path =
+        staging_root.join(format!("remote-snapshot-{}.download", uuid::Uuid::new_v4()));
+
+    let cancel_for_download = cancel.clone();
+    let artifact = service.github.open_snapshot(
+        &descriptor,
+        &SnapshotDownloadOptions {
+            destination_path: &download_path,
+            max_compressed_bytes: SNAPSHOT_DOWNLOAD_MAX_COMPRESSED_BYTES,
+            should_cancel: &move || cancel_for_download.is_cancelled(),
+        },
+    );
+    let artifact = match artifact {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            let _ = fs::remove_file(&download_path);
+            return Err(error);
+        }
+    };
+
+    let provenance = RemoteSnapshotProvenance {
+        provider: descriptor.provider.clone(),
+        provider_repository_id: descriptor.provider_repository_id.clone(),
+        owner_label: descriptor.owner_label.clone(),
+        repository_name: descriptor.repository_name.clone(),
+        selected_ref: resolved.selected_ref.display_name.clone(),
+        ref_kind: match resolved.selected_ref.kind {
+            RefKind::Branch => "branch",
+            RefKind::Tag => "tag",
+            RefKind::Commit => "commit",
+        }
+        .to_string(),
+        resolved_commit_sha: resolved.immutable_revision_id.clone(),
+        acquired_at: now_rfc3339(),
+        snapshot_semantics: "immutable_snapshot".to_string(),
+    };
+
+    let staged_file = fs::File::open(&artifact.staged_path).map_err(io_to_provider_error)?;
+    let display_name = format!("{}/{}", descriptor.owner_label, descriptor.repository_name);
+    let source_reference = format!(
+        "github:{}/{}@{}",
+        descriptor.owner_label, descriptor.repository_name, resolved.immutable_revision_id
+    );
+    let strip_root = matches!(descriptor.layout, SnapshotLayout::SingleRootDirectory);
+
+    let import_result = service.workspace_manager.import_remote_snapshot(
+        staged_file,
+        display_name.clone(),
+        source_reference,
+        &ArchiveBounds::default(),
+        &cancel,
+        |_progress| {},
+        provenance,
+        strip_root,
+    );
+    let _ = fs::remove_file(&download_path);
+
+    let record = import_result.map_err(|error| {
+        RemoteProviderError::new(ErrorCode::MaterializationFailed, error.to_string())
+    })?;
+
+    Ok(RemoteImportResultDto {
+        workspace_id: record.workspace_id,
+        display_name,
+        resolved_commit_sha: resolved.immutable_revision_id,
+    })
+}
+
+fn cancelled_error() -> RemoteProviderError {
+    RemoteProviderError::new(
+        ErrorCode::DownloadCancelled,
+        "snapshot import was cancelled",
+    )
+}
+
+fn io_to_provider_error(error: std::io::Error) -> RemoteProviderError {
+    RemoteProviderError::new(ErrorCode::MaterializationFailed, error.to_string())
+}
+
+fn now_rfc3339() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    rfc3339_from_unix_seconds(now.as_secs())
+}
+
+/// Mirrors `repopact_mobile_acquisition::workspace`'s own no-chrono-
+/// dependency RFC 3339 formatter (Decision 0057's own convention) rather
+/// than adding a second time-formatting dependency to this app crate for
+/// one timestamp.
+fn rfc3339_from_unix_seconds(unix_seconds: u64) -> String {
+    const DAYS_IN_MONTH: [i64; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let days_total = (unix_seconds / 86_400) as i64;
+    let seconds_of_day = (unix_seconds % 86_400) as i64;
+    let hour = seconds_of_day / 3600;
+    let minute = (seconds_of_day % 3600) / 60;
+    let second = seconds_of_day % 60;
+
+    let mut year = 1970i64;
+    let mut remaining_days = days_total;
+    loop {
+        let is_leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        let days_in_year = if is_leap { 366 } else { 365 };
+        if remaining_days >= days_in_year {
+            remaining_days -= days_in_year;
+            year += 1;
+        } else {
+            break;
+        }
+    }
+    let is_leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let mut month = 0usize;
+    for (index, &days) in DAYS_IN_MONTH.iter().enumerate() {
+        let days = if index == 1 && is_leap {
+            days + 1
+        } else {
+            days
+        };
+        if remaining_days >= days {
+            remaining_days -= days;
+            month = index + 1;
+        } else {
+            month = index + 1;
+            break;
+        }
+    }
+    let day = remaining_days + 1;
+    format!("{year:04}-{month:02}-{day:02}T{hour:02}:{minute:02}:{second:02}Z")
+}
+
+/// WI067 Checkpoint C: cancels the single active `remote_import_snapshot`
+/// call, if any. A no-op (not an error) if nothing is running.
+#[tauri::command]
+pub fn remote_import_cancel(service: State<'_, Arc<RemoteProviderService>>) {
+    if let Some(token) = service.active_import.lock().unwrap().as_ref() {
+        token.cancel();
+    }
 }

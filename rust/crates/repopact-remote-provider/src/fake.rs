@@ -11,7 +11,7 @@ use std::sync::Mutex;
 use crate::account::{ProviderScope, RemoteAccount, RemoteAccountId};
 use crate::auth::AuthState;
 use crate::error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
-use crate::provider::{ProviderCapabilities, RemoteRepositoryProvider};
+use crate::provider::{ProviderCapabilities, RemoteRepositoryProvider, SnapshotDownloadOptions};
 use crate::refs::{RefKind, RemoteRef, ResolvedRevision};
 use crate::repository::{RemoteRepository, RepositoryVisibility};
 use crate::snapshot::{SnapshotArtifact, SnapshotDescriptor, SnapshotLayout};
@@ -159,6 +159,8 @@ impl RemoteRepositoryProvider for FakeProvider {
         Ok(SnapshotDescriptor {
             provider: self.provider_id().to_string(),
             provider_repository_id: repository.provider_repository_id.clone(),
+            owner_label: repository.owner_label.clone(),
+            repository_name: repository.name.clone(),
             revision: revision.clone(),
             layout: self.layout,
             reported_size_hint_bytes: None,
@@ -168,17 +170,43 @@ impl RemoteRepositoryProvider for FakeProvider {
     fn open_snapshot(
         &self,
         descriptor: &SnapshotDescriptor,
+        options: &SnapshotDownloadOptions,
     ) -> RemoteProviderResult<SnapshotArtifact> {
-        let metadata = std::fs::metadata(&self.staged_snapshot_path).map_err(|error| {
+        if (options.should_cancel)() {
+            return Err(RemoteProviderError::new(
+                ErrorCode::DownloadCancelled,
+                "cancelled before the fake snapshot copy began",
+            ));
+        }
+        let bytes = std::fs::read(&self.staged_snapshot_path).map_err(|error| {
             RemoteProviderError::new(
                 ErrorCode::MaterializationFailed,
                 format!("fake snapshot fixture missing: {error}"),
             )
         })?;
+        if bytes.len() as u64 > options.max_compressed_bytes {
+            return Err(RemoteProviderError::new(
+                ErrorCode::SnapshotTooLarge,
+                format!(
+                    "fake snapshot fixture ({} bytes) exceeds the {}-byte bound",
+                    bytes.len(),
+                    options.max_compressed_bytes
+                ),
+            ));
+        }
+        // Proves the real contract, not just this test double's own
+        // convenience: the bytes land exactly at the caller-chosen
+        // destination, never wherever the provider felt like staging them.
+        std::fs::write(options.destination_path, &bytes).map_err(|error| {
+            RemoteProviderError::new(
+                ErrorCode::MaterializationFailed,
+                format!("failed to write fake snapshot to destination: {error}"),
+            )
+        })?;
         Ok(SnapshotArtifact {
             descriptor: descriptor.clone(),
-            staged_path: self.staged_snapshot_path.clone(),
-            received_bytes: metadata.len(),
+            staged_path: options.destination_path.to_string_lossy().into_owned(),
+            received_bytes: bytes.len() as u64,
         })
     }
 }

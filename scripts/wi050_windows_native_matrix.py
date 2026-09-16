@@ -155,7 +155,7 @@ def _action(request: Mapping[str, Any], root: Path, paths: list[str], *, kind: s
 
 def _auth(root: Path, signer: Ed25519Signer, protected: Path, paths: list[str], session: str) -> tuple[dict[str, Any], dict[str, Any], str, dict[str, Any]]:
     request = make_request(root, "050", session, principal="wi050-windows-proof", profile="bounded",
-                           scopes=["src"], paths=paths, capabilities={"process": True},
+                           scopes=["src"], paths=paths, capabilities={},
                            approval_class="activate", protected_dir=protected)
     receipt = issue_receipt(request, signer)
     decision, capability = NativeGuardClient().authorize(request, receipt, root=root)

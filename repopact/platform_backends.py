@@ -1070,7 +1070,7 @@ class LinuxBackend(PlatformBackend):
                 "[Service]", "Type=simple", "User=root", "Group=users",
                 "RuntimeDirectory=repopact", "RuntimeDirectoryMode=0750",
                 f"ExecStart={shlex.join(command)}", "Restart=on-failure", "RestartSec=1",
-                "NoNewPrivileges=true", "PrivateTmp=true", "ProtectHome=true", "ProtectSystem=strict",
+                "NoNewPrivileges=true", "PrivateTmp=true", "ProtectHome=read-only", "ProtectSystem=strict",
                 f"ReadWritePaths={self.protected_state_location.parent} /run/repopact", "",
                 "[Install]", "WantedBy=multi-user.target", "",
             ))

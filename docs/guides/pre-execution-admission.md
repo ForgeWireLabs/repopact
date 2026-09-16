@@ -1,5 +1,7 @@
 # Pre-execution admission
 
+*Diataxis mode: how-to (task-oriented).*
+
 RepoPact's WI050 admission plane is opt-in. It is useful when a host must ask
 whether a session or action may mutate a repository before the mutation occurs.
 Installing or adopting RepoPact does not require this capability, a privileged
@@ -94,3 +96,42 @@ portable semantic corpus and its real-subprocess pre-action denial matrix;
 those testing-only cases prove callback/child admission ordering, not
 arbitrary-process confinement. `--require-installed` additionally requires
 the native platform guard to be installed and healthy.
+
+## Optional Linux Landlock path
+
+The portable reference baseline remains `pre-action`. An adopter that
+explicitly requires `sandbox/process-enforced` can use the Linux-only
+`LandlockConfinementProvider` and `LandlockSandboxAdapter`. The helper is
+expected at the host-controlled, protected installation path
+`/usr/local/lib/repopact/guard/repopact-sandbox` (or an explicitly selected
+equally protected path); a checkout-built or repository-writable helper is not
+production evidence.
+
+The helper is the guard peer. It sends the signed request and receipt to the
+existing protected Unix service, consumes the resulting opaque lease and
+guard-derived metadata, and never accepts a caller allowlist as authority. It
+revalidates that lease before target creation and while the target runs. The
+kernel domain is installed before `exec`, applies to descendants, and receives
+explicit argv without shell-string reinterpretation. Required enforcement
+fails closed when the guard, helper, ABI, ruleset, path compiler, descriptor
+sanitizer, or restriction step is unavailable; it never silently downgrades to
+`pre-action`.
+
+The minimum Landlock ABI is 3 because the mutation contract handles
+`WRITE_FILE`, `REMOVE_FILE`, `REMOVE_DIR`, all ABI-1 `MAKE_*` rights, `REFER`,
+and `TRUNCATE`. The initial provider intentionally handles mutation
+confinement, not general confidentiality: broad read/execute access, network,
+syscalls, namespaces, PID isolation, and container-equivalent behavior are not
+claimed. Writable standard streams are checked against the authorized roots;
+unexpected descriptors above stderr are closed, and there is no pass-fd escape
+feature. A lease ceiling that cannot be represented without exposing a frozen
+or protected descendant is rejected.
+
+The provider reports `sandbox/process-enforced` only after root-owned helper
+attestation and the helper's native Landlock mutation probe succeed. A normal
+`NativeGuardClient` plus `PreActionAdapter` remains `pre-action`; Windows and
+macOS remain lower-assurance until independent native backends and proofs
+exist. Landlock does not itself revoke running authority, so the bounded helper
+polls the guard and terminates its process group on expiry, revocation, drift,
+or guard loss. Detached descendants retain their already-installed narrower
+Landlock domain; no immediate kill guarantee is claimed for those descendants.

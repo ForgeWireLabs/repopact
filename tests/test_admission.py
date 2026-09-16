@@ -86,6 +86,14 @@ class AdmissionTests(unittest.TestCase):
             datetime.fromisoformat(bounded["issued_at"].replace("Z", "+00:00")) + timedelta(minutes=30),
         )
 
+    def test_lease_rejects_capability_not_enabled_by_profile(self):
+        request = self.request(capabilities={"process": True})
+        receipt = issue_receipt(request, self.signer)
+        decision, lease = issue_lease(request, receipt, self.root, self.protected)
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.code, "PROFILE_ESCALATION")
+        self.assertIsNone(lease)
+
     def test_delegation_only_subsets(self):
         parent = {"lease_id": "parent", "repository_identity": "r", "work_item": "050", "principal": "operator", "approval_class": "activate", "profile": "bounded", "mode": "normal", "delegation_ceiling": 2, "scopes": ["src"], "paths": ["src/a.py"], "capabilities": [], "delegation_lineage": [], "expires_at": "2030-01-01T00:00:00Z"}
         child = {**parent, "lease_id": "child", "principal": "subagent", "parent_lease_id": "parent", "delegation_lineage": ["parent"], "delegation_ceiling": 1, "scopes": ["src"], "paths": ["src/a.py"], "expires_at": "2029-01-01T00:00:00Z"}

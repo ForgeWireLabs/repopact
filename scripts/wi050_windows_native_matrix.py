@@ -370,7 +370,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         out_before = _hash(sentinel)
         out_scope = client.check(_action(out_request, root, ["governance/wi050-out-of-scope.txt"]), out_token, root=root)
         _case(results, "out_of_scope_mutation_denied", "frozen/out-of-scope mutation denied before write",
-              denied=not out_scope.allowed, denial_code=out_scope.code == "FROZEN_APPROVAL_REQUIRED",
+              denied=not out_scope.allowed, denial_code=out_scope.code == "PATH_VIOLATION",
               sentinel_unchanged=_hash(sentinel) == out_before)
 
         forged = token[:-1] + ("A" if token[-1] != "A" else "B")

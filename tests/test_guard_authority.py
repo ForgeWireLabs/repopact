@@ -132,6 +132,9 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(platform_backends._windows_acl_has_broad_write(
             r"C:\ProgramData\RepoPact BUILTIN\Users:(DENY)(W,D,WDAC,WO,DC)"
         ))
+        program_data = r"C:\ProgramData BUILTIN\Users:(OI)(CI)(RX) BUILTIN\Users:(CI)(WD,AD,WEA,WA)"
+        self.assertTrue(platform_backends._windows_acl_has_broad_write(program_data))
+        self.assertFalse(platform_backends._windows_acl_has_broad_write(program_data, replacement_only=True))
 
     def test_windows_reparse_probe_uses_attributes_without_opening_protected_path(self):
         native = unittest.mock.Mock()

@@ -260,14 +260,16 @@ def _is_under(path: Path, roots: tuple[Path, ...]) -> bool:
     return any(candidate == root or candidate.is_relative_to(root) for root in roots)
 
 
-def _windows_acl_has_broad_write(output: str) -> bool:
+def _windows_acl_has_broad_write(output: str, *, replacement_only: bool = False) -> bool:
     """Detect write/delete rights granted to ordinary broad principals."""
     user_principals = ["(?:BUILTIN\\\\)?USERS:", "AUTHENTICATEDUSERS:", "EVERYONE:", "INTERACTIVE:"]
     for username in (os.environ.get("USERNAME"), os.environ.get("USER")):
         if username:
             user_principals.append(re.escape(username.upper()) + ":")
     principals = re.compile("|".join(user_principals))
-    dangerous = {"F", "M", "W", "D", "DC", "WDAC", "WO", "DELETE", "AD", "WEA", "WA"}
+    dangerous = {"F", "M", "D", "DC", "WDAC", "WO", "DELETE"} if replacement_only else {
+        "F", "M", "W", "D", "DC", "WDAC", "WO", "DELETE", "AD", "WEA", "WA"
+    }
     for line in output.upper().splitlines():
         compact = line.replace(" ", "")
         match = principals.search(compact)
@@ -281,11 +283,12 @@ def _windows_acl_has_broad_write(output: str) -> bool:
         if "(DENY)" in permissions:
             continue
         for token in re.findall(r"\(([^)]*)\)", permissions):
-            token = token.strip()
-            # OI/CI/I/NP/IO are inheritance flags, not access rights.
-            if token in {"OI", "CI", "I", "NP", "IO"}:
-                continue
-            if token in dangerous or any(right in token for right in dangerous):
+            rights = {part.strip() for part in token.split(",")}
+            # OI/CI/I/NP/IO are inheritance flags, not access rights. Use
+            # exact rights instead of substring matching: WD (write data)
+            # must not be mistaken for D (delete).
+            rights.difference_update({"OI", "CI", "I", "NP", "IO"})
+            if rights & dangerous:
                 return True
     return False
 
@@ -336,7 +339,7 @@ def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
-        if _windows_acl_has_broad_write(output):
+        if _windows_acl_has_broad_write(output, replacement_only=current != canonical):
             return False, f"ordinary users can modify or replace {current}"
         checked.append(str(current))
         if current.parent == current:
@@ -383,7 +386,7 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
-        if _windows_acl_has_broad_write(output):
+        if _windows_acl_has_broad_write(output, replacement_only=current != canonical):
             return False, f"ordinary users can modify or replace {current}"
         checked.append(str(current))
         if current.parent == current:

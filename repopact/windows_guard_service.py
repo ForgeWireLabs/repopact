@@ -19,6 +19,12 @@ from pathlib import Path
 SERVICE_NAME = "RepoPactGuard"
 ERROR_FAILED_SERVICE_CONTROLLER_CONNECT = 1063
 
+# The installed entrypoint is executed as a script from
+# ``runtime\repopact\``.  Add only its protected runtime parent; defer all
+# RepoPact imports until ServiceMain has connected to SCM.
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 
 def _startup_diagnostic(state_root: Path, stage: str, error: BaseException | None = None,
                         win32_error: int | None = None) -> None:

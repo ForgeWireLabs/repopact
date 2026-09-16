@@ -324,7 +324,12 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
             current = current.parent
         if any(_windows_reparse_point(item) for item in supplied_parts):
             return False, "protected path hierarchy contains a symlink or reparse point"
-        canonical = supplied.resolve(strict=True)
+        # The path was already proven present above.  On Windows, strict
+        # pathlib resolution can require metadata access that the protected
+        # DACL intentionally denies to the operator's ordinary Users token.
+        # Reparse points were checked for every supplied component, so the
+        # absolute path is the safe canonical identity for this existing tree.
+        canonical = supplied.resolve(strict=False)
     except (OSError, ValueError):
         return False, "protected path could not be resolved canonically"
 

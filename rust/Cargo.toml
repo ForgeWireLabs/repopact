@@ -23,6 +23,21 @@ members = [
 [workspace.dependencies]
 jsonschema = { version = "0.55.1", default-features = false }
 regex = { version = "1", default-features = false, features = ["std", "unicode-perl"] }
+# WI067 Checkpoint B: the production GitHub REST/device-flow HTTP transport
+# (repopact-provider-github). Blocking client (no async-ification of the
+# provider seam needed for Checkpoint B); rustls-tls avoids an OpenSSL/
+# native-tls cross-compilation dependency for the Android target. Chosen
+# over a lower-level client because it gives explicit timeout, redirect
+# (disabled here and re-implemented manually per Decision 0061's header
+# policy), and streaming-response control out of the box, and is already
+# the de facto standard HTTP client in the Tauri ecosystem.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+# WI067 Checkpoint B: production OS-protected credential storage
+# (repopact-remote-provider::credential_os). Covers Windows Credential
+# Manager, macOS/iOS Keychain, and Linux Secret Service/libsecret behind
+# one API; Android is not covered by this crate and remains a distinct,
+# recorded gate (Decision 0061 / GH-004).
+keyring = { version = "3", default-features = false, features = ["windows-native", "apple-native", "sync-secret-service"] }
 repopact-core = { path = "crates/repopact-core" }
 repopact-desktop-api = { path = "crates/repopact-desktop-api" }
 repopact-mobile-acquisition = { path = "crates/repopact-mobile-acquisition" }

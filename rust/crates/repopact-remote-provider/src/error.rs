@@ -11,6 +11,11 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "snake_case")]
 pub enum ErrorCode {
     NotConnected,
+    /// WI067 Checkpoint B, item 16: the provider requires a client ID
+    /// (public, non-secret configuration) that has not been supplied --
+    /// distinct from `NotConnected` (a user simply hasn't authorized yet).
+    /// Never fabricated; this is the exact operator-registration gate.
+    ProviderNotConfigured,
     AuthorizationPending,
     AuthorizationCancelled,
     AuthorizationExpired,

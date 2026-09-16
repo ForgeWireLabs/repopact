@@ -8,5 +8,6 @@ publish = false
 repopact-remote-provider.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+reqwest.workspace = true
 
 [dev-dependencies]

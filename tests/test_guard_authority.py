@@ -129,6 +129,9 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(platform_backends._windows_acl_has_broad_write(read_only))
         self.assertTrue(platform_backends._windows_acl_has_broad_write(writable))
         self.assertTrue(platform_backends._windows_acl_has_broad_write(authenticated))
+        self.assertFalse(platform_backends._windows_acl_has_broad_write(
+            r"C:\ProgramData\RepoPact BUILTIN\Users:(DENY)(W,D,WDAC,WO,DC)"
+        ))
 
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):

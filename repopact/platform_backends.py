@@ -242,6 +242,12 @@ def _windows_acl_has_broad_write(output: str) -> bool:
         if not match:
             continue
         permissions = compact[match.end():]
+        # The installer deliberately adds an explicit deny for replacement
+        # rights.  Only granted rights make an ordinary principal able to
+        # modify the protected path; treating a deny ACE as a broad grant
+        # makes truthful post-install attestation impossible.
+        if "(DENY)" in permissions:
+            continue
         for token in re.findall(r"\(([^)]*)\)", permissions):
             token = token.strip()
             # OI/CI/I/NP/IO are inheritance flags, not access rights.

@@ -147,9 +147,19 @@ class GuardAuthorityTests(unittest.TestCase):
         child = parent / "Guard"
         commands = _windows_install_acl_commands(parent) + _windows_install_acl_commands(child)
         self.assertEqual(commands[0][2:], ["/inheritance:r"])
-        self.assertEqual(commands[4][1], str(child))
-        self.assertEqual(commands[3][2], "/deny")
-        self.assertEqual(commands[7][2], "/deny")
+        self.assertEqual(commands[3][1], str(child))
+        self.assertTrue(all(command[2] != "/deny" for command in commands))
+
+    def test_windows_acl_accepts_explicit_read_only_users_without_deny_ace(self):
+        output = (
+            r"C:\ProgramData\RepoPact\Guard BUILTIN\Users:(OI)(CI)(RX)" "\n"
+            r"                         BUILTIN\Administrators:(OI)(CI)(F)" "\n"
+            r"                         NT AUTHORITY\SYSTEM:(OI)(CI)(F)"
+        )
+        with patch.object(platform_backends.os, "name", "nt"), \
+                patch.object(platform_backends, "_command_output", return_value=(0, output)):
+            protected, _reason = platform_backends._windows_acl(Path(r"C:\ProgramData\RepoPact\Guard"))
+        self.assertTrue(protected)
 
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):

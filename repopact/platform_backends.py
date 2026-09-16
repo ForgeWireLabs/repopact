@@ -161,9 +161,9 @@ def _windows_acl(path: Path) -> tuple[bool, str]:
         return False, "icacls could not inspect the installed path"
     upper = output.upper()
     owner_protected = "NT AUTHORITY\\SYSTEM" in upper or "BUILTIN\\ADMINISTRATORS" in upper
-    deny_present = "(DENY)" in upper or "DENY" in upper
     users_present = "BUILTIN\\USERS" in upper or "NT AUTHORITY\\AUTHENTICATED USERS" in upper
-    return bool(owner_protected and deny_present and users_present), output.strip()
+    no_broad_user_write = not _windows_acl_has_broad_write(output)
+    return bool(owner_protected and users_present and no_broad_user_write), output.strip()
 
 
 def _windows_install_acl_commands(path: Path) -> list[list[str]]:
@@ -172,12 +172,11 @@ def _windows_install_acl_commands(path: Path) -> list[list[str]]:
         ["icacls", str(path), "/inheritance:r"],
         ["icacls", str(path), "/grant:r", "SYSTEM:(OI)(CI)(F)",
          "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-        # Set ownership before the explicit deny. The deny includes
-        # WRITE_OWNER/WRITE_DAC and would otherwise prevent an elevated
-        # administrator from completing the ownership transition or rolling
-        # back safely.
+        # Set ownership after replacing inherited rights. The resulting
+        # explicit Users:(RX) grant gives the operator read access while
+        # granting no ordinary-user mutation rights; a Users deny would also
+        # match an elevated administrator who belongs to BUILTIN\Users.
         ["icacls", str(path), "/setowner", "SYSTEM"],
-        ["icacls", str(path), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
     ]
 
 

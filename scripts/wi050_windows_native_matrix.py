@@ -295,7 +295,10 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     key_file = Path(args.key_file).resolve()
     if not (source / ".git").exists():
         raise SystemExit(f"source root is not a Git checkout: {source}")
-    signer = Ed25519Signer.load(key_file, getpass.getpass("External operator key passphrase: "))
+    passphrase = os.environ.get(args.key_passphrase_env)
+    if passphrase is None:
+        passphrase = getpass.getpass("External operator key passphrase: ")
+    signer = Ed25519Signer.load(key_file, passphrase)
     backend = WindowsBackend()
     before_attestation = backend.attest()
     if not before_attestation.healthy or not before_attestation.protected_from_gated_principal:
@@ -494,6 +497,8 @@ def main() -> int:
     parser.add_argument("--evidence-output", type=Path, default=Path("evidence/runs/20260916-050-windows-native-destructive-proof.json"))
     parser.add_argument("--evidence-id", default="20260916-050-windows-native-destructive-proof")
     parser.add_argument("--delete-key", action="store_true", help="remove the supplied external test key after the run")
+    parser.add_argument("--key-passphrase-env", default="WI050_KEY_PASSPHRASE",
+                        help="temporary environment variable containing the external key passphrase")
     args = parser.parse_args()
     evidence = run(args)
     cleanup = evidence["environment"]["cleanup"]

@@ -1,0 +1,169 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-050-linux-landlock-confinement",
+  "timestamp": "2026-09-16T00:49:49Z",
+  "timestamp_basis": "git-recording",
+  "work_item": "050",
+  "result": "partial",
+  "provenance": "concrete",
+  "baseline": {
+    "authoritative_ref": "origin/main",
+    "starting_main_sha": "d5c4e23e899554b7f050e0469d8505ea0ff2ccb4",
+    "starting_main_tree": "c929bc44c3b5807c15208a1ebd478ef966cffe6d",
+    "working_branch": "codex/wi050-linux-landlock-confinement-20260915",
+    "implementation_checkpoint_sha": "49e473cdee46b3bf7980d5b133136160b98f9e69",
+    "implementation_checkpoint_tree": "12a3499a96a93219e3ee03d17d287c95a8cd23f0"
+  },
+  "commands": [
+    {"command": "git fetch origin main", "exit_code": 0, "summary": "origin/main remained d5c4e23; the fetched tip includes the concurrent WI065 merge and was the feature-branch base."},
+    {"command": "wsl.exe -l -v", "exit_code": 1, "summary": "WSL is not installed; no Debian 13 environment is available on this host."},
+    {"command": "rustup target list --installed", "exit_code": 0, "summary": "Only x86_64-pc-windows-msvc is installed; no Linux target is available for a local Linux compile check."},
+    {"command": "python -m pip install -e \".[dev]\"", "exit_code": 0, "summary": "Editable RepoPact 3.1.0.dev1 installation succeeded."},
+    {"command": "python -m unittest discover -s tests -v", "exit_code": 0, "summary": "351 tests passed; 2 documented skips."},
+    {"command": "python -m unittest tests.test_admission tests.test_admission_security tests.test_guard_authority tests.test_protected_substrate tests.test_opt_in_provider tests.test_landlock_confinement -q", "exit_code": 0, "summary": "Focused admission, guard, protected-substrate, provider, and Landlock coverage passed."},
+    {"command": "cargo fmt --manifest-path rust/Cargo.toml --all -- --check", "exit_code": 0, "summary": "Rust formatting check passed."},
+    {"command": "cargo check --manifest-path rust/Cargo.toml --workspace", "exit_code": 0, "summary": "Entire Rust workspace compiled for the available Windows target; Linux cfg code was not compiled locally."},
+    {"command": "cargo test --manifest-path rust/Cargo.toml --workspace", "exit_code": 0, "summary": "481 Rust tests passed; 0 failed."},
+    {"command": "python -m repopact.run_conformance", "exit_code": 0, "summary": "Canonical Rust conformance 35/35; WI050 admission corpus 8/8."},
+    {"command": "python -m repopact.run_admission_platform_conformance --root .", "exit_code": 0, "summary": "Portable semantic and testing-only real-subprocess matrix passed; native protected-service cases were explicitly not run."},
+    {"command": "python -m repopact.cli dashboard --root .", "exit_code": 0, "summary": "Generated audits/reports/dashboard.md after recording this run."},
+    {"command": "python -m repopact.cli spec --root .", "exit_code": 0, "summary": "Regenerated the derived blocks of SPEC.md; no frozen schema was changed."},
+    {"command": "python -m repopact.cli validate --root .", "exit_code": 0, "summary": "Repository governance validation passed."},
+    {"command": "python -m repopact.cli check-frozen --root . --base d5c4e23e899554b7f050e0469d8505ea0ff2ccb4", "exit_code": 0, "summary": "No frozen-surface changes detected."},
+    {"command": "git diff --check", "exit_code": 0, "summary": "No whitespace errors in the evidence reconciliation."}
+  ],
+  "architecture": {
+    "component": "rust/crates/repopact-confinement plus rust/apps/repopact-sandbox; Python LandlockConfinementProvider plus LandlockSandboxAdapter compose the optional provider/launcher path.",
+    "authority_flow": "The host-controlled helper sends the signed request and receipt directly to the protected guard, receives the guard-generated opaque lease token and safe lease metadata, validates identity/capability metadata, compiles the path ceiling, sanitizes descriptors, applies Landlock, revalidates the lease, then execs explicit argv.",
+    "caller_widening": "Caller arguments are never an authority source. The helper consumes guard metadata, rejects missing or malformed ceilings, rejects traversal, unsupported globs, symlink components, missing paths, and broad roots containing frozen descendants without approval; representability failures prevent target start.",
+    "peer_binding": "The helper is the guard IPC peer and does not accept caller-supplied PID, UID, GID, or session claims. Unix endpoint and parent-chain protection are checked before each IPC call; the opaque peer-bound lease remains in the helper.",
+    "capability_resolution": "NativeGuardClient plus PreActionAdapter remains pre-action. sandbox/process-enforced is reported only by the confinement-backed adapter/provider after protected-helper attestation and a passing native probe. Missing, unhealthy, unprotected, non-Linux, or unproven helpers resolve to not-covered and cannot satisfy a required sandbox class."
+  },
+  "landlock": {
+    "detected_abi": null,
+    "minimum_abi": 3,
+    "minimum_abi_rationale": "REFER is required for cross-directory link/rename/reparent semantics and TRUNCATE is required for mutation completeness; the kernel contract therefore requires ABI 3 or newer.",
+    "handled_access_fs_mask": 32754,
+    "handled_mutation_rights": [
+      "WRITE_FILE", "REMOVE_DIR", "REMOVE_FILE", "MAKE_CHAR", "MAKE_DIR", "MAKE_REG", "MAKE_SOCK", "MAKE_FIFO", "MAKE_BLOCK", "MAKE_SYM", "REFER", "TRUNCATE"
+    ],
+    "handled_network_rights": [],
+    "reads": "unrestricted by this initial mutation-confinement ruleset; no confidentiality/read-isolation claim",
+    "no_new_privs": "implemented with PR_SET_NO_NEW_PRIVS before landlock_restrict_self; native observation not run",
+    "ruleset_application": "implemented with runtime ABI query, ruleset creation, path-beneath rules, restriction, and fail-closed errors; native application not run",
+    "representability": "Only existing exact paths and trailing /** directory ceilings are accepted. Paths are canonicalized under the repository root, symlink components and unsupported patterns are rejected, and descendant rules are deduplicated beneath ancestor rules. A broad root containing governance, repopact/schemas, or .github/workflows is rejected without frozen approval.",
+    "native_status": "not run: WSL/Debian/Linux target unavailable"
+  },
+  "helper": {
+    "expected_path": "/usr/local/lib/repopact/guard/repopact-sandbox",
+    "protected_installation": "not installed or attested on this Windows host",
+    "owner_group_mode": "not observed",
+    "parent_chain": "implemented as root-owned, non-group/world-writable, non-symlink attestation; not observed",
+    "hash": "not observed",
+    "dependency_closure": "not observed",
+    "probe": "not run"
+  },
+  "native_matrix": {
+    "status": "not run — WSL is not installed and no Linux-native ext4 checkout is available",
+    "positive_cases": [
+      {"case": "direct Python in-scope create/write", "expected": "succeeds", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "POSIX shell in-scope write", "expected": "succeeds", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "touch/cp/mv in-scope", "expected": "succeeds when authorized", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "direct child in-scope write", "expected": "succeeds", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "grandchild, shell child, Python child, nested tooling, and execve replacement in-scope write", "expected": "succeeds only within ceiling", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "representative development tooling within granted paths", "expected": "succeeds", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"}
+    ],
+    "negative_cases": [
+      {"case": "direct Python out-of-scope open/write/append", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "truncate and ftruncate", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "POSIX > and >> redirection", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "touch and printf", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "cp and mv", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "unlink/remove and directory create/remove", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "rename and cross-directory hard link/reparent", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "symlink-mediated target outside allowed boundary", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "Python child, POSIX shell child, and grandchild out-of-scope mutation", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "nested CWD and linked worktree out-of-scope mutation", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "second repository mutation", "expected": "OS denial; sentinel unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "guard runtime, protected state, Unix socket, and configuration mutation", "expected": "OS denial; protected hashes unchanged", "actual": "not-run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "frozen path without protected frozen approval", "expected": "compiler/guard denial before target start", "actual": "portable compiler rejection tested; native launcher not run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "caller attempts to widen writable roots", "expected": "UNREPRESENTABLE_POLICY or guard denial before target start", "actual": "portable compiler/profile rejection tested; native launcher not run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "caller substitutes repository identity", "expected": "WRONG_REPOSITORY before target start", "actual": "implemented; native launcher not run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "caller attempts to disable Landlock", "expected": "required sandbox fails closed; target not started", "actual": "implemented; native launcher not run", "os_result": "not observed", "sentinel": "not observed"},
+      {"case": "inherited pre-opened writable FD to out-of-scope target", "expected": "INHERITED_FD_ESCAPE before target start; no capability passed", "actual": "sanitizer implemented; adversarial native test not run", "os_result": "not observed", "sentinel": "not observed"}
+    ],
+    "unrepresentable_policy": "Portable Rust test passed for a broad root containing a frozen descendant; the compiler rejects it without approval. Native helper proof not run.",
+    "unsupported_host_fail_closed": "Portable provider test passed for non-Linux resolution to not-covered; Linux ENOSYS/EOPNOTSUPP/old-ABI/native restriction paths are implemented but not executed here.",
+    "inherited_descriptors": "The launcher checks descriptors 0/1/2, rejects directory capabilities and unapproved writable files/devices, and closes descriptors above stderr. No pass-fd feature exists. Native adversarial proof not run.",
+    "descendant_inheritance": "Landlock is applied in the launcher before target creation and inherited by subsequently created descendants; the helper also creates a session/process group and sets PDEATHSIG for supervision. Native child/grandchild proof not run."
+  },
+  "lease_lifecycle": {
+    "expiry": "The helper performs an initial guard check after restriction and polls the peer-bound opaque token every 250ms; denial terminates the supervised process group. Native expiry observation not run.",
+    "revocation": "Operator revocation is evaluated by the protected guard, not Landlock. A failed poll terminates the supervised group while the monotonic Landlock domain remains in force. Native revocation observation not run.",
+    "guard_loss": "IPC failure fails closed and terminates the supervised group; target is not started if initial authorization/revalidation fails. Native guard-loss observation not run.",
+    "detached_descendants": "The Landlock domain is inherited by descendants, but process-group termination is best effort for detached descendants; no immediate kill guarantee for already-detached processes is claimed."
+  },
+  "capability_resolution": {
+    "ordinary_pre_action": "pre-action",
+    "healthy_protected_landlock_path": "sandbox/process-enforced only after protected helper attestation and native probe",
+    "landlock_unavailable_lower_requirement": "pre-action remains available when policy permits it",
+    "landlock_unavailable_required_sandbox": "not-covered / fail closed; target must not start",
+    "current_host": "not-covered because the Linux helper and native probe were unavailable"
+  },
+  "criteria": {
+    "AC-14": "SATISFIED from the existing closeout evidence; this implementation adds the optional Landlock provider, helper, adapter, tests, docs, audit reconciliation, and regenerated derived artifacts without frozen-surface changes.",
+    "AC-15": "SATISFIED from the existing native Linux protected-guard evidence; the new path additionally requires a host-controlled helper, but that helper was not installed on this host.",
+    "AC-16": "PENDING. The implementation is present and portable-tested, but the required native Linux kernel/process-tree matrix was not run because WSL/Debian/Linux is unavailable. No arbitrary-process confinement claim is made.",
+    "AC-18": "PENDING. This tranche has no native Linux proof and no Windows/macOS sandbox reference proof; cross-platform portable semantics only are validated."
+  },
+  "validation": {
+    "python": "351 passed, 2 skipped",
+    "rust": "481 passed, 0 failed",
+    "conformance": "Canonical Rust 35/35; WI050 admission 8/8",
+    "repository_validate": "passed",
+    "frozen_check": "passed; no frozen changes",
+    "dashboard_and_spec": "regenerated after adding this evidence record"
+  },
+  "artifacts": [
+    "repopact/confinement.py",
+    "repopact/adapters.py",
+    "repopact/admission.py",
+    "rust/crates/repopact-confinement/Cargo.toml",
+    "rust/crates/repopact-confinement/src/lib.rs",
+    "rust/apps/repopact-sandbox/Cargo.toml",
+    "rust/apps/repopact-sandbox/src/main.rs",
+    "tests/test_landlock_confinement.py",
+    "tests/test_admission.py",
+    "docs/guides/pre-execution-admission.md",
+    "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/README.md",
+    "repopact/_audit/inventory.md",
+    "repopact/_audit/alignment-report.md",
+    "audits/registry.json",
+    "conformance/fixtures/valid/audits/registry.json",
+    "audits/reports/dashboard.md",
+    "SPEC.md",
+    "evidence/runs/20260915-050-linux-landlock-confinement.json"
+  ],
+  "environment": {
+    "host_os": "Windows",
+    "native_linux": "unavailable: wsl.exe reports that the Windows Subsystem for Linux is not installed",
+    "linux_filesystem": "not available; required native ext4 checkout under /home/... was not created",
+    "linux_kernel": "not detected",
+    "linux_python": "not detected",
+    "linux_git": "not detected",
+    "linux_privilege": "not detected",
+    "installed_helper": "not installed",
+    "concurrent_work": "origin/main includes WI065 commits through the fetched d5c4e23 merge; no WI065 files were changed and the original dirty Windows checkout was preserved."
+  },
+  "cleanup": {
+    "native_fixture_created": false,
+    "native_service_installed": false,
+    "temporary_test_artifacts": "Python and Rust temporary fixtures cleaned by their test harnesses; no native Linux resources were created.",
+    "user_checkouts": "preserved; original dirty checkout was not modified"
+  },
+  "authority": {
+    "frozen_changes": false,
+    "operator_approval_inferred": false,
+    "sandbox_claim": "not made; only implemented and portable-tested"
+  }
+}

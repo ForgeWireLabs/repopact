@@ -884,6 +884,15 @@ class WindowsBackend(PlatformBackend):
         staging = parent / f".RepoPactGuard.install-{os.getpid()}-{os.urandom(6).hex()}"
         created_service = False
         try:
+            # The staging directory lives inside the product namespace. That
+            # namespace must be protected before any staged runtime exists so
+            # an ordinary user cannot race the elevated installer by replacing
+            # the staging tree before the final child ACL is applied.
+            parent.mkdir(parents=True, exist_ok=True)
+            for command in _windows_install_acl_commands(parent):
+                code, output = _command_output(command)
+                if code != 0:
+                    raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
             staging.mkdir(parents=True, exist_ok=False)
             stage_runtime = staging / "runtime"; stage_state = staging / "state"
             for source in source_package.rglob("*.py"):
@@ -908,10 +917,11 @@ class WindowsBackend(PlatformBackend):
             (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
             if self.install_root.exists(): raise RuntimeError("install root appeared after preflight; refusing overwrite")
             staging.replace(self.install_root)
-            # Protect the product namespace as well as the installed child.
-            # A protected child is replaceable if an ordinary user can create
-            # or rename entries through its parent directory.
-            commands = _windows_install_acl_commands(parent) + _windows_install_acl_commands(self.install_root)
+            # Protect the installed child as well as its already-protected
+            # product namespace parent. A protected child is replaceable if
+            # an ordinary user can create or rename entries through its parent
+            # directory.
+            commands = _windows_install_acl_commands(self.install_root)
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")

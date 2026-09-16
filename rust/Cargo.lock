@@ -2979,6 +2979,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "repopact-provider-github"
+version = "0.1.0"
+dependencies = [
+ "repopact-remote-provider",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "repopact-remote-provider"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "regex",
+ "repopact-mobile-acquisition",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "zip",
+]
+
+[[package]]
 name = "repopact-repository"
 version = "0.1.0"
 dependencies = [

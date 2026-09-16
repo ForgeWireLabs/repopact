@@ -58,8 +58,10 @@
     {
       "id": "GH-006",
       "text": "Repository selection supports an explicit branch, tag, or commit choice and resolves the selected movable ref to an exact immutable commit SHA before materialization. The workspace provenance records provider, repository identity, selected ref, resolved commit SHA, acquisition time, and snapshot-import semantics without storing credentials or making remote state RepoPact governance authority.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-067-checkpoint-b-production-github-connection"
+      ]
     },
     {
       "id": "GH-007",

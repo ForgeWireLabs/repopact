@@ -172,6 +172,43 @@ GitHub integration is optional. Existing repositories and users who never connec
   B and beyond (real REST client, live device-flow UX, platform credential
   backends, repository/ref browsing, typed commands, runtime evidence).
 
+- **Checkpoint B — Production GitHub Connection, Protected Credentials,
+  Typed Native Commands, and Live Authorization — done.** See
+  `evidence/runs/20260915-067-checkpoint-b-production-github-connection.json`.
+  Landed: a real `reqwest`-based `ReqwestTransport` (rustls-tls, explicit
+  timeouts, manual redirect handling enforcing Decision 0061's
+  `Authorization`-header allowlist -- proven against real local sockets,
+  not only unit-tested policy logic); a real, typed GitHub REST client
+  (`rest.rs`: current user, installations, installation repositories with
+  pagination, branches/tags, and immutable-revision resolution including
+  annotated-tag peeling via the Git Data API) proven live against
+  unauthenticated public GitHub endpoints (`octocat/Hello-World`,
+  `torvalds/linux`'s real annotated release tags) -- no client ID needed
+  for this proof; a real OS-protected `OsCredentialStore` (Windows
+  Credential Manager via `keyring`) proven with real put/get/delete
+  round-trips and a genuine cross-process write-then-read-then-delete
+  sequence (three separate process invocations, cross-checked against the
+  real OS store via `cmdkey`); native token refresh with atomic
+  replacement and typed expired/denied/no-refresh-token failure paths,
+  tested with an injectable clock; a `RemoteProviderService` Tauri-managed
+  state owner wiring all of the above; the full typed command surface
+  (`remote_provider_capabilities`, `remote_connections`,
+  `remote_connect_start/status/cancel`, `remote_open_verification_url`,
+  `remote_disconnect`, `remote_accounts`, `remote_repositories`,
+  `remote_repository_refs`, `remote_resolve_ref` -- `remote_import_snapshot`
+  deferred to Checkpoint C); a `remote-api.ts`/`RemoteRepositoryPanel.tsx`
+  first-class "GitHub" entry point in the repository-acquisition UX,
+  labeled "Snapshot"/"Resolved commit" throughout, never "Clone"/"Pull"/
+  "Push"/"Sync"; and a real Windows Workbench launch proving the exact
+  operator gate (`ProviderNotConfigured`, surfaced honestly in the UI)
+  since no GitHub App has been registered yet. GH-006 additionally becomes
+  `satisfied` (real, live-proven branch/tag/commit resolution and the
+  provenance model). GH-004/005/007/008/009/010/012/013/015 remain
+  `pending` -- live device-flow authorization, repository browsing, and
+  snapshot import are all blocked on an operator registering a real GitHub
+  App client ID, and Android credential storage remains an explicit,
+  recorded gap rather than a plaintext fallback.
+
 ## Status
 
-Active (Checkpoint A complete; Checkpoint B not started).
+Active (Checkpoint B complete; Checkpoint C not started -- blocked on operator GitHub App registration for live end-to-end auth).

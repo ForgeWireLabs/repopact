@@ -9,7 +9,14 @@ import sys
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
-from repopact.guard_ipc import IPCIdentity, NativeGuardClient, WindowsPipeListener, local_peer_binding, windows_peer_image_path
+from repopact.guard_ipc import (
+    IPCIdentity,
+    NativeGuardClient,
+    WindowsPipeListener,
+    _windows_server_verified,
+    local_peer_binding,
+    windows_peer_image_path,
+)
 import repopact.guard_ipc as guard_ipc
 from repopact.platform_backends import TestingBackend, WindowsBackend, _windows_install_acl_commands
 import repopact.platform_backends as platform_backends
@@ -107,6 +114,22 @@ class GuardAuthorityTests(unittest.TestCase):
 
         kernel.OpenProcess.assert_called_once_with(0x1000, False, 1234)
         kernel.CloseHandle.assert_called_once()
+
+    def test_windows_server_verifier_accepts_scm_localsystem_name(self):
+        qc = (
+            "        BINARY_PATH_NAME   : \"C:\\Program Files\\Python312\\python.exe\" -I "
+            r"C:\ProgramData\RepoPact\Guard\runtime\repopact\windows_guard_service.py" "\n"
+            "        SERVICE_START_NAME : LocalSystem\n"
+        )
+        completed = Mock(stdout=qc, stderr="", returncode=0)
+        with patch.object(guard_ipc, "windows_peer_identity",
+                          return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(guard_ipc, "_windows_server_pid", return_value=1234), \
+                patch.object(guard_ipc, "windows_peer_image_path",
+                             return_value=r"C:\Program Files\Python312\python.exe"), \
+                patch.object(guard_ipc.subprocess, "run", return_value=completed), \
+                patch.object(platform_backends, "_windows_protected_path_chain", return_value=(True, "")):
+            self.assertTrue(_windows_server_verified(object(), None, "RepoPactGuard"))
 
     def test_install_preflight_is_non_mutating_and_rejects_dirty_source(self):
         backend = WindowsBackend()

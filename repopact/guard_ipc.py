@@ -342,7 +342,10 @@ def _windows_server_verified(connection: Any, expected_server_path: str | Path |
         qc = subprocess.run(["sc.exe", "qc", service_name], text=True, capture_output=True, check=False)
         text = qc.stdout + qc.stderr
         upper = text.upper()
-        if "LOCAL SYSTEM" not in upper and "NT AUTHORITY\\SYSTEM" not in upper and "NT AUTHORITY\\LOCALSYSTEM" not in upper:
+        configured_identity = next((line.split(":", 1)[1].strip() for line in text.splitlines()
+                                    if line.strip().upper().startswith("SERVICE_START_NAME") and ":" in line), "")
+        from .platform_backends import _windows_is_local_system
+        if not _windows_is_local_system(configured_identity):
             return False
         configured_line = next((line.split(":", 1)[1].strip() for line in text.splitlines()
                                 if line.strip().upper().startswith("BINARY_PATH_NAME") and ":" in line), "")

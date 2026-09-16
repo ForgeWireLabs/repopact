@@ -1,0 +1,120 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260915-065-final-closeout",
+  "timestamp": "2026-09-15T19:15:00Z",
+  "work_item": "065",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status && git fetch origin && git rev-parse HEAD origin/main && git log --oneline --decorate -40",
+      "exit_code": 0,
+      "summary": "Local main and origin/main both at d5c4e23e899554b7f050e0469d8505ea0ff2ccb4, matching the expected Checkpoint E baseline exactly -- no divergence, nothing to reconcile at HEAD. Concurrent WI050 (Landlock/native-guard closeout), WI066/3.1.0 milestone release (tag v3.1.0), and WI022 (Sonnet 5 prospective amendment) work is already merged into this history via prior 'Merge remote-tracking branch' commits; none of it touches rust/crates/repopact-mobile-acquisition, rust/crates/repopact-mobile-saf, or rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs. Working tree clean. No force push, reset, or history rewrite performed."
+    },
+    {
+      "command": "Re-read decisions/0041, decisions/0056, decisions/0057, work/completed/061-.../README.md, work/active/065-.../work-item.json and README.md, and evidence/runs/20260915-065-checkpoint-{a,b,b5,c,d}*.json",
+      "exit_code": 0,
+      "summary": "Confirmed the implementation still matches the governing decisions after all concurrent merges. Decision 0056 stages Git explicitly: Stage 1 (this item) is SAF/archive import-export with no embedded Git dependency; Stage 2 is a future GitBackend abstraction distinct from the existing shell-shaped GitRunner trait, to be created or activated at this item's own closeout. Decision 0057 already reserves the seam in the registry model (acquisition_kind = remote_git, git_state = embedded_git_managed, both '[reserved, Stage 2]') and specifies the typed capability/status descriptor rather than callable clone/pull/push stubs. WI061's own AC-5 required that work/proposed/065 exist at WI061 closeout with no implementation -- confirmed true historically and structurally unchanged."
+    },
+    {
+      "command": "Inspect rust/crates/repopact-mobile-acquisition/src/registry.rs, rust/crates/repopact-repository/src/git.rs, rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs, rust/apps/repopact-desktop/src/lib/mobile-types.ts; grep -r 'GitBackend' rust/",
+      "exit_code": 0,
+      "summary": "AC-9 half A (executable seam) verified structurally true, not merely documented: AcquisitionKind::{SafDirectory, SafArchive, RemoteGit} and GitState::{NonGit, GitMetadataPresent, EmbeddedGitManaged} already exist as reserved enum variants in registry.rs (RemoteGit/EmbeddedGitManaged are declared but never constructed by any Stage-1 code path); mobile-types.ts mirrors both enums exactly for the frontend. mobile_git_capabilities (mobile_acquisition.rs) returns a typed MobileCapabilityStatus with Stage2Status::UnsupportedStage2 for clone/pull/push -- a real typed capability descriptor, not a silent absence or a faked success. GitRunner (repopact-repository/src/git.rs) remains exactly the pre-existing shell-command-shaped trait (run(root, args, label) -> GitOutput); grepping the full rust/ tree found zero occurrences of a GitBackend trait -- it exists only as a specified requirement in decisions 0056/0057 and WI061's README, correctly left undefined until the Stage-2 item designs it. DesktopService, RepositorySession, RepositoryTopology's core repository model, and the MutationRequest -> MutationPlan -> MutationResult pipeline received zero changes across all of WI065 (confirmed by Checkpoint C's zero-diff proof and re-confirmed by grep/diff against origin/main); only the acquisition adapter is new. This satisfies AC-9 half A: the seam accommodates clone/pull/push and remote_git/embedded_git_managed without a breaking redesign, without forcing GitRunner to become something it is not."
+    },
+    {
+      "command": "REPOPACT_ENGINE=<rebuilt release repopact-engine.exe> python -m repopact.cli new work-item \"Embedded Mobile Git Backend and Remote Repository Synchronization\" --root . --status proposed",
+      "exit_code": 0,
+      "summary": "AC-9 half B (follow-up exists) satisfied via canonical allocation, not a guessed id: `cargo build --release -p repopact-engine` was run first because the installed Python package (3.1.0.dev1, matching pyproject.toml, reflecting the concurrent WI066/3.1.0 milestone) no longer matched the stale prebuilt release engine binary (3.0.2.dev1) -- rebuilding the canonical engine/repopact binaries resolved the version-mismatch error before allocation. The tool allocated id 068 (the next free id after 067's renumbering), creating work/proposed/068-embedded-mobile-git-backend-and-remote-repository-synchronization/work-item.json and README.md from the standard template. Populated work-item.json with owner_scope=tooling, affected_scopes=[tooling, docs, evidence] (governance/owners.json only recognizes governance|work|evidence|tooling|docs as scope ids; mobile/desktop are not registered scopes), depends_on=[\"065\"], a preflight note explaining the AC-9 provenance and the provider-neutral distinction from WI067, and 8 acceptance criteria (GIT-001..GIT-008) covering: a GitBackend abstraction distinct from GitRunner with Android git2-rs/libgit2 build-gating and a later gix re-evaluation; zero required changes to DesktopService/RepositorySession/RepositoryTopology/mutation pipeline/ROG authority/workspace identity; remote repositories remaining ordinary app-private working trees and never an alternate Repository authority; real clone/fetch/pull/push with protected credential storage and HTTPS-first; offline usability of previously cloned workspaces with explicit dirty/divergence/conflict handling and no silent destructive reset; a typed-only command/network surface (no generic HTTP proxy, no arbitrary URL fetcher, no shell); real Android (and shared-desktop) runtime proof; and security evidence (credential redaction, TLS failure behavior, auth expiry, cancellation, partial-clone cleanup). Status left at 'proposed' -- not activated. depends_on is only WI065; WI067 is cross-referenced in the README and preflight note but is explicitly NOT a hard dependency, per instruction, since the two are related-but-distinct (GitHub snapshot/archive import vs. real Git clone/fetch/pull/push against a real .git tree) and no architectural review established a true dependency."
+    },
+    {
+      "command": "repopact validate --root . (after WI068 creation)",
+      "exit_code": 0,
+      "summary": "Failed twice first (work.unknown-owner-scope / work.unknown-affected-scope for 'mobile'/'desktop', which are not registered scope ids in governance/owners.json), corrected to owner_scope=tooling / affected_scopes=[tooling, docs, evidence] matching WI065's and WI067's own convention (their implementation also lives under rust/**, which the tooling scope owns), then passed clean: 'Repository governance validation passed.'"
+    },
+    {
+      "command": "grep -r 'WI066' / '066-' across md/json/ts/tsx/rs; inspect work/proposed/067-.../work-item.json id field, README, dependency graph, dashboard",
+      "exit_code": 0,
+      "summary": "WI067 renumbering integrity confirmed intact: work/proposed/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json has id='067', title 'GitHub Repository Provider, Secure User Authorization, and Remote Repository Import', depends_on=['065']. The only remaining '066' reference tied to the GitHub-provider topic is inside evidence/runs/20260915-065-checkpoint-d-android-export-shareback.json, which accurately narrates the historical rename (GitHub-provider proposal originally created as WI066 on one machine, renamed to WI067 concurrently to avoid an id collision with the new, unrelated WI066 = RepoPact 3.1.0 milestone release). This is correct historical evidence, not a stale authoritative reference, and was left unmodified per instruction (historical checkpoint evidence is not rewritten). No other current-canonical document (dashboard, any active README, any work-item.json) still calls the GitHub-provider item WI066."
+    },
+    {
+      "command": "Inventory rust/apps/repopact-desktop/src-tauri/src/mobile_acquisition.rs #[tauri::command] handlers, lib.rs invoke_handler registration list, permissions/workbench.toml commands.allow list",
+      "exit_code": 0,
+      "summary": "Final mobile command-authority audit: 11 mobile commands total, all three registration points agree -- mobile_workspace_list, mobile_workspace_open, mobile_workspace_remove (workspace list/open/remove); mobile_import_directory, mobile_import_archive (import); mobile_export_workspace_directory, mobile_export_workspace_archive (export); mobile_workspace_source_status (status/divergence); mobile_operation_status, mobile_operation_cancel (operation status/cancel); mobile_git_capabilities (typed Stage-2 capability status, stubbed UnsupportedStage2 for clone/pull/push). No command accepts a raw path/URI parameter -- all take only workspace_id/operation_id/no-arg. No arbitrary read/write URI, arbitrary filesystem path, generic shell, generic process, generic HTTP, or raw ContentResolver proxy is exposed to the frontend. This is unchanged since Checkpoint D; re-confirmed after all concurrent merges rather than re-derived from scratch."
+    },
+    {
+      "command": "grep AndroidManifest.xml (canonical source under app/src/main/, not generated/build intermediates) for INTERNET/MANAGE_EXTERNAL_STORAGE/READ_EXTERNAL_STORAGE/WRITE_EXTERNAL_STORAGE/shell",
+      "exit_code": 0,
+      "summary": "Final Android permission audit, cross-checked against Checkpoint D's on-device dumpsys evidence: only android.permission.INTERNET present (pre-existing, for the WebView -- not new, not claimed to be a solved network-authority boundary). MANAGE_EXTERNAL_STORAGE, READ_EXTERNAL_STORAGE, WRITE_EXTERNAL_STORAGE, and any generic shell/exec permission are all absent. No Android build was re-run this checkpoint since no source or Android build input changed after Checkpoint D and this is a static-manifest re-audit, not a runtime re-proof."
+    },
+    {
+      "command": "Review content:// / provider-exception / registry / operation-diagnostic / export-error log paths for credential fields and raw URI leakage",
+      "exit_code": 0,
+      "summary": "No credential fields exist anywhere in the workspace registry, repository files, or mobile command surface (none were introduced by any checkpoint). Raw content:// SAF URIs are not emitted into logs or evidence -- Checkpoint B.5's redaction fix and Checkpoint D's confirmation that this discipline held under the new export code paths were re-verified by inspection rather than re-running the full logcat capture, since no logging code changed after Checkpoint D. No generic privacy scanner was invented; this is a targeted re-read of the same code paths already covered by prior on-device evidence."
+    },
+    {
+      "command": "Re-derive final import/export bounds from rust/crates/repopact-mobile-acquisition/src/bounds.rs",
+      "exit_code": 0,
+      "summary": "Bounds remain enforced and unchanged after concurrent merges (bounds.rs is untouched by any non-WI065 commit): directory import, ZIP import, directory export, and ZIP export all enforce entry-count, expanded/aggregate-byte, path-depth, and path-length limits during traversal (not merely a final size check); zip-slip/absolute-path/'..'-traversal and symlink-escape are rejected outright rather than merely bounded; duplicate/case-colliding names produce a typed conflict rather than a silent overwrite or merge. Adversarial fixtures were not re-run this checkpoint since bounds.rs and its test module are unchanged since Checkpoint A/D and the full cargo test --workspace run (see below) re-executes that same adversarial suite unmodified."
+    },
+    {
+      "command": "Re-derive recovery semantics from registry.rs (atomic temp-file-then-rename, stale-staging cleanup) and workspace.rs (remove-workspace path containment)",
+      "exit_code": 0,
+      "summary": "Unchanged and still correct: a failed or cancelled import leaves no workspace marked ready in the registry (staging-then-publish transaction, not a partial commit); stale staging directories from an interrupted prior run are cleaned up at next startup rather than accumulating or being silently reused; a corrupt registry.json fails loudly (surfaced as a typed error) rather than being silently reset/discarded; a failed export cannot mark a workspace's last-export-state as successfully exported (mark_exported is only reachable after a real SAF write/upload succeeds, per Checkpoint D's build_archive_snapshot/mark_workspace_exported split); mobile_workspace_remove is bounded to the workspace's own allocated root and cannot escape it."
+    },
+    {
+      "command": "Reassess cancellation disposition against Checkpoint D's recorded honest gap",
+      "exit_code": 0,
+      "summary": "Not reopened. Checkpoint D already recorded, honestly, that the cancellation token mechanism is proven at the host-test level (cancellation_stops_the_export/_import, cancel_bridges_to_the_stored_cancellation_token), the product Cancel control is rendered live and tappable (directly observed and screenshotted while an operation was Running), and four genuine real-device attempts completed before this session's turn-based automation could land a mid-flight tap -- a testing-harness-latency artifact, not a defect, and not required by WI065's actual AC-7/AC-8 text (neither names live mid-operation runtime cancellation as a required scenario). AC-7 and AC-8 remain satisfied on that basis."
+    },
+    {
+      "command": "Reassess rust/apps/repopact-desktop/src-tauri/src/android_validation.rs disposition",
+      "exit_code": 0,
+      "summary": "Kept, not deleted. Confirmed debug-only and dead in production: the module is declared and its one call site are both gated behind #[cfg(all(debug_assertions, feature = \"android-debug-validation\"))], the feature is opt-in (not default) in Cargo.toml, and the module requires manual adb push + run-as staging per its own doc comment -- unreachable from a normal or release build. MobileAcquisitionCoordinator's production registry root is explicitly rooted at the real app-data directory, never WI060's debug validation root (per mobile_acquisition.rs's own setup comment). Retained as an explicitly debug-only diagnostic/regression tool per WI065 README's own prior disposition; deletion is not required by any WI065 AC and was not performed."
+    },
+    {
+      "command": "cargo build --release -p repopact-engine (rebuild canonical engine after 3.1.0 version drift) ; cargo fmt --check ; cargo check --workspace ; cargo test --workspace ; npm run typecheck ; npm run test -- --run ; npm run build ; repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "Full final validation on synchronized main, all green: cargo fmt clean; cargo check --workspace clean; cargo test --workspace all green across every workspace crate including repopact-mobile-acquisition, repopact-mobile-saf, and repopact-desktop-api/lib, zero failures; frontend tsc --noEmit clean; vitest 29/29 passed; production vite build succeeded (283.16 kB / 84.23 kB gzip). No Android rebuild was performed this checkpoint -- no Android source or build input changed since Checkpoint D, satisfying the instruction to only rebuild the APK if inputs changed. The canonical repopact/repopact-engine release binaries WERE rebuilt (release profile, repopact-engine package) because the concurrent WI066/3.1.0 version cut (VERSION=3.1.0, RELEASE_LABEL=3.1.0-dev.1) had made the previously-built release engine binary (self-reporting 3.0.2.dev1) stale relative to the installed Python package (3.1.0.dev1); this was necessary to run `repopact new`/`validate`/`dashboard` at all, not merely a ritual rebuild."
+    },
+    {
+      "command": "Verify Stage-1 mobile work did not alter the normal desktop repository-open flow",
+      "exit_code": 0,
+      "summary": "No desktop regression: DesktopService, RepositorySession, and RepositoryTopology received zero source changes across all of WI065 (re-confirmed by the same cargo test --workspace pass above, which exercises the existing desktop-path test suites unmodified); the only new production surface is the mobile acquisition adapter and its own crates/commands, which desktop's own open-repository flow never calls."
+    }
+  ],
+  "artifacts": [
+    "work/proposed/068-embedded-mobile-git-backend-and-remote-repository-synchronization/work-item.json",
+    "work/proposed/068-embedded-mobile-git-backend-and-remote-repository-synchronization/README.md",
+    "work/completed/065-mobile-repository-acquisition-app-private-workspace-and-explicit-import-export-implementation/work-item.json",
+    "work/completed/065-mobile-repository-acquisition-app-private-workspace-and-explicit-import-export-implementation/README.md"
+  ],
+  "environment": {
+    "platform": "desktop-audit",
+    "machine": "Dell Precision",
+    "synchronized_starting_sha": "d5c4e23e899554b7f050e0469d8505ea0ff2ccb4",
+    "repopact_version": "3.1.0",
+    "release_label": "3.1.0-dev.1",
+    "aggregates_checkpoints": [
+      "20260915-065-checkpoint-a-workspace-registry-and-safe-import-export",
+      "20260914-065-checkpoint-b-android-saf-acquisition",
+      "20260915-065-checkpoint-b5-android-saf-runtime",
+      "20260915-065-checkpoint-c-android-mutation-cycle",
+      "20260915-065-checkpoint-d-android-export-shareback"
+    ],
+    "new_followup_work_item": "068",
+    "new_followup_title": "Embedded Mobile Git Backend and Remote Repository Synchronization",
+    "new_followup_status": "proposed",
+    "wi067_renumbering_audit": "intact, no stale current-canonical WI066 reference found",
+    "ac_final_states": {
+      "AC-1": "satisfied",
+      "AC-2": "satisfied",
+      "AC-3": "satisfied",
+      "AC-4": "satisfied",
+      "AC-5": "satisfied",
+      "AC-6": "satisfied",
+      "AC-7": "satisfied",
+      "AC-8": "satisfied",
+      "AC-9": "satisfied"
+    }
+  }
+}

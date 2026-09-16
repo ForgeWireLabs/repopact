@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "065",
   "title": "Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": [
     "tooling",
@@ -98,8 +98,10 @@
     {
       "id": "AC-9",
       "text": "A future embedded-Git seam is established (at minimum, the acquisition-kind/workspace-identity model and command-surface shape accommodate a future clone/pull/push addition without a breaking redesign) but embedded Git itself (git2-rs/gix integration, real clone/fetch/push, remote credentials) is explicitly out of scope for this work item and is deferred to a further follow-up work item created or activated at this item's own closeout if still warranted.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260915-065-final-closeout"
+      ]
     }
   ],
   "created": "2026-09-14",

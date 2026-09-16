@@ -13,9 +13,9 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 60 |
+| Decision records | 61 |
 | Policy records | 2 |
-| Evidence runs | 139 |
+| Evidence runs | 140 |
 
 ## Work
 
@@ -25,7 +25,7 @@
 | active | 8 |
 | blocked | 1 |
 | deferred | 0 |
-| completed | 56 |
+| completed | 57 |
 
 ## Audit freshness
 
@@ -39,6 +39,6 @@ All audit scopes are within their review cadence.
 - 034: Independent reproduction and third-party adoption evidence (active)
 - 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
-- 065: Mobile Repository Acquisition, App-Private Workspace, and Explicit Import/Export Implementation (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
+- 067: GitHub Repository Provider, Secure User Authorization, and Remote Repository Import (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -14,6 +14,8 @@ members = [
     "crates/repopact-desktop-api",
     "crates/repopact-mobile-acquisition",
     "crates/repopact-mobile-saf",
+    "crates/repopact-remote-provider",
+    "crates/repopact-provider-github",
     "apps/repopact-cli",
     "apps/repopact-engine",
     "apps/repopact-sandbox",
@@ -27,6 +29,8 @@ repopact-core = { path = "crates/repopact-core" }
 repopact-desktop-api = { path = "crates/repopact-desktop-api" }
 repopact-mobile-acquisition = { path = "crates/repopact-mobile-acquisition" }
 repopact-mobile-saf = { path = "crates/repopact-mobile-saf" }
+repopact-remote-provider = { path = "crates/repopact-remote-provider" }
+repopact-provider-github = { path = "crates/repopact-provider-github" }
 repopact-analysis = { path = "crates/repopact-analysis" }
 repopact-graph = { path = "crates/repopact-graph" }
 repopact-mutation = { path = "crates/repopact-mutation" }

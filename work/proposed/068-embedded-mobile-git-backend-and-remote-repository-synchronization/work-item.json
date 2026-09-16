@@ -1,0 +1,67 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "068",
+  "title": "Embedded Mobile Git Backend and Remote Repository Synchronization",
+  "status": "proposed",
+  "owner_scope": "tooling",
+  "affected_scopes": ["tooling", "docs", "evidence"],
+  "depends_on": ["065"],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-15T00:00:00Z",
+    "note": "Allocated at WI065 Checkpoint E closeout to satisfy WI065 AC-9's requirement that actual Git integration be deferred to a follow-up created or activated at WI065's own closeout. Decision 0056 already reserves the acquisition-kind/Git-state seam (AcquisitionKind::RemoteGit, GitState::EmbeddedGitManaged) and specifies a future GitBackend abstraction distinct from the existing shell-shaped GitRunner trait; this item owns the design and implementation of that abstraction and real clone/fetch/pull/push semantics. It is provider-neutral and distinct from WI067 (GitHub API snapshot/archive import): WI067 materializes an exact-SHA snapshot via GitHub's REST API with no .git directory and no live remote relationship, while this item performs real Git protocol operations against a real .git working tree for any Git remote, GitHub or otherwise. Cross-references Decision 0056, Decision 0057, and WI067, but does not depend on WI067 -- the two may later share provider/account UX but ship independently."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "GIT-001",
+      "text": "A GitBackend abstraction (distinct from the existing shell-command-shaped GitRunner trait) is designed for desktop and mobile, avoiding scattered platform cfg branches through repository logic. The design is prototyped/build-gated for git2-rs/libgit2 on Android before treating that backend choice as irreversible, and gix's capability is re-evaluated at implementation time rather than permanently excluded.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-002",
+      "text": "The Stage-1 workspace/acquisition/registry model (AcquisitionKind::RemoteGit, GitState::EmbeddedGitManaged, workspace identity, workspace registry) accommodates the new backend without requiring changes to DesktopService, RepositorySession, RepositoryTopology's core repository model, MutationRequest -> MutationPlan -> MutationResult, ROG authority, or workspace identity semantics.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-003",
+      "text": "Remote repositories still materialize as ordinary app-private/local filesystem working trees. Remote Git state never becomes an alternate RepoPact Repository authority; the unchanged DesktopService/RepositorySession/mutation path operates on the resulting local working tree exactly as it does for Stage-1 acquisitions.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-004",
+      "text": "Real clone, fetch, pull/update, and push are implemented with real Git semantics. Credentials use protected OS credential storage and never appear in the workspace registry, repository files, logs, evidence, frontend persistence, or remote URLs. HTTPS is implemented first; SSH is treated as a later, separately evidenced gate unless implementation-time evidence supports doing both simultaneously.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-005",
+      "text": "A previously cloned workspace remains fully usable offline. Pull/update has explicit, tested behavior for a dirty working tree, unpushed local commits, remote divergence, and merge/rebase/fast-forward boundaries and conflicts, with no silent destructive reset.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-006",
+      "text": "The command/network surface exposes only typed Git operations (clone/fetch/pull/push and supporting status/capability commands): no generic HTTP proxy, no arbitrary URL fetcher, and no shell/process capability is exposed to the frontend.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-007",
+      "text": "Real Android runtime evidence proves clone/fetch/push against a live Git remote. Desktop runtime evidence proves the same operations if the backend is shared between desktop and mobile.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "GIT-008",
+      "text": "Security evidence covers credential redaction in logs/evidence, TLS failure behavior, authentication/token expiry, operation cancellation, and cleanup of partial-clone state on failure or cancellation.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-15",
+  "updated": "2026-09-15"
+}

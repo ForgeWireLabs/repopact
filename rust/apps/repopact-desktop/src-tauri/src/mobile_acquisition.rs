@@ -766,6 +766,7 @@ mod tests {
             imported_at: Some("2026-09-15T00:00:01Z".to_owned()),
             last_export_state: repopact_mobile_acquisition::ExportState::NeverExported,
             source_fingerprint: None,
+            remote_snapshot_provenance: None,
         };
         coordinator.finish(&operation_id, Ok(record));
         match coordinator.status(&operation_id).unwrap() {
@@ -932,6 +933,7 @@ mod tests {
             imported_at: None,
             last_export_state: repopact_mobile_acquisition::ExportState::Exported,
             source_fingerprint: None,
+            remote_snapshot_provenance: None,
         };
         let summary: WorkspaceSummary = record.into();
         let json = serde_json::to_value(&summary).unwrap();

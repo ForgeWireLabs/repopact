@@ -9,7 +9,8 @@ import sys
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
-from repopact.guard_ipc import NativeGuardClient, WindowsPipeListener, local_peer_binding
+from repopact.guard_ipc import IPCIdentity, NativeGuardClient, WindowsPipeListener, local_peer_binding, windows_peer_image_path
+import repopact.guard_ipc as guard_ipc
 from repopact.platform_backends import TestingBackend, WindowsBackend, _windows_install_acl_commands
 import repopact.platform_backends as platform_backends
 
@@ -84,6 +85,28 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertEqual(listener.open.call_count, 2)
         self.assertEqual(listener.close.call_count, 2)
         self.assertEqual(kernel.ConnectNamedPipe.call_count, 2)
+
+    def test_windows_peer_image_probe_declares_native_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.OpenProcess.return_value = ctypes.c_void_p(0x123456789)
+
+        def query(_handle, _flags, buffer, size):
+            buffer.value = r"C:\Program Files\Python312\python.exe"
+            size._obj.value = len(buffer.value)
+            return True
+
+        kernel.QueryFullProcessImageNameW.side_effect = query
+        connection = object()
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(guard_ipc, "windows_peer_identity",
+                             return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            self.assertEqual(windows_peer_image_path(connection), r"C:\Program Files\Python312\python.exe")
+
+        kernel.OpenProcess.assert_called_once_with(0x1000, False, 1234)
+        kernel.CloseHandle.assert_called_once()
 
     def test_install_preflight_is_non_mutating_and_rejects_dirty_source(self):
         backend = WindowsBackend()

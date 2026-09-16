@@ -315,8 +315,16 @@ def windows_peer_image_path(connection: Any) -> str:
     try:
         import ctypes
         from ctypes import wintypes
-        kernel = ctypes.windll.kernel32
-        handle = kernel.OpenProcess(0x1000, False, identity.peer_pid)
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        handle = kernel.OpenProcess(0x1000, False, int(identity.peer_pid))
         if not handle: return ""
         try:
             size = wintypes.DWORD(32768); buffer = ctypes.create_unicode_buffer(size.value)

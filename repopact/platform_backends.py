@@ -118,8 +118,16 @@ def _windows_process_image(pid: int | None) -> str:
     if os.name != "nt" or not pid or pid <= 0:
         return ""
     try:
-        kernel = ctypes.windll.kernel32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
         from ctypes import wintypes
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
         handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
         if not handle:

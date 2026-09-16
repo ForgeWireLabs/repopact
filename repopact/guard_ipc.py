@@ -149,6 +149,36 @@ class WindowsPipeListener:
         self.name = name
         self._handle = 0
 
+    def _create(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+        attrs, descriptor = self._security_attributes()
+        try:
+            kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+            kernel.CreateNamedPipeW.argtypes = [
+                wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(type(attrs)),
+            ]
+            kernel.CreateNamedPipeW.restype = wintypes.HANDLE
+            PIPE_ACCESS_DUPLEX = 0x00000003
+            PIPE_TYPE_MESSAGE, PIPE_READMODE_MESSAGE, PIPE_NOWAIT = 4, 2, 1
+            INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+            self._handle = kernel.CreateNamedPipeW(
+                self.name, PIPE_ACCESS_DUPLEX,
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_NOWAIT,
+                1, 1024 * 1024, 1024 * 1024, 3000, ctypes.byref(attrs),
+            )
+            if not self._handle or self._handle == INVALID_HANDLE_VALUE:
+                error = ctypes.get_last_error()
+                raise ctypes.WinError(error)
+        finally:
+            ctypes.windll.kernel32.LocalFree(descriptor)
+
+    def open(self) -> None:
+        """Create the protected endpoint before the service reports RUNNING."""
+        if not self._handle:
+            self._create()
+
     def _security_attributes(self):
         import ctypes
         from ctypes import wintypes
@@ -164,26 +194,26 @@ class WindowsPipeListener:
             _fields_ = [("nLength", wintypes.DWORD), ("lpSecurityDescriptor", wintypes.LPVOID), ("bInheritHandle", wintypes.BOOL)]
         return SECURITY_ATTRIBUTES(ctypes.sizeof(SECURITY_ATTRIBUTES), descriptor, False), descriptor
 
-    def accept(self) -> WindowsPipeConnection:
+    def accept(self, stop_event: Any | None = None) -> WindowsPipeConnection | None:
         import ctypes
         from ctypes import wintypes
-        attrs, descriptor = self._security_attributes()
-        try:
-            kernel = ctypes.windll.kernel32
-            PIPE_ACCESS_DUPLEX = 0x00000003
-            PIPE_TYPE_MESSAGE, PIPE_READMODE_MESSAGE, PIPE_WAIT = 4, 2, 0
-            INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
-            self._handle = kernel.CreateNamedPipeW(self.name, PIPE_ACCESS_DUPLEX,
-                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1, 1024 * 1024, 1024 * 1024, 3000, ctypes.byref(attrs))
-            if self._handle == INVALID_HANDLE_VALUE:
-                raise OSError(ctypes.get_last_error(), "CreateNamedPipeW failed")
+        self.open()
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.ConnectNamedPipe.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
+        kernel.ConnectNamedPipe.restype = wintypes.BOOL
+        ERROR_PIPE_CONNECTED, ERROR_PIPE_LISTENING = 535, 536
+        while self._handle:
             connected = kernel.ConnectNamedPipe(self._handle, None)
-            if not connected and ctypes.get_last_error() != 535:  # ERROR_PIPE_CONNECTED
-                raise OSError(ctypes.get_last_error(), "ConnectNamedPipe failed")
-            handle = self._handle; self._handle = 0
-            return WindowsPipeConnection(handle)
-        finally:
-            ctypes.windll.kernel32.LocalFree(descriptor)
+            if connected or ctypes.get_last_error() == ERROR_PIPE_CONNECTED:
+                handle = self._handle; self._handle = 0
+                return WindowsPipeConnection(handle)
+            error = ctypes.get_last_error()
+            if error != ERROR_PIPE_LISTENING:
+                raise ctypes.WinError(error)
+            if stop_event is not None and stop_event.wait(0.05):
+                self.close()
+                return None
+        return None
 
     def close(self) -> None:
         if self._handle:

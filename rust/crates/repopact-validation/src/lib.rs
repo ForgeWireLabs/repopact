@@ -1496,7 +1496,7 @@ impl Validator {
             ));
             return;
         };
-        let today = today_utc();
+        let today = self.today.clone().unwrap_or_else(today_utc);
         for entry in object_array(&value, "scopes") {
             let scope_path = entry.get("path").and_then(Value::as_str).unwrap_or("");
             let target = if scope_path == "." {

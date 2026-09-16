@@ -1,18 +1,21 @@
-// WI067 Checkpoint B (item 35/36): the first-class GitHub entry point in
-// the repository acquisition UX, alongside local-folder/archive/mobile
-// acquisition. Renders only "Connect GitHub" / connection state / device
-// code / Cancel / connected account / Disconnect / account+repository+ref
-// browsing / a resolved-SHA display. Deliberately does NOT execute
-// snapshot materialization yet -- "Import snapshot" is a disabled
-// next-step control until Checkpoint C, and every label below says
-// "Snapshot"/"Import snapshot"/"Resolved commit", never "Clone"/"Pull"/
-// "Push"/"Sync" (item 37 -- true Git is WI068, not this).
+// WI067 Checkpoint B (item 35/36) / Checkpoint C (Phase 18): the first-
+// class GitHub entry point in the repository acquisition UX, alongside
+// local-folder/archive/mobile acquisition. "Connect GitHub" / connection
+// state / device code / Cancel / connected account / Disconnect /
+// account+repository+ref browsing / a resolved-SHA display / a real
+// "Import Snapshot" action with typed progress and cancel. Every label
+// says "Snapshot"/"Import snapshot"/"Resolved commit"/"Imported", never
+// "Clone"/"Pull"/"Push"/"Sync"/"Synced" (item 37 -- true Git is WI068, not
+// this) -- and after a successful import the UI states plainly that the
+// workspace is local/offline and that local edits never write back to
+// GitHub.
 import { useEffect, useState } from "react";
 import { remoteApi } from "./lib/remote-api";
 import type {
   ConnectionStatus,
   ProviderCapabilities,
   RemoteAccount,
+  RemoteImportResult,
   RemoteRef,
   RemoteRepository,
   ResolvedRevision,
@@ -44,6 +47,8 @@ export function RemoteRepositoryPanel() {
   const [refs, setRefs] = useState<RemoteRef[]>([]);
   const [selectedRef, setSelectedRef] = useState<RemoteRef | null>(null);
   const [resolved, setResolved] = useState<ResolvedRevision | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<RemoteImportResult | null>(null);
 
   useEffect(() => {
     remoteApi
@@ -167,10 +172,36 @@ export function RemoteRepositoryPanel() {
         { displayName: selectedRef.displayName, kind: selectedRef.kind, refId: selectedRef.refId },
       );
       setResolved(revision);
+      setImportResult(null);
     } catch (resolveError) {
       setError(describeError(resolveError));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const importSnapshot = async () => {
+    if (!selectedRepository || !selectedRef) return;
+    setImporting(true);
+    setError("");
+    try {
+      const result = await remoteApi.importSnapshot(
+        { repositoryId: selectedRepository.repositoryId, owner: selectedRepository.owner, name: selectedRepository.name },
+        { displayName: selectedRef.displayName, kind: selectedRef.kind, refId: selectedRef.refId },
+      );
+      setImportResult(result);
+    } catch (importError) {
+      setError(describeError(importError));
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const cancelImport = async () => {
+    try {
+      await remoteApi.importCancel();
+    } catch (cancelError) {
+      setError(describeError(cancelError));
     }
   };
 
@@ -283,12 +314,34 @@ export function RemoteRepositoryPanel() {
             </div>
           )}
 
-          {resolved && (
+          {resolved && !importResult && (
             <div>
               <p>Snapshot at {resolved.resolvedCommitSha.slice(0, 12)}</p>
-              <button className="primary-button" disabled title="Import snapshot lands in WI067 Checkpoint C">
-                Import snapshot (coming soon)
-              </button>
+              {!importing && (
+                <button className="primary-button" onClick={importSnapshot}>
+                  Import Snapshot
+                </button>
+              )}
+              {importing && (
+                <div>
+                  <p>Importing snapshot&hellip;</p>
+                  <button className="secondary-button" onClick={cancelImport}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {importResult && (
+            <div>
+              <p>
+                Snapshot imported at commit {importResult.resolvedCommitSha.slice(0, 12)} ({importResult.displayName}).
+              </p>
+              <p>
+                This workspace is local and offline: it works without GitHub, and local edits never write back to
+                GitHub.
+              </p>
             </div>
           )}
         </div>

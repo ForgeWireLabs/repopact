@@ -95,3 +95,10 @@ export interface RemoteRefRef {
   kind: RemoteRefKind;
   refId: string;
 }
+
+// WI067 Checkpoint C.
+export interface RemoteImportResult {
+  workspaceId: string;
+  displayName: string;
+  resolvedCommitSha: string;
+}

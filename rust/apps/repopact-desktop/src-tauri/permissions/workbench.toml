@@ -42,5 +42,7 @@ commands.allow = [
   "remote_accounts",
   "remote_repositories",
   "remote_repository_refs",
-  "remote_resolve_ref"
+  "remote_resolve_ref",
+  "remote_import_snapshot",
+  "remote_import_cancel"
 ]

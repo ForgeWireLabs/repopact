@@ -169,12 +169,14 @@ def _windows_acl(path: Path) -> tuple[bool, str]:
 def _windows_path_present(path: Path) -> bool:
     """Check presence without requiring a metadata read denied by the DACL."""
     try:
-        return path.exists()
+        if path.exists():
+            return True
     except OSError:
-        if os.name != "nt":
-            return False
-        code, _ = _command_output(["icacls", str(path)])
-        return code == 0
+        pass
+    if os.name != "nt":
+        return False
+    code, _ = _command_output(["icacls", str(path)])
+    return code == 0
 
 
 def _windows_runtime_is_protected(path: Path) -> bool:
@@ -185,6 +187,22 @@ def _windows_runtime_is_protected(path: Path) -> bool:
 
 def _windows_reparse_point(path: Path) -> bool:
     """Return whether *path* is a symlink or Windows reparse point."""
+    if os.name == "nt":
+        # pathlib.Path.stat() opens the protected object and can be denied by
+        # the deliberate Users DACL even when ordinary file attributes remain
+        # queryable.  GetFileAttributesW is the native metadata operation
+        # needed here and does not require opening the file or directory.
+        try:
+            kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+            get_attributes = kernel.GetFileAttributesW
+            get_attributes.argtypes = [ctypes.c_wchar_p]
+            get_attributes.restype = ctypes.c_uint32
+            attributes = get_attributes(str(path))
+            if attributes == 0xFFFFFFFF:
+                return True
+            return bool(attributes & 0x400)  # FILE_ATTRIBUTE_REPARSE_POINT
+        except (AttributeError, OSError, TypeError, ValueError):
+            return True
     try:
         if path.is_symlink():
             return True

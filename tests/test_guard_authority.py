@@ -133,6 +133,15 @@ class GuardAuthorityTests(unittest.TestCase):
             r"C:\ProgramData\RepoPact BUILTIN\Users:(DENY)(W,D,WDAC,WO,DC)"
         ))
 
+    def test_windows_reparse_probe_uses_attributes_without_opening_protected_path(self):
+        native = unittest.mock.Mock()
+        native.GetFileAttributesW.return_value = 0x10  # FILE_ATTRIBUTE_DIRECTORY
+        with patch.object(platform_backends.os, "name", "nt"), \
+                patch.object(platform_backends.ctypes, "WinDLL", return_value=native, create=True):
+            self.assertFalse(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
+            native.GetFileAttributesW.return_value = 0x410  # directory + reparse point
+            self.assertTrue(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
+
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):
         """Standard C:\\ root inheritance must not block Program Files trust."""

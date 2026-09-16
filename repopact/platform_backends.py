@@ -166,6 +166,21 @@ def _windows_acl(path: Path) -> tuple[bool, str]:
     return bool(owner_protected and deny_present and users_present), output.strip()
 
 
+def _windows_install_acl_commands(path: Path) -> list[list[str]]:
+    """Return the ordered ACL commands for one protected product directory."""
+    return [
+        ["icacls", str(path), "/inheritance:r"],
+        ["icacls", str(path), "/grant:r", "SYSTEM:(OI)(CI)(F)",
+         "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
+        # Set ownership before the explicit deny. The deny includes
+        # WRITE_OWNER/WRITE_DAC and would otherwise prevent an elevated
+        # administrator from completing the ownership transition or rolling
+        # back safely.
+        ["icacls", str(path), "/setowner", "SYSTEM"],
+        ["icacls", str(path), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"],
+    ]
+
+
 def _windows_path_present(path: Path) -> bool:
     """Check presence without requiring a metadata read denied by the DACL."""
     try:
@@ -893,14 +908,10 @@ class WindowsBackend(PlatformBackend):
             (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
             if self.install_root.exists(): raise RuntimeError("install root appeared after preflight; refusing overwrite")
             staging.replace(self.install_root)
-            commands = [["icacls", str(self.install_root), "/inheritance:r"],
-                        ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-                        # Set ownership before the explicit deny. The deny
-                        # includes WRITE_OWNER/WRITE_DAC and would otherwise
-                        # prevent an elevated administrator from completing
-                        # the ownership transition or rolling back safely.
-                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"],
-                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"]]
+            # Protect the product namespace as well as the installed child.
+            # A protected child is replaceable if an ordinary user can create
+            # or rename entries through its parent directory.
+            commands = _windows_install_acl_commands(parent) + _windows_install_acl_commands(self.install_root)
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")

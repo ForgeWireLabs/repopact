@@ -10,7 +10,7 @@ from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
 from repopact.guard_ipc import NativeGuardClient, local_peer_binding
-from repopact.platform_backends import TestingBackend, WindowsBackend
+from repopact.platform_backends import TestingBackend, WindowsBackend, _windows_install_acl_commands
 import repopact.platform_backends as platform_backends
 
 
@@ -141,6 +141,15 @@ class GuardAuthorityTests(unittest.TestCase):
             self.assertFalse(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
             native.GetFileAttributesW.return_value = 0x410  # directory + reparse point
             self.assertTrue(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
+
+    def test_windows_install_acl_commands_protect_parent_before_child(self):
+        parent = Path(r"C:\ProgramData\RepoPact")
+        child = parent / "Guard"
+        commands = _windows_install_acl_commands(parent) + _windows_install_acl_commands(child)
+        self.assertEqual(commands[0][2:], ["/inheritance:r"])
+        self.assertEqual(commands[4][1], str(child))
+        self.assertEqual(commands[3][2], "/deny")
+        self.assertEqual(commands[7][2], "/deny")
 
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):

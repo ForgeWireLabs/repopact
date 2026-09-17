@@ -9,7 +9,7 @@
 This work item cannot be completed by an agent alone. The remaining human/operator actions are:
 
 1. **arXiv** (AC-2) — create/confirm an arXiv account; cs.SE may require endorsement for a first submission; approve the final paper text; submit. Drafting can be agent-assisted, but the account and submission are operator actions.
-2. **PyPI / launch reconciliation** (AC-3) — RepoPact 3.1.1 has been released as the current stable package line, but AC-3 remains machine-pending until the launch criterion is reconciled against durable publication/conformance evidence in `work-item.json` rather than being closed from narrative alone.
+2. **PyPI / launch reconciliation** (AC-3) — satisfied: RepoPact 3.1.2 is published on PyPI as the current stable package line, with a positioning-aligned README and a green conformance suite, reconciled against durable publication/clean-install evidence (`20260917-069-release-3-1-2`, `20260917-069-publication`) rather than closed from narrative alone.
 3. **Show HN + socials** (AC-4) — the operator owns the accounts, final copy approval, and posting. No automated posting or vote solicitation.
 
 These gates remain pending until the corresponding durable evidence and lifecycle records say otherwise.
@@ -81,7 +81,7 @@ A better derived view does not become a second source of truth.
 
 - **AC-1** — positioning-aligned README, visuals, documentation/public copy, and operator approval. The documentation architecture portion is materially advanced by the 2026-09-17 reconciliation; AC-1 remains pending until the complete launch asset set is operator-approved and evidence-reconciled.
 - **AC-2** — paper on arXiv (cs.SE). *Operator-gated.*
-- **AC-3** — PyPI launch release with positioning-aligned README and conformance evidence. RepoPact 3.1.1 publication is now part of the real release state, but the criterion remains pending until `work-item.json` is closed from durable evidence rather than this narrative.
+- **AC-3** — PyPI launch release with positioning-aligned README and conformance evidence. Satisfied: RepoPact 3.1.2 is published on PyPI as the current stable release, reconciled from durable evidence in `work-item.json`.
 - **AC-4** — Show HN posted and launch day handled. *Operator-gated.*
 
 ## Reconciliation — 2026-07-26
@@ -92,3 +92,12 @@ A better derived view does not become a second source of truth.
 - [ ] **AC-4** — pending: no Show HN post or launch-day response record exists.
 
 Evidence: [`20260726-semantic-ledger-freshness-reconciliation`](../../../evidence/runs/20260726-semantic-ledger-freshness-reconciliation.json).
+
+## Reconciliation — 2026-09-17
+
+- [ ] **AC-1** — still pending: launch asset set is not yet fully operator-approved.
+- [ ] **AC-2** — still pending: no arXiv submission record or public paper URL exists.
+- [x] **AC-3** — satisfied: RepoPact 3.1.2 is published on PyPI as the current stable package line (decision 0064, work item 069), the README is positioning-aligned, and the conformance suite (019) is green, reconciled from durable publication and clean-install evidence rather than narrative.
+- [ ] **AC-4** — still pending: no Show HN post or launch-day response record exists.
+
+Evidence: [`20260917-069-release-3-1-2`](../../../evidence/runs/20260917-069-release-3-1-2.json), [`20260917-069-publication`](../../../evidence/runs/20260917-069-publication.json).

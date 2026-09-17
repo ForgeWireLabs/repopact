@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "069",
   "title": "Post-3.1.1 Validation Remediation and Development Identity Reconciliation",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "governance",
   "affected_scopes": ["tooling", "work", "evidence", "docs"],
   "depends_on": [],
@@ -76,20 +76,20 @@
     {
       "id": "AC-11",
       "text": "Current-state release/governance records (WI021 AC-3, WI066) accurately reflect the real published state (3.1.1, and 3.1.2 once published) without rewriting dated historical evidence describing the 3.1.0 milestone or the 3.1.1 corrective.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260917-069-publication"]
     },
     {
       "id": "AC-12",
       "text": "RepoPact 3.1.2 corrective patch release: exact proven tree promoted to stable VERSION=3.1.2 (RELEASE_LABEL removed), built, inspected, tagged v3.1.2, and published to PyPI; post-publication clean install confirms `repopact --version` reports 3.1.2 and the bundled native engine independently reports 3.1.2.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260917-069-release-3-1-2", "20260917-069-publication"]
     },
     {
       "id": "AC-13",
       "text": "Final worktree is clean and all remediation/release commits are pushed to origin/main.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260917-069-publication"]
     }
   ],
   "created": "2026-09-17",

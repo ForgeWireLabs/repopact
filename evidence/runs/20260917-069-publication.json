@@ -1,0 +1,60 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260917-069-publication",
+  "timestamp": "2026-09-18T00:00:00Z",
+  "work_item": "069",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git tag -a v3.1.2 79d58f8 -m ...; git push origin v3.1.2",
+      "exit_code": 0,
+      "summary": "Annotated immutable tag v3.1.2 created pointing at commit 79d58f8b501783889de2652aa446c93bfe1e1ab2 -- the exact commit release-out/release-manifest.json records as having produced the published artifacts. v3.1.0 and v3.1.1 left untouched."
+    },
+    {
+      "command": "python -m twine upload release-out\\repopact-3.1.2-py3-none-win_amd64.whl release-out\\repopact-3.1.2.tar.gz",
+      "exit_code": 0,
+      "summary": "Both artifacts uploaded successfully via the operator's existing configured PyPI credential (~/.pypirc [pypi] token; never printed, committed, or persisted to evidence). PyPI confirmed: https://pypi.org/project/repopact/3.1.2/"
+    },
+    {
+      "command": "Fresh venv outside the checkout: pip install --no-cache-dir repopact==3.1.2; pip download --no-cache-dir --no-deps repopact==3.1.2; sha256sum",
+      "exit_code": 0,
+      "summary": "Installed cleanly from public PyPI. Downloaded wheel repopact-3.1.2-py3-none-win_amd64.whl SHA256 be8cfecef299840034c6cc70d4d24c7d744d41e008ad07b678af0ba5521d0aab -- byte-identical to the locally built artifact recorded in release-out/release-manifest.json."
+    },
+    {
+      "command": "repopact --version; repopact-engine.exe --version; repopact init --target smoke_pub && repopact validate",
+      "exit_code": 0,
+      "summary": "Public PyPI 3.1.2 install: `repopact --version` -> 'repopact 3.1.2'; native engine independently reports engine_version 3.1.2, agreeing with the CLI; repopact init + repopact validate both pass on a fresh repository. No semantic Python fallback."
+    },
+    {
+      "command": "gh release create v3.1.2 release-out\\repopact-3.1.2-py3-none-win_amd64.whl release-out\\repopact-3.1.2.tar.gz --repo ForgeWireLabs/repopact --title \"RepoPact 3.1.2\" --notes ...",
+      "exit_code": 0,
+      "summary": "GitHub Release created at https://github.com/ForgeWireLabs/repopact/releases/tag/v3.1.2, attaching both artifacts. `gh release list` confirms it is now the 'Latest' release (previously the stale 'Latest' was v2.1.0 from 2026-07-15). README's GitHub-Releases-is-stale warning box removed/reconciled to note GitHub now tracks the same stable version as PyPI, since that claim is genuinely true again."
+    }
+  ],
+  "artifacts": [
+    "README.md",
+    "work/active/021-public-launch/work-item.json",
+    "work/active/066-repopact-3-1-0-milestone-release-and-research-snapshot-reconciliation/README.md"
+  ],
+  "environment": {
+    "os": "Windows 10 Pro (10.0.19045)",
+    "python": "3.12.4",
+    "release_commit": "79d58f8b501783889de2652aa446c93bfe1e1ab2",
+    "v3_1_2_tag_target_commit": "79d58f8b501783889de2652aa446c93bfe1e1ab2"
+  },
+  "wheel": {
+    "filename": "repopact-3.1.2-py3-none-win_amd64.whl",
+    "sha256": "be8cfecef299840034c6cc70d4d24c7d744d41e008ad07b678af0ba5521d0aab",
+    "pypi_url": "https://pypi.org/project/repopact/3.1.2/"
+  },
+  "sdist": {
+    "filename": "repopact-3.1.2.tar.gz",
+    "sha256": "43d40fcda91ea835696b97c6afdeef4aee3278296f449fef173366afa068ea12"
+  },
+  "github_release": {
+    "url": "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.1.2",
+    "is_latest": true
+  },
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record, the decision records, or the checkpoint's commit history. The PyPI token used for publication is held in the operator's local ~/.pypirc and was never printed, logged, or committed."
+}

@@ -15,9 +15,7 @@ A fresh human or agent can clone a governed repository and recover not only the 
 `pip install repopact` · Apache-2.0 · stable release **3.1.2** ([changelog](decisions/0064-release-repopact-3-1-2-post-3-1-1-validation-corrective.md))
 
 > [!IMPORTANT]
-> **GitHub Releases is not currently the authoritative source for the latest RepoPact package.** GitHub's **Latest Release** entry is out of date and may show an older version.
->
-> **PyPI is the authoritative source for the latest stable RepoPact CLI/headless package.** `pip install --upgrade repopact` installs the Python command/compatibility surface **and** the platform-native canonical `repopact-engine` Rust executable. PyPI does **not** currently distribute the Tauri Workbench GUI, Android application, or the rest of the repository's development/research surfaces.
+> **PyPI is the authoritative source for the latest stable RepoPact CLI/headless package.** `pip install --upgrade repopact` installs the Python command/compatibility surface **and** the platform-native canonical `repopact-engine` Rust executable. PyPI does **not** currently distribute the Tauri Workbench GUI, Android application, or the rest of the repository's development/research surfaces. GitHub's **Latest Release** entry tracks the same stable version as PyPI.
 >
 > To get the **full RepoPact source tree**, including the Workbench, mobile code, research, governance records, and development/reference surfaces, clone this repository. Use the `v3.1.2` tag when you want source aligned with the current stable PyPI release, or `main` when you want the newest development state.
 

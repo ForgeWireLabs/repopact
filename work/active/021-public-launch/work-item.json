@@ -36,11 +36,12 @@
     {
       "id": "AC-3",
       "text": "RepoPact published/refreshed on PyPI at the launch version with the positioning-aligned README; the conformance suite (019) is green and linked from the launch. [Operator-gated: PyPI release.]",
-      "state": "pending",
+      "state": "satisfied",
       "evidence": [
         "20260726-semantic-ledger-freshness-reconciliation",
         "20260913-021-launch-readiness-reconciliation",
-        "20260914-021-release-preparation"
+        "20260914-021-release-preparation",
+        "20260917-069-release-3-1-2"
       ]
     },
     {

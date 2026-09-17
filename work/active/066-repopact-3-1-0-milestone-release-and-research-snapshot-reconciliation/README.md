@@ -41,3 +41,17 @@ Each criterion in `work-item.json` remains pending until a concrete evidence run
 or durable release artifact proves it. The final evidence must include the exact
 candidate and post-release identities, hashes, PyPI clean-install smoke result,
 tag/release result, and every known incomplete WI022/WI063/WI065 surface.
+
+## Superseded by 3.1.1 and 3.1.2
+
+The `repopact-3.1.0.tar.gz` sdist upload attempt this item's AC-9 anticipated
+was rejected by PyPI at publication time (a `LICENSE`-file packaging defect;
+see decision 0063). `3.1.0`'s wheel is live, but `3.1.0` was never the current
+stable install identity in practice: `3.1.1` (decision 0063) and then `3.1.2`
+(decision 0064, work item 069) were published as the corrective successors,
+each with its own real publication/clean-install/tag/release evidence. AC-9,
+AC-10, and AC-11 above correctly remain `pending` as literal 3.1.0-specific
+publication criteria -- they are not rewritten to say `3.1.2` -- but current
+stable-release reality is `3.1.2`, not this item's unpublished `3.1.0`
+candidate. See `work/active/069-post-3-1-1-validation-remediation-and-development-identity-reconciliation/`
+for the current release record.

@@ -14,6 +14,7 @@ members = [
     "crates/repopact-desktop-api",
     "crates/repopact-mobile-acquisition",
     "crates/repopact-mobile-saf",
+    "crates/repopact-mobile-credential",
     "crates/repopact-remote-provider",
     "crates/repopact-provider-github",
     "apps/repopact-cli",
@@ -37,13 +38,16 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 # WI067 Checkpoint B: production OS-protected credential storage
 # (repopact-remote-provider::credential_os). Covers Windows Credential
 # Manager, macOS/iOS Keychain, and Linux Secret Service/libsecret behind
-# one API; Android is not covered by this crate and remains a distinct,
-# recorded gate (Decision 0061 / GH-004).
+# one API; `keyring` has no Android backend at all, which is exactly the
+# gap WI067 Checkpoint E's `repopact-mobile-credential` (Android
+# Keystore-backed) fills with a separate, hand-rolled implementation of
+# the same `CredentialStore` trait.
 keyring = { version = "3", default-features = false, features = ["windows-native", "apple-native", "sync-secret-service"] }
 repopact-core = { path = "crates/repopact-core" }
 repopact-desktop-api = { path = "crates/repopact-desktop-api" }
 repopact-mobile-acquisition = { path = "crates/repopact-mobile-acquisition" }
 repopact-mobile-saf = { path = "crates/repopact-mobile-saf" }
+repopact-mobile-credential = { path = "crates/repopact-mobile-credential" }
 repopact-remote-provider = { path = "crates/repopact-remote-provider" }
 repopact-provider-github = { path = "crates/repopact-provider-github" }
 repopact-analysis = { path = "crates/repopact-analysis" }

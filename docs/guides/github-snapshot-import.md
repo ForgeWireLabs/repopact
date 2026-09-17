@@ -96,9 +96,32 @@ credential facility for the running platform:
   Keychain and Secret Service/libsecret respectively via the same
   `keyring` crate, but this has not been exercised at runtime on those
   platforms as of this checkpoint.
-- **Android**: no protected credential-store backend exists yet. This is
-  an explicit, tracked gap (GH-004), not a plaintext fallback -- the
-  GitHub connection feature is desktop-only until it is resolved.
+- **Android**: a dedicated `repopact-mobile-credential` crate implements
+  the same `CredentialStore` trait against a real Android Keystore-backed
+  encryption key. Android Keystore owns the cryptographic key material,
+  not the token itself: a non-exportable AES-256-GCM key is generated
+  inside `AndroidKeyStore` under the dedicated alias
+  `com.forgewirelabs.repopact.remote-provider.v1`, and it encrypts a
+  versioned envelope (version, IV, ciphertext+authentication tag) that is
+  the only thing written to this app's private (non-world-readable)
+  SharedPreferences storage -- never the token in plaintext, never
+  SharedPreferences plaintext, never SQLite plaintext, never a broad
+  storage permission, never SAF. A missing or invalidated key, a corrupt
+  or wrong-version envelope, and an authenticated-encryption tag failure
+  all fail as a distinct typed error rather than returning plaintext,
+  crashing, or silently minting a fresh key that pretends old ciphertext
+  is still valid -- in every case the user must reconnect. This has been
+  proven with real device evidence (put/get/overwrite/delete, distinct
+  access/refresh and per-connection keys, persistence across a real
+  process kill and restart, at-rest plaintext absence, zero logcat
+  leakage, and every failure mode above) rather than unit tests alone.
+  The tested emulator's Keystore implementation is software-backed
+  (`insideSecureHardware=false`); no hardware/StrongBox backing is
+  claimed. `GitHubProvider`'s own connection flow is not yet wired to run
+  on Android -- that remains a separate, tracked integration step (see
+  "What is still pending" below); this checkpoint proves the credential
+  backend itself as a production-quality, drop-in `CredentialStore`
+  implementation.
 
 ## Operator gate: GitHub App registration
 
@@ -116,10 +139,12 @@ authentication at all and has been proven live against
 - Live authorized browsing of private repositories and organization
   installations (GH-005) -- requires the operator gate above.
 - Full desktop *and* Android end-to-end authenticated runtime proof
-  (GH-012) -- requires both the operator gate and the Android credential
-  store below.
-- Android protected credential storage (GH-004) and an Android-side
-  authenticated GitHub runtime.
+  (GH-012) -- requires the operator gate above *and* wiring
+  `GitHubProvider`/the GitHub connection command surface to actually run
+  on Android (today it is still desktop-only; the Android protected
+  credential store it would depend on is now implemented and proven, but
+  the connection UI/commands themselves have not been extended to
+  Android in this checkpoint).
 - iOS has not been evaluated at all for this feature.
 
 ## Provider extension

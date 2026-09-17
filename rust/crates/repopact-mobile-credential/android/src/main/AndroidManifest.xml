@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- WI067 Checkpoint E: Android Keystore key generation and private
+         SharedPreferences both require no manifest permission of their
+         own. This plugin adds no permission here, and must not: no
+         MANAGE_EXTERNAL_STORAGE, no READ_EXTERNAL_STORAGE/
+         WRITE_EXTERNAL_STORAGE, no broad storage permission of any kind.
+         The encrypted credential envelope lives only in this app's
+         private, non-backed-up SharedPreferences file. -->
+</manifest>

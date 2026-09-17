@@ -1,0 +1,16 @@
+[package]
+name = "repopact-mobile-credential"
+version = "0.1.0"
+edition = "2021"
+publish = false
+links = "repopact-mobile-credential"
+
+[build-dependencies]
+tauri-plugin = { version = "2.6.3", features = ["build"] }
+
+[dependencies]
+repopact-remote-provider.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tauri = { version = "2.11.5", features = [] }

@@ -98,6 +98,99 @@ fn close_repository(service: State<'_, DesktopService>) -> Result<(), DesktopErr
     service.close_repository()
 }
 
+// WI067 Checkpoint E (GH-004): a bounded, debug-only native test/control
+// surface for the Android Keystore-backed credential store -- see
+// `android_validation`'s own module doc comment for the full rationale.
+// These four commands are always registered on an Android build (so the
+// generated handler list stays static across debug/release), but their
+// bodies are only real inside a `debug_assertions` build with
+// `--features android-debug-validation`; a normal Android build (debug
+// or release) without that feature returns a fixed "debug validation is
+// not enabled in this build" error and touches no credential storage at
+// all. None of these commands ever returns a stored secret's plaintext
+// value to the frontend. Android-only at the function level (not merely
+// internally branched) -- these do not exist at all in a desktop build.
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn debug_credential_put(
+    #[allow(unused_variables)] app: AppHandle,
+    #[allow(unused_variables)] connection_id: String,
+    #[allow(unused_variables)] kind: String,
+    #[allow(unused_variables)] secret: String,
+) -> Result<(), repopact_remote_provider::error::RemoteProviderError> {
+    #[cfg(all(debug_assertions, feature = "android-debug-validation"))]
+    return android_validation::debug_credential_put(&app, &connection_id, &kind, &secret);
+    #[cfg(not(all(debug_assertions, feature = "android-debug-validation")))]
+    Err(debug_validation_disabled())
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn debug_credential_get_matches(
+    #[allow(unused_variables)] app: AppHandle,
+    #[allow(unused_variables)] connection_id: String,
+    #[allow(unused_variables)] kind: String,
+    #[allow(unused_variables)] expected: String,
+) -> Result<bool, repopact_remote_provider::error::RemoteProviderError> {
+    #[cfg(all(debug_assertions, feature = "android-debug-validation"))]
+    return android_validation::debug_credential_get_matches(
+        &app,
+        &connection_id,
+        &kind,
+        &expected,
+    );
+    #[cfg(not(all(debug_assertions, feature = "android-debug-validation")))]
+    Err(debug_validation_disabled())
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn debug_credential_present(
+    #[allow(unused_variables)] app: AppHandle,
+    #[allow(unused_variables)] connection_id: String,
+    #[allow(unused_variables)] kind: String,
+) -> Result<bool, repopact_remote_provider::error::RemoteProviderError> {
+    #[cfg(all(debug_assertions, feature = "android-debug-validation"))]
+    return android_validation::debug_credential_present(&app, &connection_id, &kind);
+    #[cfg(not(all(debug_assertions, feature = "android-debug-validation")))]
+    Err(debug_validation_disabled())
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn debug_credential_delete(
+    #[allow(unused_variables)] app: AppHandle,
+    #[allow(unused_variables)] connection_id: String,
+    #[allow(unused_variables)] kind: String,
+) -> Result<(), repopact_remote_provider::error::RemoteProviderError> {
+    #[cfg(all(debug_assertions, feature = "android-debug-validation"))]
+    return android_validation::debug_credential_delete(&app, &connection_id, &kind);
+    #[cfg(not(all(debug_assertions, feature = "android-debug-validation")))]
+    Err(debug_validation_disabled())
+}
+
+#[cfg(target_os = "android")]
+#[tauri::command]
+fn debug_credential_key_info(
+    #[allow(unused_variables)] app: AppHandle,
+) -> Result<(bool, Option<bool>), repopact_remote_provider::error::RemoteProviderError> {
+    #[cfg(all(debug_assertions, feature = "android-debug-validation"))]
+    return android_validation::debug_credential_key_info(&app);
+    #[cfg(not(all(debug_assertions, feature = "android-debug-validation")))]
+    Err(debug_validation_disabled())
+}
+
+#[cfg(all(
+    target_os = "android",
+    not(all(debug_assertions, feature = "android-debug-validation"))
+))]
+fn debug_validation_disabled() -> repopact_remote_provider::error::RemoteProviderError {
+    repopact_remote_provider::error::RemoteProviderError::new(
+        repopact_remote_provider::error::ErrorCode::CredentialUnavailable,
+        "debug credential validation is not enabled in this build",
+    )
+}
+
 #[tauri::command]
 fn repository_overview(
     service: State<'_, DesktopService>,
@@ -310,6 +403,14 @@ pub fn run() {
     #[cfg(target_os = "android")]
     let builder = tauri::Builder::default()
         .plugin(repopact_mobile_saf::init_plugin())
+        // WI067 Checkpoint E (GH-004): the real, production Android
+        // Keystore-backed credential plugin, registered unconditionally
+        // (not debug-only) so a release build carries the same protected
+        // credential backend a debug build does. This plugin exposes no
+        // frontend-invokable commands of its own -- see
+        // `repopact-mobile-credential`'s `lib.rs` module doc comment --
+        // so registering it here grants the frontend no new capability.
+        .plugin(repopact_mobile_credential::init_plugin())
         .manage(service.clone())
         .invoke_handler(tauri::generate_handler![
             select_repository,
@@ -343,7 +444,12 @@ pub fn run() {
             mobile_acquisition::mobile_export_workspace_directory,
             mobile_acquisition::mobile_export_workspace_archive,
             mobile_acquisition::mobile_workspace_source_status,
-            mobile_acquisition::mobile_workspace_remove
+            mobile_acquisition::mobile_workspace_remove,
+            debug_credential_put,
+            debug_credential_get_matches,
+            debug_credential_present,
+            debug_credential_delete,
+            debug_credential_key_info
         ]);
     builder
         .setup(|app| {

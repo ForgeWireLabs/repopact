@@ -3340,6 +3340,7 @@ dependencies = [
  "repopact-analysis",
  "repopact-desktop-api",
  "repopact-mobile-acquisition",
+ "repopact-mobile-credential",
  "repopact-mobile-saf",
  "repopact-provider-github",
  "repopact-remote-provider",
@@ -3414,6 +3415,18 @@ dependencies = [
  "tempfile",
  "uuid",
  "zip",
+]
+
+[[package]]
+name = "repopact-mobile-credential"
+version = "0.1.0"
+dependencies = [
+ "repopact-remote-provider",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-plugin",
 ]
 
 [[package]]

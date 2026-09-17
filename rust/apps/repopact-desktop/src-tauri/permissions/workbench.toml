@@ -44,5 +44,10 @@ commands.allow = [
   "remote_repository_refs",
   "remote_resolve_ref",
   "remote_import_snapshot",
-  "remote_import_cancel"
+  "remote_import_cancel",
+  "debug_credential_put",
+  "debug_credential_get_matches",
+  "debug_credential_present",
+  "debug_credential_delete",
+  "debug_credential_key_info"
 ]

@@ -42,6 +42,8 @@ try {
         '--key-file'
         $key
         '--delete-key'
+        '--evidence-output'
+        (Join-Path $resolvedRepo 'evidence\runs\20260916-050-windows-native-destructive-proof.json')
     )
     & $Python @matrixArgs
     $matrixExit = $LASTEXITCODE

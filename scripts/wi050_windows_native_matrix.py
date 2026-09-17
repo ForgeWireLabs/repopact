@@ -21,9 +21,7 @@ import os
 import shutil
 import subprocess
 import sys
-import tempfile
 import time
-import uuid
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any, Mapping
@@ -188,43 +186,31 @@ class _SidAndAttributes(ctypes.Structure):
     _fields_ = [("Sid", ctypes.c_void_p), ("Attributes", ctypes.c_uint32)]
 
 
-class _StartupInfo(ctypes.Structure):
-    _fields_ = [("cb", ctypes.c_uint32), ("lpReserved", ctypes.c_wchar_p), ("lpDesktop", ctypes.c_wchar_p),
-                ("lpTitle", ctypes.c_wchar_p), ("dwX", ctypes.c_uint32), ("dwY", ctypes.c_uint32),
-                ("dwXSize", ctypes.c_uint32), ("dwYSize", ctypes.c_uint32), ("dwXCountChars", ctypes.c_uint32),
-                ("dwYCountChars", ctypes.c_uint32), ("dwFillAttribute", ctypes.c_uint32), ("dwFlags", ctypes.c_uint32),
-                ("wShowWindow", ctypes.c_uint16), ("cbReserved2", ctypes.c_uint16), ("lpReserved2", ctypes.c_void_p),
-                ("hStdInput", ctypes.c_void_p), ("hStdOutput", ctypes.c_void_p), ("hStdError", ctypes.c_void_p)]
+def _restricted_attempt(paths: list[Path], service_name: str) -> list[dict[str, Any]]:
+    """Attempt bounded write/config actions under a token with the
+    Administrators SID disabled, to prove a non-admin/non-service principal
+    cannot mutate protected state or reconfigure the service.
 
-
-class _ProcessInfo(ctypes.Structure):
-    _fields_ = [("hProcess", ctypes.c_void_p), ("hThread", ctypes.c_void_p),
-                ("dwProcessId", ctypes.c_uint32), ("dwThreadId", ctypes.c_uint32)]
-
-
-def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
-    """Run bounded write/config attempts without the Administrators SID."""
+    Uses thread impersonation (ImpersonateLoggedOnUser) rather than spawning
+    a child process under the restricted token via CreateProcessAsUserW.
+    CreateProcessAsUserW requires the caller to hold SeIncreaseQuotaPrivilege
+    even when the target token is a restricted version of the caller's own
+    token (the documented SeAssignPrimaryToken exemption for self-tokens does
+    not cover SeIncreaseQuotaPrivilege); on a hardened account that lacks it,
+    every child -- regardless of executable, window station, or environment
+    block -- fails during process init with STATUS_DLL_INIT_FAILED, which was
+    confirmed with an isolated diagnostic before this rewrite. Impersonation
+    drives the identical DACL-based access check (OpenServiceW/
+    ChangeServiceConfigW are what `sc.exe config` calls internally) without
+    creating a new process or primary token.
+    """
     if os.name != "nt":
         raise RuntimeError("restricted-token proof requires Windows")
-    # Leave the result path absent so the restricted child creates it under
-    # the interactive user's temp-directory ACL. A file pre-created by the
-    # elevated harness can carry an integrity label that prevents the stripped
-    # token from reopening it for write.
-    output = Path(tempfile.gettempdir()) / f"wi050-restricted-{uuid.uuid4().hex}.json"
-    child = (
-        "import json, pathlib, subprocess, sys; "
-        "paths=[pathlib.Path(x) for x in json.loads(sys.argv[1])]; out=pathlib.Path(sys.argv[2]); "
-        "items=[]; "
-        "\nfor p in paths:\n"
-        "  try:\n    b=p.read_bytes(); p.write_bytes(b); items.append({'target':str(p),'result':'write-succeeded'})\n"
-        "  except Exception as e: items.append({'target':str(p),'result':'denied','error':type(e).__name__})\n"
-        "cp=subprocess.run(['sc.exe','config',sys.argv[3],'start=','auto'],text=True,capture_output=True); "
-        "items.append({'target':'service-configuration','result':'write-succeeded' if cp.returncode == 0 else 'denied','exit_code':cp.returncode}); "
-        "out.write_text(json.dumps(items,sort_keys=True))"
-    )
     kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
     advapi = ctypes.WinDLL("Advapi32", use_last_error=True)
     kernel.GetCurrentProcess.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel.LocalFree.argtypes = [ctypes.c_void_p]
     advapi.OpenProcessToken.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_void_p)]
     advapi.OpenProcessToken.restype = ctypes.c_int
     advapi.CreateRestrictedToken.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32,
@@ -233,21 +219,26 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
     advapi.CreateRestrictedToken.restype = ctypes.c_int
     advapi.ConvertStringSidToSidW.argtypes = [ctypes.c_wchar_p, ctypes.POINTER(ctypes.c_void_p)]
     advapi.ConvertStringSidToSidW.restype = ctypes.c_int
-    advapi.CreateProcessAsUserW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_void_p,
-                                             ctypes.c_void_p, ctypes.c_int, ctypes.c_uint32, ctypes.c_void_p,
-                                             ctypes.c_wchar_p, ctypes.POINTER(_StartupInfo), ctypes.POINTER(_ProcessInfo)]
-    advapi.CreateProcessAsUserW.restype = ctypes.c_int
-    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
-    kernel.LocalFree.argtypes = [ctypes.c_void_p]
-    kernel.GetExitCodeProcess.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
-    kernel.GetExitCodeProcess.restype = ctypes.c_int
+    advapi.ImpersonateLoggedOnUser.argtypes = [ctypes.c_void_p]
+    advapi.ImpersonateLoggedOnUser.restype = ctypes.c_int
+    advapi.RevertToSelf.restype = ctypes.c_int
+    advapi.OpenSCManagerW.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    advapi.OpenSCManagerW.restype = ctypes.c_void_p
+    advapi.OpenServiceW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_uint32]
+    advapi.OpenServiceW.restype = ctypes.c_void_p
+    advapi.ChangeServiceConfigW.argtypes = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32, ctypes.c_uint32,
+                                             ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_void_p, ctypes.c_wchar_p,
+                                             ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_wchar_p]
+    advapi.ChangeServiceConfigW.restype = ctypes.c_int
+    advapi.CloseServiceHandle.argtypes = [ctypes.c_void_p]
+
     token = ctypes.c_void_p()
     new_token = ctypes.c_void_p()
     sid = ctypes.c_void_p()
     # CreateRestrictedToken only requires TOKEN_DUPLICATE on the source;
-    # CreateProcessAsUser additionally needs QUERY and ASSIGN_PRIMARY on the
-    # resulting primary token. Requesting adjustment rights from the current
-    # token is unnecessary and is denied on correctly filtered UAC tokens.
+    # ImpersonateLoggedOnUser additionally needs QUERY on the resulting
+    # token. Requesting adjustment rights from the current token is
+    # unnecessary and is denied on correctly filtered UAC tokens.
     token_access = 0x0002 | 0x0008 | 0x0001
     if not advapi.OpenProcessToken(kernel.GetCurrentProcess(), token_access, ctypes.byref(token)):
         raise ctypes.WinError(ctypes.get_last_error())
@@ -262,32 +253,53 @@ def _restricted_attempt(paths: list[Path], service_name: str) -> dict[str, Any]:
             kernel.LocalFree(sid)
     finally:
         kernel.CloseHandle(token)
+
+    items: list[dict[str, Any]] = []
     try:
-        command = subprocess.list2cmdline([sys.executable, "-c", child, _json([str(p) for p in paths]), str(output), service_name])
-        command_buffer = ctypes.create_unicode_buffer(command)
-        startup = _StartupInfo(); startup.cb = ctypes.sizeof(_StartupInfo)
-        process = _ProcessInfo()
-        CREATE_NO_WINDOW = 0x08000000
-        if not advapi.CreateProcessAsUserW(new_token, None, command_buffer, None, None, False, CREATE_NO_WINDOW,
-                                           None, str(Path.cwd()), ctypes.byref(startup), ctypes.byref(process)):
+        if not advapi.ImpersonateLoggedOnUser(new_token):
             raise ctypes.WinError(ctypes.get_last_error())
         try:
-            wait_result = kernel.WaitForSingleObject(process.hProcess, 15000)
-            if wait_result != 0:
-                raise RuntimeError(f"restricted child wait failed: {wait_result}")
-            child_exit = ctypes.c_uint32()
-            if not kernel.GetExitCodeProcess(process.hProcess, ctypes.byref(child_exit)):
-                raise ctypes.WinError(ctypes.get_last_error())
+            for p in paths:
+                try:
+                    data = p.read_bytes()
+                    p.write_bytes(data)
+                    items.append({"target": str(p), "result": "write-succeeded"})
+                except OSError as exc:
+                    items.append({"target": str(p), "result": "denied", "error": type(exc).__name__})
+
+            SC_MANAGER_CONNECT = 0x0001
+            SERVICE_CHANGE_CONFIG = 0x0002
+            SERVICE_NO_CHANGE = 0xFFFFFFFF
+            SERVICE_AUTO_START = 0x00000002
+            scm = advapi.OpenSCManagerW(None, None, SC_MANAGER_CONNECT)
+            if not scm:
+                items.append({"target": "service-configuration", "result": "denied",
+                              "error": "OpenSCManagerW", "code": ctypes.get_last_error()})
+            else:
+                try:
+                    svc = advapi.OpenServiceW(scm, service_name, SERVICE_CHANGE_CONFIG)
+                    if not svc:
+                        items.append({"target": "service-configuration", "result": "denied",
+                                      "error": "OpenServiceW", "code": ctypes.get_last_error()})
+                    else:
+                        try:
+                            ok = advapi.ChangeServiceConfigW(
+                                svc, SERVICE_NO_CHANGE, SERVICE_AUTO_START, SERVICE_NO_CHANGE,
+                                None, None, None, None, None, None, None)
+                            if ok:
+                                items.append({"target": "service-configuration", "result": "write-succeeded"})
+                            else:
+                                items.append({"target": "service-configuration", "result": "denied",
+                                              "error": "ChangeServiceConfigW", "code": ctypes.get_last_error()})
+                        finally:
+                            advapi.CloseServiceHandle(svc)
+                finally:
+                    advapi.CloseServiceHandle(scm)
         finally:
-            kernel.CloseHandle(process.hThread); kernel.CloseHandle(process.hProcess)
+            advapi.RevertToSelf()
     finally:
         kernel.CloseHandle(new_token)
-    try:
-        if not output.is_file() or output.stat().st_size == 0:
-            raise RuntimeError(f"restricted child produced no result (exit code {child_exit.value})")
-        return json.loads(output.read_text())
-    finally:
-        output.unlink(missing_ok=True)
+    return items
 
 
 def _case(results: list[dict[str, Any]], name: str, expected: str, **checks: Any) -> None:

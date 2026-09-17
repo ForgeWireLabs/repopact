@@ -3,7 +3,7 @@ id: 018
 title: WI050 pre-execution admission field evidence and bypass capture
 date: 2026-09-03
 status: recorded
-source_of_truth: ../../work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/threat-model.md
+source_of_truth: ../../work/deferred/050-pre-execution-agent-work-admission-and-preflight-enforcement/threat-model.md
 ---
 
 # Capture 018 - WI050 pre-execution admission field evidence

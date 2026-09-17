@@ -1,8 +1,10 @@
 # RepoPact public copy
 
-Status: launch copy prepared; not yet posted.
+*Diataxis mode: explanation (launch copy and posting boundary).*
 
-This file is the durable source for RepoPact's initial public-facing copy. It intentionally separates the stable package from newer development work on `main` and avoids claiming comparative results that do not yet exist.
+Status: launch copy prepared; not yet fully posted.
+
+This file is the durable source for RepoPact's initial public-facing copy. It separates the stable package from broader repository work and avoids claiming comparative results that do not yet exist.
 
 ## One-line description
 
@@ -22,11 +24,11 @@ Those answers often live in a chat session, an agent's memory, an issue tracker,
 
 That is why I built **RepoPact**.
 
-RepoPact keeps durable engineering state in the repository itself so humans and coding agents can work from the same intent, authority, work state, decisions, invariants, and evidence.
+RepoPact keeps durable engineering state in the repository itself so humans and coding agents can work from the same intent, authority, work state, decisions, invariants, provenance, and evidence.
 
-The goal is not to slow AI-assisted development down. It is to make that speed sustainable across agents, models, machines, and sessions.
+The goal is not to slow AI-assisted development down. It is to make that speed sustainable across agents, models, machines, providers, and sessions.
 
-RepoPact is open source under Apache 2.0:
+RepoPact 3.1.1 is available on PyPI and the project is open source under Apache 2.0:
 https://github.com/ForgeWireLabs/repopact
 
 I am also preparing the paper, **"RepoPact: Repository-Native Governance for Durable Human-Agent Software Engineering,"** for arXiv.
@@ -47,31 +49,28 @@ Things like what work is actually authorized, what must not be weakened, which d
 
 I built RepoPact to move that state into the repository itself.
 
-RepoPact uses typed, version-controlled records for work lifecycle, authority, invariants, decisions, provenance, and evidence. Humans and coding agents operate against the same repository state instead of maintaining separate hidden control planes.
+RepoPact uses typed, version-controlled records for work lifecycle, authority, invariants, decisions, provenance, and evidence. Humans and coding agents operate against the same durable project state instead of depending on one tool's hidden memory or control plane.
 
-It isn't an agent, an agent-memory service, or a hosted CI product. It is intended to be a durable governance layer that those systems can share.
+It is not an agent, an agent-memory service, a hosted CI product, or `AGENTS.md++`. It is a governance layer that those systems can share.
 
-The project is Apache-2.0:
+The stable package is RepoPact 3.1.1 and the project is Apache-2.0:
 https://github.com/ForgeWireLabs/repopact
 
-The stable package is currently 3.0.2. Development `main` has moved considerably farther, including the Rust semantic engine, Tauri Workbench, local-first verification/release architecture, and active repository-orientation work. I am preparing the accompanying research paper for arXiv.
+The repository also contains broader ongoing work such as the Tauri Workbench, Repository Orientation Graph evaluation/productization, provider integrations, optional admission/confinement work, and the research program. Those surfaces keep their own lifecycle, platform, packaging, and evidence boundaries rather than being implied by `pip install repopact`.
+
+I am preparing the accompanying research paper for arXiv. Comparative benchmark results remain separate from the existence of the benchmark infrastructure and will be reported from the corresponding runs/evidence.
 
 I would particularly appreciate criticism of the model, the amount of governance ceremony, places where the repository-native approach breaks down, and comparisons with systems solving the same problem differently.
 
-## GitHub repository metadata handoff
+## Recommended GitHub repository metadata
 
-The repository description currently uses the older "repository-native operating system" language. Update it in GitHub repository settings to:
+Recommended repository description:
 
 > Repository-native governance for durable human-agent software engineering. Shared intent, authority, work state, evidence, and history in Git.
 
-Retain useful discovery topics such as `agents-md`, `coding-agents`, `developer-tools`, `ai-governance`, `policy-as-code`, and `repository-governance`. Add, where GitHub topic naming permits:
+Useful discovery topics include `agents-md`, `coding-agents`, `developer-tools`, `ai-governance`, `policy-as-code`, `repository-governance`, `software-engineering`, `human-agent-collaboration`, `agentic-software-engineering`, and `governance-continuity` where GitHub topic naming permits them.
 
-- `software-engineering`
-- `human-agent-collaboration`
-- `agentic-software-engineering`
-- `governance-continuity`
-
-The GitHub connector used for this preparation pass does not expose repository-description or topic mutation, so these remain explicit operator actions rather than silently unperformed work.
+Repository settings remain an operator-managed surface unless the connected GitHub integration exposes the corresponding mutation directly.
 
 ## Social preview handoff
 
@@ -79,9 +78,18 @@ Use `docs/assets/readme/repopact-hero-social.png` as the GitHub social preview. 
 
 ## Posting boundaries
 
-- Do not claim the current development tree is the stable PyPI 3.0.2 package.
-- Do not claim comparative model, token-efficiency, security, or coordination improvements before reportable live runs exist.
-- Do not describe macOS or iOS as natively validated yet.
-- Do not describe WI050 protected pre-execution enforcement as complete.
-- Do not describe the Repository Orientation Graph as authoritative repository truth or as a proven orientation-performance win.
+- Stable package claims refer to **3.1.1** unless a later release is actually published.
+- Do not imply that every application or active/deferred surface in the repository is part of the PyPI package contract.
+- Do not claim comparative model, token-efficiency, security, or coordination improvements before reportable runs exist.
+- Do not describe macOS or iOS Workbench validation as equivalent to Windows/Linux/Android without matching evidence.
+- Do not describe WI050 as complete; it is deferred, and `pre-action` must not be described as arbitrary-process path confinement.
+- Do not describe the Repository Orientation Graph as authoritative repository truth or as a proven orientation-performance win while its governing evaluation/closeout work remains open.
 - Prefer "repository-native governance", "durable engineering state", and "governance continuity" over "AI operating system" as the lead framing.
+
+## Short enforcement wording
+
+When a compact explanation is needed:
+
+> RepoPact separates governance authority from runtime enforcement. Its optional assurance model ranges from instruction-only operation through session-start and pre-action gates to OS-backed process confinement where a platform/provider actually proves that stronger boundary.
+
+Do not collapse those assurance classes into a single unqualified "RepoPact enforces agent behavior" claim.

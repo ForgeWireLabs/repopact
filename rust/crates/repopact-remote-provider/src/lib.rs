@@ -20,6 +20,7 @@ pub mod credential;
 pub mod credential_os;
 pub mod error;
 pub mod fake;
+pub mod pkce;
 pub mod provider;
 pub mod redact;
 pub mod refs;

@@ -40,7 +40,8 @@
       "text": "Native desktop/mobile authentication is implemented without embedding a reusable GitHub App private key or treating a bundled client secret as confidential. The selected authorization flow is appropriate for a public/native client, records the threat model and redirect/device-flow trade-offs, supports login cancellation/retry/expiry, and does not require a ForgeWire Labs hosted auth service merely to import a repository unless a separate explicit architecture decision later chooses one.",
       "state": "satisfied",
       "evidence": [
-        "20260915-067-checkpoint-a-provider-auth-architecture"
+        "20260915-067-checkpoint-a-provider-auth-architecture",
+        "20260916-067-browser-pkce-auth-revision"
       ]
     },
     {
@@ -137,5 +138,6 @@
     }
   ],
   "created": "2026-09-14",
-  "updated": "2026-09-16"
+  "updated": "2026-09-16",
+  "notes": "2026-09-16 (Decision 0062): the interactive authorization architecture was revised from GitHub App device flow to browser-redirect authorization-code flow with PKCE before production GitHub App registration, per operator direction that the device-flow UX was not the intended installed-product experience. GH-003 was temporarily re-treated as pending refreshed evidence during this checkpoint and is re-satisfied here with new browser-PKCE evidence (20260916-067-browser-pkce-auth-revision). No other acceptance-criterion state changed. GH-005/GH-012/GH-015 remain pending on operator GitHub App registration and live authorized runtime proof."
 }

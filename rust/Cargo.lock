@@ -3478,12 +3478,15 @@ dependencies = [
 name = "repopact-remote-provider"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "keyring",
  "once_cell",
+ "rand",
  "regex",
  "repopact-mobile-acquisition",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "zip",
 ]

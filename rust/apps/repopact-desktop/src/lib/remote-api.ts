@@ -21,16 +21,20 @@ import type {
 export const remoteApi = {
   capabilities: () => invoke<ProviderCapabilities>("remote_provider_capabilities"),
   connectionStatus: () => invoke<ConnectionStatus>("remote_connections"),
+  // Decision 0062: one native, typed operation. The backend generates the
+  // authorization session (state + PKCE + loopback listener) and opens the
+  // system browser itself -- there is no separate "open verification URL"
+  // command for the frontend to call.
   connectStart: () => invoke<ConnectionStatus>("remote_connect_start"),
   // Native polling only decides *when* to call this; the frontend never
-  // sets its own interval (item 20) -- it calls this once per its own
-  // UI-refresh tick and displays whatever status comes back.
+  // sets its own interval -- it calls this once per its own UI-refresh
+  // tick and displays whatever status comes back.
   connectStatus: () => invoke<ConnectionStatus>("remote_connect_status"),
   connectCancel: () => invoke<void>("remote_connect_cancel"),
-  // Opens the system browser at the trusted GitHub verification URL the
-  // native backend already validated (item 18/19) -- never a
-  // frontend-supplied URL.
-  openVerificationUrl: () => invoke<void>("remote_open_verification_url"),
+  // Opens GitHub's own installation/configuration page for the RepoPact
+  // GitHub App, built entirely from native app-slug configuration -- never
+  // a frontend-supplied URL.
+  openInstallationPage: () => invoke<void>("remote_open_installation_page"),
   disconnect: () => invoke<void>("remote_disconnect"),
   accounts: () => invoke<RemoteAccount[]>("remote_accounts"),
   repositories: (connectionId: string) =>

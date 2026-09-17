@@ -27,6 +27,8 @@ use repopact_remote_provider::snapshot::SnapshotLayout;
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use crate::github_app_registration::GitHubAppRegistration;
+
 /// WI067 Checkpoint C, Phase 5: a repository archive is legitimately much
 /// larger than any REST/JSON API response. Deliberately chosen distinct
 /// from Checkpoint B's 8MB REST-response ceiling and from WI065's own
@@ -35,13 +37,6 @@ use tauri::State;
 /// below that, in the same order of magnitude as
 /// `ArchiveBounds::max_single_entry_bytes` (256 MiB).
 const SNAPSHOT_DOWNLOAD_MAX_COMPRESSED_BYTES: u64 = 300 * 1024 * 1024;
-
-/// The GitHub App client ID is public configuration (Decision 0061, item
-/// 16), never a secret -- but it is still native-owned configuration, not
-/// something a frontend-supplied value may set. Read once at startup from
-/// an environment variable the operator sets after registering a real
-/// GitHub App per `docs/guides/github-app-setup.md`; never fabricated.
-const CLIENT_ID_ENV_VAR: &str = "REPOPACT_GITHUB_CLIENT_ID";
 
 /// Non-secret connection identity/expiry metadata (item 10). Only tokens
 /// go into the OS-protected `CredentialStore`; this small sidecar file is
@@ -93,16 +88,23 @@ impl RemoteProviderService {
     /// the Workbench opens already-connected if a valid prior connection
     /// exists (item 41).
     pub fn open(app_data_dir: PathBuf) -> RemoteProviderResult<Self> {
-        // An unset OR empty-string environment variable both count as
-        // "not configured" -- a real bug caught during Checkpoint B's own
-        // manual verification run, where `VAR=` (set but empty) was
-        // silently treated as present.
-        let client_id = std::env::var(CLIENT_ID_ENV_VAR)
-            .ok()
-            .filter(|value| !value.is_empty());
-        let client_configured = client_id.is_some();
-        let config = GitHubProviderConfig {
-            client_id: client_id.unwrap_or_default(),
+        // Decision 0062: no environment variable is a normal RepoPact
+        // product-configuration path anymore. Official builds bake the
+        // registration in at build time; a debug build without one is
+        // honestly "not configured" (see `GitHubAppRegistration::load`).
+        let registration = GitHubAppRegistration::load();
+        let client_configured = registration.is_some();
+        let config = match registration {
+            Some(registration) => GitHubProviderConfig {
+                client_id: registration.client_id,
+                public_client_secret: registration.public_client_secret,
+                app_slug: Some(registration.app_slug),
+            },
+            None => GitHubProviderConfig {
+                client_id: String::new(),
+                public_client_secret: String::new(),
+                app_slug: None,
+            },
         };
         let transport = Arc::new(ReqwestTransport::new().map_err(|error| {
             RemoteProviderError::new(ErrorCode::NetworkUnavailable, error.message)
@@ -163,7 +165,7 @@ impl RemoteProviderService {
         } else {
             Err(RemoteProviderError::new(
                 ErrorCode::ProviderNotConfigured,
-                "no GitHub App client ID is configured; see docs/guides/github-app-setup.md",
+                "GitHub integration is not configured in this development build",
             ))
         }
     }
@@ -200,56 +202,39 @@ pub struct ProviderCapabilitiesDto {
     pub supports_organizations: bool,
 }
 
+/// Decision 0062: mirrors `repopact_remote_provider::auth::AuthState`'s
+/// browser-redirect-PKCE shape. There is no `AwaitingUser{user_code,...}`
+/// variant anymore -- the Workbench never shows a device/user code, since
+/// the whole authorization happens via the system browser.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ConnectionStatusDto {
     Disconnected,
-    AwaitingUser {
-        user_code: String,
-        verification_uri: String,
-        expires_at: String,
-    },
-    Connected {
-        login: String,
-    },
+    StartingBrowserAuthorization,
+    WaitingForCallback { expires_at: String },
+    ExchangingCode,
+    Connected { login: String },
     Cancelled,
-    Failed {
-        code: ErrorCode,
-    },
+    Expired,
+    Failed { code: ErrorCode },
 }
 
 impl From<AuthState> for ConnectionStatusDto {
     fn from(state: AuthState) -> Self {
         match state {
             AuthState::Disconnected => ConnectionStatusDto::Disconnected,
-            AuthState::RequestingAuthorization => ConnectionStatusDto::AwaitingUser {
-                user_code: String::new(),
-                verification_uri: String::new(),
-                expires_at: String::new(),
-            },
-            AuthState::AwaitingUser {
-                user_code,
-                verification_uri,
-                expires_at,
-            } => ConnectionStatusDto::AwaitingUser {
-                user_code,
-                verification_uri,
-                expires_at,
-            },
+            AuthState::StartingBrowserAuthorization => {
+                ConnectionStatusDto::StartingBrowserAuthorization
+            }
+            AuthState::WaitingForCallback { expires_at } => {
+                ConnectionStatusDto::WaitingForCallback { expires_at }
+            }
+            AuthState::ExchangingCode => ConnectionStatusDto::ExchangingCode,
             AuthState::Authorized { account_label } => ConnectionStatusDto::Connected {
                 login: account_label,
             },
-            AuthState::Refreshing => ConnectionStatusDto::AwaitingUser {
-                user_code: String::new(),
-                verification_uri: String::new(),
-                expires_at: String::new(),
-            },
-            AuthState::Expired => ConnectionStatusDto::Failed {
-                code: ErrorCode::AuthorizationExpired,
-            },
-            AuthState::Revoked => ConnectionStatusDto::Failed {
-                code: ErrorCode::AuthorizationDenied,
-            },
+            AuthState::Refreshing => ConnectionStatusDto::ExchangingCode,
+            AuthState::Expired => ConnectionStatusDto::Expired,
             AuthState::Cancelled => ConnectionStatusDto::Cancelled,
             AuthState::Failed { code } => ConnectionStatusDto::Failed { code },
         }
@@ -401,12 +386,53 @@ pub fn remote_provider_capabilities(
     }
 }
 
+/// Decision 0062: "Connect GitHub" is one native, typed operation --
+/// generate the authorization session (state + PKCE + loopback listener),
+/// build the trusted GitHub authorization URL, and open the system
+/// browser, all owned by this single command. There is no separate
+/// `remote_open_verification_url`-shaped command anymore: nothing about
+/// the authorization destination (host, redirect URI, client ID, state,
+/// PKCE challenge) is ever supplied by the frontend.
 #[tauri::command]
 pub fn remote_connect_start(
+    app: tauri::AppHandle,
     service: State<'_, Arc<RemoteProviderService>>,
 ) -> Result<ConnectionStatusDto, RemoteProviderError> {
     service.require_client_configured()?;
-    Ok(service.github.begin_authorization()?.into())
+    let start = service.github.start_browser_authorization()?;
+    open_trusted_url(&app, &start.authorization_url)?;
+    Ok(start.state.into())
+}
+
+/// Decision 0062: after authorization, a connected user with no visible
+/// GitHub App installation needs a first-class way to grant repository
+/// access -- this opens GitHub's own installation/configuration page for
+/// RepoPact's app, built entirely from the native app-slug configuration,
+/// never a frontend-supplied URL.
+#[tauri::command]
+pub fn remote_open_installation_page(
+    app: tauri::AppHandle,
+    service: State<'_, Arc<RemoteProviderService>>,
+) -> Result<(), RemoteProviderError> {
+    let url = service.github.installation_url().ok_or_else(|| {
+        RemoteProviderError::new(
+            ErrorCode::ProviderNotConfigured,
+            "no GitHub App is configured in this build",
+        )
+    })?;
+    open_trusted_url(&app, &url)
+}
+
+fn open_trusted_url(app: &tauri::AppHandle, url: &str) -> Result<(), RemoteProviderError> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener()
+        .open_url(url.to_string(), None::<&str>)
+        .map_err(|error| {
+            RemoteProviderError::new(
+                ErrorCode::ProviderProtocolError,
+                format!("failed to open system browser: {error}"),
+            )
+        })
 }
 
 #[tauri::command]
@@ -508,38 +534,6 @@ pub fn remote_resolve_ref(
         provider_ref_id: reference.ref_id,
     };
     Ok(service.github.resolve_ref(&repo, &remote_ref)?.into())
-}
-
-/// WI067 item 18/19: opens the system browser at the trusted GitHub
-/// device-flow verification URL -- never an arbitrary frontend-supplied
-/// URL. Reads the URL from the provider's own current `AwaitingUser`
-/// state (already validated against `redirect_policy::
-/// is_trusted_verification_uri` by `device_flow::start_device_flow` at
-/// the moment it was received), so there is nothing for the frontend to
-/// tamper with even if it tried.
-#[tauri::command]
-pub fn remote_open_verification_url(
-    app: tauri::AppHandle,
-    service: State<'_, Arc<RemoteProviderService>>,
-) -> Result<(), RemoteProviderError> {
-    let AuthState::AwaitingUser {
-        verification_uri, ..
-    } = service.github.connection_status()
-    else {
-        return Err(RemoteProviderError::new(
-            ErrorCode::NotConnected,
-            "no pending GitHub authorization to open a verification URL for",
-        ));
-    };
-    use tauri_plugin_opener::OpenerExt;
-    app.opener()
-        .open_url(verification_uri, None::<&str>)
-        .map_err(|error| {
-            RemoteProviderError::new(
-                ErrorCode::ProviderProtocolError,
-                format!("failed to open system browser: {error}"),
-            )
-        })
 }
 
 #[derive(Debug, Clone, Serialize)]

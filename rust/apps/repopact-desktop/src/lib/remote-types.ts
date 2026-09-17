@@ -26,6 +26,7 @@ export type RemoteErrorCode =
   | "authorization_cancelled"
   | "authorization_expired"
   | "authorization_denied"
+  | "callback_rejected"
   | "credential_unavailable"
   | "credential_expired"
   | "refresh_failed"
@@ -46,11 +47,18 @@ export interface RemoteProviderError {
   detail: string;
 }
 
+// Decision 0062: browser-redirect-with-PKCE shape. There is no
+// "awaiting_user"/user-code/verification-URI state anymore -- the whole
+// authorization happens via the system browser, and the frontend never
+// sees an authorization code, PKCE verifier, or `state` value.
 export type ConnectionStatus =
   | { status: "disconnected" }
-  | { status: "awaiting_user"; user_code: string; verification_uri: string; expires_at: string }
+  | { status: "starting_browser_authorization" }
+  | { status: "waiting_for_callback"; expires_at: string }
+  | { status: "exchanging_code" }
   | { status: "connected"; login: string }
   | { status: "cancelled" }
+  | { status: "expired" }
   | { status: "failed"; code: RemoteErrorCode };
 
 export interface RemoteAccount {

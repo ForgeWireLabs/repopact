@@ -30,11 +30,11 @@ serde.workspace = true
 serde_json.workspace = true
 tauri = { version = "2.11.5", features = [] }
 tauri-plugin-dialog = "2.7.3"
-# WI067 Checkpoint B (item 19): opens the GitHub device-flow verification
-# URL in the user's real system browser, never an embedded WebView --
-# only via the native `remote_open_verification_url` command, which reads
-# and re-validates the URL from RemoteProviderService's own state rather
-# than accepting one from the frontend.
+# Decision 0062: opens the trusted GitHub browser-authorization URL and the
+# GitHub App installation page in the user's real system browser, never an
+# embedded WebView -- both built and opened entirely natively
+# (`remote_connect_start`/`remote_open_installation_page`), never from a
+# frontend-supplied URL.
 tauri-plugin-opener = "2"
 uuid = { version = "1", features = ["v4"] }
 

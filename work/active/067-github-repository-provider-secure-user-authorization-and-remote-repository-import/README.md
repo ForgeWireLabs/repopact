@@ -35,7 +35,7 @@ GitHub is a provider of acquisition material and provenance. It is not a second 
 
 ## Authentication direction
 
-The preferred v1 direction is a **GitHub App** with least-privilege user authorization rather than a classic broad OAuth App. Implementation must verify the current GitHub-native-client flow before landing, but it must not ship a reusable GitHub App private key or pretend an embedded client secret is confidential. The native-client flow must remain usable without requiring a ForgeWire Labs hosted authentication broker solely for repository import.
+The v1 direction is a **GitHub App** with least-privilege user authorization rather than a classic broad OAuth App. Interactive authorization uses the browser-redirect authorization-code flow with PKCE (Decision 0062, superseding Decision 0061's original device-flow selection) -- never a reusable GitHub App private key, and the GitHub-named client secret is treated as packaged public application configuration, not confidential material. The native-client flow remains usable without requiring a ForgeWire Labs hosted authentication broker solely for repository import.
 
 For v1 snapshot import, request only the permissions actually needed to enumerate authorized repositories/refs and read repository contents/archive material. Do not request remote write/push permission merely because future embedded Git may need it.
 
@@ -293,6 +293,54 @@ GitHub integration is optional. Existing repositories and users who never connec
   (both the operator gate and the Android GitHubProvider wiring remain
   outstanding); GH-005/GH-015 unchanged.
 
+- **Checkpoint F -- Browser-Redirect PKCE Authorization Revision -- done.**
+  See `evidence/runs/20260916-067-browser-pkce-auth-revision.json` and
+  Decision [`0062`](../../../decisions/0062-browser-redirect-pkce-authorization-replaces-device-flow.md),
+  which supersedes only Decision 0061's interactive-authorization-flow
+  section. Before registering the production GitHub App, the operator
+  determined that the GitHub App device flow Checkpoints A-E built and
+  proved -- copy a user code, open a browser, paste the code -- was not
+  the intended installed-product Workbench UX. This checkpoint replaces
+  it with a one-click "Connect GitHub" browser-redirect-with-PKCE flow on
+  every platform, without touching repository listing, ref resolution, or
+  snapshot download/materialization. Landed: RFC 7636 PKCE
+  (`repopact-remote-provider::pkce`, CSPRNG verifier/state, `S256`
+  challenge, verified against the RFC's own test vector); a revised
+  `AuthState` (`StartingBrowserAuthorization`/`WaitingForCallback`/
+  `ExchangingCode` replacing the device-flow-shaped `AwaitingUser`/
+  `Revoked`); `repopact-provider-github::browser_flow` (authorization-URL
+  construction, code-for-token exchange, refresh -- now correctly
+  including GitHub's required `client_secret` field, since these tokens
+  are no longer device-flow-issued); a one-shot native loopback callback
+  listener (`repopact-provider-github::callback`, `127.0.0.1`-only,
+  bounded request size, exact-path/single-terminal-callback semantics,
+  proven against real local sockets) with 14 executable negative tests
+  covering every attack Decision 0062 specifies (wrong/missing/replayed
+  state, missing code, GitHub error callback, oversized request, wrong
+  path, cancellation, retry-never-reuses-a-session, a second callback on
+  an already-consumed session); `GitHubProvider::start_browser_authorization`
+  orchestrating session generation, listener bind, URL construction, and
+  a background worker that performs state validation, token exchange, and
+  identity fetch, with a monotonic session generation counter so a
+  superseded session's late-arriving result can never clobber a newer
+  one; device flow itself (`device_flow.rs`) retained as a tested but
+  unwired protocol library, per Decision 0062's explicit disposition; a
+  typed `GitHubAppRegistration` (build-time `option_env!` values, with a
+  `#[cfg(debug_assertions)]`-only developer environment-variable
+  fallback) replacing the `REPOPACT_GITHUB_CLIENT_ID` production
+  environment variable entirely; `remote_connect_start` now opens the
+  system browser itself as one native operation (the separate
+  `remote_open_verification_url` command is removed) and a new
+  `remote_open_installation_page` command opens the GitHub App
+  installation page from native `app_slug` configuration; and a rewritten
+  `docs/guides/github-app-setup.md` describing the browser-redirect
+  registration contract (Device Flow OFF, two callback URLs, no private
+  key). GH-003 is re-satisfied with this checkpoint's evidence after being
+  temporarily treated as pending refreshed evidence during implementation;
+  no other acceptance criterion's state changed. GH-005/GH-012/GH-015
+  remain pending, unchanged, on the operator registering the real GitHub
+  App using this checkpoint's exact registration contract.
+
 ## Status
 
-Active. Remaining work is entirely gated on an operator registering a real GitHub App (GH-005, GH-012, GH-015's remaining sections) and on wiring GitHubProvider's connection command surface to actually run on Android (GH-012's remaining half -- the Android protected credential store it depends on is now implemented and proven). No further RepoPact-side implementation work is pending for the currently-scoped desktop/public-repository snapshot-import feature.
+Active. Remaining work is entirely gated on an operator registering a real GitHub App using the registration contract in `docs/guides/github-app-setup.md` (GH-005, GH-012, GH-015's remaining sections) and on wiring GitHubProvider's browser-redirect connection command surface to actually run on Android (GH-012's remaining half -- the Android protected credential store it depends on is already implemented and proven, and Decision 0062 records the Android callback-transport disposition to use once that wiring happens). No further RepoPact-side implementation work is pending for the currently-scoped desktop/public-repository snapshot-import feature. WI067 is not closed by this checkpoint.

@@ -125,14 +125,16 @@ credential facility for the running platform:
 
 ## Operator gate: GitHub App registration
 
-No GitHub App has been registered as of this checkpoint. Live device-flow
-authorization, private-repository browsing, and organization-installation
-browsing are all blocked on an operator completing the registration steps
-in `docs/guides/github-app-setup.md` and setting the
-`REPOPACT_GITHUB_CLIENT_ID` environment variable. Public-repository
-snapshot import (ref resolution and archive download) requires no
-authentication at all and has been proven live against
-`octocat/Hello-World`.
+No GitHub App has been registered as of this checkpoint. Live browser-
+redirect-with-PKCE authorization (Decision 0062 -- interactive
+authorization is no longer device flow), private-repository browsing, and
+organization-installation browsing are all blocked on an operator
+completing the registration steps in `docs/guides/github-app-setup.md` and
+RepoPact's release configuration compiling in the resulting client ID,
+public client secret, and app slug (`GitHubAppRegistration`, never an
+end-user-set environment variable). Public-repository snapshot import (ref
+resolution and archive download) requires no authentication at all and has
+been proven live against `octocat/Hello-World`.
 
 ## What is still pending
 

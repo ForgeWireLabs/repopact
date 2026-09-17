@@ -20,6 +20,12 @@ pub enum ErrorCode {
     AuthorizationCancelled,
     AuthorizationExpired,
     AuthorizationDenied,
+    /// Decision 0062: the native loopback/deep-link callback either never
+    /// arrived (listener timeout) or arrived with a missing/wrong/replayed/
+    /// duplicate `state`, a missing authorization `code`, an oversized
+    /// request, or the wrong callback path. Always fail-closed: no token
+    /// exchange is attempted and no credential is stored.
+    CallbackRejected,
     CredentialUnavailable,
     CredentialExpired,
     RefreshFailed,

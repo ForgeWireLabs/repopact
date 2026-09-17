@@ -1,0 +1,185 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260916-067-browser-pkce-auth-revision",
+  "timestamp": "2026-09-16T23:10:00Z",
+  "work_item": "067",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git fetch origin && git pull --ff-only origin main && git rev-parse HEAD",
+      "exit_code": 0,
+      "summary": "Synchronized at 1d43907e231b1b95d06a2c5d3ec41a6278e88091 -- a clean fast-forward from the prior local HEAD (bc34fd2), pulling in one further commit that confirmed WI050's deferral (work/active -> work/deferred rename, macOS proof-deferred evidence). No force push, no destructive reset, no history rewrite. Concurrent WI050/WI066/WI068 state preserved untouched."
+    },
+    {
+      "command": "Re-read work-item.json, README.md, architecture-review.md for WI067; Decision 0061; docs/guides/github-app-setup.md; all five Checkpoint A-E evidence records",
+      "exit_code": 0,
+      "summary": "Confirmed the exact satisfied/pending accounting the prompt described (GH-001/002/004/006/007/008/009/010/011/013/014 satisfied; GH-003 satisfied under the device-flow decision; GH-005/012/015 pending) and that no GitHub App has been registered yet, so this checkpoint cannot itself resolve GH-005/012/015."
+    },
+    {
+      "command": "Current-GitHub-documentation research (2026-09-16): GitHub App user-authorization web/OAuth flow with PKCE, the token-exchange client_secret requirement, refresh-token client_secret requirement outside device flow, device-flow constrained/headless guidance and phishing caution",
+      "exit_code": 0,
+      "summary": "Confirmed a public/native client cannot keep any embedded value confidential; GitHub's web-flow token exchange requires client_secret regardless of PKCE; GitHub genuinely supports code_challenge/code_challenge_method=S256/code_verifier on the authorize and token-exchange steps; device flow is documented as intended for constrained/headless clients and carries a user-code-phishing/remote-impersonation risk when enabled without that justification. This is the evidentiary basis for Decision 0062."
+    },
+    {
+      "command": "New decisions/0062-browser-redirect-pkce-authorization-replaces-device-flow.md (status: accepted, supersedes: []); appended a partial-supersession note to decisions/0061-....md's own text (original text unedited, historical Checkpoint A record untouched)",
+      "exit_code": 0,
+      "summary": "Decision 0062 supersedes only Decision 0061's 'v1 native authorization flow: GitHub App device flow' section and the client-secret/private-key disposition text that followed from it. Decision 0061 remains authoritative and its status stays 'accepted' (not 'superseded') for provider-neutral architecture, GitHub App choice, least privilege, credential ownership, RemoteSnapshot vs RemoteGit, and the Stage-2 boundary -- flipping its status to superseded would have falsely implied full replacement, which repopact_validate_repo's supersedes-target-exists check does not itself require or forbid either way."
+    },
+    {
+      "command": "New rust/crates/repopact-remote-provider/src/pkce.rs: CodeVerifier (32 CSPRNG bytes, base64url, S256 challenge) and AuthorizationState (32 CSPRNG bytes, constant-time match)",
+      "exit_code": 0,
+      "summary": "8 unit tests including a verified RFC 7636 Appendix B worked test vector for the S256 challenge computation. Neither type implements Serialize/Deserialize; CodeVerifier wraps the existing Secret type (never Debug-visible)."
+    },
+    {
+      "command": "Revised rust/crates/repopact-remote-provider/src/auth.rs AuthState enum: Disconnected/StartingBrowserAuthorization/WaitingForCallback/ExchangingCode/Authorized/Refreshing/Cancelled/Expired/Failed, replacing RequestingAuthorization/AwaitingUser{user_code,verification_uri,expires_at}/Revoked",
+      "exit_code": 0,
+      "summary": "repopact-remote-provider::fake::FakeProvider required no change (it never constructed the removed variants). New error::ErrorCode::CallbackRejected added for state/code/path validation failures distinct from AuthorizationDenied (a genuine GitHub-reported denial)."
+    },
+    {
+      "command": "New rust/crates/repopact-provider-github/src/browser_flow.rs: build_authorization_url, exchange_code_for_token, refresh_access_token (now including client_secret, since tokens are no longer device-flow-issued)",
+      "exit_code": 0,
+      "summary": "7 unit tests: authorization URL contains client_id/redirect_uri/state/code_challenge/code_challenge_method=S256 and never client_secret/code_verifier/an access or refresh token; exchange sends the documented form fields; bad_verification_code/access_denied map to distinct typed error codes; refresh legitimately includes client_secret."
+    },
+    {
+      "command": "New rust/crates/repopact-provider-github/src/callback.rs: CallbackListener, a one-shot loopback listener bound to 127.0.0.1:<ephemeral-port> only",
+      "exit_code": 0,
+      "summary": "10 unit tests against real local sockets: a real callback request is received and answered with the success page; a wrong-path request (e.g. favicon.ico) is answered 404 but does not terminate the wait; cancellation stops the wait; a timeout with no request reports TimedOut; an oversized request line is rejected and non-terminal; binds only to 127.0.0.1 (asserted via local_addr().ip().is_loopback()); each listener gets a fresh ephemeral port. The listener never echoes code/state/a token/any GitHub response data into its HTML page."
+    },
+    {
+      "command": "Rewrote rust/crates/repopact-provider-github/src/provider.rs: GitHubProvider::start_browser_authorization (session generation, listener bind, URL construction, background worker) replacing the device-flow begin_authorization/poll_authorization implementation; GitHubProviderConfig gains public_client_secret and app_slug fields",
+      "exit_code": 0,
+      "summary": "A monotonic session generation counter, checked by the background worker before committing any result, ensures a superseded (retried/cancelled) session's late-arriving callback or exchange result can never overwrite a newer session's state -- proven by retrying_never_reuses_the_previous_sessions_state_or_verifier and cancel_stops_the_session_and_a_later_callback_is_ignored. GitHubProviderConfig's Debug impl prints only whether the secret is configured, never its value."
+    },
+    {
+      "command": "13 new negative callback-attack tests in provider::tests (real loopback sockets, real GitHubProvider) covering wrong state, missing state, missing code, GitHub error callback (mapped to AuthorizationDenied), cancellation with a later callback ignored, retry-never-reuses-a-session, a second callback on an already-consumed session; plus callback::tests' listener-level oversized-request/wrong-path/timeout coverage",
+      "exit_code": 0,
+      "summary": "Every negative path asserted no credential is stored (credentials.get(&access_token_key()).is_none()) and no token-exchange HTTP request was sent (form.received_requests().is_empty()) -- proving fail-closed behavior at both the credential-store and network-call level, not merely a returned error code."
+    },
+    {
+      "command": "Decision 0062 device-flow disposition: retained rust/crates/repopact-provider-github/src/device_flow.rs unmodified (all its own tests still pass) but removed every call to it from provider.rs; no Tauri command exposes it",
+      "exit_code": 0,
+      "summary": "Chose 'remove unused device-flow product wiring but retain protocol tests/library' over the headless-capability alternative, since no concrete RepoPact headless/CLI use case exists yet to justify standing up a separate capability. A future headless use case would need its own decision to re-enable Device Flow in the GitHub App and wire this module into that specific surface."
+    },
+    {
+      "command": "New rust/apps/repopact-desktop/src-tauri/src/github_app_registration.rs: GitHubAppRegistration::load() (option_env! build-time values, #[cfg(debug_assertions)]-gated developer environment-variable fallback); removed the REPOPACT_GITHUB_CLIENT_ID production environment-variable path from remote_provider.rs entirely",
+      "exit_code": 0,
+      "summary": "An official release build with the three REPOPACT_GITHUB_APP_* build-time variables unset compiles a binary that reports ProviderNotConfigured with the message 'GitHub integration is not configured in this development build' -- never an instruction to open a terminal. The developer-only REPOPACT_DEV_GITHUB_APP_* environment-variable path is compiled out of release builds via #[cfg(debug_assertions)] and is documented in github-app-setup.md as explicitly not normal product setup."
+    },
+    {
+      "command": "Revised rust/apps/repopact-desktop/src-tauri/src/remote_provider.rs: remote_connect_start now generates the session and opens the system browser in one native command; removed remote_open_verification_url; added remote_open_installation_page (opens https://github.com/apps/<app_slug>/installations/new from native config only); revised ConnectionStatusDto to the new AuthState shape",
+      "exit_code": 0,
+      "summary": "permissions/workbench.toml and the tauri::generate_handler! list both updated to swap remote_open_verification_url for remote_open_installation_page; the generated gen/schemas/acl-manifests.json (produced by tauri-build during cargo check) reflects the new command exactly, confirmed by direct inspection after a clean build."
+    },
+    {
+      "command": "Updated rust/apps/repopact-desktop/src/lib/remote-types.ts, lib/remote-api.ts, RemoteRepositoryPanel.tsx: ConnectionStatus union revised to starting_browser_authorization/waiting_for_callback/exchanging_code/expired (removing awaiting_user/user_code/verification_uri); remoteApi.openVerificationUrl replaced with remoteApi.openInstallationPage",
+      "exit_code": 0,
+      "summary": "The UI no longer displays or asks the user to copy any code; 'Connect GitHub' triggers connectStart directly, which the native backend uses to open the system browser itself. remote-frontend-boundary.test.ts (proving no arbitrary url/headers/destination ever crosses the frontend boundary and every invoked command is a narrow typed remote_* command) required no change and still passes against the revised source."
+    },
+    {
+      "command": "cargo clean (disk-space recovery: target/ had grown to 67.9GB against 2.1GB free) then cargo fmt --check ; cargo fmt ; cargo check --workspace ; cargo check --workspace --all-targets ; cargo test --workspace",
+      "exit_code": 0,
+      "summary": "Whole workspace compiles clean (fmt applied one pass to the four new/changed files, then verified clean). Full workspace test run: 0 failures across every crate, including repopact-provider-github (94 tests: 87 passed, 7 explicitly #[ignore]d live-network tests unaffected) and repopact-remote-provider (30 tests: 27 passed, 3 pre-existing #[ignore]d Windows-cross-process credential tests unaffected) plus repopact-remote-provider's own provider_neutrality.rs (2 passed, unchanged -- the fake/non-GitHub provider fixture still proves zero GitHub-specific branching in the kernel)."
+    },
+    {
+      "command": "cd rust/apps/repopact-desktop && npx tsc --noEmit && npx vitest run && npm run build",
+      "exit_code": 0,
+      "summary": "Typecheck clean. Vitest: 7 files / 31 tests passed (unchanged count from before this checkpoint -- no new frontend test file was needed since the authorization-flow logic and its negative-path coverage all live natively). Production build (tsc --noEmit && vite build) succeeded, 289.24 kB bundle, unchanged in shape from before this checkpoint."
+    },
+    {
+      "command": "Rewrote docs/guides/github-app-setup.md (Device Flow OFF, two callback URLs, web/OAuth flow enabled, no private key, the client-secret-is-not-a-trust-boundary explanation, the exact three build-time values an operator supplies back); updated docs/guides/github-snapshot-import.md's operator-gate section to reference the new registration mechanism instead of REPOPACT_GITHUB_CLIENT_ID",
+      "exit_code": 0,
+      "summary": "The guide no longer instructs an operator to enable Device Flow or an end user to enter a client ID/secret anywhere. Desktop callback URL: http://127.0.0.1/repopact/github/callback (loopback base; the runtime redirect_uri sent per-attempt carries the real ephemeral port). Android callback URL: repopact://oauth/github (GitHub's documented non-HTTP redirect-URI support), with a recorded loopback fallback disposition if that registration does not hold up in practice -- not yet exercised live since Android GitHub-connection wiring itself remains a separate, tracked integration step (GH-012)."
+    },
+    {
+      "command": "Updated work/active/067-.../work-item.json (GH-003 evidence array gains this record; added a 'notes' field documenting the revision) and README.md (new Checkpoint F entry; Authentication direction section updated to describe the current flow); repopact validate --root . ; repopact dashboard --root .",
+      "exit_code": 0,
+      "summary": "GH-003 is re-satisfied with this checkpoint's evidence after being treated as pending refreshed evidence during implementation, per the operator's explicit instruction; every other acceptance criterion's state is unchanged from the pre-checkpoint baseline (GH-005/GH-012/GH-015 remain pending). validate and dashboard both pass/regenerate clean against the final tree."
+    }
+  ],
+  "artifacts": [
+    "decisions/0062-browser-redirect-pkce-authorization-replaces-device-flow.md",
+    "decisions/0061-remote-repository-providers-materialize-immutable-snapshots-through-native-owned-authorization-and-the-existing-workspace-pipeline.md",
+    "rust/crates/repopact-remote-provider/src/pkce.rs",
+    "rust/crates/repopact-remote-provider/src/auth.rs",
+    "rust/crates/repopact-remote-provider/src/error.rs",
+    "rust/crates/repopact-provider-github/src/browser_flow.rs",
+    "rust/crates/repopact-provider-github/src/callback.rs",
+    "rust/crates/repopact-provider-github/src/provider.rs",
+    "rust/crates/repopact-provider-github/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/github_app_registration.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/remote_provider.rs",
+    "rust/apps/repopact-desktop/src-tauri/src/lib.rs",
+    "rust/apps/repopact-desktop/src-tauri/permissions/workbench.toml",
+    "rust/apps/repopact-desktop/src/lib/remote-types.ts",
+    "rust/apps/repopact-desktop/src/lib/remote-api.ts",
+    "rust/apps/repopact-desktop/src/RemoteRepositoryPanel.tsx",
+    "docs/guides/github-app-setup.md",
+    "docs/guides/github-snapshot-import.md",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/work-item.json",
+    "work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/README.md"
+  ],
+  "environment": {
+    "os": "Windows 10 Pro (10.0.19045)",
+    "rustc": "stable-x86_64-pc-windows-msvc",
+    "node": "as configured in rust/apps/repopact-desktop/package.json",
+    "synchronized_starting_sha": "1d43907e231b1b95d06a2c5d3ec41a6278e88091"
+  },
+  "public_client_secret_threat_model": {
+    "claim": "client_id and the GitHub-named client_secret are both public application protocol configuration in this native-client architecture, not security authority",
+    "meaningful_protections": [
+      "PKCE S256 (code_challenge/code_verifier)",
+      "cryptographically random, single-use, constant-time-compared state",
+      "strict callback path/host ownership (127.0.0.1-only loopback; exact deep-link scheme/host/path on Android)",
+      "short-lived authorization session (10-minute listener timeout)",
+      "OS-protected token storage for the values that are actually secret (the user's own access/refresh tokens)",
+      "GitHub installation/repository permission scoping"
+    ],
+    "never_used_for": [
+      "authenticating a genuine RepoPact binary",
+      "gating any ForgeWire Labs service",
+      "CredentialStore-backed storage or any claim of confidentiality"
+    ]
+  },
+  "gh003_reevaluation": {
+    "previously_satisfied_under": "the GitHub App device flow (Decision 0061, evidence 20260915-067-checkpoint-a-provider-auth-architecture, left unedited)",
+    "temporarily_treated_as": "pending refreshed evidence, for the duration of this checkpoint's implementation, per explicit operator instruction",
+    "re_satisfied_with": "this record, once the browser-redirect-PKCE architecture and its 23 executable negative/positive authorization tests (13 in provider::tests, 10 in callback::tests) were complete and passing"
+  },
+  "ac_dispositions": {
+    "GH-001": "satisfied",
+    "GH-002": "satisfied",
+    "GH-003": "satisfied",
+    "GH-004": "satisfied",
+    "GH-005": "pending",
+    "GH-006": "satisfied",
+    "GH-007": "satisfied",
+    "GH-008": "satisfied",
+    "GH-009": "satisfied",
+    "GH-010": "satisfied",
+    "GH-011": "satisfied",
+    "GH-012": "pending",
+    "GH-013": "satisfied",
+    "GH-014": "satisfied",
+    "GH-015": "pending"
+  },
+  "github_app_registration_contract": {
+    "callback_urls": [
+      "http://127.0.0.1/repopact/github/callback",
+      "repopact://oauth/github"
+    ],
+    "request_oauth_during_install": false,
+    "setup_url_required": false,
+    "device_flow": "off",
+    "web_oauth_flow": "enabled",
+    "repository_permissions": {"contents": "read", "metadata": "read"},
+    "account_permissions": "none",
+    "webhooks": "off",
+    "installation_scope": "operator choice: any account, or a single account for internal/early-development use -- does not change RepoPact code",
+    "token_expiration": "on",
+    "private_key": "do not generate",
+    "values_returned_to_repopact": ["client_id", "client_secret (public application metadata, not confidential)", "app_slug"],
+    "values_never_requested": ["private_key", "app_jwt", "webhook_secret", "installation_token"]
+  },
+  "no_secrets_confirmation": "No client ID, client secret, access token, refresh token, authorization code, or PKCE verifier value appears anywhere in this evidence record, the decision records, or the checkpoint's commit history; the GitHub App has not yet been registered, so no real values exist to leak."
+}

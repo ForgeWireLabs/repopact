@@ -1,14 +1,15 @@
-// WI067 Checkpoint B (item 35/36) / Checkpoint C (Phase 18): the first-
-// class GitHub entry point in the repository acquisition UX, alongside
-// local-folder/archive/mobile acquisition. "Connect GitHub" / connection
-// state / device code / Cancel / connected account / Disconnect /
-// account+repository+ref browsing / a resolved-SHA display / a real
-// "Import Snapshot" action with typed progress and cancel. Every label
-// says "Snapshot"/"Import snapshot"/"Resolved commit"/"Imported", never
-// "Clone"/"Pull"/"Push"/"Sync"/"Synced" (item 37 -- true Git is WI068, not
-// this) -- and after a successful import the UI states plainly that the
-// workspace is local/offline and that local edits never write back to
-// GitHub.
+// WI067 Checkpoint B (item 35/36) / Checkpoint C (Phase 18) / Decision 0062
+// (browser-redirect PKCE revision): the first-class GitHub entry point in
+// the repository acquisition UX, alongside local-folder/archive/mobile
+// acquisition. "Connect GitHub" opens the system browser directly (there is
+// no device/user code to display or copy) / Cancel / connected account /
+// Disconnect / account+repository+ref browsing / a resolved-SHA display /
+// a real "Import Snapshot" action with typed progress and cancel. Every
+// label says "Snapshot"/"Import snapshot"/"Resolved commit"/"Imported",
+// never "Clone"/"Pull"/"Push"/"Sync"/"Synced" (item 37 -- true Git is
+// WI068, not this) -- and after a successful import the UI states plainly
+// that the workspace is local/offline and that local edits never write
+// back to GitHub.
 import { useEffect, useState } from "react";
 import { remoteApi } from "./lib/remote-api";
 import type {
@@ -61,10 +62,14 @@ export function RemoteRepositoryPanel() {
       .catch(() => {});
   }, []);
 
-  // Native polling drives the device-flow status; this effect only
-  // decides *how often to ask*, never the server-side interval (item 20).
+  // Native polling drives the browser-authorization status; this effect
+  // only decides *how often to ask*, never the server-side session timing.
   useEffect(() => {
-    if (status.status !== "awaiting_user") return;
+    const isInFlight =
+      status.status === "starting_browser_authorization" ||
+      status.status === "waiting_for_callback" ||
+      status.status === "exchanging_code";
+    if (!isInFlight) return;
     const timer = setInterval(async () => {
       try {
         const next = await remoteApi.connectStatus();
@@ -224,34 +229,37 @@ export function RemoteRepositoryPanel() {
         </button>
       )}
       {!capabilities.configured && status.status === "disconnected" && (
-        <p className="hint-text">
-          No GitHub App is configured yet. An operator must register one (see docs/guides/github-app-setup.md)
-          and set REPOPACT_GITHUB_CLIENT_ID before Connect GitHub can start.
-        </p>
+        <p className="hint-text">GitHub integration is not configured in this development build.</p>
       )}
 
-      {status.status === "awaiting_user" && (
+      {status.status === "starting_browser_authorization" && <p>Opening the GitHub sign-in page&hellip;</p>}
+
+      {status.status === "waiting_for_callback" && (
         <div>
-          <p>
-            Enter code <strong>{status.user_code}</strong> at <code>{status.verification_uri}</code>
-          </p>
-          <button
-            className="secondary-button"
-            onClick={() => remoteApi.openVerificationUrl().catch((openError) => setError(describeError(openError)))}
-          >
-            Open GitHub authorization
-          </button>
+          <p>Continue in your browser to authorize RepoPact with GitHub.</p>
           <button className="secondary-button" onClick={cancelConnect}>
             Cancel
           </button>
         </div>
       )}
 
+      {status.status === "exchanging_code" && <p>Finishing GitHub connection&hellip;</p>}
+
+      {status.status === "expired" && <p className="error-text">The GitHub sign-in session expired. Try again.</p>}
+
       {status.status === "connected" && (
         <div>
           <p>Connected as {status.login}</p>
           <button className="secondary-button" onClick={disconnect}>
             Disconnect
+          </button>
+          <button
+            className="secondary-button"
+            onClick={() =>
+              remoteApi.openInstallationPage().catch((installError) => setError(describeError(installError)))
+            }
+          >
+            Configure repository access on GitHub
           </button>
           {accounts.length === 0 && (
             <button className="secondary-button" onClick={loadAccounts} disabled={busy}>

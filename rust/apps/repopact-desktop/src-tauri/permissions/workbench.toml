@@ -37,7 +37,7 @@ commands.allow = [
   "remote_connect_start",
   "remote_connect_status",
   "remote_connect_cancel",
-  "remote_open_verification_url",
+  "remote_open_installation_page",
   "remote_disconnect",
   "remote_accounts",
   "remote_repositories",

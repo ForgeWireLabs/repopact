@@ -61,6 +61,13 @@ repopact-validation = { path = "crates/repopact-validation" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 sha2 = "0.10"
+# Decision 0062: CSPRNG generation of PKCE code verifiers and OAuth `state`
+# values (repopact-remote-provider::pkce). `OsRng` only -- never a
+# non-cryptographic PRNG for anything that gates authorization.
+rand = "0.10"
+# Decision 0062: RFC 7636 `code_challenge` / OAuth `state` are base64url,
+# unpadded (repopact-remote-provider::pkce).
+base64 = "0.22"
 libc = "0.2"
 # Deterministic TOML metadata extraction (WI063 metadata/operational-
 # topology checkpoint, Decision 0048) -- Cargo.toml/pyproject.toml.

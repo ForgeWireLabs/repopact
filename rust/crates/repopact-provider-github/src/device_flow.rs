@@ -19,10 +19,10 @@ pub const DEVICE_GRANT_TYPE: &str = "urn:ietf:params:oauth:grant-type:device_cod
 pub const REFRESH_GRANT_TYPE: &str = "refresh_token";
 
 /// Internal-only: never derives `Serialize`, never crosses the Tauri
-/// command boundary. The frontend receives only
-/// `repopact_remote_provider::auth::AuthState::AwaitingUser`'s
-/// `user_code`/`verification_uri`/`expires_at` (item 17) -- never
-/// `device_code`.
+/// command boundary. Retained (Decision 0062) as a tested protocol library
+/// only -- no production code constructs this anymore; the Workbench's
+/// production `AuthState` (`repopact_remote_provider::auth::AuthState`) no
+/// longer has a device/user-code-shaped variant at all.
 #[derive(Debug, Clone)]
 pub struct DeviceAuthorization {
     pub device_code: Secret,

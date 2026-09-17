@@ -9,6 +9,8 @@
     feature = "android-debug-validation"
 ))]
 mod android_validation;
+#[cfg(not(target_os = "android"))]
+mod github_app_registration;
 
 // Not `#[cfg(target_os = "android")]`-gated as a whole: `MobileAcquisitionCoordinator`,
 // its DTOs, and the id-only `mobile_workspace_open`/`mobile_operation_*`/
@@ -391,7 +393,7 @@ pub fn run() {
             remote_provider::remote_connect_start,
             remote_provider::remote_connect_status,
             remote_provider::remote_connect_cancel,
-            remote_provider::remote_open_verification_url,
+            remote_provider::remote_open_installation_page,
             remote_provider::remote_disconnect,
             remote_provider::remote_accounts,
             remote_provider::remote_repositories,

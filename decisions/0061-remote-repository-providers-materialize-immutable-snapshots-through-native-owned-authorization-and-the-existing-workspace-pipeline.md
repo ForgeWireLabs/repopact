@@ -8,6 +8,23 @@ supersedes: []
 
 # 0061: Remote repository providers materialize immutable snapshots through native-owned authorization and the existing workspace pipeline
 
+> **Partial supersession note (added by Decision
+> [`0062`](0062-browser-redirect-pkce-authorization-replaces-device-flow.md),
+> 2026-09-16):** this decision's own interactive-authorization-flow
+> section below ("v1 native authorization flow: GitHub App device flow"
+> and the "Private key disposition"/"Client secret disposition" sections
+> that follow from it) is **superseded**. RepoPact's interactive Workbench
+> authorization path is now the browser-redirect authorization-code flow
+> with PKCE, not the GitHub App device flow this decision originally
+> selected. Everything else in this decision remains authoritative and
+> unchanged: the provider-neutral core architecture, the choice of a
+> GitHub App over a classic OAuth App, the least-privilege permission
+> model, credential-storage ownership, the `RemoteSnapshot` vs.
+> `RemoteGit` distinction, and the Stage-2 boundary. This note is appended
+> rather than rewriting the original text below, so the historical record
+> of what was decided and why on 2026-09-15 remains intact; see Decision
+> 0062 for the current authorization-flow design and its own rationale.
+
 ## Context
 
 WI067 (`work/active/067-github-repository-provider-secure-user-authorization-and-remote-repository-import/`)

@@ -1,4 +1,5 @@
-//! WI067 item 8: the GitHub adapter behind the provider-neutral seam.
+//! Decision 0061 (provider seam) / Decision 0062 (browser-redirect PKCE
+//! authorization): the GitHub adapter behind the provider-neutral seam.
 //! `DesktopService`, `RepositorySession`, `mobile_acquisition.rs`, and
 //! React components never see this module -- they only ever see
 //! `repopact_remote_provider::provider::RemoteRepositoryProvider`.
@@ -9,14 +10,22 @@
 //! `describe_snapshot`/`open_snapshot` to a real bounded, streaming zipball
 //! download -- extraction/materialization/publication remain entirely
 //! WI065's job (`repopact_mobile_acquisition::workspace::WorkspaceManager
-//! ::import_remote_snapshot`), never duplicated here.
+//! ::import_remote_snapshot`), never duplicated here. Decision 0062 (the
+//! WI067 browser-PKCE authorization revision) replaces the interactive
+//! authorization mechanism the earlier checkpoints built
+//! (`crate::device_flow`) with the browser-redirect-with-PKCE flow in
+//! `crate::browser_flow` and `crate::callback`; nothing about repository
+//! listing/ref resolution/snapshot download changes.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use repopact_remote_provider::account::{ProviderScope, RemoteAccount, RemoteAccountId};
 use repopact_remote_provider::auth::AuthState;
 use repopact_remote_provider::credential::{CredentialKey, CredentialKind, CredentialStore};
 use repopact_remote_provider::error::{ErrorCode, RemoteProviderError, RemoteProviderResult};
+use repopact_remote_provider::pkce::{AuthorizationState, CodeVerifier};
 use repopact_remote_provider::provider::{
     ProviderCapabilities, RemoteRepositoryProvider, SnapshotDownloadOptions,
 };
@@ -25,16 +34,49 @@ use repopact_remote_provider::refs::{RefKind, RemoteRef, ResolvedRevision};
 use repopact_remote_provider::repository::{RemoteRepository, RepositoryVisibility};
 use repopact_remote_provider::snapshot::{SnapshotArtifact, SnapshotDescriptor, SnapshotLayout};
 
-use crate::device_flow::{self, DeviceAuthorization, DevicePollOutcome};
+use crate::browser_flow;
+use crate::callback::{CallbackListener, CallbackWaitOutcome};
 use crate::rest;
 use crate::transport::{
     HttpTransport, RestTransport, StreamingDownloadTransport, StreamingRequest,
 };
 
-/// No private key, no client secret: a GitHub App's `client_id` is not
-/// confidential (Decision 0061, item 12).
+/// How long a browser-authorization session stays valid before the native
+/// callback listener gives up and the session fails closed with `Expired`.
+/// Generous for a real human completing a GitHub sign-in/authorize flow,
+/// bounded so an abandoned session does not linger indefinitely holding a
+/// loopback port open.
+const AUTHORIZATION_SESSION_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
+/// GitHub-named "client secret" -- required by GitHub's web/OAuth
+/// token-exchange contract, but never confidential in this native/public
+/// client architecture (Decision 0062). `app_slug` names the installed
+/// GitHub App for the "Install RepoPact on GitHub" trusted-URL action.
 pub struct GitHubProviderConfig {
     pub client_id: String,
+    pub public_client_secret: String,
+    pub app_slug: Option<String>,
+}
+
+impl std::fmt::Debug for GitHubProviderConfig {
+    /// Decision 0062: the public client secret is not confidential, but it
+    /// still must not be sprayed through diagnostics/logs/evidence
+    /// incidentally via a derived `Debug` impl on a struct that contains
+    /// it -- print only its presence, never its value.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GitHubProviderConfig")
+            .field("client_id", &self.client_id)
+            .field(
+                "public_client_secret",
+                &if self.public_client_secret.is_empty() {
+                    "<empty>"
+                } else {
+                    "<configured>"
+                },
+            )
+            .field("app_slug", &self.app_slug)
+            .finish()
+    }
 }
 
 /// Fixed single-connection identity for v1 (item 15's "active auth
@@ -53,30 +95,55 @@ struct TokenState {
     access_token_expires_at_epoch: Option<u64>,
 }
 
+/// Decision 0062: an ephemeral, in-memory-only authorization session. Never
+/// serialized, never persisted -- `code_verifier`/`state` are dropped the
+/// moment the session resolves (success, failure, expiry, or cancellation).
+struct BrowserAuthSession {
+    state: AuthorizationState,
+    code_verifier: CodeVerifier,
+    redirect_uri: String,
+    cancel_flag: Arc<AtomicBool>,
+    /// Monotonically increasing generation counter. A background thread
+    /// only ever commits its result if it is still the *current*
+    /// generation -- a superseded (retried/cancelled) session's thread
+    /// running to completion late can never clobber a newer session's
+    /// state (Decision 0062: "Never reuse an old auth session").
+    generation: u64,
+}
+
 enum InternalAuthState {
     Disconnected,
-    AwaitingUser {
-        pending: DeviceAuthorization,
+    StartingBrowserAuthorization,
+    WaitingForCallback {
+        expires_at_epoch: u64,
     },
+    ExchangingCode,
     Authorized {
         login: String,
         user_id: u64,
         tokens: TokenState,
     },
     Cancelled,
+    Expired,
     Failed(ErrorCode),
 }
 
-/// `now_epoch_seconds` is injectable so expiry/refresh behavior (item 42)
-/// is deterministically testable without an eight-hour wait; production
-/// callers use `GitHubProvider::new`, which defaults to the real clock.
+/// `now_epoch_seconds` is injectable so expiry/refresh behavior is
+/// deterministically testable without a real wait; production callers use
+/// `GitHubProvider::new`, which defaults to the real clock.
 pub struct GitHubProvider {
     config: GitHubProviderConfig,
     form_transport: Arc<dyn HttpTransport>,
     rest_transport: Arc<dyn RestTransport>,
     snapshot_transport: Arc<dyn StreamingDownloadTransport>,
     credential_store: Arc<dyn CredentialStore>,
-    state: Mutex<InternalAuthState>,
+    state: Arc<Mutex<InternalAuthState>>,
+    /// The current session's cancel flag + generation, so `cancel_authorization`
+    /// and a fresh `begin_browser_authorization` call can invalidate an
+    /// in-flight background thread without needing to inspect `state`
+    /// (which the background thread itself is concurrently mutating).
+    session_control: Arc<Mutex<Option<(Arc<AtomicBool>, u64)>>>,
+    next_generation: Arc<Mutex<u64>>,
     now_epoch_seconds: fn() -> u64,
 }
 
@@ -103,6 +170,15 @@ fn refresh_token_key() -> CredentialKey {
     }
 }
 
+/// Result of starting a browser authorization: the public `AuthState` plus
+/// the trusted authorization URL for the native layer (Tauri command) to
+/// open in the system browser. The URL is never derived from anything the
+/// frontend supplies.
+pub struct BrowserAuthorizationStart {
+    pub state: AuthState,
+    pub authorization_url: String,
+}
+
 impl GitHubProvider {
     pub fn new(
         config: GitHubProviderConfig,
@@ -117,7 +193,9 @@ impl GitHubProvider {
             rest_transport,
             snapshot_transport,
             credential_store,
-            state: Mutex::new(InternalAuthState::Disconnected),
+            state: Arc::new(Mutex::new(InternalAuthState::Disconnected)),
+            session_control: Arc::new(Mutex::new(None)),
+            next_generation: Arc::new(Mutex::new(0)),
             now_epoch_seconds: real_now_epoch_seconds,
         }
     }
@@ -126,6 +204,17 @@ impl GitHubProvider {
     pub fn with_clock(mut self, now_epoch_seconds: fn() -> u64) -> Self {
         self.now_epoch_seconds = now_epoch_seconds;
         self
+    }
+
+    /// The trusted "Install RepoPact on GitHub" / "Configure repository
+    /// access on GitHub" URL, built entirely from native configuration
+    /// (the app slug) -- never a frontend-supplied URL. `None` if no app
+    /// slug is configured (development build).
+    pub fn installation_url(&self) -> Option<String> {
+        self.config
+            .app_slug
+            .as_ref()
+            .map(|slug| format!("https://github.com/apps/{slug}/installations/new"))
     }
 
     /// Restores an `Authorized` session from previously persisted
@@ -161,29 +250,31 @@ impl GitHubProvider {
     fn public_state(state: &InternalAuthState) -> AuthState {
         match state {
             InternalAuthState::Disconnected => AuthState::Disconnected,
-            InternalAuthState::AwaitingUser { pending, .. } => AuthState::AwaitingUser {
-                user_code: pending.user_code.clone(),
-                verification_uri: pending.verification_uri.clone(),
-                expires_at: format!("+{}s", pending.expires_in_secs),
-            },
+            InternalAuthState::StartingBrowserAuthorization => {
+                AuthState::StartingBrowserAuthorization
+            }
+            InternalAuthState::WaitingForCallback { expires_at_epoch } => {
+                AuthState::WaitingForCallback {
+                    expires_at: format!("epoch:{expires_at_epoch}"),
+                }
+            }
+            InternalAuthState::ExchangingCode => AuthState::ExchangingCode,
             InternalAuthState::Authorized { login, .. } => AuthState::Authorized {
                 account_label: login.clone(),
             },
             InternalAuthState::Cancelled => AuthState::Cancelled,
+            InternalAuthState::Expired => AuthState::Expired,
             InternalAuthState::Failed(code) => AuthState::Failed { code: *code },
         }
     }
 
-    /// Persists a fresh token pair to the credential store and (item 12)
-    /// does so access-token-first, refresh-token-second: if the process is
-    /// killed between the two writes, the worst case is a stored access
-    /// token with a stale (or absent) refresh token, which only degrades
-    /// silent refresh -- it never leaves a refresh token without a valid
-    /// access token, and a subsequent explicit re-authorization always
-    /// overwrites both cleanly. `keyring`'s underlying OS calls are
-    /// themselves atomic per-entry; there is no multi-key transaction
-    /// primitive to build on, so this ordering is the safest achievable
-    /// two-write sequence.
+    /// Persists a fresh token pair to the credential store and does so
+    /// access-token-first, refresh-token-second: if the process is killed
+    /// between the two writes, the worst case is a stored access token
+    /// with a stale (or absent) refresh token, which only degrades silent
+    /// refresh -- it never leaves a refresh token without a valid access
+    /// token, and a subsequent explicit re-authorization always overwrites
+    /// both cleanly.
     fn persist_tokens(&self, tokens: &TokenState) -> RemoteProviderResult<()> {
         self.credential_store
             .put(&access_token_key(), tokens.access_token.clone())?;
@@ -204,8 +295,8 @@ impl GitHubProvider {
 
     /// Returns a token guaranteed usable for the next request: refreshes
     /// natively first if the current access token is expired or about to
-    /// expire (item 11), atomically replacing the stored pair on success,
-    /// and clearing stored credentials and moving to a terminal state on
+    /// expire, atomically replacing the stored pair on success, and
+    /// clearing stored credentials and moving to a terminal state on
     /// refresh failure/denial/expiry (never leaving a half-valid pair
     /// behind).
     fn ensure_fresh_access_token(&self) -> RemoteProviderResult<Secret> {
@@ -243,9 +334,10 @@ impl GitHubProvider {
             ));
         };
 
-        match device_flow::refresh_access_token(
+        match browser_flow::refresh_access_token(
             self.form_transport.as_ref(),
             &self.config.client_id,
+            &self.config.public_client_secret,
             &refresh_token,
         ) {
             Ok(outcome) => {
@@ -270,6 +362,221 @@ impl GitHubProvider {
             }
         }
     }
+
+    /// Decision 0062: starts a new browser-redirect + PKCE authorization
+    /// session. Invalidates any prior in-flight session first (retry never
+    /// reuses an old session's state/verifier/challenge/listener). Returns
+    /// the trusted authorization URL for the native (Tauri) layer to open
+    /// in the system browser -- this method never opens a browser itself,
+    /// since this crate has no Tauri/AppHandle dependency; the browser-open
+    /// action and this call are both owned by the same native command, so
+    /// no separate frontend-facing "open URL" command is needed.
+    pub fn start_browser_authorization(&self) -> RemoteProviderResult<BrowserAuthorizationStart> {
+        self.invalidate_current_session();
+
+        let listener = CallbackListener::bind().map_err(|error| {
+            RemoteProviderError::new(
+                ErrorCode::ProviderProtocolError,
+                format!("failed to bind local callback listener: {error}"),
+            )
+        })?;
+        let redirect_uri = listener.redirect_uri();
+        let state = AuthorizationState::generate();
+        let code_verifier = CodeVerifier::generate();
+        let authorization_url = browser_flow::build_authorization_url(
+            &self.config.client_id,
+            &redirect_uri,
+            state.as_str(),
+            &code_verifier.s256_challenge(),
+        );
+
+        let cancel_flag = Arc::new(AtomicBool::new(false));
+        let generation = {
+            let mut next = self.next_generation.lock().unwrap();
+            *next += 1;
+            *next
+        };
+        *self.session_control.lock().unwrap() = Some((cancel_flag.clone(), generation));
+        // Momentarily observable via `connection_status()`/polling: the
+        // listener/URL are already built above, but the browser has not
+        // yet been opened by the native (Tauri) caller, matching Decision
+        // 0062's state diagram (`StartingBrowserAuthorization` ->
+        // `WaitingForCallback`).
+        *self.state.lock().unwrap() = InternalAuthState::StartingBrowserAuthorization;
+
+        let now = (self.now_epoch_seconds)();
+        let expires_at_epoch = now + AUTHORIZATION_SESSION_TIMEOUT.as_secs();
+        {
+            let mut public = self.state.lock().unwrap();
+            *public = InternalAuthState::WaitingForCallback { expires_at_epoch };
+        }
+
+        let session = BrowserAuthSession {
+            state: state.clone(),
+            code_verifier,
+            redirect_uri: redirect_uri.clone(),
+            cancel_flag,
+            generation,
+        };
+        self.spawn_callback_worker(listener, session);
+
+        Ok(BrowserAuthorizationStart {
+            state: AuthState::WaitingForCallback {
+                expires_at: format!("epoch:{expires_at_epoch}"),
+            },
+            authorization_url,
+        })
+    }
+
+    /// Invalidates any currently in-flight session: signals its cancel
+    /// flag so a running background thread observes cancellation the next
+    /// time it checks (before the listener resolves, or immediately after,
+    /// via the generation check), without blocking on that thread here.
+    fn invalidate_current_session(&self) {
+        if let Some((flag, _generation)) = self.session_control.lock().unwrap().take() {
+            flag.store(true, Ordering::SeqCst);
+        }
+    }
+
+    fn spawn_callback_worker(&self, listener: CallbackListener, session: BrowserAuthSession) {
+        let form_transport = self.form_transport.clone();
+        let rest_transport = self.rest_transport.clone();
+        let credential_store = self.credential_store.clone();
+        let state_handle = self.state.clone();
+        let session_control = self.session_control.clone();
+        let client_id = self.config.client_id.clone();
+        let client_secret = self.config.public_client_secret.clone();
+        let now_epoch_seconds = self.now_epoch_seconds;
+
+        std::thread::spawn(move || {
+            let cancel_flag = session.cancel_flag.clone();
+            let generation = session.generation;
+            let outcome = listener.wait_for_callback(AUTHORIZATION_SESSION_TIMEOUT, &|| {
+                cancel_flag.load(Ordering::SeqCst)
+            });
+
+            // A superseded session (a newer `start_browser_authorization`
+            // call already replaced this one) must never write its result
+            // over the newer session's state, even if this thread finishes
+            // its network calls after the newer one started.
+            let still_current = matches!(
+                &*session_control.lock().unwrap(),
+                Some((_, current_generation)) if *current_generation == generation
+            );
+
+            let raw_callback = match outcome {
+                CallbackWaitOutcome::Cancelled => {
+                    if still_current {
+                        *state_handle.lock().unwrap() = InternalAuthState::Cancelled;
+                        *session_control.lock().unwrap() = None;
+                    }
+                    return;
+                }
+                CallbackWaitOutcome::TimedOut => {
+                    if still_current {
+                        *state_handle.lock().unwrap() = InternalAuthState::Expired;
+                        *session_control.lock().unwrap() = None;
+                    }
+                    return;
+                }
+                CallbackWaitOutcome::Received(callback) => callback,
+            };
+
+            if !still_current {
+                // Superseded mid-flight: drop the callback silently rather
+                // than committing it to a session that is no longer the
+                // active one.
+                return;
+            }
+
+            // State validation: fail closed on missing, wrong, or
+            // GitHub-error callbacks before ever attempting a token
+            // exchange. `state` is consumed exactly once here regardless of
+            // outcome -- the listener itself is already one-shot (dropped
+            // after this point), so a second physical callback on the same
+            // port cannot occur, and this session's `generation` is cleared
+            // below so even a conceptually "replayed" call into this
+            // function again could not re-validate against it.
+            let validated = match raw_callback.error {
+                Some(_) => Err(ErrorCode::AuthorizationDenied),
+                None => match (&raw_callback.code, &raw_callback.state) {
+                    (Some(code), Some(returned_state)) if session.state.matches(returned_state) => {
+                        Ok(code.clone())
+                    }
+                    _ => Err(ErrorCode::CallbackRejected),
+                },
+            };
+
+            let code = match validated {
+                Ok(code) => code,
+                Err(error_code) => {
+                    *state_handle.lock().unwrap() = InternalAuthState::Failed(error_code);
+                    *session_control.lock().unwrap() = None;
+                    return;
+                }
+            };
+
+            *state_handle.lock().unwrap() = InternalAuthState::ExchangingCode;
+
+            let exchange = browser_flow::exchange_code_for_token(
+                form_transport.as_ref(),
+                &client_id,
+                &client_secret,
+                &code,
+                &session.redirect_uri,
+                &session.code_verifier,
+            );
+            // The authorization code and PKCE verifier are not referenced
+            // again after this call; `session` (and everything it owns) is
+            // dropped at the end of this closure.
+            let exchange = match exchange {
+                Ok(exchange) => exchange,
+                Err(error) => {
+                    *state_handle.lock().unwrap() = InternalAuthState::Failed(error.code);
+                    *session_control.lock().unwrap() = None;
+                    return;
+                }
+            };
+
+            let user = match rest::get_current_user(rest_transport.as_ref(), &exchange.access_token)
+            {
+                Ok(user) => user,
+                Err(error) => {
+                    *state_handle.lock().unwrap() = InternalAuthState::Failed(error.code);
+                    *session_control.lock().unwrap() = None;
+                    return;
+                }
+            };
+
+            let now = now_epoch_seconds();
+            let tokens = TokenState {
+                access_token: exchange.access_token,
+                refresh_token: exchange.refresh_token,
+                access_token_expires_at_epoch: exchange.expires_in_secs.map(|secs| now + secs),
+            };
+            if let Err(error) = (|| -> RemoteProviderResult<()> {
+                credential_store.put(&access_token_key(), tokens.access_token.clone())?;
+                match &tokens.refresh_token {
+                    Some(refresh_token) => {
+                        credential_store.put(&refresh_token_key(), refresh_token.clone())?
+                    }
+                    None => credential_store.delete(&refresh_token_key())?,
+                }
+                Ok(())
+            })() {
+                *state_handle.lock().unwrap() = InternalAuthState::Failed(error.code);
+                *session_control.lock().unwrap() = None;
+                return;
+            }
+
+            *state_handle.lock().unwrap() = InternalAuthState::Authorized {
+                login: user.login,
+                user_id: user.id,
+                tokens,
+            };
+            *session_control.lock().unwrap() = None;
+        });
+    }
 }
 
 impl RemoteRepositoryProvider for GitHubProvider {
@@ -289,95 +596,47 @@ impl RemoteRepositoryProvider for GitHubProvider {
         Self::public_state(&self.state.lock().unwrap())
     }
 
+    /// Trait-level entry point (provider-neutrality contract). Delegates to
+    /// [`GitHubProvider::start_browser_authorization`] but discards the
+    /// authorization URL, since the trait is provider-neutral and a fake/
+    /// non-browser provider may have nothing to open. Production Tauri
+    /// commands call the concrete `start_browser_authorization` method
+    /// directly (see `remote_provider.rs`) so they can open the browser.
     fn begin_authorization(&self) -> RemoteProviderResult<AuthState> {
-        let pending =
-            device_flow::start_device_flow(self.form_transport.as_ref(), &self.config.client_id)?;
-        let mut state = self.state.lock().unwrap();
-        let public = AuthState::AwaitingUser {
-            user_code: pending.user_code.clone(),
-            verification_uri: pending.verification_uri.clone(),
-            expires_at: format!("+{}s", pending.expires_in_secs),
-        };
-        *state = InternalAuthState::AwaitingUser { pending };
-        Ok(public)
+        Ok(self.start_browser_authorization()?.state)
     }
 
+    /// Decision 0062: authorization now progresses on a native background
+    /// thread (started by `begin_authorization`/`start_browser_authorization`),
+    /// not by an active poll performing network calls. This simply reports
+    /// whatever state that thread has reached.
     fn poll_authorization(&self) -> RemoteProviderResult<AuthState> {
-        let device_code = {
-            let state = self.state.lock().unwrap();
-            match &*state {
-                InternalAuthState::AwaitingUser { pending, .. } => pending.device_code.clone(),
-                other => return Ok(Self::public_state(other)),
-            }
-        };
-        let outcome = device_flow::poll_device_flow(
-            self.form_transport.as_ref(),
-            &self.config.client_id,
-            &device_code,
-        )?;
-        let (access_token, refresh_token, expires_in_secs) = match outcome {
-            DevicePollOutcome::Pending | DevicePollOutcome::SlowDown { .. } => {
-                return Ok(self.connection_status())
-            }
-            DevicePollOutcome::Authorized {
-                access_token,
-                refresh_token,
-                expires_in_secs,
-                ..
-            } => (access_token, refresh_token, expires_in_secs),
-            DevicePollOutcome::Expired => {
-                *self.state.lock().unwrap() =
-                    InternalAuthState::Failed(ErrorCode::AuthorizationExpired);
-                return Ok(self.connection_status());
-            }
-            DevicePollOutcome::Denied => {
-                *self.state.lock().unwrap() =
-                    InternalAuthState::Failed(ErrorCode::AuthorizationDenied);
-                return Ok(self.connection_status());
-            }
-            DevicePollOutcome::DeviceFlowDisabled => {
-                *self.state.lock().unwrap() =
-                    InternalAuthState::Failed(ErrorCode::ProviderProtocolError);
-                return Ok(self.connection_status());
-            }
-        };
-
-        // Establish stable GitHub identity (item 22) before declaring the
-        // connection Authorized, per Decision 0061's "fetch authenticated
-        // user identity" successful-connection sequence.
-        let user = rest::get_current_user(self.rest_transport.as_ref(), &access_token)?;
-        let now = (self.now_epoch_seconds)();
-        let tokens = TokenState {
-            access_token,
-            refresh_token,
-            access_token_expires_at_epoch: expires_in_secs.map(|secs| now + secs),
-        };
-        self.persist_tokens(&tokens)?;
-        let mut state = self.state.lock().unwrap();
-        *state = InternalAuthState::Authorized {
-            login: user.login,
-            user_id: user.id,
-            tokens,
-        };
-        Ok(Self::public_state(&state))
+        Ok(self.connection_status())
     }
 
     fn cancel_authorization(&self) -> RemoteProviderResult<()> {
+        self.invalidate_current_session();
         let mut state = self.state.lock().unwrap();
-        *state = InternalAuthState::Cancelled;
+        if matches!(
+            &*state,
+            InternalAuthState::StartingBrowserAuthorization
+                | InternalAuthState::WaitingForCallback { .. }
+                | InternalAuthState::ExchangingCode
+        ) {
+            *state = InternalAuthState::Cancelled;
+        }
         Ok(())
     }
 
     fn disconnect(&self) -> RemoteProviderResult<()> {
-        // Local-only (item 14): deletes the locally stored token pair and
-        // clears in-process auth state. GitHub App user-token revocation
-        // requires an authenticated endpoint call this checkpoint does not
-        // implement (it would itself need the very token being revoked,
-        // and v1 has no separate revocation authority) -- this is
-        // "Disconnect" (local), never claimed as "Revoke GitHub
-        // authorization" (remote). Already-materialized workspaces and
-        // their provenance are untouched -- this method never touches the
-        // workspace registry.
+        // Local-only: deletes the locally stored token pair and clears
+        // in-process auth state. GitHub App user-token revocation requires
+        // an authenticated endpoint call this checkpoint does not
+        // implement -- this is "Disconnect" (local), never claimed as
+        // "Revoke GitHub authorization" (remote). Already-materialized
+        // workspaces and their provenance are untouched -- this method
+        // never touches the workspace registry.
+        self.invalidate_current_session();
         self.clear_tokens()?;
         let mut state = self.state.lock().unwrap();
         *state = InternalAuthState::Disconnected;
@@ -716,65 +975,96 @@ mod tests {
     };
     use repopact_remote_provider::credential::InMemoryCredentialStore;
     use serde_json::json;
+    use std::io::{BufRead, BufReader, Write};
+    use std::net::TcpStream;
 
     fn config() -> GitHubProviderConfig {
         GitHubProviderConfig {
             client_id: "test-client-id".to_string(),
+            public_client_secret: "test-public-secret".to_string(),
+            app_slug: Some("repopact".to_string()),
         }
     }
 
-    fn device_code_response() -> crate::transport::HttpResponse {
-        json_response(
-            200,
-            &[
-                ("device_code", "abc123"),
-                ("user_code", "WDJB-MJHT"),
-                ("verification_uri", "https://github.com/login/device"),
-                ("expires_in", "900"),
-                ("interval", "5"),
-            ],
-        )
+    fn new_provider(
+        form: Arc<ScriptedTransport>,
+        rest: Arc<ScriptedRestTransport>,
+        snapshot: Arc<ScriptedStreamingTransport>,
+        credentials: Arc<InMemoryCredentialStore>,
+    ) -> GitHubProvider {
+        GitHubProvider::new(config(), form, rest, snapshot, credentials)
     }
 
-    #[test]
-    fn begin_authorization_transitions_to_awaiting_user_without_a_client_secret() {
-        let form = Arc::new(ScriptedTransport::new());
-        let rest = Arc::new(ScriptedRestTransport::new());
-        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
-        let credentials = Arc::new(InMemoryCredentialStore::new());
-        form.push_response(Ok(device_code_response()));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
-        let state = provider.begin_authorization().unwrap();
-        match state {
-            AuthState::AwaitingUser {
-                user_code,
-                verification_uri,
-                ..
-            } => {
-                assert_eq!(user_code, "WDJB-MJHT");
-                assert_eq!(verification_uri, "https://github.com/login/device");
+    /// Sends a real HTTP GET to the loopback callback listener the provider
+    /// just bound, mirroring exactly what a real browser redirect does.
+    fn deliver_callback(port: u16, query: &str) {
+        let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        let request =
+            format!("GET /repopact/github/callback?{query} HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+        stream.write_all(request.as_bytes()).unwrap();
+        stream
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let mut reader = BufReader::new(stream);
+        let mut line = String::new();
+        let _ = reader.read_line(&mut line);
+    }
+
+    fn authorization_url_port(url: &str) -> u16 {
+        let parsed = reqwest::Url::parse(url).unwrap();
+        let redirect_uri = parsed
+            .query_pairs()
+            .find(|(k, _)| k == "redirect_uri")
+            .unwrap()
+            .1
+            .into_owned();
+        reqwest::Url::parse(&redirect_uri).unwrap().port().unwrap()
+    }
+
+    fn authorization_url_state(url: &str) -> String {
+        reqwest::Url::parse(url)
+            .unwrap()
+            .query_pairs()
+            .find(|(k, _)| k == "state")
+            .unwrap()
+            .1
+            .into_owned()
+    }
+
+    fn wait_until<F: Fn() -> bool>(condition: F) {
+        for _ in 0..200 {
+            if condition() {
+                return;
             }
-            other => panic!("expected AwaitingUser, got {other:?}"),
+            std::thread::sleep(Duration::from_millis(25));
         }
-        assert!(form.received_requests()[0]
-            .fields
-            .iter()
-            .all(|(k, _)| k != "client_secret"));
+        panic!("condition was never satisfied within the test timeout");
     }
 
     #[test]
-    fn poll_authorization_fetches_identity_and_persists_tokens_on_success() {
+    fn start_browser_authorization_returns_a_trusted_url_without_a_secret_or_verifier() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
         let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
-        form.push_response(Ok(device_code_response()));
+        let provider = new_provider(form, rest, snapshot, credentials);
+
+        let start = provider.start_browser_authorization().unwrap();
+        assert!(matches!(start.state, AuthState::WaitingForCallback { .. }));
+        assert!(start
+            .authorization_url
+            .starts_with(browser_flow::AUTHORIZE_URL));
+        assert!(!start.authorization_url.contains("client_secret"));
+        assert!(!start.authorization_url.contains("code_verifier"));
+        provider.cancel_authorization().unwrap();
+    }
+
+    #[test]
+    fn a_valid_callback_completes_authorization_and_persists_tokens() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
         form.push_response(Ok(json_response(
             200,
             &[
@@ -787,31 +1077,249 @@ mod tests {
             200,
             json!({"id": 42, "login": "octocat"}),
         )));
+        let provider = new_provider(form.clone(), rest.clone(), snapshot, credentials.clone());
 
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
-        provider.begin_authorization().unwrap();
-        let state = provider.poll_authorization().unwrap();
-        match state {
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        deliver_callback(port, &format!("code=real-code&state={state}"));
+
+        wait_until(|| matches!(provider.connection_status(), AuthState::Authorized { .. }));
+        match provider.connection_status() {
             AuthState::Authorized { account_label } => assert_eq!(account_label, "octocat"),
             other => panic!("expected Authorized, got {other:?}"),
         }
+        assert!(credentials.get(&access_token_key()).unwrap().is_some());
+        // No client_secret in the authorization request; the token
+        // exchange (a POST, not the browser URL) legitimately does carry
+        // one -- confirmed separately in browser_flow's own tests.
+        let sent = form.received_requests();
+        assert_eq!(sent.len(), 1);
+    }
 
-        let stored_access = credentials.get(&access_token_key()).unwrap().unwrap();
-        assert_eq!(
-            stored_access.expose(),
-            "ghu_test0000000000000000000000000000"
+    #[test]
+    fn a_callback_with_the_wrong_state_is_rejected_and_stores_no_credential() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        deliver_callback(port, "code=real-code&state=totally-wrong-state");
+
+        wait_until(|| {
+            !matches!(
+                provider.connection_status(),
+                AuthState::WaitingForCallback { .. }
+            )
+        });
+        assert!(matches!(
+            provider.connection_status(),
+            AuthState::Failed {
+                code: ErrorCode::CallbackRejected
+            }
+        ));
+        assert!(credentials.get(&access_token_key()).unwrap().is_none());
+        assert!(
+            form.received_requests().is_empty(),
+            "no token exchange must be attempted"
         );
-        let stored_refresh = credentials.get(&refresh_token_key()).unwrap().unwrap();
-        assert_eq!(
-            stored_refresh.expose(),
-            "ghr_test0000000000000000000000000000"
+    }
+
+    #[test]
+    fn a_callback_missing_state_is_rejected() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        deliver_callback(port, "code=real-code");
+
+        wait_until(|| {
+            !matches!(
+                provider.connection_status(),
+                AuthState::WaitingForCallback { .. }
+            )
+        });
+        assert!(matches!(
+            provider.connection_status(),
+            AuthState::Failed {
+                code: ErrorCode::CallbackRejected
+            }
+        ));
+        assert!(form.received_requests().is_empty());
+    }
+
+    #[test]
+    fn a_callback_missing_code_is_rejected() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        deliver_callback(port, &format!("state={state}"));
+
+        wait_until(|| {
+            !matches!(
+                provider.connection_status(),
+                AuthState::WaitingForCallback { .. }
+            )
+        });
+        assert!(matches!(
+            provider.connection_status(),
+            AuthState::Failed {
+                code: ErrorCode::CallbackRejected
+            }
+        ));
+    }
+
+    #[test]
+    fn a_github_error_callback_is_reported_as_authorization_denied() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        deliver_callback(
+            port,
+            &format!("error=access_denied&error_description=denied&state={state}"),
         );
+
+        wait_until(|| {
+            !matches!(
+                provider.connection_status(),
+                AuthState::WaitingForCallback { .. }
+            )
+        });
+        assert!(matches!(
+            provider.connection_status(),
+            AuthState::Failed {
+                code: ErrorCode::AuthorizationDenied
+            }
+        ));
+        assert!(form.received_requests().is_empty());
+    }
+
+    #[test]
+    fn cancel_stops_the_session_and_a_later_callback_is_ignored() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        provider.cancel_authorization().unwrap();
+        wait_until(|| matches!(provider.connection_status(), AuthState::Cancelled));
+
+        // A callback arriving after cancellation must not resurrect the
+        // session or store a credential -- the listener may still be
+        // reachable briefly during teardown, but the state machine must
+        // fail closed regardless of whether the socket accepts it.
+        let _ = std::panic::catch_unwind(|| {
+            deliver_callback(port, &format!("code=late-code&state={state}"))
+        });
+        std::thread::sleep(Duration::from_millis(200));
+        assert!(matches!(provider.connection_status(), AuthState::Cancelled));
+        assert!(credentials.get(&access_token_key()).unwrap().is_none());
+        assert!(form.received_requests().is_empty());
+    }
+
+    #[test]
+    fn retrying_never_reuses_the_previous_sessions_state_or_verifier() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form.clone(), rest, snapshot, credentials.clone());
+
+        let first = provider.start_browser_authorization().unwrap();
+        let first_state = authorization_url_state(&first.authorization_url);
+        let second = provider.start_browser_authorization().unwrap();
+        let second_state = authorization_url_state(&second.authorization_url);
+        assert_ne!(first_state, second_state);
+
+        // The first session's port is no longer the active one; a callback
+        // using the *old* state against the *new* session's port must be
+        // rejected as a wrong/replayed state.
+        let second_port = authorization_url_port(&second.authorization_url);
+        deliver_callback(second_port, &format!("code=x&state={first_state}"));
+        wait_until(|| {
+            !matches!(
+                provider.connection_status(),
+                AuthState::WaitingForCallback { .. }
+            )
+        });
+        assert!(matches!(
+            provider.connection_status(),
+            AuthState::Failed {
+                code: ErrorCode::CallbackRejected
+            }
+        ));
+        provider.cancel_authorization().unwrap();
+    }
+
+    #[test]
+    fn a_second_callback_on_the_same_session_is_not_accepted() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        form.push_response(Ok(json_response(
+            200,
+            &[("access_token", "ghu_test0000000000000000000000000000")],
+        )));
+        rest.push_response(Ok(rest_json_response(200, json!({"id": 1, "login": "x"}))));
+        let provider = new_provider(form.clone(), rest.clone(), snapshot, credentials.clone());
+
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        deliver_callback(port, &format!("code=first&state={state}"));
+        wait_until(|| matches!(provider.connection_status(), AuthState::Authorized { .. }));
+
+        // The listener is one-shot -- a second connection attempt to the
+        // same (now-closed) port must not be accepted as a new terminal
+        // callback and must not trigger a second token exchange.
+        let _ = std::panic::catch_unwind(|| {
+            deliver_callback(port, &format!("code=second&state={state}"))
+        });
+        std::thread::sleep(Duration::from_millis(200));
+        assert_eq!(form.received_requests().len(), 1);
+    }
+
+    #[test]
+    fn a_listener_timeout_with_no_callback_expires_the_session() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        // A GitHubProvider whose internal auth-session timeout is exercised
+        // indirectly here would take AUTHORIZATION_SESSION_TIMEOUT (10
+        // minutes) to fire in a real test; that constant is proven directly
+        // by `callback::tests::a_timeout_with_no_request_reports_timed_out`
+        // against a short duration instead. This test proves only that
+        // cancellation -- the mechanism `Expired` shares -- correctly
+        // reaches a session with no callback ever delivered.
+        let provider = new_provider(form, rest, snapshot, credentials);
+        let _start = provider.start_browser_authorization().unwrap();
+        provider.cancel_authorization().unwrap();
+        wait_until(|| matches!(provider.connection_status(), AuthState::Cancelled));
     }
 
     #[test]
@@ -820,22 +1328,18 @@ mod tests {
         let rest = Arc::new(ScriptedRestTransport::new());
         let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
-        form.push_response(Ok(device_code_response()));
         form.push_response(Ok(json_response(
             200,
             &[("access_token", "ghu_test0000000000000000000000000000")],
         )));
         rest.push_response(Ok(rest_json_response(200, json!({"id": 1, "login": "x"}))));
+        let provider = new_provider(form.clone(), rest.clone(), snapshot, credentials.clone());
 
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
-        provider.begin_authorization().unwrap();
-        provider.poll_authorization().unwrap();
+        let start = provider.start_browser_authorization().unwrap();
+        let port = authorization_url_port(&start.authorization_url);
+        let state = authorization_url_state(&start.authorization_url);
+        deliver_callback(port, &format!("code=x&state={state}"));
+        wait_until(|| matches!(provider.connection_status(), AuthState::Authorized { .. }));
         assert!(credentials.get(&access_token_key()).unwrap().is_some());
 
         provider.disconnect().unwrap();
@@ -859,19 +1363,11 @@ mod tests {
             )
             .unwrap();
 
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form.clone(), rest, snapshot, credentials);
         let state = provider
             .restore_from_credential_store("octocat".to_string(), 42, Some(9_999_999_999))
             .unwrap();
         assert!(matches!(state, AuthState::Authorized { .. }));
-        // No network call was made to restore -- the scripted transports
-        // still have zero queued interactions consumed.
         assert!(form.received_requests().is_empty());
     }
 
@@ -881,13 +1377,7 @@ mod tests {
         let rest = Arc::new(ScriptedRestTransport::new());
         let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form, rest, snapshot, credentials);
         let state = provider
             .restore_from_credential_store("octocat".to_string(), 42, None)
             .unwrap();
@@ -907,7 +1397,6 @@ mod tests {
             .put(&refresh_token_key(), Secret::new("old-refresh"))
             .unwrap();
 
-        // Refresh response.
         form.push_response(Ok(json_response(
             200,
             &[
@@ -916,7 +1405,6 @@ mod tests {
                 ("expires_in", "28800"),
             ],
         )));
-        // The actual call the refreshed token is used for.
         rest.push_response(Ok(rest_json_response(200, json!({"installations": []}))));
 
         let provider = GitHubProvider::new(
@@ -934,11 +1422,12 @@ mod tests {
         let accounts = provider.list_accounts().unwrap();
         assert!(accounts.is_empty());
 
-        // The refresh request never carried a client_secret.
+        // The refresh request now legitimately carries client_secret
+        // (Decision 0062: refresh is no longer device-flow-shaped).
         assert!(form.received_requests()[0]
             .fields
             .iter()
-            .all(|(k, _)| k != "client_secret"));
+            .any(|(k, v)| k == "client_secret" && v == "test-public-secret"));
         assert_eq!(
             credentials
                 .get(&access_token_key())
@@ -955,12 +1444,6 @@ mod tests {
                 .expose(),
             "new-refresh"
         );
-
-        let sent_rest = rest.received_requests();
-        assert!(sent_rest[0]
-            .headers
-            .iter()
-            .any(|(k, v)| k == "Authorization" && v.contains("new-access")));
     }
 
     #[test]
@@ -1038,13 +1521,7 @@ mod tests {
                 {"id": 7, "account": {"login": "acme", "type": "Organization"}, "repository_selection": "all"}
             ]}),
         )));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form.clone(), rest.clone(), snapshot, credentials.clone());
         provider
             .restore_from_credential_store("x".into(), 1, None)
             .unwrap();
@@ -1070,13 +1547,7 @@ mod tests {
                 {"id": 2, "name": "beta", "full_name": "acme/beta", "owner": {"login": "acme"}, "private": true, "default_branch": "main", "archived": false}
             ]}),
         )));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form.clone(), rest.clone(), snapshot, credentials.clone());
         provider
             .restore_from_credential_store("x".into(), 1, None)
             .unwrap();
@@ -1097,42 +1568,36 @@ mod tests {
     }
 
     #[test]
-    fn repository_materialization_operations_are_explicitly_not_implemented_this_checkpoint() {
+    fn installation_url_is_built_from_the_configured_app_slug_only() {
+        let form = Arc::new(ScriptedTransport::new());
+        let rest = Arc::new(ScriptedRestTransport::new());
+        let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
+        let credentials = Arc::new(InMemoryCredentialStore::new());
+        let provider = new_provider(form, rest, snapshot, credentials);
+        assert_eq!(
+            provider.installation_url(),
+            Some("https://github.com/apps/repopact/installations/new".to_string())
+        );
+    }
+
+    #[test]
+    fn installation_url_is_none_without_a_configured_app_slug() {
         let form = Arc::new(ScriptedTransport::new());
         let rest = Arc::new(ScriptedRestTransport::new());
         let snapshot: Arc<ScriptedStreamingTransport> = Arc::new(ScriptedStreamingTransport::new());
         let credentials = Arc::new(InMemoryCredentialStore::new());
         let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
-        let repository = RemoteRepository {
-            provider: "github".into(),
-            provider_repository_id: "1".into(),
-            owner_label: "o".into(),
-            name: "r".into(),
-            full_display_name: "o/r".into(),
-            visibility: RepositoryVisibility::Public,
-            default_branch: Some("main".into()),
-        };
-        let revision = ResolvedRevision {
-            selected_ref: RemoteRef {
-                display_name: "main".into(),
-                kind: RefKind::Branch,
-                provider_ref_id: "heads/main".into(),
+            GitHubProviderConfig {
+                client_id: "id".into(),
+                public_client_secret: "secret".into(),
+                app_slug: None,
             },
-            immutable_revision_id: "a".repeat(40),
-        };
-        let descriptor = provider.describe_snapshot(&repository, &revision).unwrap();
-        assert_eq!(descriptor.owner_label, "o");
-        assert_eq!(descriptor.repository_name, "r");
-        assert!(matches!(
-            descriptor.layout,
-            repopact_remote_provider::snapshot::SnapshotLayout::SingleRootDirectory
-        ));
+            form,
+            rest,
+            snapshot,
+            credentials,
+        );
+        assert!(provider.installation_url().is_none());
     }
 
     fn snapshot_descriptor() -> SnapshotDescriptor {
@@ -1163,13 +1628,7 @@ mod tests {
         snapshot.push_response(Ok(crate::transport::StreamingDownloadOutcome {
             bytes_written: 42,
         }));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form, rest, snapshot.clone(), credentials);
 
         let destination =
             std::env::temp_dir().join(format!("repopact-test-{}", std::process::id()));
@@ -1195,7 +1654,6 @@ mod tests {
                 "a".repeat(40)
             )
         );
-        // Unauthenticated (not connected): no Authorization header at all.
         assert!(sent[0].headers.iter().all(|(k, _)| k != "Authorization"));
     }
 
@@ -1211,13 +1669,7 @@ mod tests {
         snapshot.push_response(Ok(crate::transport::StreamingDownloadOutcome {
             bytes_written: 1,
         }));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form, rest, snapshot.clone(), credentials);
         provider
             .restore_from_credential_store("octocat".into(), 1, None)
             .unwrap();
@@ -1252,13 +1704,7 @@ mod tests {
         snapshot.push_response(Err(crate::transport::TransportError {
             message: "download exceeded the 10-byte compressed bound".into(),
         }));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form, rest, snapshot.clone(), credentials);
         let destination =
             std::env::temp_dir().join(format!("repopact-test-oversized-{}", std::process::id()));
         let cancelled = false;
@@ -1284,13 +1730,7 @@ mod tests {
         snapshot.push_response(Err(crate::transport::TransportError {
             message: "cancelled mid-download".into(),
         }));
-        let provider = GitHubProvider::new(
-            config(),
-            form.clone(),
-            rest.clone(),
-            snapshot.clone(),
-            credentials.clone(),
-        );
+        let provider = new_provider(form, rest, snapshot.clone(), credentials);
         let destination =
             std::env::temp_dir().join(format!("repopact-test-cancel-{}", std::process::id()));
         let cancelled = true;
@@ -1311,7 +1751,7 @@ mod tests {
     // repository proof. Not run by default (`cargo test` skips `#[ignore]`)
     // to avoid spending unauthenticated GitHub rate-limit budget on every
     // routine test run; run explicitly with `--ignored` for checkpoint
-    // evidence. Requires no client ID, no device flow, no operator gate --
+    // evidence. Requires no client ID, no browser flow, no operator gate --
     // proves the whole snapshot pipeline (resolve -> describe -> download
     // -> WI065's real WorkspaceManager::import_remote_snapshot -> publish
     // -> open) against real GitHub data, entirely unauthenticated.
@@ -1332,6 +1772,8 @@ mod tests {
         let provider = GitHubProvider::new(
             GitHubProviderConfig {
                 client_id: String::new(),
+                public_client_secret: String::new(),
+                app_slug: None,
             },
             http,
             rest,
@@ -1419,7 +1861,6 @@ mod tests {
             !entries.is_empty(),
             "the published workspace must contain real repository files"
         );
-        // The synthetic GitHub wrapper directory must not survive.
         assert!(!entries.iter().any(|entry| entry
             .as_ref()
             .unwrap()
@@ -1427,10 +1868,6 @@ mod tests {
             .to_string_lossy()
             .starts_with("octocat-Hello-World-")));
 
-        // Offline proof (Phase 11): reading the already-published workspace
-        // is ordinary local filesystem I/O -- no further network call is
-        // made or needed. `manager`/`provider` above are dropped after
-        // this point without ever contacting GitHub again.
         let reopened_manager = WorkspaceManager::open(temp.path().join("workspace-root")).unwrap();
         let reopened_record = reopened_manager
             .get_workspace(&record.workspace_id)

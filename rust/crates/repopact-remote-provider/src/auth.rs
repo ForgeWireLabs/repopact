@@ -1,6 +1,15 @@
-//! Explicit authorization state machine (WI067 item 16). Never a bare
+//! Explicit authorization state machine (Decision 0062). Never a bare
 //! `Option<String>` token -- the frontend receives only this shape, and it
-//! contains no credential field by construction.
+//! contains no credential, PKCE verifier, `state`, or authorization code
+//! field by construction.
+//!
+//! This replaces the device-flow-shaped `AuthState` from Decision 0061
+//! (`RequestingAuthorization`/`AwaitingUser{user_code,...}`/`Revoked`) with
+//! the browser-redirect-PKCE model the Workbench now uses for every
+//! platform. Device flow's protocol implementation
+//! (`repopact-provider-github::device_flow`) still exists and is still
+//! tested, but no production code path constructs its states anymore --
+//! see Decision 0062's "Device flow disposition".
 
 use serde::{Deserialize, Serialize};
 
@@ -10,24 +19,27 @@ use crate::error::ErrorCode;
 #[serde(tag = "state", rename_all = "snake_case")]
 pub enum AuthState {
     Disconnected,
-    RequestingAuthorization,
-    /// Device-flow (or equivalent) pending-user-action state. `user_code`
-    /// and `verification_uri` are safe to show in UI -- neither is a
-    /// credential -- but `verification_uri` must be validated against a
-    /// compile-time/configured trusted origin before display (item 19),
-    /// not trusted verbatim from provider response data.
-    AwaitingUser {
-        user_code: String,
-        verification_uri: String,
+    /// A new authorization session (state + PKCE verifier/challenge +
+    /// loopback/deep-link callback receiver) has just been created and the
+    /// system browser is being opened at the trusted GitHub authorization
+    /// URL. Transient -- the next poll normally observes `WaitingForCallback`.
+    StartingBrowserAuthorization,
+    /// The system browser is open and the native callback receiver is
+    /// listening; the user has not yet completed (or has not yet been
+    /// observed to complete) authorization on GitHub. `expires_at` bounds
+    /// how long this session remains valid before it fails closed.
+    WaitingForCallback {
         expires_at: String,
     },
+    /// The callback was received, its `state` validated, and the native
+    /// token exchange (authorization code + PKCE verifier) is in flight.
+    ExchangingCode,
     Authorized {
         account_label: String,
     },
     Refreshing,
-    Expired,
-    Revoked,
     Cancelled,
+    Expired,
     Failed {
         code: ErrorCode,
     },

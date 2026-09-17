@@ -1,6 +1,28 @@
 # Release runbook
 
-## Current 3.1.0 minor release
+## Current 3.1.1 corrective release
+
+The 3.1.1 release is a backwards-compatible corrective patch (decision 0063)
+fixing a packaging defect discovered while publishing `v3.1.0`:
+`pyproject.toml`'s `[tool.maturin] include` list never added `LICENSE` to the
+sdist format, so `repopact-3.1.0.tar.gz` declared a `License-File` in
+`PKG-INFO` that the archive did not contain. PyPI's upload-time check rejected
+it (HTTP 400); it was never stored. `repopact-3.1.0-py3-none-win_amd64.whl`
+uploaded successfully and is live on PyPI — Maturin bundles the license into a
+wheel's `.dist-info/licenses/` independently of the `include` list, so wheels
+were never affected. The `v3.1.0` tag and its published wheel are left
+untouched; `3.1.1` is the current stable identity going forward. No schema,
+protocol, CLI, lifecycle, or provenance behavior changed.
+
+Build only from the clean committed release tree with
+`repopact release-build --root . --outdir dist`, inspect the wheel and sdist,
+and run `python -m twine check dist\\repopact-3.1.1*`. Publish both the wheel
+and sdist through the existing secure credential path. Verify public metadata
+and hashes, then install `repopact==3.1.1` in a clean environment outside the
+checkout and run the package/resource/conformance smoke checks. Create and push
+the annotated `v3.1.1` tag and the GitHub release.
+
+## Historical 3.1.0 minor release
 
 The 3.1.0 release is the accepted compatible-minor milestone from decision
 0058 and WI066. The live 3.0.2 compatibility audit found no mandatory behavior

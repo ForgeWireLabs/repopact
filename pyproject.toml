@@ -7,7 +7,7 @@ name = "repopact"
 # Maturin's bin backend requires a concrete PEP 440 project version. Keep this
 # synchronized with VERSION/RELEASE_LABEL; the engine handshake and release
 # verifier fail closed if the two release identities drift.
-version = "3.1.0.dev1"
+version = "3.1.1"
 description = "A repository-native standard for durable agent work: binding invariants, evidence-gated work items, and drift audits."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -36,4 +36,5 @@ include = [
     { path = "repopact/templates/*", format = ["sdist", "wheel"] },
     { path = "VERSION", format = ["sdist"] },
     { path = "RELEASE_LABEL", format = ["sdist"] },
+    { path = "LICENSE", format = ["sdist"] },
 ]

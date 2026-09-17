@@ -1,0 +1,137 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260917-069-release-3-1-2",
+  "timestamp": "2026-09-17T23:00:00Z",
+  "work_item": "069",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "Promote VERSION=3.1.2, remove RELEASE_LABEL, sync pyproject.toml/CITATION.cff/CONFORMANCE.md/conformance/manifest.json/README.md/ROADMAP.md/docs/launch/*/research/release-runbook.md, regenerate SPEC.md/dashboard, rebuild editable install",
+      "exit_code": 0,
+      "summary": "repopact.__version__, repopact-engine.exe --version, and repopact --version all report 3.1.2 and agree. repopact validate passes. Commit a3d04b5."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m unittest discover -s tests -v (full suite, 3.1.2 tree, native guard still installed from prior WI050 work)",
+      "exit_code": 1,
+      "summary": "373 tests, 2 failures (the same known host-state boundary: real C:\\ProgramData\\RepoPact\\Guard installed on this machine), 0 errors, 3 skipped."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace; npm ci/types:check/typecheck/vitest/build; cargo check src-tauri",
+      "exit_code": 0,
+      "summary": "617 passed, 0 failed, 10 ignored. Workbench: types:check/typecheck/Vitest(33)/build all green; Tauri desktop cargo check clean."
+    },
+    {
+      "command": "repopact verify release",
+      "exit_code": 1,
+      "summary": "All 6 required checks (validate, python-tests, conformance, rust-workspace, cargo-metadata, spec-freshness) individually PASS on this host. Overall result initially FAIL, gated only by the 2 known host-state Python failures."
+    },
+    {
+      "command": "Operator-elevated: repopact guard uninstall; Remove-Item -Recurse -Force C:\\ProgramData\\RepoPact (operator ran both in an Administrator PowerShell after explicit confirmation)",
+      "exit_code": 0,
+      "summary": "guard status before: installed=true, protected=true (real leftover WI050 native-evidence installation). After: installed=false, protected=false, C:\\ProgramData\\RepoPact absent. This is machine-environment remediation, not repository history -- no repository source was changed to compensate for it."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m unittest discover -s tests -v (rerun on the now-clean host)",
+      "exit_code": 0,
+      "summary": "373 tests, OK (skipped=3). Zero failures, zero errors -- true clean gate pass, not a weakened one."
+    },
+    {
+      "command": "repopact verify release (rerun on the clean host)",
+      "exit_code": 0,
+      "summary": "coverage: complete | satisfied=false | executed=6/6 required. All 6 required checks PASS: validate, python-tests, conformance, rust-workspace, cargo-metadata, spec-freshness. Overall status reports INCOMPLETE only because this multi-platform release declares linux/macos/windows required and this run only covers windows (see the WSL Linux leg below for a second, independent platform)."
+    },
+    {
+      "command": "repopact release build --outdir release-out (first attempt, before host cleanup)",
+      "exit_code": 1,
+      "summary": "Refused to build: 'release verification did not pass this host's own required checks (status=fail, host_ready=True); artifact build was not started.' Confirms the tool fails closed and does not silently produce artifacts from a failing verify gate; --skip-verify exists but its own help text marks it unsuitable for release evidence and was not used."
+    },
+    {
+      "command": "repopact release build --outdir release-out (after host cleanup and clean full-suite rerun)",
+      "exit_code": 0,
+      "summary": "Built repopact-3.1.2-py3-none-win_amd64.whl and repopact-3.1.2.tar.gz from commit a3d04b5, reproducible=true. Rebuilt once more after an additional Windows-only-test platform-skip fix (commit 79d58f8) found while cross-verifying on Linux, to keep the manifest's recorded commit exactly matching the fully cross-platform-verified tree."
+    },
+    {
+      "command": "python -m twine check release-out\\repopact-3.1.2*; tar -tzf release-out\\repopact-3.1.2.tar.gz | grep LICENSE",
+      "exit_code": 0,
+      "summary": "Both artifacts PASSED twine check. sdist contains repopact-3.1.2/LICENSE, confirming the 3.1.1 sdist License-File corrective (decision 0063) remains intact in 3.1.2."
+    },
+    {
+      "command": "Fresh venv outside the checkout: pip install release-out\\repopact-3.1.2-py3-none-win_amd64.whl; repopact --version; repopact-engine.exe --version; repopact init --target smoke2 && repopact validate",
+      "exit_code": 0,
+      "summary": "Isolated local-artifact proof: CLI reports 'repopact 3.1.2', native engine independently reports engine_version 3.1.2, they agree; init+validate pass on a fresh repo; no semantic Python fallback."
+    },
+    {
+      "command": "Cross-platform verification: cloned this checkout (git clone from local path) into WSL Debian 13 at the exact release commit; installed a fresh Rust toolchain and repopact[dev] there natively",
+      "exit_code": 0,
+      "summary": "Confirmed identical 3.1.2 identity (Python package, native engine, CLI) and a passing repopact validate on native Linux. python -m unittest discover -s tests: 373 tests, OK (skipped=10), 0 failures (one genuine Windows-only test, sc.exe-backed, found lacking a platform skip -- fixed in commit 79d58f8 and confirmed skipping correctly on Linux)."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace --no-fail-fast (WSL Debian 13)",
+      "exit_code": 1,
+      "summary": "591/594 tests passed, 7 ignored, 0 failed elsewhere. The 3 non-ignored real-OS-credential-store tests in repopact-remote-provider::credential_os (put_then_get_round_trips_through_the_real_os_store, put_overwrites_the_previous_value_atomically_from_the_readers_perspective, missing_entry_returns_none_not_an_error, delete_removes_the_real_os_entry) panic with 'DBus error: The name org.freedesktop.secrets was not provided by any .service files' -- this specific WSL container has no Secret Service / D-Bus keyring daemon installed (attempted to install gnome-keyring; apt hung repeatedly and the attempt was abandoned after reasonable effort). This is a diagnosed environment gap in this one ephemeral Linux container, not a product or test defect: the same code path works correctly on Windows (Credential Manager, always available) and would work on a normal Linux desktop session with a real Secret Service running. repopact verify release on this WSL host: 5/6 required checks PASS (validate, python-tests, conformance, cargo-metadata, spec-freshness); rust-workspace FAILs for exactly this reason."
+    },
+    {
+      "command": "python -m repopact.run_conformance --legacy-python; python -m repopact.run_conformance (canonical Rust)",
+      "exit_code": 0,
+      "summary": "35/35 comparator cases + 8/8 WI050 vectors, both comparators, on the final Windows tree."
+    }
+  ],
+  "artifacts": [
+    "VERSION",
+    "pyproject.toml",
+    "CITATION.cff",
+    "CONFORMANCE.md",
+    "conformance/manifest.json",
+    "README.md",
+    "ROADMAP.md",
+    "docs/launch/public-claims.md",
+    "docs/launch/repopact-public-copy.md",
+    "research/release-runbook.md",
+    "tests/test_validate_repo.py",
+    "tests/test_guard_authority.py",
+    ".gitignore",
+    "decisions/0064-release-repopact-3-1-2-post-3-1-1-validation-corrective.md",
+    "release-out/repopact-3.1.2-py3-none-win_amd64.whl",
+    "release-out/repopact-3.1.2.tar.gz",
+    "release-out/release-manifest.json"
+  ],
+  "environment": {
+    "windows": {
+      "os": "Windows 10 Pro (10.0.19045)",
+      "python": "3.12.4",
+      "rustc": "stable-x86_64-pc-windows-msvc",
+      "node": "v24.15.0",
+      "npm": "11.12.1"
+    },
+    "linux": {
+      "os": "Debian GNU/Linux 13 (trixie), WSL2 kernel 6.18.33.2-microsoft-standard-WSL2",
+      "python": "3.13.5",
+      "rustc": "1.97.1 (freshly installed for this session)"
+    },
+    "release_commit": "79d58f8b501783889de2652aa446c93bfe1e1ab2",
+    "promotion_commit": "a3d04b5b56a04b2435aee0ac01a24f4e1d79869d",
+    "v3_1_1_tag_target_commit": "8f0403dcb4ca44027daffb72230204efe452728a"
+  },
+  "wheel": {
+    "filename": "repopact-3.1.2-py3-none-win_amd64.whl",
+    "sha256": "be8cfecef299840034c6cc70d4d24c7d744d41e008ad07b678af0ba5521d0aab"
+  },
+  "sdist": {
+    "filename": "repopact-3.1.2.tar.gz",
+    "sha256": "43d40fcda91ea835696b97c6afdeef4aee3278296f449fef173366afa068ea12"
+  },
+  "host_state_remediation": {
+    "before": {"installed": true, "protected": true, "protected_from_gated_principal": true, "path": "C:\\ProgramData\\RepoPact\\Guard"},
+    "after": {"installed": false, "protected": false, "protected_from_gated_principal": false},
+    "action": "operator-elevated `repopact guard uninstall` then `Remove-Item -Recurse -Force C:\\ProgramData\\RepoPact`, both performed by the human operator in an Administrator shell after explicit confirmation in this session"
+  },
+  "not_yet_performed": [
+    "annotated v3.1.2 tag creation",
+    "PyPI publication",
+    "post-publication clean install from PyPI",
+    "GitHub Release reconciliation",
+    "WI021 AC-3 and WI066 final disposition (pending real PyPI publication evidence)"
+  ],
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record, the decision records, or the checkpoint's commit history."
+}

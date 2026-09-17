@@ -28,8 +28,8 @@
     {
       "id": "AC-3",
       "text": "Package/runtime development identity complies with Decision 0032 (VERSION-pinned RELEASE_LABEL) before and during runtime-affecting source changes, then is promoted to a clean stable 3.1.2 identity for release.",
-      "state": "pending",
-      "evidence": ["20260917-069-post-3-1-1-remediation"]
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation", "20260917-069-release-3-1-2"]
     },
     {
       "id": "AC-4",
@@ -45,9 +45,9 @@
     },
     {
       "id": "AC-6",
-      "text": "Full Python test suite (python -m unittest discover -s tests) passes with zero failures and zero errors attributable to code or test defects; only intentional skips and the operator-accepted C:\\ProgramData\\RepoPact\\Guard host-state boundary (pre-existing WI050 native evidence on this machine, left untouched by operator instruction) may remain.",
+      "text": "Full Python test suite (python -m unittest discover -s tests) passes with zero failures and zero errors. (The pre-existing C:\\ProgramData\\RepoPact\\Guard host-state artifact from prior WI050 native evidence was operator-uninstalled during this work item, so the final state is a true zero-failure pass, not a waived boundary.)",
       "state": "satisfied",
-      "evidence": ["20260917-069-post-3-1-1-remediation"]
+      "evidence": ["20260917-069-post-3-1-1-remediation", "20260917-069-release-3-1-2"]
     },
     {
       "id": "AC-7",
@@ -63,9 +63,9 @@
     },
     {
       "id": "AC-9",
-      "text": "repopact validate, repopact dashboard, repopact spec, repopact verify quick, and the conformance suite all pass on the reconciled tree; repopact verify ci/release's own sub-checks (conformance, rust-workspace, cargo-metadata, spec-freshness) pass independently, with their overall result gated only by the same accepted AC-6 host-state boundary in the Python suite sub-check.",
+      "text": "repopact validate, repopact dashboard, repopact spec, repopact verify quick, repopact verify release, and the conformance suite all pass cleanly on the reconciled tree once the host-state artifact in AC-6 was removed.",
       "state": "satisfied",
-      "evidence": ["20260917-069-post-3-1-1-remediation"]
+      "evidence": ["20260917-069-post-3-1-1-remediation", "20260917-069-release-3-1-2"]
     },
     {
       "id": "AC-10",

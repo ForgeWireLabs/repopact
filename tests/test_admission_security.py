@@ -13,7 +13,7 @@ from repopact.admission import (
     setup_admission, verify_receipt, frozen_surface_digest,
 )
 from repopact.adapters import LauncherAdapter
-from repopact.dev_fixtures import open_fixture_repo
+from repopact.dev_fixtures import open_fixture_repo, pin_work_item_status
 from repopact.guard import ProtectedGuard
 from repopact.platform_backends import TestingBackend
 
@@ -28,6 +28,7 @@ class SecurityCorrectionTests(unittest.TestCase):
         self.signer = Ed25519Signer.generate("key-1", "operator-1")
         setup_admission(self.root, self.protected, self.signer)
         self.test_health = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected)).health()
+        pin_work_item_status(self.root, "050", "active")
 
     def request(self, paths=("src/a.py",), profile="bounded", mode="normal", scopes=("src",), **kwargs):
         return make_request(self.root, "050", "session-1", profile=profile, scopes=list(scopes), paths=list(paths), mode=mode, protected_dir=self.protected, **kwargs)

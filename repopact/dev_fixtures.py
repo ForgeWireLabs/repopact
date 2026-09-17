@@ -232,3 +232,27 @@ def open_fixture_repo(
     fixture.open()
     test_case.addCleanup(fixture.close)
     return fixture.root
+
+
+def pin_work_item_status(root: Path, work_item_id: str, status: str) -> None:
+    """Force a materialized fixture's copy of a governed work item to a fixed
+    lifecycle ``status``, independent of that work item's real, evolving state
+    in the live checkout being copied.
+
+    Several admission/guard/security test corpora exercise `evaluate_action`
+    against a real work item (by convention, WI050) purely as a stable
+    lifecycle-gated target — their assertions are about the admission policy,
+    not about WI050 itself. Without this, those tests silently break whenever
+    WI050's real status legitimately changes (e.g. active -> deferred).
+    """
+    import json
+
+    for status_dir in ("active", "proposed", "blocked", "deferred", "completed"):
+        candidates = list((root / "work" / status_dir).glob(f"{work_item_id}-*/work-item.json"))
+        if candidates:
+            item_path = candidates[0]
+            data = json.loads(item_path.read_text())
+            data["status"] = status
+            item_path.write_text(json.dumps(data))
+            return
+    raise FileNotFoundError(f"no work item {work_item_id!r} found under {root / 'work'}")

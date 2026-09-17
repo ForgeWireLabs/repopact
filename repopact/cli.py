@@ -90,7 +90,15 @@ def _write_canonical_record(root: Path, directory: str, name: str, payload: byte
 
 
 def main(argv: list[str] | None = None) -> int:
+    from . import __version__
+
     parser = argparse.ArgumentParser(prog="repopact", description="RepoPact: durable agent work, governed in the repo.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"repopact {__version__}",
+        help="Show the repopact package version and exit",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_init = sub.add_parser("init", help="Bootstrap a new RepoPact repository")

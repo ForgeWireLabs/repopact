@@ -17,7 +17,7 @@ from repopact.admission import (
     verify_registration,
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter
-from repopact.dev_fixtures import open_fixture_repo
+from repopact.dev_fixtures import open_fixture_repo, pin_work_item_status
 from repopact.enforcement import EnforcementProvider, resolve_enforcement_requirement
 from repopact.guard_ipc import NativeGuardClient
 
@@ -108,6 +108,7 @@ class OptInProviderTests(unittest.TestCase):
     def test_external_provider_satisfies_and_narrows_without_widening(self):
         signer = Ed25519Signer.generate("external-key", "external-operator")
         setup_admission(self.root, self.protected, signer)
+        pin_work_item_status(self.root, "050", "active")
         provider = ExternalProviderFixture(self.root, self.protected)
         self.assertIsInstance(provider, EnforcementProvider)
         adapter = PreActionAdapter(provider, AdapterCapabilities("external", pre_action_interception=True))

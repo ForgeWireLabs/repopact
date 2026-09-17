@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import unittest
 from unittest.mock import patch
 
@@ -68,6 +69,7 @@ class ProtectedSubstrateTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode(b'{"protocol_version":"unsupported"}')
 
+    @unittest.skipUnless(hasattr(os, "geteuid"), "unix_guard_service targets POSIX; os.geteuid is not available on Windows")
     def test_unix_service_returns_protocol_error_before_closing_connection(self):
         class Connection:
             def __init__(self):

@@ -10,7 +10,7 @@ from repopact.admission import (
     verify_registration,
 )
 from repopact.adapters import AdapterCapabilities, PreActionAdapter, LauncherAdapter
-from repopact.dev_fixtures import open_fixture_repo
+from repopact.dev_fixtures import open_fixture_repo, pin_work_item_status
 from repopact.guard import ProtectedGuard
 from repopact.platform_backends import LinuxBackend, MacOSBackend, WindowsBackend, TestingBackend
 
@@ -22,6 +22,10 @@ class AdmissionTests(unittest.TestCase):
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key-1", "operator-1")
         setup_admission(self.root, self.protected, self.signer)
+        # WI050 is used purely as a stable, lifecycle-gated admission target;
+        # pin it "active" here rather than depending on its real, evolving
+        # status in the live checkout this fixture copies from.
+        pin_work_item_status(self.root, "050", "active")
 
     def request(self, **kwargs):
         return make_request(self.root, "050", "session-1", scopes=["src"], paths=["src/example.py"], protected_dir=self.protected, **kwargs)
@@ -38,8 +42,7 @@ class AdmissionTests(unittest.TestCase):
     def test_invalid_lifecycle_and_scope_denied(self):
         denied = evaluate_action(self.root, {"work_item": "050", "paths": ["governance/owners.json"], "scopes": ["governance"]}, protected_dir=self.protected)
         self.assertEqual(denied.code, "NO_OPERATOR_PROOF")
-        item = self.root / "work/active/050-pre-execution-agent-work-admission-and-preflight-enforcement/work-item.json"
-        data = json.loads(item.read_text()); data["status"] = "proposed"; item.write_text(json.dumps(data))
+        pin_work_item_status(self.root, "050", "proposed")
         self.assertEqual(evaluate_action(self.root, {"work_item": "050"}, protected_dir=self.protected).code, "NO_OPERATOR_PROOF")
 
     def test_receipt_lease_and_revocation(self):

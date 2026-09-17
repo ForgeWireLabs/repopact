@@ -1162,6 +1162,29 @@ _IDENTITY_LABELS = (
 )
 _SECRET_QUERY_PARAMS = ("token", "api_key", "password", "secret")
 _STRONG_CLAIM_PHRASES = ("certified", "fully compliant", "complies with", "meets all requirements")
+_NEGATION_CUES = ("not ", "n't ", "never ", "no longer ", "does not assert", "isn't", "aren't")
+_NEGATION_WINDOW = 40
+
+
+def _has_unnegated_strong_claim(lower_text: str) -> bool:
+    """True if a strong-claim phrase appears without a nearby negation cue.
+
+    A plain substring search flags disclaimers ("this does not assert X is
+    certified") the same as an actual claim ("X is certified"). Requiring no
+    negation cue in the preceding window keeps the heuristic advisory without
+    firing on text that explicitly disclaims the very claim it mentions.
+    """
+    for phrase in _STRONG_CLAIM_PHRASES:
+        start = 0
+        while True:
+            index = lower_text.find(phrase, start)
+            if index == -1:
+                break
+            window = lower_text[max(0, index - _NEGATION_WINDOW):index]
+            if not any(cue in window for cue in _NEGATION_CUES):
+                return True
+            start = index + len(phrase)
+    return False
 
 
 def _decode_text(raw: bytes) -> str | None:
@@ -1720,7 +1743,7 @@ def _check_documentation_claims(root: Path, data: dict, mapping_id: str, path: P
         if text is None:
             continue
         lower = text.lower()
-        strong_claim = any(phrase in lower for phrase in _STRONG_CLAIM_PHRASES)
+        strong_claim = _has_unnegated_strong_claim(lower)
         weak_support = has_gap or (not has_evidence and not has_attestation)
         if strong_claim and weak_support:
             problems.append(Problem(

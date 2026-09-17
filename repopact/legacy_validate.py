@@ -36,9 +36,10 @@ def main(argv: list[str] | None = None) -> int:
             path = problem.path.relative_to(root)
         except ValueError:
             path = problem.path
-        print(f"ERROR {path}: {problem.message}")
-    if problems:
-        print(f"\nValidation failed with {len(problems)} error(s).")
+        print(f"{problem.severity.upper()} {path}: {problem.message}")
+    blocking = validate_repo.blocking_problems(problems)
+    if blocking:
+        print(f"\nValidation failed with {len(blocking)} error(s).")
         return 1
     print("Repository governance validation passed (Python compatibility comparator).")
     return 0

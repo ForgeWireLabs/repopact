@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
-from repopact.dev_fixtures import open_fixture_repo
+from repopact.dev_fixtures import open_fixture_repo, pin_work_item_status
 from repopact.guard import GuardService, ProtectedGuard
 from repopact.guard_ipc import (
     IPCIdentity,
@@ -29,6 +29,7 @@ class GuardAuthorityTests(unittest.TestCase):
         self.protected = self.tmp / "protected"
         self.signer = Ed25519Signer.generate("key", "operator")
         setup_admission(self.root, self.protected, self.signer)
+        pin_work_item_status(self.root, "050", "active")
         self.guard = ProtectedGuard(self.root, self.protected, backend=TestingBackend(self.protected))
 
     def _request(self):
@@ -256,7 +257,14 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(report["checks"]["required_dependency_closure"])
 
     def test_isolated_self_test_ignores_environment_and_checkout_injection(self):
-        result = platform_backends._run_isolated_dependency_self_test(Path(sys.executable))
+        # Exercise the isolation check against the real canonical interpreter,
+        # not whatever project dev virtualenv happens to be running the test
+        # suite: `_isolated_sys_path_is_safe` deliberately treats any `.venv`
+        # path as untrustworthy for a protected guard installation, so a
+        # `.venv`-sourced `sys.executable` would fail this check regardless of
+        # whether isolation itself works correctly.
+        base_interpreter = Path(getattr(sys, "_base_executable", sys.executable))
+        result = platform_backends._run_isolated_dependency_self_test(base_interpreter)
         self.assertTrue(result["ok"], result.get("errors"))
         self.assertFalse(result["user_site_enabled"])
         self.assertNotIn("", result["sys_path"])

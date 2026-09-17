@@ -1,20 +1,20 @@
 # RepoPact
 
-**Durable engineering state for humans and AI agents.**
+**Repository-native governance for durable human-agent software engineering.**
 
-AI coding tools can change software faster than teams can preserve the context around those changes. Intent, decisions, authority, acceptance criteria, evidence, constraints, and unfinished work often live in chat histories, agent memory, issue trackers, local tooling, or one person's head.
+AI coding tools can change software faster than teams can preserve the governing context around those changes. Intent, decisions, authority, acceptance criteria, evidence, constraints, and unfinished work often live in chat histories, agent memory, issue trackers, local tooling, or one person's head.
 
 RepoPact makes that load-bearing engineering state part of the repository itself.
 
-It is a **repository-native governance system for durable human-agent software engineering**. A fresh human or agent can clone a repository and recover not only the source tree, but also the represented work state, authority boundaries, invariants, decisions, evidence, provenance, and known violations needed to continue responsibly.
+A fresh human or agent can clone a governed repository and recover not only the source tree, but also the represented work state, authority boundaries, invariants, decisions, evidence, provenance, and known violations needed to continue responsibly.
 
 > **The repository is the pact.**
 >
-> The repository becomes the rendezvous point between humans and agents.
+> Humans, agents, and tools rendezvous through durable repository state rather than relying on one session or vendor to remember the project correctly.
 
 `pip install repopact` · Apache-2.0 · stable release **3.1.1** ([changelog](decisions/0063-release-repopact-3-1-1-sdist-license-file-corrective.md))
 
-[Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
+[Documentation](docs/README.md) · [Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
 
 ![RepoPact turns fragmented session context into durable repository state: humans, agents, and tools rendezvous through a repository that preserves intent, authority, decisions, work state, invariants, evidence, and provenance.](docs/assets/readme/repopact-hero.svg)
 
@@ -35,14 +35,14 @@ RepoPact treats that as a software-engineering problem, not just a memory proble
 | "Done" means an agent said it was done | Acceptance criteria can require linked evidence before completion |
 | Authority is implicit or scattered | Roles, scopes, frozen surfaces, invariants, and optional admission policy make boundaries explicit |
 | Brownfield reconstruction is uncertain | Provenance distinguishes `concrete`, `provisional`, and `inferred` state |
-| Generated views drift from source records | Dashboard and derived specification blocks are regenerated and validated |
-| Verification is tied to one hosted provider | Repository-defined local verification is canonical on current development `main`; hosted CI/CD is optional |
+| Generated views drift from source records | Dashboard and other derived projections are regenerated and validated |
+| Verification is tied to one hosted provider | Repository-defined local verification is canonical; hosted CI/CD is optional |
 
 The goal is not to slow AI-assisted development back down. The goal is to make higher implementation throughput **inspectable, recoverable, and sustainable across humans, agents, machines, providers, and sessions**.
 
 ## 30-second start
 
-The stable 3.1.1 package creates or adopts governed repository state, runs the canonical validator, and exposes the repository-defined local verification and release surfaces.
+The stable 3.1.1 package creates or adopts governed repository state, runs the canonical validator, and exposes repository-defined local verification and release surfaces.
 
 ```powershell
 pip install repopact
@@ -68,7 +68,9 @@ repopact adopt --target ../existing-repo
 repopact doctor
 ```
 
-RepoPact does not require a particular model, agent framework, editor, or cloud provider.
+RepoPact does not require a particular model, coding agent, agent framework, editor, CI vendor, or cloud provider.
+
+For the next step, use the [documentation map](docs/README.md): **Use RepoPact**, **Understand RepoPact**, **Integrate RepoPact**, or **Develop RepoPact**.
 
 ## How the pact works
 
@@ -91,9 +93,36 @@ A work item is a narrative `README.md` plus machine-readable `work-item.json`. E
 
 RepoPact's distinguishing primitive is the **binding invariant**: a declared guarantee coupled to rationale, escalation, and, where logically possible, an enforcer. The invariant is the thing a later worker must not silently weaken.
 
+## Authority: source records vs derived views
+
+RepoPact deliberately separates authority from convenience.
+
+Authoritative project state comes from the governed source records and repository state that own a fact: `governance/`, `work/`, `decisions/`, `evidence/`, source code, and explicitly governed configuration. Different record types own different kinds of truth.
+
+The dashboard, Repository Orientation Graph (ROG), Workbench views, generated specification blocks, indexes, and similar read models are **derived**. They can make the repository dramatically easier to inspect and operate, but they do not gain authority merely because they are easier to query.
+
+If a derived view conflicts with the source records it projects, the derived view is stale or wrong and must be regenerated or reconciled.
+
+## Enforcement is a ladder, not a boolean
+
+RepoPact does not describe every integration as simply "enforced" or "not enforced." The assurance class must match the boundary that actually exists.
+
+| Class | What it means |
+| --- | --- |
+| `instruction-only` | Durable rules and state exist, but no pre-execution host boundary is claimed. |
+| `session-start` | A covered integration gates creation or start of a session/child process. |
+| `pre-action` | A covered mutation is checked before its callback or action begins. |
+| `sandbox/process-enforced` | A real OS-backed boundary constrains the launched process tree for the capability being claimed. |
+
+The portable reference baseline for RepoPact's optional admission plane is `pre-action`. That is a real pre-execution guarantee for covered actions, but it does **not** imply arbitrary-process filesystem confinement.
+
+A higher `sandbox/process-enforced` class requires independent native proof of the operating-system boundary. The Linux Landlock work demonstrates the intended distinction, while remaining platform/reference work is tracked separately. RepoPact never silently upgrades a weaker adapter into a stronger assurance claim.
+
+See [Pre-execution admission](docs/guides/pre-execution-admission.md) and [decision 0060](decisions/0060-optional-sandbox-process-enforced-reference-confinement.md).
+
 ## The Workbench
 
-RepoPact is not intended to be a JSON-editing exercise for human operators. The repository also contains a **Tauri 2 Workbench** that presents the same governed state through a human-facing interface while the Rust semantic engine remains the authority.
+RepoPact is not intended to be a JSON-editing exercise for human operators. The repository also contains a **Tauri 2 Workbench** that presents governed state through a human-facing interface while the Rust semantic engine remains the semantic authority.
 
 The Workbench supports repository selection, inspection, work-item views, typed create/edit/lifecycle operations, validation, graph-backed repository views, plan/preview/apply mutation flow, refresh, and stale-plan/session rejection.
 
@@ -103,13 +132,15 @@ Workbench source: [`rust/apps/repopact-desktop/`](rust/apps/repopact-desktop/)
 
 ![RepoPact Workbench on Windows showing the validated Work lifecycle view with proposed, active, deferred, and complete counts, a blocked record, active work, and the selected repository session.](docs/assets/readme/workbench-governance.jpg)
 
-*Launch-readiness Workbench capture: a real validated repository session, not an empty shell. The screenshot is a capture-time view of the implementation and is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.1 package contract.*
+*The screenshot is a capture-time view of the implementation. It is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.1 package contract.*
 
 ## Use it with `AGENTS.md`, `CLAUDE.md`, and coding agents
 
-RepoPact does not replace instruction files. It gives them a durable governance layer to meet in.
+RepoPact is not `AGENTS.md++`, and it does not replace instruction files.
 
-`AGENTS.md`, `CLAUDE.md`, editor rules, and system prompts tell an agent how it should behave. RepoPact records the durable project state around that behavior and validates, and where enforceable can enforce, whether the repository still respects its declared contract.
+`AGENTS.md`, `CLAUDE.md`, editor rules, skills, and system prompts tell an agent how it should behave. RepoPact records the durable project state around that behavior and validates, and where the relevant boundary exists can enforce, whether the repository still respects its declared contract.
+
+Instruction files can participate in the pact. They are not the whole governance substrate.
 
 That distinction matters when work moves between Claude, Codex, ChatGPT, local models, human developers, or future tools. The next worker should not need the previous worker's private conversation in order to recover the represented engineering state.
 
@@ -129,9 +160,9 @@ See [decision 0021](decisions/0021-preflight-mandatory-and-provenance.md) and th
 
 ## Local-first verification and release
 
-RepoPact is moving CI/CD semantics into the repository instead of making a hosted provider the source of truth.
+RepoPact keeps verification semantics in the repository instead of making a hosted provider the source of truth.
 
-Current development `main` includes WI046's completed repository-defined verification profiles and local release operations:
+The stable 3.1.1 package includes repository-defined verification profiles and local release operations:
 
 ```powershell
 repopact verify quick
@@ -147,9 +178,17 @@ GitHub Actions is an **optional hosted adapter**, disabled by default. Hosted va
 
 Verification, artifact construction, inspection, and publication remain separate operations. Publication requires explicit operator intent and credentials supplied outside the repository.
 
-This local-first architecture was completed under [WI046](work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/) and is included in the stable 3.1.1 Python/Rust package surface. Workbench, Android, and active research surfaces retain their own validation boundaries and are not silently folded into the PyPI artifact contract.
+This local-first architecture was completed under [WI046](work/completed/046-runner-neutral-verification-and-admission-checkpoint-architecture/). Workbench, mobile applications, active research surfaces, and stronger platform-specific enforcement retain their own validation and packaging boundaries rather than being silently folded into the PyPI artifact contract.
 
 See [`docs/guides/local-ci-cd.md`](docs/guides/local-ci-cd.md).
+
+## Repository Orientation Graph
+
+The optional **Repository Orientation Graph (ROG)** is a bounded, versioned, derived representation used for orientation, impact, dependency, test, and governance queries.
+
+The graph can be durable and incrementally maintained without becoming a second source of truth. Repository and governance records remain authoritative; graph freshness, coverage, and excluded boundaries are explicit. If the graph and authoritative source disagree, rebuild or reconcile the graph.
+
+See [`docs/repository-orientation-graph.md`](docs/repository-orientation-graph.md). WI063 remains the governing work record for unfinished graph evaluation and closeout obligations.
 
 ## Research, evidence, and falsifiability
 
@@ -164,30 +203,34 @@ The repository includes:
 - a machine-checkable [conformance suite](CONFORMANCE.md);
 - the public [RepoPact Proving Ground](https://github.com/ForgeWireLabs/repopact-proving-ground), where runnable PactBench work is exercised against a real adopter.
 
-Comparative cross-model results are still forthcoming. They will be reported whether they support or challenge the current claims.
+Comparative cross-model results remain separate from the existence of benchmark infrastructure. They are reported only when the corresponding runs and evidence exist.
 
 > RepoPact defines the pact. The Proving Ground tests whether the pact holds under agent pressure.
 
 ## What RepoPact is not
 
-RepoPact is not an AI agent, model provider, chat-memory store, general-purpose issue tracker, hosted CI service, or runtime sandbox. It does not try to replace Git, compilers, test frameworks, agent runtimes, or authorization systems.
+RepoPact is not an AI agent, model provider, agent runtime, distributed compute fabric, chat-memory store, general-purpose issue tracker, hosted CI service, IDE, or general-purpose sandbox.
+
+It does not try to replace Git, compilers, test frameworks, agent orchestrators, operating-system security boundaries, or external authorization systems.
 
 It is the **durable governance layer** those systems can share.
 
-For stronger runtime authority, RepoPact also contains an optional protected admission plane under active development. Ordinary repositories do not need that privileged layer in order to use RepoPact's core governance model.
+Optional admission and protected-execution integrations can consume RepoPact authority and enforce a covered boundary, but those integrations do not become a second work ledger or a new source of project truth.
 
 ## Deeper technical references
 
-- [`SPEC.md`](SPEC.md): repository model and machine-enforced rules
+- [`docs/README.md`](docs/README.md): audience-oriented documentation map
+- [`SPEC.md`](SPEC.md): normative repository model and machine-enforced rules
 - [`CONFORMANCE.md`](CONFORMANCE.md): implementation-independent conformance contract
 - [`governance/charter.md`](governance/charter.md): principles and non-goals
 - [`governance/workflow.md`](governance/workflow.md): repository workflow
-- [`docs/repository-orientation-graph.md`](docs/repository-orientation-graph.md): the optional Repository Orientation Graph (ROG) — enable/disable, query, Workbench operator map, and its authority boundary
+- [`docs/repository-orientation-graph.md`](docs/repository-orientation-graph.md): optional derived Repository Orientation Graph
+- [`docs/guides/pre-execution-admission.md`](docs/guides/pre-execution-admission.md): optional enforcement/admission integration
 - [`decisions/`](decisions/): durable architecture and policy decisions
 - [`research/`](research/): formal model, protocols, findings, and paper
 - [`work/`](work/): the project's own RepoPact-governed work ledger
 
-The default conformance path exercises the canonical Rust semantic engine. The historical Python validator remains an explicit comparator rather than a second product authority.
+The default conformance path exercises the canonical Rust semantic engine. The historical Python validator remains an explicit comparator/compatibility surface rather than a second product authority.
 
 ## ForgeWire Labs
 

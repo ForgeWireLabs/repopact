@@ -1,0 +1,21 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260916-050-macos-proof-deferred",
+  "timestamp": "2026-09-17T02:00:00Z",
+  "work_item": "050",
+  "result": "blocked",
+  "provenance": "concrete",
+  "commands": [],
+  "artifacts": [],
+  "environment": {
+    "reason": "macOS native positive and fail-closed proof required by AC-18 could not be attempted: no macOS host is currently available to the operator.",
+    "deferral_class": "environmental/hardware-availability, not a known implementation defect",
+    "disclaimer": "No macOS behavior is claimed here or elsewhere from static code inspection, cross-compilation, CI emulation, or Linux/Windows parity. This record documents an execution gap, not a substitute proof.",
+    "linux_ac18_disposition": "complete; see 20260916-050-linux-landlock-native-proof",
+    "windows_ac18_disposition": "complete, including a genuine clean uninstall/reinstall cycle of the protected RepoPactGuard service followed by the full registered native destructive matrix (14/14 cases passing against the freshly installed LocalSystem guard); see 20260916-050-windows-native-destructive-proof",
+    "windows_evidence_commit": "dd6dba50583fd42ee712786a0ad4df80565a8a09",
+    "windows_evidence_unmodified": true,
+    "revisit_trigger": "Resume WI050 macOS native proof when suitable macOS hardware or a trustworthy macOS execution environment becomes available to the operator.",
+    "lifecycle_action": "WI050 status set to deferred; AC-18 remains pending (not waived)."
+  }
+}

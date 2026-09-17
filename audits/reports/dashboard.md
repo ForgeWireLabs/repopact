@@ -15,16 +15,16 @@
 | Audit findings | 3 |
 | Decision records | 61 |
 | Policy records | 2 |
-| Evidence runs | 147 |
+| Evidence runs | 148 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 3 |
-| active | 8 |
+| active | 7 |
 | blocked | 1 |
-| deferred | 0 |
+| deferred | 1 |
 | completed | 57 |
 
 ## Audit freshness
@@ -37,7 +37,6 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
-- 050: Pre-Execution Agent Work Admission and Preflight Enforcement (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 067: GitHub Repository Provider, Secure User Authorization, and Remote Repository Import (active)

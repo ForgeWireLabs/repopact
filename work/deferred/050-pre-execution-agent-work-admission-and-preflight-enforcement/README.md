@@ -1,8 +1,35 @@
 # 050 — Pre-Execution Agent Work Admission and Preflight Enforcement
 
-> **Status**: Active (optional Linux Landlock implementation phase; AC-14, AC-15, and AC-16 are satisfied, AC-18 remains pending)
+> **Status**: Deferred (AC-1..AC-17 and AC-19..AC-25 satisfied; AC-18 pending on
+> missing macOS native proof — see [Cross-platform closeout status](#cross-platform-closeout-status))
 > **Owners**: governance-owner (lead); tooling-owner and docs-owner affected.
 > **Depends on**: WI023 mandatory preflight and completed WI049 baseline reconciliation.
+
+## Cross-platform closeout status
+
+```text
+Linux   — complete   (20260916-050-linux-landlock-native-proof)
+Windows — complete   (20260916-050-windows-native-destructive-proof, commit dd6dba50583fd42ee712786a0ad4df80565a8a09)
+macOS   — deferred / host unavailable (20260916-050-macos-proof-deferred)
+AC-18   — pending
+```
+
+Linux native AC-18 proof is complete. Windows native AC-18 proof is complete,
+including a genuine clean uninstall → reinstall cycle of the protected
+`RepoPactGuard` service followed by the full registered native destructive
+matrix, all 14/14 cases passing against the freshly installed LocalSystem
+guard (`20260916-050-windows-native-destructive-proof`, at commit
+`dd6dba50583fd42ee712786a0ad4df80565a8a09`, which remains the authoritative,
+unmodified Windows evidence).
+
+macOS native positive and fail-closed proof remains required by AC-18 and is
+not yet produced. No macOS host is currently available to the operator. This
+gap is recorded as an environmental/hardware-availability deferral, not a
+known implementation defect — no macOS behavior is claimed from static code
+inspection, cross-compilation, CI emulation, or Linux/Windows parity. See
+`20260916-050-macos-proof-deferred` for the durable record. WI050 resumes
+when suitable macOS hardware or a trustworthy macOS execution environment
+becomes available to the operator.
 
 ## Architecture-phase disposition
 

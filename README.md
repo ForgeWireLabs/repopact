@@ -15,7 +15,54 @@ A fresh human or agent can clone a governed repository and recover not only the 
 `pip install repopact` · Apache-2.0 · stable release **3.1.1** ([changelog](decisions/0063-release-repopact-3-1-1-sdist-license-file-corrective.md))
 
 > [!IMPORTANT]
-> **GitHub Releases is not currently the authoritative source for the latest RepoPact package.** GitHub's **Latest Release** entry is out of date and may show an older version. The current stable package is published on **[PyPI](https://pypi.org/project/repopact/)**. Install or upgrade with `pip install --upgrade repopact`. The `main` branch may also contain work that is newer than the latest published package, so use PyPI when you need the current stable installable release.
+> **GitHub Releases is not currently the authoritative source for the latest RepoPact package.** GitHub's **Latest Release** entry is out of date and may show an older version.
+>
+> **PyPI is the authoritative source for the latest stable RepoPact CLI/headless package.** `pip install --upgrade repopact` installs the Python command/compatibility surface **and** the platform-native canonical `repopact-engine` Rust executable. PyPI does **not** currently distribute the Tauri Workbench GUI, Android application, or the rest of the repository's development/research surfaces.
+>
+> To get the **full RepoPact source tree**, including the Workbench, mobile code, research, governance records, and development/reference surfaces, clone this repository. Use the `v3.1.1` tag when you want source aligned with the current stable PyPI release, or `main` when you want the newest development state.
+
+### Get the full project
+
+Stable source matching PyPI 3.1.1:
+
+```bash
+git clone --branch v3.1.1 --depth 1 https://github.com/ForgeWireLabs/repopact.git
+cd repopact
+```
+
+Newest development tree:
+
+```bash
+git clone https://github.com/ForgeWireLabs/repopact.git
+cd repopact
+```
+
+Build or run the desktop Workbench from the source checkout:
+
+```bash
+cd rust/apps/repopact-desktop
+npm ci
+npm run tauri -- dev
+```
+
+Build a native desktop bundle/installable artifact:
+
+```bash
+npm run tauri -- build
+```
+
+The Workbench build requires Node/npm, Rust/Cargo, and the normal Tauri 2 platform prerequisites for your operating system. Optional GitHub remote-auth integration has additional build-time registration described in [`docs/guides/github-app-setup.md`](docs/guides/github-app-setup.md).
+
+Android uses the same Tauri application after the Android SDK/NDK, JDK, Rust Android targets, and Tauri mobile prerequisites are installed:
+
+```bash
+cd rust/apps/repopact-desktop
+npm ci
+npx tauri android dev
+npx tauri android build
+```
+
+Native bring-up/operator evidence currently exists for **Windows, Linux, and Android**. macOS and iOS remain intended targets but do not yet have equivalent native validation evidence.
 
 [Documentation](docs/README.md) · [Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
 

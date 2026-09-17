@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from pathlib import Path
 import sys
 
 from repopact.admission import Ed25519Signer, issue_receipt, make_request, setup_admission
 from repopact.dev_fixtures import open_fixture_repo
 from repopact.guard import GuardService, ProtectedGuard
-from repopact.guard_ipc import NativeGuardClient, local_peer_binding
-from repopact.platform_backends import TestingBackend, WindowsBackend
+from repopact.guard_ipc import (
+    IPCIdentity,
+    NativeGuardClient,
+    WindowsPipeListener,
+    _windows_server_verified,
+    local_peer_binding,
+    windows_peer_image_path,
+)
+import repopact.guard_ipc as guard_ipc
+from repopact.platform_backends import TestingBackend, WindowsBackend, _windows_install_acl_commands
 import repopact.platform_backends as platform_backends
 
 
@@ -60,6 +68,139 @@ class GuardAuthorityTests(unittest.TestCase):
         client = NativeGuardClient(self.tmp / "missing.sock", root=self.root)
         self.assertFalse(client.health().healthy)
         self.assertFalse(client.check({}, None).allowed)
+
+    def test_native_client_without_root_queries_machine_health(self):
+        client = NativeGuardClient()
+        response = {"healthy": True, "protected": True, "backend_id": "windows-service", "service_identity_verified": True}
+        with patch.object(client, "_call", return_value=response) as call:
+            health = client.health()
+        self.assertTrue(health.healthy)
+        call.assert_called_once_with("health", {})
+
+    def test_windows_pipe_listener_recreates_instance_after_normal_disconnect(self):
+        import ctypes
+
+        listener = WindowsPipeListener.__new__(WindowsPipeListener)
+        listener._handle = 1
+        kernel = Mock()
+        kernel.ConnectNamedPipe.side_effect = [False, False]
+        stop_event = Mock()
+        stop_event.is_set.return_value = False
+        stop_event.wait.return_value = True
+
+        def close():
+            listener._handle = 0
+
+        listener.close = Mock(side_effect=close)
+        listener.open = Mock(side_effect=lambda: setattr(listener, "_handle", 2))
+        with patch.object(ctypes, "WinDLL", return_value=kernel, create=True), \
+                patch.object(ctypes, "get_last_error", side_effect=[232, 232, 536, 536], create=True):
+            self.assertIsNone(listener.accept(stop_event))
+
+        self.assertEqual(listener.open.call_count, 2)
+        self.assertEqual(listener.close.call_count, 2)
+        self.assertEqual(kernel.ConnectNamedPipe.call_count, 2)
+
+    def test_windows_pipe_listener_switches_accepted_instance_to_blocking_reads(self):
+        import ctypes
+
+        listener = WindowsPipeListener.__new__(WindowsPipeListener)
+        listener._handle = 7
+        kernel = Mock()
+        kernel.ConnectNamedPipe.return_value = True
+        with patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            connection = listener.accept()
+
+        self.assertIsInstance(connection, guard_ipc.WindowsPipeConnection)
+        self.assertEqual(connection.handle, 7)
+        self.assertEqual(listener._handle, 0)
+        kernel.SetNamedPipeHandleState.assert_called_once()
+        mode = kernel.SetNamedPipeHandleState.call_args.args[1]._obj
+        self.assertEqual(mode.value, 2)  # PIPE_READMODE_MESSAGE; PIPE_WAIT is zero.
+
+    def test_windows_peer_image_probe_declares_native_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.OpenProcess.return_value = ctypes.c_void_p(0x123456789)
+
+        def query(_handle, _flags, buffer, size):
+            buffer.value = r"C:\Program Files\Python312\python.exe"
+            size._obj.value = len(buffer.value)
+            return True
+
+        kernel.QueryFullProcessImageNameW.side_effect = query
+        connection = object()
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(guard_ipc, "windows_peer_identity",
+                             return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            self.assertEqual(windows_peer_image_path(connection), r"C:\Program Files\Python312\python.exe")
+
+        kernel.OpenProcess.assert_called_once_with(0x1000, False, 1234)
+        kernel.CloseHandle.assert_called_once()
+
+    def test_windows_peer_binding_declares_64_bit_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.OpenProcess.return_value = ctypes.c_void_p(0x123456789)
+        kernel.GetProcessTimes.return_value = False
+        advapi = Mock()
+        advapi.OpenProcessToken.return_value = False
+
+        def load_library(name, **_kwargs):
+            return advapi if name.lower() == "advapi32" else kernel
+
+        connection = object()
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(guard_ipc, "windows_peer_identity",
+                             return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(ctypes, "WinDLL", side_effect=load_library, create=True):
+            binding = guard_ipc.windows_peer_binding(connection)
+
+        self.assertEqual(binding["pid"], 1234)
+        self.assertEqual(binding["transport"], "windows-named-pipe")
+        self.assertEqual(kernel.OpenProcess.argtypes[2], ctypes.wintypes.DWORD)
+        self.assertEqual(kernel.CloseHandle.argtypes[0], ctypes.wintypes.HANDLE)
+        self.assertEqual(advapi.OpenProcessToken.argtypes[0], ctypes.wintypes.HANDLE)
+
+    def test_windows_pipe_connection_declares_message_api_handle_types(self):
+        import ctypes
+
+        kernel = Mock()
+        kernel.WriteFile.return_value = True
+        kernel.ReadFile.side_effect = lambda _handle, buffer, _size, read, _overlapped: (
+            setattr(buffer, "value", b'{"protocol_version":"1"}\n')
+            or setattr(read._obj, "value", len(b'{"protocol_version":"1"}\n'))
+            or True
+        )
+        connection = guard_ipc.WindowsPipeConnection(ctypes.c_void_p(0x123456789))
+        with patch.object(guard_ipc.os, "name", "nt"), \
+                patch.object(ctypes, "WinDLL", return_value=kernel, create=True):
+            connection.send_bytes(b"request\n")
+            self.assertEqual(connection.recv_bytes(), b'{"protocol_version":"1"}\n')
+            connection.close()
+
+        kernel.WriteFile.assert_called_once()
+        kernel.ReadFile.assert_called_once()
+        kernel.CloseHandle.assert_called_once()
+
+    def test_windows_server_verifier_accepts_scm_localsystem_name(self):
+        qc = (
+            "        BINARY_PATH_NAME   : \"C:\\Program Files\\Python312\\python.exe\" -I "
+            r"C:\ProgramData\RepoPact\Guard\runtime\repopact\windows_guard_service.py" "\n"
+            "        SERVICE_START_NAME : LocalSystem\n"
+        )
+        completed = Mock(stdout=qc, stderr="", returncode=0)
+        with patch.object(guard_ipc, "windows_peer_identity",
+                          return_value=IPCIdentity("windows-named-pipe", peer_pid=1234)), \
+                patch.object(guard_ipc, "_windows_server_pid", return_value=1234), \
+                patch.object(guard_ipc, "windows_peer_image_path",
+                             return_value=r"C:\Program Files\Python312\python.exe"), \
+                patch.object(guard_ipc.subprocess, "run", return_value=completed), \
+                patch.object(platform_backends, "_windows_protected_path_chain", return_value=(True, "")):
+            self.assertTrue(_windows_server_verified(object(), None, "RepoPactGuard"))
 
     def test_install_preflight_is_non_mutating_and_rejects_dirty_source(self):
         backend = WindowsBackend()
@@ -129,6 +270,49 @@ class GuardAuthorityTests(unittest.TestCase):
         self.assertFalse(platform_backends._windows_acl_has_broad_write(read_only))
         self.assertTrue(platform_backends._windows_acl_has_broad_write(writable))
         self.assertTrue(platform_backends._windows_acl_has_broad_write(authenticated))
+        self.assertFalse(platform_backends._windows_acl_has_broad_write(
+            r"C:\ProgramData\RepoPact BUILTIN\Users:(DENY)(W,D,WDAC,WO,DC)"
+        ))
+        program_data = r"C:\ProgramData BUILTIN\Users:(OI)(CI)(RX) BUILTIN\Users:(CI)(WD,AD,WEA,WA)"
+        self.assertTrue(platform_backends._windows_acl_has_broad_write(program_data))
+        self.assertFalse(platform_backends._windows_acl_has_broad_write(program_data, replacement_only=True))
+
+    def test_windows_reparse_probe_uses_attributes_without_opening_protected_path(self):
+        native = unittest.mock.Mock()
+        native.GetFileAttributesW.return_value = 0x10  # FILE_ATTRIBUTE_DIRECTORY
+        with patch.object(platform_backends.os, "name", "nt"), \
+                patch.object(platform_backends.ctypes, "WinDLL", return_value=native, create=True):
+            self.assertFalse(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
+            native.GetFileAttributesW.return_value = 0x410  # directory + reparse point
+            self.assertTrue(platform_backends._windows_reparse_point(Path(r"C:\ProgramData\RepoPact\Guard")))
+
+    def test_windows_install_acl_commands_protect_parent_before_child(self):
+        parent = Path(r"C:\ProgramData\RepoPact")
+        child = parent / "Guard"
+        commands = _windows_install_acl_commands(parent) + _windows_install_acl_commands(child)
+        self.assertEqual(commands[0][2:], ["/inheritance:r"])
+        self.assertEqual(commands[3][1], str(child))
+        self.assertTrue(all(command[2] != "/deny" for command in commands))
+
+    def test_windows_acl_accepts_explicit_read_only_users_without_deny_ace(self):
+        output = (
+            r"C:\ProgramData\RepoPact\Guard BUILTIN\Users:(OI)(CI)(RX)" "\n"
+            r"                         BUILTIN\Administrators:(OI)(CI)(F)" "\n"
+            r"                         NT AUTHORITY\SYSTEM:(OI)(CI)(F)"
+        )
+        with patch.object(platform_backends.os, "name", "nt"), \
+                patch.object(platform_backends, "_command_output", return_value=(0, output)):
+            protected, _reason = platform_backends._windows_acl(Path(r"C:\ProgramData\RepoPact\Guard"))
+        self.assertTrue(protected)
+
+    def test_windows_runtime_digest_is_independent_of_install_location(self):
+        first = self.tmp / "runtime-first" / "repopact"
+        second = self.tmp / "runtime-second" / "repopact"
+        for base in (first, second):
+            base.mkdir(parents=True, exist_ok=True)
+            (base / "service.py").write_text("print('stable')\n", encoding="utf-8")
+        backend = WindowsBackend()
+        self.assertEqual(backend._runtime_digest(first), backend._runtime_digest(second))
 
     @unittest.skipUnless(os.name == "nt", "Windows ACL path-chain behavior")
     def test_existing_protected_descendant_is_not_rejected_by_volume_root_acl(self):

@@ -72,6 +72,7 @@ class BackendAttestation:
             "os": self.os_name,
             "installed": self.installed,
             "healthy": self.healthy,
+            "protected": self.protected_from_gated_principal,
             "integrity_checked": self.integrity_checked,
             "protected_from_gated_principal": self.protected_from_gated_principal,
             "service_identity_verified": self.service_identity_verified,
@@ -118,8 +119,16 @@ def _windows_process_image(pid: int | None) -> str:
     if os.name != "nt" or not pid or pid <= 0:
         return ""
     try:
-        kernel = ctypes.windll.kernel32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
         from ctypes import wintypes
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
         handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
         if not handle:
@@ -154,16 +163,43 @@ def _windows_is_local_system(identity: str) -> bool:
 
 def _windows_acl(path: Path) -> tuple[bool, str]:
     """Return whether an installed path has a verifiable protected ACL."""
-    if os.name != "nt" or not path.exists():
+    if os.name != "nt":
         return False, "path is absent or Windows ACL inspection is unavailable"
     code, output = _command_output(["icacls", str(path)])
     if code != 0:
         return False, "icacls could not inspect the installed path"
     upper = output.upper()
     owner_protected = "NT AUTHORITY\\SYSTEM" in upper or "BUILTIN\\ADMINISTRATORS" in upper
-    deny_present = "(DENY)" in upper or "DENY" in upper
     users_present = "BUILTIN\\USERS" in upper or "NT AUTHORITY\\AUTHENTICATED USERS" in upper
-    return bool(owner_protected and deny_present and users_present), output.strip()
+    no_broad_user_write = not _windows_acl_has_broad_write(output)
+    return bool(owner_protected and users_present and no_broad_user_write), output.strip()
+
+
+def _windows_install_acl_commands(path: Path) -> list[list[str]]:
+    """Return the ordered ACL commands for one protected product directory."""
+    return [
+        ["icacls", str(path), "/inheritance:r"],
+        ["icacls", str(path), "/grant:r", "SYSTEM:(OI)(CI)(F)",
+         "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
+        # Set ownership after replacing inherited rights. The resulting
+        # explicit Users:(RX) grant gives the operator read access while
+        # granting no ordinary-user mutation rights; a Users deny would also
+        # match an elevated administrator who belongs to BUILTIN\Users.
+        ["icacls", str(path), "/setowner", "SYSTEM"],
+    ]
+
+
+def _windows_path_present(path: Path) -> bool:
+    """Check presence without requiring a metadata read denied by the DACL."""
+    try:
+        if path.exists():
+            return True
+    except OSError:
+        pass
+    if os.name != "nt":
+        return False
+    code, _ = _command_output(["icacls", str(path)])
+    return code == 0
 
 
 def _windows_runtime_is_protected(path: Path) -> bool:
@@ -174,6 +210,22 @@ def _windows_runtime_is_protected(path: Path) -> bool:
 
 def _windows_reparse_point(path: Path) -> bool:
     """Return whether *path* is a symlink or Windows reparse point."""
+    if os.name == "nt":
+        # pathlib.Path.stat() opens the protected object and can be denied by
+        # the deliberate Users DACL even when ordinary file attributes remain
+        # queryable.  GetFileAttributesW is the native metadata operation
+        # needed here and does not require opening the file or directory.
+        try:
+            kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+            get_attributes = kernel.GetFileAttributesW
+            get_attributes.argtypes = [ctypes.c_wchar_p]
+            get_attributes.restype = ctypes.c_uint32
+            attributes = get_attributes(str(path))
+            if attributes == 0xFFFFFFFF:
+                return True
+            return bool(attributes & 0x400)  # FILE_ATTRIBUTE_REPARSE_POINT
+        except (AttributeError, OSError, TypeError, ValueError):
+            return True
     try:
         if path.is_symlink():
             return True
@@ -217,26 +269,35 @@ def _is_under(path: Path, roots: tuple[Path, ...]) -> bool:
     return any(candidate == root or candidate.is_relative_to(root) for root in roots)
 
 
-def _windows_acl_has_broad_write(output: str) -> bool:
+def _windows_acl_has_broad_write(output: str, *, replacement_only: bool = False) -> bool:
     """Detect write/delete rights granted to ordinary broad principals."""
     user_principals = ["(?:BUILTIN\\\\)?USERS:", "AUTHENTICATEDUSERS:", "EVERYONE:", "INTERACTIVE:"]
     for username in (os.environ.get("USERNAME"), os.environ.get("USER")):
         if username:
             user_principals.append(re.escape(username.upper()) + ":")
     principals = re.compile("|".join(user_principals))
-    dangerous = {"F", "M", "W", "D", "DC", "WDAC", "WO", "DELETE", "AD", "WEA", "WA"}
+    dangerous = {"F", "M", "D", "DC", "WDAC", "WO", "DELETE"} if replacement_only else {
+        "F", "M", "W", "D", "DC", "WDAC", "WO", "DELETE", "AD", "WEA", "WA"
+    }
     for line in output.upper().splitlines():
         compact = line.replace(" ", "")
         match = principals.search(compact)
         if not match:
             continue
         permissions = compact[match.end():]
+        # The installer deliberately adds an explicit deny for replacement
+        # rights.  Only granted rights make an ordinary principal able to
+        # modify the protected path; treating a deny ACE as a broad grant
+        # makes truthful post-install attestation impossible.
+        if "(DENY)" in permissions:
+            continue
         for token in re.findall(r"\(([^)]*)\)", permissions):
-            token = token.strip()
-            # OI/CI/I/NP/IO are inheritance flags, not access rights.
-            if token in {"OI", "CI", "I", "NP", "IO"}:
-                continue
-            if token in dangerous or any(right in token for right in dangerous):
+            rights = {part.strip() for part in token.split(",")}
+            # OI/CI/I/NP/IO are inheritance flags, not access rights. Use
+            # exact rights instead of substring matching: WD (write data)
+            # must not be mistaken for D (delete).
+            rights.difference_update({"OI", "CI", "I", "NP", "IO"})
+            if rights & dangerous:
                 return True
     return False
 
@@ -287,7 +348,7 @@ def _windows_path_chain_is_protected(path: Path) -> tuple[bool, str]:
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
-        if _windows_acl_has_broad_write(output):
+        if _windows_acl_has_broad_write(output, replacement_only=current != canonical):
             return False, f"ordinary users can modify or replace {current}"
         checked.append(str(current))
         if current.parent == current:
@@ -302,7 +363,7 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
         return False, "Windows ACL inspection is unavailable on this host"
     try:
         supplied = Path(path).expanduser().absolute()
-        if not supplied.exists():
+        if not _windows_path_present(supplied):
             return False, f"protected path is absent: {supplied}"
         supplied_parts: list[Path] = []
         current = supplied
@@ -313,7 +374,12 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
             current = current.parent
         if any(_windows_reparse_point(item) for item in supplied_parts):
             return False, "protected path hierarchy contains a symlink or reparse point"
-        canonical = supplied.resolve(strict=True)
+        # The path was already proven present above.  On Windows, strict
+        # pathlib resolution can require metadata access that the protected
+        # DACL intentionally denies to the operator's ordinary Users token.
+        # Reparse points were checked for every supplied component, so the
+        # absolute path is the safe canonical identity for this existing tree.
+        canonical = supplied.resolve(strict=False)
     except (OSError, ValueError):
         return False, "protected path could not be resolved canonically"
 
@@ -329,7 +395,7 @@ def _windows_protected_path_chain(path: Path) -> tuple[bool, str]:
         code, output = _command_output(["icacls", str(current)])
         if code != 0:
             return False, f"icacls could not inspect {current}"
-        if _windows_acl_has_broad_write(output):
+        if _windows_acl_has_broad_write(output, replacement_only=current != canonical):
             return False, f"ordinary users can modify or replace {current}"
         checked.append(str(current))
         if current.parent == current:
@@ -647,11 +713,12 @@ class WindowsBackend(PlatformBackend):
         except (OSError, ValueError, json.JSONDecodeError):
             return None
 
-    def _runtime_digest(self) -> str:
-        files = sorted(self.runtime_path.rglob("*.py")) if self.runtime_path.is_dir() else []
+    def _runtime_digest(self, runtime: Path | None = None) -> str:
+        base = runtime or self.runtime_path
+        files = sorted(base.rglob("*.py")) if base.is_dir() else []
         h = hashlib.sha256()
         for path in files:
-            h.update(_normalise(path).encode("utf-8"))
+            h.update(str(path.relative_to(base)).replace("\\", "/").encode("utf-8"))
             h.update(path.read_bytes())
         return h.hexdigest() if files else ""
 
@@ -829,6 +896,15 @@ class WindowsBackend(PlatformBackend):
         staging = parent / f".RepoPactGuard.install-{os.getpid()}-{os.urandom(6).hex()}"
         created_service = False
         try:
+            # The staging directory lives inside the product namespace. That
+            # namespace must be protected before any staged runtime exists so
+            # an ordinary user cannot race the elevated installer by replacing
+            # the staging tree before the final child ACL is applied.
+            parent.mkdir(parents=True, exist_ok=True)
+            for command in _windows_install_acl_commands(parent):
+                code, output = _command_output(command)
+                if code != 0:
+                    raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
             staging.mkdir(parents=True, exist_ok=False)
             stage_runtime = staging / "runtime"; stage_state = staging / "state"
             for source in source_package.rglob("*.py"):
@@ -837,15 +913,13 @@ class WindowsBackend(PlatformBackend):
             stage_state.mkdir(parents=True, exist_ok=True)
             service_entry = stage_runtime / "repopact" / "windows_guard_service.py"
             if not service_entry.exists(): raise RuntimeError("installed guard runtime is missing windows_guard_service.py")
-            stage_digest = hashlib.sha256()
-            for path in sorted(stage_runtime.rglob("*.py")):
-                stage_digest.update(_normalise(path).encode()); stage_digest.update(path.read_bytes())
+            stage_digest = self._runtime_digest(stage_runtime)
             code, revision = _command_output(["git", "-C", str(root or Path.cwd()), "rev-parse", "HEAD"])
             selected_interpreter = str(report["interpreter"]["canonical_path"] or report["interpreter"]["path"])
             manifest = {"protocol_version": "1", "service_name": self.service_name, "service_identity": "NT AUTHORITY\\SYSTEM",
                         "installed_code_path": str(self.runtime_path), "protected_state_path": str(self.protected_state_location),
                         "registrations_path": str(self.registrations_path), "ipc_endpoint": self.ipc_endpoint,
-                        "runtime_digest": stage_digest.hexdigest(), "source_revision": revision.strip() if code == 0 else "",
+                        "runtime_digest": stage_digest, "source_revision": revision.strip() if code == 0 else "",
                         "interpreter": selected_interpreter, "interpreter_requested": report["interpreter"]["path"],
                         "dependency_closure": report["dependency_origins"],
                         "dependency_modules": report["dependencies"], "service_command": report["service_command"],
@@ -853,14 +927,11 @@ class WindowsBackend(PlatformBackend):
             (staging / "install.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8", newline="\n")
             if self.install_root.exists(): raise RuntimeError("install root appeared after preflight; refusing overwrite")
             staging.replace(self.install_root)
-            commands = [["icacls", str(self.install_root), "/inheritance:r"],
-                        ["icacls", str(self.install_root), "/grant:r", "SYSTEM:(OI)(CI)(F)", "Administrators:(OI)(CI)(F)", "Users:(OI)(CI)(RX)"],
-                        # Set ownership before the explicit deny. The deny
-                        # includes WRITE_OWNER/WRITE_DAC and would otherwise
-                        # prevent an elevated administrator from completing
-                        # the ownership transition or rolling back safely.
-                        ["icacls", str(self.install_root), "/setowner", "SYSTEM"],
-                        ["icacls", str(self.install_root), "/deny", "Users:(OI)(CI)(W,D,DC,WDAC,WO)"]]
+            # Protect the installed child as well as its already-protected
+            # product namespace parent. A protected child is replaceable if
+            # an ordinary user can create or rename entries through its parent
+            # directory.
+            commands = _windows_install_acl_commands(self.install_root)
             for command in commands:
                 code, output = _command_output(command)
                 if code != 0: raise RuntimeError(f"protected ACL setup failed: {' '.join(command)}: {output.strip()}")
@@ -871,7 +942,14 @@ class WindowsBackend(PlatformBackend):
             created_service = True
             start_code, start_output = _command_output(["sc.exe", "start", self.service_name])
             if start_code != 0: raise RuntimeError(f"Windows service start failed: {start_output.strip()}")
-            return self.attest(root).record()
+            deadline = time.monotonic() + 5
+            attestation = self.attest(root)
+            while not attestation.healthy and time.monotonic() < deadline:
+                time.sleep(0.05)
+                attestation = self.attest(root)
+            if not attestation.healthy:
+                raise RuntimeError("Windows guard started without a healthy attestation: " + attestation.reason)
+            return attestation.record()
         except Exception:
             if created_service: _command_output(["sc.exe", "stop", self.service_name]); _command_output(["sc.exe", "delete", self.service_name])
             if self.install_root.exists(): shutil.rmtree(self.install_root, ignore_errors=True)

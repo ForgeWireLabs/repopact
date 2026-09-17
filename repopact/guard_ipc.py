@@ -114,19 +114,31 @@ class WindowsPipeConnection:
     def send_bytes(self, data: bytes) -> None:
         import ctypes
         from ctypes import wintypes
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.WriteFile.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
+        ]
+        kernel.WriteFile.restype = wintypes.BOOL
         written = wintypes.DWORD()
         buf = ctypes.create_string_buffer(data)
-        if not ctypes.windll.kernel32.WriteFile(self.handle, buf, len(data), ctypes.byref(written), None):
+        if not kernel.WriteFile(self.handle, buf, len(data), ctypes.byref(written), None):
             raise OSError(ctypes.get_last_error(), "WriteFile failed")
 
     def recv_bytes(self) -> bytes:
         import ctypes
         from ctypes import wintypes
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.ReadFile.argtypes = [
+            wintypes.HANDLE, wintypes.LPVOID, wintypes.DWORD,
+            ctypes.POINTER(wintypes.DWORD), wintypes.LPVOID,
+        ]
+        kernel.ReadFile.restype = wintypes.BOOL
         chunks: list[bytes] = []
         while True:
             buf = ctypes.create_string_buffer(1024 * 1024)
             read = wintypes.DWORD()
-            ok = ctypes.windll.kernel32.ReadFile(self.handle, buf, len(buf), ctypes.byref(read), None)
+            ok = kernel.ReadFile(self.handle, buf, len(buf), ctypes.byref(read), None)
             if not ok and ctypes.get_last_error() not in (109, 234):  # broken pipe / more data
                 raise OSError(ctypes.get_last_error(), "ReadFile failed")
             chunks.append(buf.raw[:read.value])
@@ -137,7 +149,11 @@ class WindowsPipeConnection:
         if self.handle:
             try:
                 import ctypes
-                ctypes.windll.kernel32.CloseHandle(self.handle)
+                from ctypes import wintypes
+                kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+                kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+                kernel.CloseHandle.restype = wintypes.BOOL
+                kernel.CloseHandle(self.handle)
             finally:
                 self.handle = 0
 
@@ -148,6 +164,36 @@ class WindowsPipeListener:
         if os.name != "nt": raise OSError("Windows named pipes require Windows")
         self.name = name
         self._handle = 0
+
+    def _create(self) -> None:
+        import ctypes
+        from ctypes import wintypes
+        attrs, descriptor = self._security_attributes()
+        try:
+            kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+            kernel.CreateNamedPipeW.argtypes = [
+                wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+                wintypes.DWORD, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(type(attrs)),
+            ]
+            kernel.CreateNamedPipeW.restype = wintypes.HANDLE
+            PIPE_ACCESS_DUPLEX = 0x00000003
+            PIPE_TYPE_MESSAGE, PIPE_READMODE_MESSAGE, PIPE_NOWAIT = 4, 2, 1
+            INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+            self._handle = kernel.CreateNamedPipeW(
+                self.name, PIPE_ACCESS_DUPLEX,
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_NOWAIT,
+                1, 1024 * 1024, 1024 * 1024, 3000, ctypes.byref(attrs),
+            )
+            if not self._handle or self._handle == INVALID_HANDLE_VALUE:
+                error = ctypes.get_last_error()
+                raise ctypes.WinError(error)
+        finally:
+            ctypes.windll.kernel32.LocalFree(descriptor)
+
+    def open(self) -> None:
+        """Create the protected endpoint before the service reports RUNNING."""
+        if not self._handle:
+            self._create()
 
     def _security_attributes(self):
         import ctypes
@@ -164,26 +210,51 @@ class WindowsPipeListener:
             _fields_ = [("nLength", wintypes.DWORD), ("lpSecurityDescriptor", wintypes.LPVOID), ("bInheritHandle", wintypes.BOOL)]
         return SECURITY_ATTRIBUTES(ctypes.sizeof(SECURITY_ATTRIBUTES), descriptor, False), descriptor
 
-    def accept(self) -> WindowsPipeConnection:
+    def accept(self, stop_event: Any | None = None) -> WindowsPipeConnection | None:
         import ctypes
         from ctypes import wintypes
-        attrs, descriptor = self._security_attributes()
-        try:
-            kernel = ctypes.windll.kernel32
-            PIPE_ACCESS_DUPLEX = 0x00000003
-            PIPE_TYPE_MESSAGE, PIPE_READMODE_MESSAGE, PIPE_WAIT = 4, 2, 0
-            INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
-            self._handle = kernel.CreateNamedPipeW(self.name, PIPE_ACCESS_DUPLEX,
-                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 1, 1024 * 1024, 1024 * 1024, 3000, ctypes.byref(attrs))
-            if self._handle == INVALID_HANDLE_VALUE:
-                raise OSError(ctypes.get_last_error(), "CreateNamedPipeW failed")
+        self.open()
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.ConnectNamedPipe.argtypes = [wintypes.HANDLE, wintypes.LPVOID]
+        kernel.ConnectNamedPipe.restype = wintypes.BOOL
+        ERROR_PIPE_CONNECTED, ERROR_PIPE_LISTENING, ERROR_NO_DATA = 535, 536, 232
+        PIPE_READMODE_MESSAGE = 2
+        while self._handle:
             connected = kernel.ConnectNamedPipe(self._handle, None)
-            if not connected and ctypes.get_last_error() != 535:  # ERROR_PIPE_CONNECTED
-                raise OSError(ctypes.get_last_error(), "ConnectNamedPipe failed")
-            handle = self._handle; self._handle = 0
-            return WindowsPipeConnection(handle)
-        finally:
-            ctypes.windll.kernel32.LocalFree(descriptor)
+            if connected or ctypes.get_last_error() == ERROR_PIPE_CONNECTED:
+                handle = self._handle
+                # The listener uses PIPE_NOWAIT so ConnectNamedPipe can poll
+                # for service shutdown.  Accepted connections must use
+                # blocking message reads; otherwise a client that has opened
+                # the pipe but has not completed its first WriteFile can make
+                # ReadFile fail with ERROR_NO_DATA (232), causing the service
+                # to close the connection before the request arrives.
+                kernel.SetNamedPipeHandleState.argtypes = [
+                    wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD),
+                    ctypes.POINTER(wintypes.DWORD), ctypes.POINTER(wintypes.DWORD),
+                ]
+                kernel.SetNamedPipeHandleState.restype = wintypes.BOOL
+                mode = wintypes.DWORD(PIPE_READMODE_MESSAGE)
+                if not kernel.SetNamedPipeHandleState(handle, ctypes.byref(mode), None, None):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                self._handle = 0
+                return WindowsPipeConnection(handle)
+            error = ctypes.get_last_error()
+            if error == ERROR_NO_DATA:
+                # The previous client closed its instance before the next
+                # ConnectNamedPipe call. This is a normal disconnect, not a
+                # service-start failure; create a fresh pipe instance.
+                self.close()
+                if stop_event is not None and stop_event.is_set():
+                    return None
+                self.open()
+                continue
+            if error != ERROR_PIPE_LISTENING:
+                raise ctypes.WinError(error)
+            if stop_event is not None and stop_event.wait(0.05):
+                self.close()
+                return None
+        return None
 
     def close(self) -> None:
         if self._handle:
@@ -232,8 +303,18 @@ def windows_peer_binding(connection: Any, *, client: bool = True) -> dict[str, A
     try:
         import ctypes
         from ctypes import wintypes
-        kernel = ctypes.windll.kernel32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
         PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.GetProcessTimes.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME),
+        ]
+        kernel.GetProcessTimes.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
         handle = kernel.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, identity.peer_pid)
         if handle:
             try:
@@ -246,7 +327,23 @@ def windows_peer_binding(connection: Any, *, client: bool = True) -> dict[str, A
     try:
         import ctypes
         from ctypes import wintypes
-        kernel, advapi = ctypes.windll.kernel32, ctypes.windll.advapi32
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        advapi = ctypes.WinDLL("Advapi32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        kernel.LocalFree.argtypes = [wintypes.LPVOID]
+        kernel.LocalFree.restype = wintypes.LPVOID
+        advapi.OpenProcessToken.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.POINTER(wintypes.HANDLE)]
+        advapi.OpenProcessToken.restype = wintypes.BOOL
+        advapi.GetTokenInformation.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPVOID,
+            wintypes.DWORD, ctypes.POINTER(wintypes.DWORD),
+        ]
+        advapi.GetTokenInformation.restype = wintypes.BOOL
+        advapi.ConvertSidToStringSidW.argtypes = [wintypes.LPVOID, ctypes.POINTER(wintypes.LPWSTR)]
+        advapi.ConvertSidToStringSidW.restype = wintypes.BOOL
         process = kernel.OpenProcess(0x1000, False, identity.peer_pid)
         if process:
             try:
@@ -276,8 +373,16 @@ def windows_peer_image_path(connection: Any) -> str:
     try:
         import ctypes
         from ctypes import wintypes
-        kernel = ctypes.windll.kernel32
-        handle = kernel.OpenProcess(0x1000, False, identity.peer_pid)
+        kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+        kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel.OpenProcess.restype = wintypes.HANDLE
+        kernel.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD),
+        ]
+        kernel.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel.CloseHandle.restype = wintypes.BOOL
+        handle = kernel.OpenProcess(0x1000, False, int(identity.peer_pid))
         if not handle: return ""
         try:
             size = wintypes.DWORD(32768); buffer = ctypes.create_unicode_buffer(size.value)
@@ -295,7 +400,10 @@ def _windows_server_verified(connection: Any, expected_server_path: str | Path |
         qc = subprocess.run(["sc.exe", "qc", service_name], text=True, capture_output=True, check=False)
         text = qc.stdout + qc.stderr
         upper = text.upper()
-        if "LOCAL SYSTEM" not in upper and "NT AUTHORITY\\SYSTEM" not in upper and "NT AUTHORITY\\LOCALSYSTEM" not in upper:
+        configured_identity = next((line.split(":", 1)[1].strip() for line in text.splitlines()
+                                    if line.strip().upper().startswith("SERVICE_START_NAME") and ":" in line), "")
+        from .platform_backends import _windows_is_local_system
+        if not _windows_is_local_system(configured_identity):
             return False
         configured_line = next((line.split(":", 1)[1].strip() for line in text.splitlines()
                                 if line.strip().upper().startswith("BINARY_PATH_NAME") and ":" in line), "")
@@ -327,7 +435,15 @@ def windows_request(message: Mapping[str, Any], timeout: float = 3.0, expected_s
     import ctypes
     from ctypes import wintypes
     GENERIC_READ, GENERIC_WRITE, OPEN_EXISTING = 0x80000000, 0x40000000, 3
-    handle = ctypes.windll.kernel32.CreateFileW(WINDOWS_PIPE, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None)
+    kernel = ctypes.WinDLL("Kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, wintypes.LPVOID,
+        wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    ]
+    kernel.CreateFileW.restype = wintypes.HANDLE
+    handle = kernel.CreateFileW(
+        WINDOWS_PIPE, GENERIC_READ | GENERIC_WRITE, 0, None, OPEN_EXISTING, 0, None,
+    )
     if handle in (0, ctypes.c_void_p(-1).value): raise OSError(ctypes.get_last_error(), "guard named pipe unavailable")
     connection = WindowsPipeConnection(handle)
     try:
@@ -455,8 +571,8 @@ class NativeGuardClient(EnforcementProvider):
         from .admission import GuardHealth
         from dataclasses import fields
         selected = root or self.root
-        if selected is None: return GuardHealth(False, security_level="not-covered", reason="native guard client has no repository root", backend_id="native-ipc")
-        try: result = self._call("health", {"root": str(selected)})
+        payload = {"root": str(selected)} if selected is not None else {}
+        try: result = self._call("health", payload)
         except Exception as exc: return GuardHealth(False, security_level="not-covered", reason=str(exc), backend_id="native-ipc")
         names = {f.name for f in fields(GuardHealth)}
         return GuardHealth(**{k: v for k, v in result.items() if k in names})

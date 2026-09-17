@@ -270,6 +270,29 @@ GitHub integration is optional. Existing repositories and users who never connec
   documentation would still be speculative); GH-004/005/012 remain
   `pending`, unchanged.
 
+- **Checkpoint E — Android Protected Credential Storage — done.** See
+  `evidence/runs/20260916-067-checkpoint-e-android-protected-credentials.json`.
+  New `repopact-mobile-credential` crate implements the existing
+  `CredentialStore` trait against a real, non-exportable AES-256-GCM key
+  generated inside Android Keystore (never the OAuth token itself stored
+  in Keystore); only a versioned, ciphertext-only envelope reaches
+  app-private SharedPreferences. Proven with real emulator evidence, not
+  unit tests alone: put/get/overwrite/delete, distinct access/refresh and
+  per-connection keys, persistence across a real process kill and
+  restart, at-rest plaintext absence (`grep`, not visual inspection),
+  zero logcat leakage of any synthetic canary across every operation, and
+  three distinct real failure modes (missing key, corrupt/wrong-version
+  envelope, authenticated-encryption tag failure) each surfacing a
+  distinct typed error rather than plaintext, a crash, or a silently
+  regenerated key. `AndroidManifest.xml` is byte-identical before and
+  after -- no new permission. `GitHubProvider`/the GitHub connection
+  command surface is deliberately *not* wired to run on Android in this
+  checkpoint (that remains a separate integration step); this checkpoint
+  proves the credential backend itself. GH-004 becomes `satisfied`;
+  GH-012 records this as a satisfied prerequisite but stays `pending`
+  (both the operator gate and the Android GitHubProvider wiring remain
+  outstanding); GH-005/GH-015 unchanged.
+
 ## Status
 
-Active. Remaining work is entirely gated on an operator registering a real GitHub App (GH-005, GH-012, GH-015's remaining sections) and on Android protected credential storage (GH-004, GH-012's Android half). No further RepoPact-side implementation work is pending for the currently-scoped desktop/public-repository snapshot-import feature.
+Active. Remaining work is entirely gated on an operator registering a real GitHub App (GH-005, GH-012, GH-015's remaining sections) and on wiring GitHubProvider's connection command surface to actually run on Android (GH-012's remaining half -- the Android protected credential store it depends on is now implemented and proven). No further RepoPact-side implementation work is pending for the currently-scoped desktop/public-repository snapshot-import feature.

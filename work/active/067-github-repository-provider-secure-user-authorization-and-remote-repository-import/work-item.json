@@ -46,8 +46,10 @@
     {
       "id": "GH-004",
       "text": "GitHub credentials/tokens are stored only through OS-protected credential facilities appropriate to the platform (for example Windows Credential Manager, macOS/iOS Keychain, Android Keystore-backed protected storage or an equivalent approved abstraction). Tokens, refresh material, authorization codes, private keys, and credential-bearing URLs never appear in repository records, workspace registry JSON, ordinary frontend persistence, logs, evidence payloads, or generated documentation. Disconnect/revoke and expired-token behavior are explicit and tested.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": [
+        "20260916-067-checkpoint-e-android-protected-credentials"
+      ]
     },
     {
       "id": "GH-005",
@@ -107,7 +109,9 @@
       "id": "GH-012",
       "text": "Desktop and Android runtime evidence proves the user-facing GitHub flow end-to-end where those clients are supported: connect/authorize, list permitted repositories, select a repository/ref, resolve the exact SHA, import through the production materialization path, open via the unchanged DesktopService/RepositorySession, operate offline after acquisition, and disconnect without invalidating already-materialized local workspaces. iOS disposition is recorded honestly if not executed.",
       "state": "pending",
-      "evidence": []
+      "evidence": [
+        "20260916-067-checkpoint-e-android-protected-credentials"
+      ]
     },
     {
       "id": "GH-013",

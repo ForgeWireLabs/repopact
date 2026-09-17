@@ -23,10 +23,10 @@
       "path": "docs",
       "owner": "docs-owner",
       "contract": "docs/AGENTS.md",
-      "last_reviewed": "2026-09-15",
-      "next_review": "2026-12-15",
+      "last_reviewed": "2026-09-17",
+      "next_review": "2026-12-17",
       "alignment": "current",
-      "notes": "Diataxis documentation set, including the canonical-projection semantic boundary and the WI046 local-first CI/CD how-to; governed lightly with no per-page audit inventories (policies 001 and 002)."
+      "notes": "Diataxis documentation set reconciled through RepoPact 3.1.1, including audience-oriented navigation, the authoritative-vs-derived state boundary, the instruction-only/session-start/pre-action/sandbox assurance ladder, modern 3.x adoption flow, local-first CI/CD guidance, ROG authority limits, and launch claim boundaries. Governed lightly with no per-page audit inventories (policies 001 and 002)."
     },
     {
       "path": "work/completed/026-deterministic-dashboard-validation",

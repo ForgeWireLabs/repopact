@@ -14,6 +14,9 @@ A fresh human or agent can clone a governed repository and recover not only the 
 
 `pip install repopact` · Apache-2.0 · stable release **3.1.1** ([changelog](decisions/0063-release-repopact-3-1-1-sdist-license-file-corrective.md))
 
+> [!IMPORTANT]
+> **GitHub Releases is not currently the authoritative source for the latest RepoPact package.** GitHub's **Latest Release** entry is out of date and may show an older version. The current stable package is published on **[PyPI](https://pypi.org/project/repopact/)**. Install or upgrade with `pip install --upgrade repopact`. The `main` branch may also contain work that is newer than the latest published package, so use PyPI when you need the current stable installable release.
+
 [Documentation](docs/README.md) · [Paper draft](research/paper.md) · [Formal model](research/formal-model.md) · [Conformance](CONFORMANCE.md) · [Research protocol](research/protocol.md)
 
 ![RepoPact turns fragmented session context into durable repository state: humans, agents, and tools rendezvous through a repository that preserves intent, authority, decisions, work state, invariants, evidence, and provenance.](docs/assets/readme/repopact-hero.svg)

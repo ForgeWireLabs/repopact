@@ -187,6 +187,7 @@ class GuardAuthorityTests(unittest.TestCase):
         kernel.ReadFile.assert_called_once()
         kernel.CloseHandle.assert_called_once()
 
+    @unittest.skipUnless(os.name == "nt", "shells out to sc.exe, a Windows-only binary")
     def test_windows_server_verifier_accepts_scm_localsystem_name(self):
         qc = (
             "        BINARY_PATH_NAME   : \"C:\\Program Files\\Python312\\python.exe\" -I "

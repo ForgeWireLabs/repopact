@@ -4,6 +4,7 @@ __pycache__/
 .pytest_cache/
 build/
 dist/
+release-out/
 *.egg-info/
 
 # Rust workspace build output (rust/Cargo.toml is one workspace, one shared target dir)

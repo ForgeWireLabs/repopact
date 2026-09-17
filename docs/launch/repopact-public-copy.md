@@ -28,7 +28,7 @@ RepoPact keeps durable engineering state in the repository itself so humans and 
 
 The goal is not to slow AI-assisted development down. It is to make that speed sustainable across agents, models, machines, providers, and sessions.
 
-RepoPact 3.1.1 is available on PyPI and the project is open source under Apache 2.0:
+RepoPact 3.1.2 is available on PyPI and the project is open source under Apache 2.0:
 https://github.com/ForgeWireLabs/repopact
 
 I am also preparing the paper, **"RepoPact: Repository-Native Governance for Durable Human-Agent Software Engineering,"** for arXiv.
@@ -53,7 +53,7 @@ RepoPact uses typed, version-controlled records for work lifecycle, authority, i
 
 It is not an agent, an agent-memory service, a hosted CI product, or `AGENTS.md++`. It is a governance layer that those systems can share.
 
-The stable package is RepoPact 3.1.1 and the project is Apache-2.0:
+The stable package is RepoPact 3.1.2 and the project is Apache-2.0:
 https://github.com/ForgeWireLabs/repopact
 
 The repository also contains broader ongoing work such as the Tauri Workbench, Repository Orientation Graph evaluation/productization, provider integrations, optional admission/confinement work, and the research program. Those surfaces keep their own lifecycle, platform, packaging, and evidence boundaries rather than being implied by `pip install repopact`.
@@ -78,7 +78,7 @@ Use `docs/assets/readme/repopact-hero-social.png` as the GitHub social preview. 
 
 ## Posting boundaries
 
-- Stable package claims refer to **3.1.1** unless a later release is actually published.
+- Stable package claims refer to **3.1.2** unless a later release is actually published.
 - Do not imply that every application or active/deferred surface in the repository is part of the PyPI package contract.
 - Do not claim comparative model, token-efficiency, security, or coordination improvements before reportable runs exist.
 - Do not describe macOS or iOS Workbench validation as equivalent to Windows/Linux/Android without matching evidence.

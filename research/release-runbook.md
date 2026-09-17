@@ -1,6 +1,36 @@
 # Release runbook
 
-## Current 3.1.1 corrective release
+## Current 3.1.2 corrective release
+
+The 3.1.2 release is a backwards-compatible corrective patch (decision 0064)
+addressing two avoidable local/tooling failure modes exposed by an independent
+validation pass against public `repopact==3.1.1` (that package itself was
+confirmed sound): there was no conventional top-level `repopact --version`
+observability surface, and the Workbench type generator
+(`rust/apps/repopact-desktop/scripts/generate-types.mjs`) unconditionally
+defaulted `CARGO_TARGET_DIR` to a single machine-wide shared temp directory,
+implicated in a `tree-sitter` build corruption under concurrent unrelated Rust
+builds. `--version` is strictly additive; the `CARGO_TARGET_DIR` default is
+removed so Cargo uses the normal, already-`.gitignore`d workspace target
+(`rust/target/`) while an explicit override still works. No schema, protocol,
+CLI subcommand semantics, lifecycle, or provenance behavior changed. The
+`v3.1.0` and `v3.1.1` tags and their already-published wheels/sdists are left
+untouched; `3.1.2` is the current stable identity going forward.
+
+Build only from the clean committed release tree with
+`repopact release-build --root . --outdir dist`, inspect the wheel and sdist,
+and run `python -m twine check dist\\repopact-3.1.2*`. Publish both the wheel
+and sdist through the existing secure credential path. Verify public metadata
+and hashes, then install `repopact==3.1.2` in a clean environment outside the
+checkout and run the package/resource/conformance smoke checks. Create and push
+the annotated `v3.1.2` tag and the GitHub release.
+
+After the stable tag and publication, continuing `main` development must
+restore `VERSION=3.1.2`, `RELEASE_LABEL=3.1.2-dev.1`, and package metadata
+`3.1.2.dev1`. Do not move `v3.1.2` or treat that development identity as a
+stable publication.
+
+## Historical 3.1.1 corrective release
 
 The 3.1.1 release is a backwards-compatible corrective patch (decision 0063)
 fixing a packaging defect discovered while publishing `v3.1.0`:

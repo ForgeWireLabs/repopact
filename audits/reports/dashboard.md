@@ -2,7 +2,7 @@
 
 > Canonically generated from source records. Do not edit manually.
 > Validation fails when this file differs from `repopact dashboard` output.
-> RepoPact spec version: 3.1.1
+> RepoPact spec version: 3.1.2
 
 ## Health
 

@@ -7,7 +7,7 @@ name = "repopact"
 # Maturin's bin backend requires a concrete PEP 440 project version. Keep this
 # synchronized with VERSION/RELEASE_LABEL; the engine handshake and release
 # verifier fail closed if the two release identities drift.
-version = "3.1.1"
+version = "3.1.2"
 description = "A repository-native standard for durable agent work: binding invariants, evidence-gated work items, and drift audits."
 readme = "README.md"
 requires-python = ">=3.11"

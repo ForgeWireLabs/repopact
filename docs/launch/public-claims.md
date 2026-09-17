@@ -10,7 +10,7 @@ This document separates what RepoPact can accurately claim from implementation p
 
 | Boundary | Safe public claim | Do not turn it into |
 | --- | --- | --- |
-| Stable release 3.1.1 | RepoPact is a public Apache-2.0 repository-native governance system with typed work/lifecycle, evidence, decisions, provenance, brownfield adoption/repair, conformance, the canonical Rust semantic engine, and repository-defined local verification/release surfaces. | A claim that every application, integration, active work item, or platform-specific surface visible on `main` is part of the PyPI package contract. |
+| Stable release 3.1.2 | RepoPact is a public Apache-2.0 repository-native governance system with typed work/lifecycle, evidence, decisions, provenance, brownfield adoption/repair, conformance, the canonical Rust semantic engine, and repository-defined local verification/release surfaces. | A claim that every application, integration, active work item, or platform-specific surface visible on `main` is part of the PyPI package contract. |
 | Current `main` | The repository contains the stable product plus ongoing Workbench, graph, provider, enforcement, benchmark, launch, mobile, and research work governed by their own records. | A claim that code existing on `main` is automatically shipped, production-complete, or cross-platform proven. |
 | Integration-dependent reference guarantees | RepoPact defines explicit assurance classes and provider/adaptor contracts. A guarantee can be claimed when the integration and platform actually provide and prove the corresponding boundary. | "RepoPact prevents all agent actions from violating policy" or any claim that a weaker adapter inherits a stronger assurance class. |
 | Deferred/active enforcement work | The portable optional admission baseline is `pre-action`; stronger `sandbox/process-enforced` confinement requires a real OS boundary and native proof. Linux Landlock work demonstrates the higher class, while WI050 remains deferred rather than falsely complete. | "Universal agent containment", "cross-platform sandboxing complete", or treating pre-action interception as arbitrary-process filesystem confinement. |
@@ -56,7 +56,7 @@ Do not use `enforced` as a floating adjective when the class matters. Do not imp
 
 When installation instructions and current architecture appear in the same document, prefer an explicit boundary such as:
 
-> The stable public package is RepoPact 3.1.1. The repository also contains application, integration, active/deferred work, and research surfaces whose presence on `main` does not automatically make them part of the PyPI package contract or prove cross-platform completion.
+> The stable public package is RepoPact 3.1.2. The repository also contains application, integration, active/deferred work, and research surfaces whose presence on `main` does not automatically make them part of the PyPI package contract or prove cross-platform completion.
 
 Do not invent a development release label from branch position. Use the repository's actual `VERSION`/`RELEASE_LABEL` state when a precise source identity matters.
 
@@ -97,6 +97,6 @@ Avoid:
 
 ## Release and launch implication
 
-RepoPact 3.1.1 is the stable package line for public installation language. Launch material may also discuss Workbench, ROG, provider integrations, or enforcement research, but it must preserve each surface's actual package, lifecycle, platform, and evidence boundary.
+RepoPact 3.1.2 is the stable package line for public installation language. Launch material may also discuss Workbench, ROG, provider integrations, or enforcement research, but it must preserve each surface's actual package, lifecycle, platform, and evidence boundary.
 
 A broad launch should not make the PyPI package appear equivalent to the entire development repository, and it should not make active or deferred work appear complete merely because substantial implementation exists.

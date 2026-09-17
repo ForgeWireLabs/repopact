@@ -1,7 +1,7 @@
 # RepoPact Specification
 
 <!-- generated:version -->
-This document specifies **RepoPact 3.1.1**.
+This document specifies **RepoPact 3.1.2**.
 <!-- /generated:version -->
 
 > Status: **stable (1.0)**. The record formats and rules below were exercised by an

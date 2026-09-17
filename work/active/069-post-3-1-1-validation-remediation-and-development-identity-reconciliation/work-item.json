@@ -1,0 +1,97 @@
+{
+  "$schema": "../../../repopact/schemas/work-item.schema.json",
+  "id": "069",
+  "title": "Post-3.1.1 Validation Remediation and Development Identity Reconciliation",
+  "status": "active",
+  "owner_scope": "governance",
+  "affected_scopes": ["tooling", "work", "evidence", "docs"],
+  "depends_on": [],
+  "provenance": "concrete",
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-17T00:00:00Z",
+    "note": "Stamped by `repopact new`; the work item was recorded before implementation began."
+  },
+  "acceptance_criteria": [
+    {
+      "id": "AC-1",
+      "text": "Local checkout and development environment are reconciled with current origin/main (fast-forwarded, stale .venv rebuilt with correct 3.1.1 identity).",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-2",
+      "text": "The stale foreign editable RepoPact PATH installation (C:\\Projects\\repopact-wi050-windows-proof) is removed from the global Python 3.12 environment and replaced with stable PyPI repopact==3.1.1.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-3",
+      "text": "Package/runtime development identity complies with Decision 0032 (VERSION-pinned RELEASE_LABEL) before and during runtime-affecting source changes, then is promoted to a clean stable 3.1.2 identity for release.",
+      "state": "pending",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-4",
+      "text": "Top-level `repopact --version` exists, exits 0 without requiring a subcommand, uses the governed package-version helper (no duplicated version constant), and is covered by tests.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-5",
+      "text": "rust/apps/repopact-desktop/scripts/generate-types.mjs no longer defaults CARGO_TARGET_DIR to the shared %TEMP%\\repopact-rust-target; it inherits the caller's environment, uses the normal ignored rust/target workspace directory, and an explicit override still passes through. Covered by a regression test.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-6",
+      "text": "Full Python test suite (python -m unittest discover -s tests) passes with zero failures and zero errors attributable to code or test defects; only intentional skips and the operator-accepted C:\\ProgramData\\RepoPact\\Guard host-state boundary (pre-existing WI050 native evidence on this machine, left untouched by operator instruction) may remain.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-7",
+      "text": "Full Rust workspace test suite (cargo test --manifest-path rust/Cargo.toml --workspace) passes with zero failed tests.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-8",
+      "text": "Workbench types:check, typecheck, Vitest, and Vite build all pass, and the Tauri desktop Rust application compiles cleanly.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-9",
+      "text": "repopact validate, repopact dashboard, repopact spec, repopact verify quick, and the conformance suite all pass on the reconciled tree; repopact verify ci/release's own sub-checks (conformance, rust-workspace, cargo-metadata, spec-freshness) pass independently, with their overall result gated only by the same accepted AC-6 host-state boundary in the Python suite sub-check.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-10",
+      "text": "Public PyPI repopact==3.1.1 remains independently clean-installable in a fresh environment outside the checkout, and its bundled native engine handshake remains correct with no silent Python semantic fallback.",
+      "state": "satisfied",
+      "evidence": ["20260917-069-post-3-1-1-remediation"]
+    },
+    {
+      "id": "AC-11",
+      "text": "Current-state release/governance records (WI021 AC-3, WI066) accurately reflect the real published state (3.1.1, and 3.1.2 once published) without rewriting dated historical evidence describing the 3.1.0 milestone or the 3.1.1 corrective.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-12",
+      "text": "RepoPact 3.1.2 corrective patch release: exact proven tree promoted to stable VERSION=3.1.2 (RELEASE_LABEL removed), built, inspected, tagged v3.1.2, and published to PyPI; post-publication clean install confirms `repopact --version` reports 3.1.2 and the bundled native engine independently reports 3.1.2.",
+      "state": "pending",
+      "evidence": []
+    },
+    {
+      "id": "AC-13",
+      "text": "Final worktree is clean and all remediation/release commits are pushed to origin/main.",
+      "state": "pending",
+      "evidence": []
+    }
+  ],
+  "created": "2026-09-17",
+  "updated": "2026-09-17"
+}

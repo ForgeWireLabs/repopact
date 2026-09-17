@@ -13,16 +13,16 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 63 |
+| Decision records | 64 |
 | Policy records | 2 |
-| Evidence runs | 149 |
+| Evidence runs | 150 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
 | proposed | 3 |
-| active | 7 |
+| active | 8 |
 | blocked | 1 |
 | deferred | 1 |
 | completed | 57 |
@@ -40,4 +40,5 @@ All audit scopes are within their review cadence.
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 067: GitHub Repository Provider, Secure User Authorization, and Remote Repository Import (active)
+- 069: Post-3.1.1 Validation Remediation and Development Identity Reconciliation (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

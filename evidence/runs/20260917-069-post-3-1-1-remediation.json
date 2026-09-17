@@ -1,0 +1,120 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260917-069-post-3-1-1-remediation",
+  "timestamp": "2026-09-17T13:00:00Z",
+  "work_item": "069",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git status --short; git fetch origin --tags; git rev-parse origin/main; git merge --ff-only origin/main",
+      "exit_code": 0,
+      "summary": "Local main was 61347ed9, strictly 11 commits behind a clean origin/main at a978043971b19c45ecb68b38a5c30c55e62ce7fd (documentation-only commits explaining full RepoPact distribution and source builds). Worktree was clean; fast-forwarded with no reset, no discard, no history rewrite. The README now visibly contains the PyPI/v3.1.1-source/main-development/Workbench/Android guidance the prior validation session's stale checkout lacked."
+    },
+    {
+      "command": "Remove-Item -Recurse -Force .venv; py -3.12 -m venv .venv; .venv\\Scripts\\python.exe -m pip install --upgrade pip; .venv\\Scripts\\python.exe -m pip install -e \".[dev]\"",
+      "exit_code": 0,
+      "summary": "Rebuilt the project-local dev environment from scratch. `.venv\\Scripts\\python.exe -c \"import repopact; print(repopact.__file__)\"` resolves to this checkout; `pip show repopact` confirms an editable install at 3.1.1 pointed at C:\\Projects\\repopact, not the previously stale metadata."
+    },
+    {
+      "command": "where.exe repopact; \"C:\\Program Files\\Python312\\python.exe\" -m pip show repopact; pip uninstall -y repopact; pip install repopact==3.1.1",
+      "exit_code": 0,
+      "summary": "Before: the global `repopact` on PATH resolved through the base Python 3.12 user-site install, an editable registration pointing at an unrelated foreign checkout C:\\Projects\\repopact-wi050-windows-proof, reporting version 3.1.0.dev1. After: the same PATH entry (C:\\Program Files\\Python312\\Scripts\\repopact.exe) resolves to stable PyPI repopact==3.1.1 installed cleanly into that same environment; the foreign editable registration is gone (confirmed via `pip show repopact` -> Location .../site-packages, no 'Editable project location')."
+    },
+    {
+      "command": "Added RELEASE_LABEL=3.1.1-dev.1 per Decision 0032; verified repopact.package_version.package_version(root) and packaging.version.Version(...) both normalize it",
+      "exit_code": 0,
+      "summary": "package_version() returns '3.1.1dev1', packaging.version.Version(...) normalizes it to '3.1.1.dev1' as required. Rebuilt the editable install and the native repopact-engine.exe; the Python package (`repopact.__version__`) and the native engine (`repopact-engine.exe --version` -> engine_version '3.1.1.dev1') report PEP-440-equivalent development identities, and `repopact validate` accepts the pairing (no version-mismatch error)."
+    },
+    {
+      "command": "Edited repopact/cli.py: added top-level `--version` (argparse action='version', sourced from repopact.__version__, no duplicated constant); added tests/test_cli_version.py (4 tests)",
+      "exit_code": 0,
+      "summary": "`repopact --version` on development main now prints 'repopact 3.1.1dev1' and exits 0 without a subcommand. `repopact` with no arguments still requires a subcommand (exit nonzero), proving --version does not weaken the existing required-subcommand contract."
+    },
+    {
+      "command": "Edited rust/apps/repopact-desktop/scripts/generate-types.mjs: removed the CARGO_TARGET_DIR default to %TEMP%\\repopact-rust-target; now passes env: process.env unchanged so Cargo uses the normal (already .gitignore'd) rust/target/ workspace directory, while an explicit CARGO_TARGET_DIR override still passes through untouched",
+      "exit_code": 0,
+      "summary": "Added rust/apps/repopact-desktop/src/generate-types-script.test.ts (2 vitest regression tests) asserting the script source no longer references tmpdir/repopact-rust-target and passes env: process.env through unchanged. `npm run types:check` failed twice against the old corrupted shared cache before this fix (tree-sitter OUT_DIR read error); after the fix and removing the obsolete %TEMP%\\repopact-rust-target directory (confirmed no active cargo/generate-types process was using it first), `npm run types:check` passes cleanly building into rust/target/, with src/generated/types.ts unchanged (git status clean on that path), proving deterministic regeneration."
+    },
+    {
+      "command": "Diagnosed and fixed 3 genuine test/product defects surfaced by running the repaired suite: (1) tests/test_admission.py hardcoded work/active/050-.../work-item.json, stale after WI050's legitimate active->deferred transition; (2) tests/test_guard_authority.py's isolated self-test exercised sys.executable (this repo's own .venv interpreter) against a security check that deliberately rejects any .venv-sourced interpreter for protected-guard installation, which can never pass for a project dev-venv regardless of correctness; (3) repopact/legacy_validate.py's Python compatibility comparator treated every Problem (including 'warning'-severity ones) as blocking, unlike validate_repo.py's own main(), causing two intentionally-warning-only assurance-mapping conformance fixtures to be misreported as rejected; (4) repopact/validate_repo.py's assurance overclaiming heuristic did substring-only matching with no negation awareness, flagging explicit disclaimers ('does not assert X is certified') as if they were the claim itself",
+      "exit_code": 0,
+      "summary": "(1)/(2) fixed by adding repopact.dev_fixtures.pin_work_item_status(root, id, status) and using it (or resolving sys._base_executable instead of sys.executable) in the affected test setUp methods -- no product security invariant was weakened. (3) fixed by making legacy_validate.main() filter through validate_repo.blocking_problems(), matching the canonical validator's own behavior. (4) fixed by adding a negation-window check (_has_unnegated_strong_claim) before flagging a strong-claim phrase. python -m repopact.run_conformance (both --legacy-python and canonical Rust) now reports 35/35 comparator cases and 8/8 WI050 vectors passed, up from 33/35 before the negation/severity fixes."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m unittest discover -s tests -v (full suite, post-remediation)",
+      "exit_code": 1,
+      "summary": "373 tests, 2 failures, 0 errors, 3 skipped (down from the pre-remediation baseline of 369 tests / 20 failures / 24 errors / 2 skipped). The 2 remaining failures (test_protected_substrate.ProtectedSubstrateTests.test_status_reports_backend_owned_health and test_windows_backend_is_not_covered_before_install) are a genuine host-state boundary, not a product or test defect: this specific machine carries a real native RepoPact guard installation at C:\\ProgramData\\RepoPact\\Guard, dated 2026-09-16 20:10, which is legitimate evidence from prior WI050 Windows native-destructive-proof work (see evidence/runs/20260916-050-windows-native-destructive-proof.json). These fixture-based unit tests assume a clean-slate host with no guard installed; the operator explicitly declined to uninstall real host security state to force these tests green. Left untouched and reported as a boundary rather than weakened."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace",
+      "exit_code": 0,
+      "summary": "617 passed, 0 failed, 10 ignored (explicit #[ignore]d live-network tests, unchanged) across all 47 test binaries in the workspace."
+    },
+    {
+      "command": "cd rust/apps/repopact-desktop && npm ci && npm run types:check && npm run typecheck && npx vitest run && npm run build && cd ../../.. && cargo check --manifest-path rust/apps/repopact-desktop/src-tauri/Cargo.toml",
+      "exit_code": 0,
+      "summary": "npm ci clean; types:check now passes (previously failing on the shared-cache corruption); typecheck clean; Vitest 8 files / 33 tests passed (31 pre-existing + 2 new generate-types-script tests); production build succeeded; Tauri desktop Rust application (src-tauri) compiles cleanly with cargo check."
+    },
+    {
+      "command": "python -m repopact.run_conformance --legacy-python; python -m repopact.run_conformance; repopact validate; repopact dashboard; repopact spec; repopact check-frozen --base origin/main; repopact verify quick; repopact verify ci; repopact verify release",
+      "exit_code": 0,
+      "summary": "Legacy-Python and canonical-Rust conformance comparators: 35/35 cases + 8/8 WI050 vectors, both. repopact validate/dashboard/spec all pass/regenerate clean. check-frozen against origin/main: no frozen-surface changes detected. verify quick: PASS. verify release: see this record's own result field. verify ci internally reruns the full Python suite and therefore surfaces the same 2 host-state-boundary failures described above; conformance, rust-workspace, and spec-freshness sub-checks within verify ci all independently report PASS."
+    },
+    {
+      "command": "Outside the checkout: python -m venv, pip install --upgrade pip, pip install repopact==3.1.1, repopact --help / validate --help, repopact-engine.exe --version, repopact init --target smoke_repo && repopact validate",
+      "exit_code": 0,
+      "summary": "Re-confirmed from a clean temp venv: installed wheel repopact-3.1.1-py3-none-win_amd64.whl; pip show reports Version 3.1.1; bundled repopact-engine.exe reports engine_version 3.1.1, matching the CLI; repopact init + repopact validate both pass on a freshly bootstrapped repository; no silent Python semantic fallback (a genuine engine/CLI version mismatch, reproduced separately against the stale local .venv before this remediation, hard-errors rather than falling back)."
+    }
+  ],
+  "artifacts": [
+    "RELEASE_LABEL",
+    "repopact/cli.py",
+    "repopact/dev_fixtures.py",
+    "repopact/legacy_validate.py",
+    "repopact/validate_repo.py",
+    "rust/apps/repopact-desktop/scripts/generate-types.mjs",
+    "rust/apps/repopact-desktop/src/generate-types-script.test.ts",
+    "tests/test_cli_version.py",
+    "tests/test_admission.py",
+    "tests/test_admission_security.py",
+    "tests/test_guard_authority.py",
+    "tests/test_opt_in_provider.py",
+    "tests/test_protected_substrate.py",
+    "decisions/0064-release-repopact-3-1-2-post-3-1-1-validation-corrective.md",
+    "work/active/069-post-3-1-1-validation-remediation-and-development-identity-reconciliation/"
+  ],
+  "environment": {
+    "os": "Windows 10 Pro (10.0.19045)",
+    "python": "3.12.4 (Program Files\\Python312)",
+    "rustc": "stable-x86_64-pc-windows-msvc",
+    "node": "v24.15.0",
+    "npm": "11.12.1",
+    "synchronized_starting_sha": "a978043971b19c45ecb68b38a5c30c55e62ce7fd",
+    "v3_1_1_tag_target_commit": "8f0403dcb4ca44027daffb72230204efe452728a"
+  },
+  "pre_remediation_python_baseline": {
+    "total": 369, "passed": 323, "failures": 20, "errors": 24, "skipped": 2,
+    "note": "From the independent validation session immediately prior to this work item."
+  },
+  "post_remediation_python_result": {
+    "total": 373, "passed": 371, "failures": 2, "errors": 0, "skipped": 3,
+    "note": "All 4 new test_cli_version.py tests pass. Both remaining failures are the ProgramData\\RepoPact\\Guard host-state boundary documented above, not code defects."
+  },
+  "path_repair": {
+    "before": {
+      "resolved_command": "C:\\Program Files\\Python312\\Scripts\\repopact.exe",
+      "owning_environment": "base Python 3.12 user-site (C:\\Users\\jerem\\AppData\\Roaming\\Python\\Python312\\site-packages)",
+      "reported_version": "3.1.0.dev1",
+      "editable_project_location": "C:\\Projects\\repopact-wi050-windows-proof"
+    },
+    "after": {
+      "resolved_command": "C:\\Program Files\\Python312\\Scripts\\repopact.exe",
+      "owning_environment": "base Python 3.12 user-site",
+      "reported_version": "3.1.1",
+      "editable_project_location": null,
+      "source": "PyPI repopact==3.1.1"
+    }
+  },
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record, the decision records, or the checkpoint's commit history."
+}

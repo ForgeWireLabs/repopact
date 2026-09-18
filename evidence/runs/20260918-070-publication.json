@@ -1,0 +1,61 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260918-070-publication",
+  "timestamp": "2026-09-18T23:55:00Z",
+  "work_item": "070",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "git tag -a v3.1.3 974d7ba -m ...; git push origin v3.1.3",
+      "exit_code": 0,
+      "summary": "Annotated immutable tag v3.1.3 created pointing at commit 974d7ba96c2593db1bf8328647d4002063b6c91b -- the exact commit release-out/release-manifest.json records as having produced the published wheel/sdist. v3.1.0/v3.1.1/v3.1.2 left untouched."
+    },
+    {
+      "command": "python -m twine upload release-out\\repopact-3.1.3-py3-none-win_amd64.whl release-out\\repopact-3.1.3.tar.gz",
+      "exit_code": 0,
+      "summary": "Both artifacts uploaded successfully via the operator's existing configured PyPI credential (~/.pypirc, never printed or logged). PyPI confirmed: https://pypi.org/project/repopact/3.1.3/"
+    },
+    {
+      "command": "gh release create v3.1.3 <wheel> <sdist> <4 installer artifacts> --repo ForgeWireLabs/repopact --title \"RepoPact 3.1.3\" --notes ...",
+      "exit_code": 0,
+      "summary": "GitHub Release published at https://github.com/ForgeWireLabs/repopact/releases/tag/v3.1.3 with all 6 assets attached (wheel, sdist, Windows NSIS exe, Windows MSI, Linux deb, Android APK). `gh release list` confirms it is now 'Latest' (previously v3.1.2, published the day before)."
+    },
+    {
+      "command": "Fresh venv outside the checkout: pip install --no-cache-dir repopact==3.1.3; repopact --version; repopact-engine.exe --version; repopact init --target smoke_pub313 && repopact validate",
+      "exit_code": 0,
+      "summary": "Public PyPI 3.1.3 install: `repopact --version` -> 'repopact 3.1.3'; native engine independently reports engine_version 3.1.3, agreeing with the CLI; repopact init + repopact validate both pass on a fresh repository. No semantic Python fallback."
+    }
+  ],
+  "artifacts": [
+    "README.md"
+  ],
+  "environment": {
+    "os": "Windows 10 Pro (10.0.19045)",
+    "python": "3.12.4",
+    "release_commit": "974d7ba96c2593db1bf8328647d4002063b6c91b",
+    "v3_1_3_tag_target_commit": "974d7ba96c2593db1bf8328647d4002063b6c91b"
+  },
+  "wheel": {
+    "filename": "repopact-3.1.3-py3-none-win_amd64.whl",
+    "sha256": "fd4d407bc529786e51df2970a7e3aab128b2c239a42c53878d966a3bee6969eb",
+    "pypi_url": "https://pypi.org/project/repopact/3.1.3/"
+  },
+  "sdist": {
+    "filename": "repopact-3.1.3.tar.gz",
+    "sha256": "560a3447a012195398a87ca1a2afc173ce4dcd0b7705a30cb1923a9a4b569a7f"
+  },
+  "installer_artifacts": {
+    "RepoPact-Workbench-3.1.3-x64-setup.exe": "337f94c5f94541502fef240a2816887c5d12a1da8ca491d1935e24e282c2e707",
+    "RepoPact-Workbench-3.1.3-x64.msi": "9238a97f28a3bac67a5ea1425647b027eee5c8216d696d0c8d1373e03c5b1f51",
+    "RepoPact-Workbench-3.1.3-amd64.deb": "f165fa94afa0567f90d34ded8b97af93f616875ea07402957a66a7c9a3da467f",
+    "RepoPact-Workbench-3.1.3-android-universal.apk": "09094a336338f4970bcc00a769f5aaa955b2659c6baaa29c2d27b6de21180f45"
+  },
+  "github_release": {
+    "url": "https://github.com/ForgeWireLabs/repopact/releases/tag/v3.1.3",
+    "is_latest": true,
+    "asset_count": 6
+  },
+  "remote_repository_note": "git push emitted a GitHub notice that this repository has moved to https://github.com/JeremyShows/repopact.git; the push to the ForgeWireLabs/repopact remote URL still succeeded via redirect. The operator may want to update the local git remote at some point; not done in this session since it is an environment/config change outside this work item's scope.",
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record. The PyPI token and Android keystore password used for publication/signing remain outside the repository and were never printed, logged, or committed."
+}

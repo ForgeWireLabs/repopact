@@ -2,7 +2,7 @@
   "$schema": "../../../repopact/schemas/work-item.schema.json",
   "id": "070",
   "title": "RepoPact 3.1.3 downloadable Workbench installers",
-  "status": "active",
+  "status": "completed",
   "owner_scope": "tooling",
   "affected_scopes": ["tooling", "docs", "work", "evidence", "governance"],
   "depends_on": ["062"],
@@ -16,50 +16,50 @@
     {
       "id": "AC-1",
       "text": "A real Windows NSIS/MSI installer is rebuilt from the current 3.1.2-based main tree (not WI062's 2026-09-12 pre-release build), installed, personally launch-verified, and uninstalled cleanly, matching WI062's own proof bar.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds"]
     },
     {
       "id": "AC-2",
       "text": "A real Linux .deb package is rebuilt from the current tree, installed, personally launch-verified (or verified via dpkg/desktop-integration inspection where a GUI session is unavailable), and uninstalled cleanly.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds"]
     },
     {
       "id": "AC-3",
       "text": "A signed Android release APK (or AAB) is built from the current tree using a real signing key (new or reused, operator-supplied), replacing WI062's debug build; the signing key material itself is never committed to the repository or evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds"]
     },
     {
       "id": "AC-4",
       "text": "All three artifacts are explicitly shipped unsigned for Windows/macOS (no code-signing certificate acquired for this release); this is recorded as a deliberate operator decision, not an oversight, and the README/release notes disclose that Windows/macOS binaries are unsigned and may trigger SmartScreen/Gatekeeper warnings.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds", "20260918-070-publication"]
     },
     {
       "id": "AC-5",
       "text": "All built installer artifacts (Windows NSIS/MSI, Linux .deb, Android APK/AAB) are attached to a public GitHub Release for v3.1.3, alongside the existing PyPI wheel/sdist -- the first RepoPact release where these binaries are actually publicly downloadable rather than existing only as local build evidence.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-publication"]
     },
     {
       "id": "AC-6",
       "text": "README.md is updated with real download links/instructions for each installer artifact, keeping the existing PyPI-vs-full-source-tree distinction intact and not overclaiming platform support beyond what AC-1/AC-2/AC-3 actually proved (macOS/iOS remain undistributed).",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds"]
     },
     {
       "id": "AC-7",
       "text": "No Tauri capability, CSP, filesystem, shell/process permission, WI050 admission, WI057 process guarantee, or WI059 validator authority is loosened to accomplish packaging; the Rust workspace tests, frontend typecheck/tests/build, and Tauri checks all pass on the exact tree the installers are built from.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-installer-builds"]
     },
     {
       "id": "AC-8",
       "text": "RepoPact 3.1.3 is published through the normal governed release path (VERSION bump, decision record, repopact release build/verify for the Python package, twine-checked wheel/sdist, tag v3.1.3, PyPI publication, post-publication clean install) alongside the installer artifacts -- the Python package release is not skipped merely because installers are the headline of this release.",
-      "state": "pending",
-      "evidence": []
+      "state": "satisfied",
+      "evidence": ["20260918-070-publication"]
     }
   ],
   "created": "2026-09-17",

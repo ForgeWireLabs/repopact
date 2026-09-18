@@ -1,7 +1,7 @@
 # RepoPact Specification
 
 <!-- generated:version -->
-This document specifies **RepoPact 3.1.2**.
+This document specifies **RepoPact 3.1.3**.
 <!-- /generated:version -->
 
 > Status: **stable (1.0)**. The record formats and rules below were exercised by an
@@ -207,6 +207,29 @@ cross-record consistency.
     genuinely present on the same record; an unsupported basis is an
     `error`. None of these diagnostics is JSON-schema rejection: a stale,
     drifted, or warned-about mapping remains a structurally valid record.
+17. **Documentation closure (conditional, Decision 0065, WI047).** Where
+    `governance/owners.json` enables `documentation_impact` (mandatory for
+    work items *created after* the configured epoch date; earlier items,
+    including those already completed, are grandfathered), a work item
+    cannot become `completed` without a resolved `documentation_impact`:
+    either `state: "affected"` naming at least one documentation surface
+    (`user_behavior`, `api_cli`, `configuration`, `architecture`,
+    `operations`, `contributor_workflow`, `maturity_status`, `examples`, or
+    `generated`) and at least one linked evidence run proving those surfaces
+    were created, updated, or regenerated, or `state: "none"` with a
+    non-empty reviewable rationale. Silence -- an absent or shapeless
+    `documentation_impact` -- does not satisfy closeout. This rule is
+    distinct from rule 11 (README/manifest version parity), WI044
+    (completion-claim evidence sufficiency), and rule 14 (verification
+    contracts): it governs whether the repository's durable explanation
+    stayed reconciled with a governed implementation change, not whether a
+    claim is evidenced, verified, or version-consistent. An internal
+    refactor that changes no documented behavior, interface, configuration,
+    architecture, operations, maturity status, or contributor contract is
+    not forced to declare `"affected"`; it closes with a justified
+    `"none"`. A repository that has not enabled `documentation_impact`, and
+    every work item created on or before the configured epoch date
+    (including already-`completed` items), remain fully valid.
 
 ## 5. Lifecycle state machine
 

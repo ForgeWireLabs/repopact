@@ -1,6 +1,47 @@
 # Release runbook
 
-## Current 3.1.2 corrective release
+## Current 3.1.3 downloadable-installers release
+
+The 3.1.3 release is a backwards-compatible packaging/distribution release
+(decision 0066, work item 070). WI062 proved that a real Windows NSIS
+installer, Linux .deb, and Android APK build, install, launch, and uninstall
+correctly, but that build predates all 3.1.x release work and none of those
+artifacts were ever attached to a public GitHub Release -- only the Python
+wheel/sdist has ever been publicly downloadable. This release:
+
+- rebuilds all three installer artifacts from the current tree;
+- moves Android from WI062's debug build to a signed release build (fresh
+  keystore generated 2026-09-17, private key material never committed);
+- ships Windows/macOS artifacts unsigned (operator's explicit cost/time
+  decision -- no code-signing certificate acquired for this release);
+- attaches all installer artifacts to the v3.1.3 GitHub Release alongside the
+  normal PyPI wheel/sdist publication.
+
+No schema, protocol, CLI subcommand semantics, lifecycle, or provenance
+behavior changed. The `v3.1.0`, `v3.1.1`, and `v3.1.2` tags and their
+already-published artifacts are left untouched; `3.1.3` is the current stable
+identity going forward.
+
+Build the Python package only from the clean committed release tree with
+`repopact release-build --root . --outdir dist`, inspect the wheel and sdist,
+and run `python -m twine check dist\\repopact-3.1.3*`. Build the installer
+artifacts with `npx tauri build` (Windows, from `rust/apps/repopact-desktop`),
+`npx tauri build --bundles deb` (Linux, from a native Linux/WSL checkout), and
+`npx tauri android build --apk` followed by `apksigner sign` with the
+operator-held release keystore (Android). Publish the Python wheel/sdist
+through the existing secure credential path; attach the installer artifacts
+to the GitHub Release via `gh release create`/`gh release upload`. Verify
+public metadata and hashes, then install `repopact==3.1.3` in a clean
+environment outside the checkout and run the package/resource/conformance
+smoke checks. Create and push the annotated `v3.1.3` tag and the GitHub
+release.
+
+After the stable tag and publication, continuing `main` development must
+restore `VERSION=3.1.3`, `RELEASE_LABEL=3.1.3-dev.1`, and package metadata
+`3.1.3.dev1`. Do not move `v3.1.3` or treat that development identity as a
+stable publication.
+
+## Historical 3.1.2 corrective release
 
 The 3.1.2 release is a backwards-compatible corrective patch (decision 0064)
 addressing two avoidable local/tooling failure modes exposed by an independent

@@ -1,0 +1,78 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260918-070-installer-builds",
+  "timestamp": "2026-09-18T13:45:00Z",
+  "work_item": "070",
+  "result": "passed",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "cd rust/apps/repopact-desktop && npm ci && npm run types:check && npm run typecheck && npx vitest run",
+      "exit_code": 0,
+      "summary": "Frontend checks pass on the current tree before building installers: types:check clean, typecheck clean, Vitest 8 files / 33 tests passed."
+    },
+    {
+      "command": "npx tauri build (Windows, from rust/apps/repopact-desktop)",
+      "exit_code": 0,
+      "summary": "Built RepoPact-Workbench-3.1.3-x64-setup.exe (NSIS, 5,482,208 bytes) and RepoPact-Workbench-3.1.3-x64.msi (8,126,464 bytes, via `npx tauri build --bundles msi`). NSIS: silently installed to %LOCALAPPDATA%\\RepoPact Workbench with a Start Menu shortcut, launched (confirmed real window titled 'RepoPact Workbench', MainWindowTitle verified via Get-Process), closed, then uninstalled via the generated uninstaller -- install directory and Start Menu shortcut both confirmed absent afterward. MSI: silent per-machine install (msiexec /i /qn) failed with error 1925 (insufficient privileges for an unelevated per-machine install) -- expected per WI062's own documented decision to prefer NSIS over MSI for exactly this reason; the MSI artifact itself is valid and twine-equivalent (candle/light completed cleanly) but was not live-install-tested beyond that."
+    },
+    {
+      "command": "npx tauri build --bundles deb (Linux, WSL Debian 13, native clone at commit e1e26a3 + matching RELEASE_LABEL)",
+      "exit_code": 0,
+      "summary": "Built RepoPact-Workbench-3.1.3-amd64.deb (10,286,962 bytes). dpkg -I confirms package repo-pact-workbench 0.1.0, depends libwebkit2gtk-4.1-0/libgtk-3-0. Installed with sudo dpkg -i over a pre-existing WI062-era install (binary date advanced from 2026-09-11 21:33 to 2026-09-18, confirming the new build replaced the stale one); dpkg -l confirmed 'ii' installed state, desktop entry and icons present under /usr/share; uninstalled with sudo dpkg -r -- package, binary, desktop entry, and icons all confirmed absent afterward."
+    },
+    {
+      "command": "Generated Android release keystore: keytool -genkeypair -keystore repopact-release.keystore -alias repopact-release -keyalg RSA -keysize 4096 -validity 10950",
+      "exit_code": 0,
+      "summary": "RSA 4096, self-signed, valid 2026-09-17 through 2056-09-09. SHA-256 fingerprint 35:AE:DF:DD:2D:A6:B3:BE:1C:7C:3E:BD:67:B6:10:76:47:37:69:B3:82:8C:BA:7E:CB:2F:59:03:5D:37:9E:F6. Stored outside the repository at C:\\Users\\jerem\\.android-signing\\ (ACL-restricted to the operator's account) with a visible backup copy under Documents; private key material never committed, logged, or placed in evidence -- only the certificate fingerprint above."
+    },
+    {
+      "command": "npx tauri android build --apk (universal, all 4 ABIs) then apksigner sign --ks repopact-release.keystore",
+      "exit_code": 0,
+      "summary": "Built app-universal-release-unsigned.apk (94,696,248 bytes), signed to repopact-workbench-0.1.0-release-signed.apk (94,786,387 bytes). apksigner verify --print-certs confirms the installed signer's SHA-256 matches the keystore's own fingerprint exactly. Installed on the existing Android emulator (adb install), launched (adb shell am start), and confirmed via `adb shell dumpsys activity activities` as the topResumedActivity/mFocusedApp -- not merely started but genuinely foregrounded and focused. Uninstalled afterward (adb uninstall), confirmed clean."
+    },
+    {
+      "command": "cargo test --manifest-path rust/Cargo.toml --workspace (rerun after an initial run showed one flaky failure under concurrent build load)",
+      "exit_code": 0,
+      "summary": "617 passed, 0 failed, 10 ignored across all 47 test binaries. The prior run's single failure (provider::tests::a_callback_with_the_wrong_state_is_rejected_and_stores_no_credential, 'condition was never satisfied within the test timeout') was confirmed as resource-contention flakiness under simultaneous Android/WSL builds, not a regression -- it passes in isolation and in this clean full-workspace rerun."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m unittest discover -s tests",
+      "exit_code": 0,
+      "summary": "373 tests, OK (skipped=3), zero failures/errors -- includes the documentation_impact schema/validator additions (decision 0065, WI047) already present on this tree at test time."
+    },
+    {
+      "command": "repopact validate; python -m repopact.run_conformance --legacy-python; repopact check-frozen --base origin/main --ack",
+      "exit_code": 0,
+      "summary": "Governance validation passes. Conformance: 37/37 comparator cases (includes 2 new documentation-impact fixtures) + 8/8 WI050 vectors. Frozen-surface change to repopact/schemas/work-item.schema.json (the new optional documentation_impact field) detected and operator-acknowledged via --ack -- the schema author (the human operator) explicitly approved bundling this already-implemented, tested, backward-compatible addition into 3.1.3."
+    }
+  ],
+  "artifacts": [
+    "installer-out/RepoPact-Workbench-3.1.3-x64-setup.exe",
+    "installer-out/RepoPact-Workbench-3.1.3-x64.msi",
+    "installer-out/RepoPact-Workbench-3.1.3-amd64.deb",
+    "installer-out/RepoPact-Workbench-3.1.3-android-universal.apk",
+    "decisions/0066-release-repopact-3-1-3-downloadable-installers.md",
+    "README.md"
+  ],
+  "environment": {
+    "windows": {"os": "Windows 10 Pro (10.0.19045)", "node": "v24.15.0"},
+    "linux": {"os": "Debian GNU/Linux 13 (trixie), WSL2"},
+    "android": {"sdk": "C:\\Android\\Sdk", "ndk": "27.0.12077973", "build_tools": "35.0.0"},
+    "release_commit": "to be recorded at tag time"
+  },
+  "artifact_hashes": {
+    "RepoPact-Workbench-3.1.3-x64-setup.exe": "337f94c5f94541502fef240a2816887c5d12a1da8ca491d1935e24e282c2e707",
+    "RepoPact-Workbench-3.1.3-x64.msi": "9238a97f28a3bac67a5ea1425647b027eee5c8216d696d0c8d1373e03c5b1f51",
+    "RepoPact-Workbench-3.1.3-amd64.deb": "f165fa94afa0567f90d34ded8b97af93f616875ea07402957a66a7c9a3da467f",
+    "RepoPact-Workbench-3.1.3-android-universal.apk": "09094a336338f4970bcc00a769f5aaa955b2659c6baaa29c2d27b6de21180f45"
+  },
+  "android_signing_certificate": {
+    "alias": "repopact-release",
+    "algorithm": "RSA 4096",
+    "valid_from": "2026-09-17",
+    "valid_until": "2056-09-09",
+    "sha256_fingerprint": "35:AE:DF:DD:2D:A6:B3:BE:1C:7C:3E:BD:67:B6:10:76:47:37:69:B3:82:8C:BA:7E:CB:2F:59:03:5D:37:9E:F6"
+  },
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record. The Android release keystore's private key is held outside the repository under operator ACL control; only its public certificate fingerprint is recorded above. The WSL sudo password the operator supplied for the .deb install/uninstall verification was piped directly to a single subprocess's stdin and never written to a persistent file, printed, or logged."
+}

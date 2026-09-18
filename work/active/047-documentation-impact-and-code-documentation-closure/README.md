@@ -1,8 +1,9 @@
 # 047 — Documentation Impact and Code/Documentation Closure
 
-> **Status**: 📋 Planning (proposed — not started)
+> **Status**: 🚧 Active — core completion gate implemented; mapping/staleness/CLI follow-ups open (see Closeout).
 > **Owners**: governance-owner (lead); tooling-owner, docs-owner, evidence-owner, and work-coordinator affected.
 > **Depends on**: none.
+> **Decision**: [`0065`](../../../decisions/0065-documentation-closure-is-mandatory-at-work-item-completion.md).
 
 ## Intent
 
@@ -58,3 +59,19 @@ After a design is accepted, implementation should cover validation, templates, w
 ## Closeout
 
 Every acceptance criterion in `work-item.json` must be linked to concrete evidence. Closeout must include both a positive code-plus-documentation case and a justified no-documentation-impact case, plus negative proof that code changes with unresolved documentation impact are rejected.
+
+### What landed (2026-09-18)
+
+Decision [`0065`](../../../decisions/0065-documentation-closure-is-mandatory-at-work-item-completion.md) accepts the model and the completion gate is implemented and enforced by both engines:
+
+- `documentation_impact` work-item field (schema-validated shape: `affected` needs `surfaces`+`evidence`, `none` needs `rationale`) — `repopact/schemas/work-item.schema.json`.
+- Opt-in, date-epoch-grandfathered enforcement at the `completed` transition, mirroring decision 0021's preflight mechanism — `repopact/validate_repo.py` (Python) and `rust/crates/repopact-validation/src/lib.rs` (canonical Rust engine), both wired to `governance/owners.json`'s `documentation_impact` block.
+- `SPEC.md` rule 17 documents the contract and its relationship to F-016/WI044/rule 14.
+- Two new conformance cases (`documentation-impact-missing-on-completed`, `documentation-impact-affected-unknown-evidence`) prove the negative direction on both the Python and canonical-Rust comparators (37/37 conformance cases pass).
+- This work item is itself the first `documentation_impact: "affected"` record, evidenced by `evidence/runs/20260918-047-documentation-closure-implementation.json`.
+
+### What's still open (AC-7, AC-8, AC-10, AC-12, part of AC-14)
+
+- Adopter-declared source-to-documentation mappings / structural freshness detection (AC-7) and generated-documentation staleness wired into `doctor` (AC-8, AC-10) are deliberately deferred to a follow-up decision — see decision 0065 section E. Implementing them now, with zero lived experience of what real `documentation_impact` records look like, risked exactly the unfalsifiable generic-analysis claim the decision disclaims.
+- A second, explicitly adopter-neutral validation fixture beyond the conformance corpus (AC-12) is not yet built.
+- `repopact new` does not yet scaffold a `documentation_impact` stub, and there is no dedicated CLI/doctor surfacing of *which* completed items are missing it ahead of the hard rejection (part of AC-14).

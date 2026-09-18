@@ -2,7 +2,7 @@
 
 A human-curated forward view. The authoritative status of in-flight work is the derived [dashboard](audits/reports/dashboard.md) and the `work/` ledger; this file adds editorial intent that is not derivable.
 
-## Now — shipped through v3.1.2
+## Now — shipped through v3.1.3
 
 RepoPact's stable line has moved well beyond the original filesystem/validator prototype. The shipped product now includes the durable governance model plus a canonical Rust semantic engine and repository-defined verification/release surfaces.
 
@@ -21,6 +21,7 @@ Major stable milestones include:
 - **Provider-neutral assurance/admission model**: RepoPact represents progressively stronger enforcement classes instead of collapsing all integrations into a boolean "enforced" claim.
 - **3.1.1 packaging corrective** (decision `0063`): the sdist now actually contains the `LICENSE` file declared by its package metadata; no schema, protocol, CLI, lifecycle, or provenance behavior changed from 3.1.0.
 - **3.1.2 validation corrective** (decision `0064`): adds a top-level `repopact --version` observability surface and removes the Workbench type generator's implicit shared temporary Cargo target directory; no schema, protocol, lifecycle, or provenance behavior changed.
+- **3.1.3 downloadable Workbench installers** (decision `0066`, WI070): rebuilds and publicly attaches real Windows NSIS/MSI, Linux .deb, and a signed Android release APK to the GitHub Release, alongside the normal PyPI publication -- the first release where these installer artifacts are actually downloadable rather than existing only as local build evidence (WI062). Windows/macOS artifacts ship unsigned by operator decision.
 
 The stable package is not the same thing as every repository surface. Workbench, mobile application packaging, deferred/active enforcement work, and research/evaluation surfaces keep their own evidence and completion boundaries.
 

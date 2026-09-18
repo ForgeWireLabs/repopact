@@ -12,19 +12,19 @@ A fresh human or agent can clone a governed repository and recover not only the 
 >
 > Humans, agents, and tools rendezvous through durable repository state rather than relying on one session or vendor to remember the project correctly.
 
-`pip install repopact` · Apache-2.0 · stable release **3.1.2** ([changelog](decisions/0064-release-repopact-3-1-2-post-3-1-1-validation-corrective.md))
+`pip install repopact` · Apache-2.0 · stable release **3.1.3** ([changelog](decisions/0066-release-repopact-3-1-3-downloadable-installers.md))
 
 > [!IMPORTANT]
 > **PyPI is the authoritative source for the latest stable RepoPact CLI/headless package.** `pip install --upgrade repopact` installs the Python command/compatibility surface **and** the platform-native canonical `repopact-engine` Rust executable. PyPI does **not** currently distribute the Tauri Workbench GUI, Android application, or the rest of the repository's development/research surfaces. GitHub's **Latest Release** entry tracks the same stable version as PyPI.
 >
-> To get the **full RepoPact source tree**, including the Workbench, mobile code, research, governance records, and development/reference surfaces, clone this repository. Use the `v3.1.2` tag when you want source aligned with the current stable PyPI release, or `main` when you want the newest development state.
+> To get the **full RepoPact source tree**, including the Workbench, mobile code, research, governance records, and development/reference surfaces, clone this repository. Use the `v3.1.3` tag when you want source aligned with the current stable PyPI release, or `main` when you want the newest development state.
 
 ### Get the full project
 
-Stable source matching PyPI 3.1.2:
+Stable source matching PyPI 3.1.3:
 
 ```bash
-git clone --branch v3.1.2 --depth 1 https://github.com/ForgeWireLabs/repopact.git
+git clone --branch v3.1.3 --depth 1 https://github.com/ForgeWireLabs/repopact.git
 cd repopact
 ```
 
@@ -90,7 +90,7 @@ The goal is not to slow AI-assisted development back down. The goal is to make h
 
 ## 30-second start
 
-The stable 3.1.2 package creates or adopts governed repository state, runs the canonical validator, and exposes repository-defined local verification and release surfaces.
+The stable 3.1.3 package creates or adopts governed repository state, runs the canonical validator, and exposes repository-defined local verification and release surfaces.
 
 ```powershell
 pip install repopact
@@ -176,11 +176,23 @@ The Workbench supports repository selection, inspection, work-item views, typed 
 
 Native bring-up and operator evidence currently exist for **Windows, Linux, and Android**. macOS and iOS remain intended targets but do not yet have equivalent native validation evidence.
 
+### Download the Workbench
+
+Prebuilt Workbench installers are attached to the [v3.1.3 GitHub Release](https://github.com/ForgeWireLabs/repopact/releases/tag/v3.1.3):
+
+| Platform | Artifact | Notes |
+| --- | --- | --- |
+| Windows | `RepoPact-Workbench-3.1.3-x64-setup.exe` (NSIS) or `RepoPact-Workbench-3.1.3-x64.msi` | Unsigned — SmartScreen will warn on first run. NSIS installs per-user (no admin required); MSI installs per-machine (requires admin). |
+| Linux (Debian/Ubuntu) | `RepoPact-Workbench-3.1.3-amd64.deb` | `sudo dpkg -i RepoPact-Workbench-3.1.3-amd64.deb` |
+| Android | `RepoPact-Workbench-3.1.3-android-universal.apk` | Signed with RepoPact's own release key (not Google Play). Enable "install unknown apps" for your browser/file manager to sideload. |
+
+macOS and iOS builds are not yet available — see the platform-support note above.
+
 Workbench source: [`rust/apps/repopact-desktop/`](rust/apps/repopact-desktop/)
 
 ![RepoPact Workbench on Windows showing the validated Work lifecycle view with proposed, active, deferred, and complete counts, a blocked record, active work, and the selected repository session.](docs/assets/readme/workbench-governance.jpg)
 
-*The screenshot is a capture-time view of the implementation. It is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.2 package contract.*
+*The screenshot is a capture-time view of the implementation. It is not a claim that Workbench installers or Android artifacts are part of the stable PyPI 3.1.3 package contract.*
 
 ## Use it with `AGENTS.md`, `CLAUDE.md`, and coding agents
 
@@ -210,7 +222,7 @@ See [decision 0021](decisions/0021-preflight-mandatory-and-provenance.md) and th
 
 RepoPact keeps verification semantics in the repository instead of making a hosted provider the source of truth.
 
-The stable 3.1.2 package includes repository-defined verification profiles and local release operations:
+The stable 3.1.3 package includes repository-defined verification profiles and local release operations:
 
 ```powershell
 repopact verify quick

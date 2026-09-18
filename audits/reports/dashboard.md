@@ -2,7 +2,7 @@
 
 > Canonically generated from source records. Do not edit manually.
 > Validation fails when this file differs from `repopact dashboard` output.
-> RepoPact spec version: 3.1.2
+> RepoPact spec version: 3.1.3
 
 ## Health
 
@@ -13,16 +13,16 @@
 | Scope contracts | 5 |
 | Audit registry entries | 5 |
 | Audit findings | 3 |
-| Decision records | 64 |
+| Decision records | 66 |
 | Policy records | 2 |
-| Evidence runs | 152 |
+| Evidence runs | 154 |
 
 ## Work
 
 | Status | Count |
 | --- | ---: |
-| proposed | 4 |
-| active | 8 |
+| proposed | 3 |
+| active | 9 |
 | blocked | 1 |
 | deferred | 1 |
 | completed | 58 |
@@ -37,6 +37,7 @@ All audit scopes are within their review cadence.
 - 021: RepoPact's slice of the ForgeWire Labs public launch (active)
 - 022: Comparative benchmark suite — value, efficiency, drift, security (S2-S6 / H9-H13) (active)
 - 034: Independent reproduction and third-party adoption evidence (active)
+- 047: Documentation Impact and Code/Documentation Closure (active)
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 067: GitHub Repository Provider, Secure User Authorization, and Remote Repository Import (active)

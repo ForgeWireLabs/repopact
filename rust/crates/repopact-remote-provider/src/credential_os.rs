@@ -85,12 +85,24 @@ impl CredentialStore for OsCredentialStore {
 mod tests {
     use super::*;
 
-    // These tests touch the real OS credential facility (Windows
-    // Credential Manager on this development machine). They are the
-    // strongest available proof of GH-004 short of the manual Workbench
-    // restart procedure recorded in evidence -- each test cleans up the
-    // real OS entry it creates, including on assertion failure via a drop
-    // guard, so a failed run never leaves a stray credential behind.
+    // These tests touch the real OS credential facility: Windows Credential
+    // Manager on Windows, Keychain on macOS, Secret Service/libsecret on
+    // Linux (see this module's own doc comment). They are the strongest
+    // available proof of GH-004 short of the manual Workbench restart
+    // procedure recorded in evidence -- each test cleans up the real OS
+    // entry it creates, including on assertion failure via a drop guard, so
+    // a failed run never leaves a stray credential behind.
+    //
+    // On Linux, `cargo test` for this crate requires a running Secret
+    // Service provider (e.g. `gnome-keyring-daemon --components=secrets`
+    // under an active D-Bus session). A bare/headless environment with no
+    // such session (common in a fresh WSL or container install) will fail
+    // these four tests with a `DBus error: The name org.freedesktop.secrets
+    // was not provided by any .service files` panic. That is a missing-host-
+    // service condition, not a defect in this crate: the same code path
+    // passes normally under a real desktop session or CI image that
+    // provisions a Secret Service. It does not affect the Windows build,
+    // where Credential Manager is always available.
 
     struct CleanupGuard(CredentialKey);
     impl Drop for CleanupGuard {

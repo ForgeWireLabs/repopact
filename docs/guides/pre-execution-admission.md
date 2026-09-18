@@ -135,3 +135,22 @@ exist. Landlock does not itself revoke running authority, so the bounded helper
 polls the guard and terminates its process group on expiry, revocation, drift,
 or guard loss. Detached descendants retain their already-installed narrower
 Landlock domain; no immediate kill guarantee is claimed for those descendants.
+
+## Where to install the native guard
+
+`repopact guard install`/`guard uninstall` change real, host-wide, elevated
+state (a `LocalSystem` Windows service and protected `ProgramData` tree; an
+analogous root-owned service and state directory on Linux/macOS). That state
+is independent of any single repository checkout and persists across it.
+
+Native guard testing and evidence-gathering should happen in a disposable or
+dedicated validation environment (a VM, a container, or a machine reserved for
+that purpose), not on an ordinary maintainer development workstation. Ordinary
+RepoPact development, `repopact validate`, the Python/Rust test suites, and
+`repopact verify`/`repopact release` do not require the native guard to be
+installed at all -- WI050 admission is opt-in (see "Standalone and opted-in
+modes" above) -- and several of those test suites assume a clean, unguarded
+host. A native guard left installed from earlier evidence-gathering work will
+cause `test_protected_substrate.py`'s host-attestation tests to fail on that
+machine until it is uninstalled (`repopact guard uninstall`, elevation
+required) and its residual `ProgramData`/state directory is removed.

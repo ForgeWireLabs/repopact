@@ -21,8 +21,8 @@
 
 | Status | Count |
 | --- | ---: |
-| proposed | 3 |
-| active | 7 |
+| proposed | 4 |
+| active | 8 |
 | blocked | 1 |
 | deferred | 1 |
 | completed | 58 |
@@ -40,4 +40,5 @@ All audit scopes are within their review cadence.
 - 063: Durable Repository Orientation Graph and Incremental Semantic Index (active)
 - 066: RepoPact 3.1.0 Milestone Release and Research Snapshot Reconciliation (active)
 - 067: GitHub Repository Provider, Secure User Authorization, and Remote Repository Import (active)
+- 070: RepoPact 3.1.3 downloadable Workbench installers (active)
 - 032: Restore remote cross-platform governance enforcement (blocked)

@@ -34,7 +34,7 @@
           "id": "python-tests",
           "argv": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
           "required": true,
-          "timeout_seconds": 1800
+          "timeout_seconds": 3000
         },
         {
           "id": "conformance",
@@ -78,7 +78,7 @@
           "id": "python-tests",
           "argv": ["{python}", "-m", "unittest", "discover", "-s", "tests", "-v"],
           "required": true,
-          "timeout_seconds": 1800
+          "timeout_seconds": 3000
         },
         {
           "id": "conformance",

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "901",
+  "title": "Completed with documentation impact referencing unknown evidence",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-18T00:00:00Z",
+    "note": "fixture"
+  },
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "The repository validates", "state": "satisfied", "evidence": ["20260101-seed"]}
+  ],
+  "documentation_impact": {
+    "state": "affected",
+    "surfaces": ["user_behavior"],
+    "evidence": ["20260101-does-not-exist"]
+  },
+  "created": "2026-09-18",
+  "updated": "2026-09-18"
+}

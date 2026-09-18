@@ -550,6 +550,7 @@ impl Validator {
 
     fn validate_work(&mut self, owner_scopes: &BTreeSet<String>, enforce_disjoint: bool) {
         let preflight = self.preflight_config();
+        let documentation_impact_cfg = self.documentation_impact_config();
         let evidence_provenance = self.evidence_provenance();
         let mut seen = BTreeMap::new();
         for record in self.index.work_items.clone() {
@@ -707,6 +708,31 @@ impl Validator {
                     &record.path,
                 ));
             }
+            if item.status == "completed"
+                && requires_documentation_impact(&item, &documentation_impact_cfg)
+                && item.documentation_impact.is_none()
+            {
+                self.push(self.at(
+                    "work.documentation-impact-missing",
+                    "completed item requires a resolved documentation_impact (state 'affected' with surfaces+evidence, or 'none' with a rationale)",
+                    &record.path,
+                ));
+            }
+            if let Some(impact) = &item.documentation_impact {
+                if impact.state == "affected" {
+                    for evidence in &impact.evidence {
+                        if !self.evidence_ids.contains(evidence) {
+                            self.push(self.at(
+                                "work.documentation-impact-unknown-evidence",
+                                format!(
+                                    "documentation_impact references unknown evidence '{evidence}'"
+                                ),
+                                &record.path,
+                            ));
+                        }
+                    }
+                }
+            }
             let mut rests_on_nonconcrete = false;
             for criterion in &item.acceptance_criteria {
                 if criterion.state != "satisfied" {
@@ -804,6 +830,15 @@ impl Validator {
             .as_ref()
             .and_then(|record| record.value.clone().ok())
             .and_then(|value| value.get("preflight").cloned())
+            .unwrap_or_else(|| Value::Object(Map::new()))
+    }
+
+    fn documentation_impact_config(&self) -> Value {
+        self.index
+            .owners
+            .as_ref()
+            .and_then(|record| record.value.clone().ok())
+            .and_then(|value| value.get("documentation_impact").cloned())
             .unwrap_or_else(|| Value::Object(Map::new()))
     }
 
@@ -1960,6 +1995,28 @@ fn civil_from_days(days: i64) -> (i64, i64, i64) {
 
 fn requires_preflight(item: &WorkItem, config: &Value) -> bool {
     if config.get("enabled").and_then(Value::as_bool) == Some(false) {
+        return false;
+    }
+    let from_id = config.get("required_from_id").and_then(Value::as_i64);
+    let from_date = config.get("required_from_date").and_then(Value::as_str);
+    if from_id.is_none() && from_date.is_none() {
+        return true;
+    }
+    if from_id.is_some_and(|id| {
+        item.id
+            .parse::<i64>()
+            .ok()
+            .is_some_and(|item_id| item_id >= id)
+    }) {
+        return true;
+    }
+    from_date.is_some_and(|date| item.created.as_str() > date)
+}
+
+fn requires_documentation_impact(item: &WorkItem, config: &Value) -> bool {
+    // Opt-in, default disabled (decision 0065, WI047) -- unlike preflight (decision 0021),
+    // which is mandatory by default. Otherwise mirrors requires_preflight exactly.
+    if config.get("enabled").and_then(Value::as_bool) != Some(true) {
         return false;
     }
     let from_id = config.get("required_from_id").and_then(Value::as_i64);

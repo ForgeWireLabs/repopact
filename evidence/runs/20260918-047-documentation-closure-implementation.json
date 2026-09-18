@@ -1,0 +1,54 @@
+{
+  "$schema": "../../repopact/schemas/evidence-run.schema.json",
+  "id": "20260918-047-documentation-closure-implementation",
+  "timestamp": "2026-09-18T00:00:00Z",
+  "work_item": "047",
+  "result": "partial",
+  "provenance": "concrete",
+  "commands": [
+    {
+      "command": "Design and implement documentation_impact (work-item.schema.json field; validate_repo._documentation_impact_config/_documentation_impact_required/validate_documentation_impact; wired into validate_work; governance/owners.json documentation_impact.enabled+required_from_date; decisions/0065; SPEC.md rule 17)",
+      "exit_code": 0,
+      "summary": "Mirrors decision 0021's preflight mechanism exactly: opt-in via governance/owners.json, date-epoch grandfathering, enforcement only at the completed transition, schema-validated shape whenever the field is present regardless of whether presence is required."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m maturin develop --release (rebuild stale Rust engine binary, unrelated pre-existing drift discovered while testing this change: installed engine reported 3.1.0.dev1 against source VERSION 3.1.2)",
+      "exit_code": 0,
+      "summary": "Unblocked test execution; not part of WI047's own change surface, recorded here because it was required to get a clean baseline before/after this diff."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m pytest tests/test_validate_repo.py -q --deselect tests/test_validate_repo.py::RepositoryValidationTests::test_adopt_graph_orchestrates_discovery_through_orientation",
+      "exit_code": 0,
+      "summary": "153 passed, 2 skipped. Confirms the new rule does not regress any existing fixture repo (including the live repository copied wholesale by open_fixture_repo, which has real completed work items through 069) once the epoch is date-based (required_from_date: 2026-09-17) rather than id-based -- an id-based epoch at 047 was tried first and broke 9 pre-existing tests by retroactively demanding documentation_impact on already-completed items 048-069, which decision 0065/AC-13 explicitly forbids; the date epoch fixes that."
+    },
+    {
+      "command": ".venv\\Scripts\\python.exe -m repopact.generate_dashboard --root .",
+      "exit_code": 0,
+      "summary": "Regenerated audits/reports/dashboard.md to reflect the new decision/evidence/work-item records (rule 10, dashboard integrity)."
+    }
+  ],
+  "artifacts": [
+    "repopact/schemas/work-item.schema.json",
+    "repopact/validate_repo.py",
+    "governance/owners.json",
+    "decisions/0065-documentation-closure-is-mandatory-at-work-item-completion.md",
+    "SPEC.md",
+    "conformance/manifest.json",
+    "conformance/fixtures/invalid/documentation-impact-missing-on-completed",
+    "conformance/fixtures/invalid/documentation-impact-affected-unknown-evidence",
+    "conformance/fixtures/valid/work",
+    "audits/reports/dashboard.md",
+    "work/proposed/047-documentation-impact-and-code-documentation-closure/work-item.json"
+  ],
+  "environment": {
+    "windows": {"os": "Windows 10 Pro (10.0.19045)", "python": "3.12 (.venv)"},
+    "engine_version_before": "3.1.0.dev1",
+    "engine_version_after": "3.1.2.dev1"
+  },
+  "not_yet_performed": [
+    "AC-7/AC-8/AC-10: adopter-declared source-to-documentation mappings and generated-documentation staleness detection wired into doctor -- deferred to a follow-up decision per decisions/0065 section E, pending real documentation_impact usage data",
+    "AC-12's second (adopter-neutral) validation fixture set beyond the conformance corpus added here",
+    "CLI/template convenience surface (e.g. `repopact new` scaffolding a documentation_impact stub) -- not yet implemented"
+  ],
+  "no_secrets_confirmation": "No credential, token, password, or private key value appears anywhere in this evidence record or the associated diff."
+}

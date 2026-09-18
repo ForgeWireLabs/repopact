@@ -550,6 +550,7 @@ fn create_manifest(
         depends_on: request.depends_on.clone(),
         provenance: request.provenance.clone(),
         preflight: Some(manifest.preflight.clone()),
+        documentation_impact: None,
         acceptance_criteria: request.acceptance_criteria.clone(),
         created: request.date.clone(),
         updated: request.date.clone(),

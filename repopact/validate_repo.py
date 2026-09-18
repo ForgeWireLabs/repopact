@@ -586,6 +586,71 @@ def _preflight_required(item, cfg: dict) -> bool:
     return False
 
 
+def _documentation_impact_config(root: Path) -> dict:
+    """Opt-in documentation-closure settings from governance/owners.json (default: disabled).
+
+        "documentation_impact": {"enabled": true, "required_from_id": 47}
+        "documentation_impact": {"enabled": true, "required_from_date": "2026-09-02"}
+
+    Mirrors _preflight_config (decision 0021's shape) for decision 0065 (WI047)."""
+    try:
+        data = load_json(root / "governance" / "owners.json")
+    except (OSError, ValueError):
+        return {}
+    cfg = data.get("documentation_impact", {})
+    return cfg if isinstance(cfg, dict) else {}
+
+
+def _documentation_impact_required(item, cfg: dict) -> bool:
+    if not cfg.get("enabled", False):
+        return False
+    from_id = cfg.get("required_from_id")
+    from_date = cfg.get("required_from_date")
+    if from_id is None and from_date is None:
+        return True
+    if from_id is not None:
+        try:
+            if int(item.item_id) >= int(from_id):
+                return True
+        except (TypeError, ValueError):
+            pass
+    if from_date is not None:
+        created = str(item.data.get("created", ""))
+        if created and created > str(from_date):
+            return True
+    return False
+
+
+def validate_documentation_impact(item, manifest: Path, cfg: dict, evidence_ids: set[str], problems: list[Problem]) -> None:
+    """Enforce documentation closure (decision 0065, WI047) at completion.
+
+    A work item transitioning to `completed` must carry a resolved
+    `documentation_impact`: either `state: affected` with named surfaces and
+    linked evidence proving those surfaces were created/updated/regenerated,
+    or `state: none` with a reviewable rationale. Silence does not satisfy
+    closeout. Presence is required only when qualifying (governance/owners.json
+    documentation_impact.enabled + the configured epoch); shape, when present,
+    is always checked by the schema (check_schema), so this function only adds
+    the conditional-presence and evidence-reference rules the schema cannot
+    express on its own.
+    """
+    impact = item.data.get("documentation_impact")
+    if item.status == "completed" and _documentation_impact_required(item, cfg):
+        if not isinstance(impact, dict) or "state" not in impact:
+            problems.append(Problem(
+                manifest,
+                "completed item requires a resolved documentation_impact "
+                "(state 'affected' with surfaces+evidence, or 'none' with a rationale)",
+            ))
+            return
+    if not isinstance(impact, dict):
+        return
+    if impact.get("state") == "affected":
+        for evidence_id in impact.get("evidence", []):
+            if evidence_id not in evidence_ids:
+                problems.append(Problem(manifest, f"documentation_impact references unknown evidence '{evidence_id}'"))
+
+
 _PROV_LEVEL = {"inferred": 0, "provisional": 1, "concrete": 2}
 
 
@@ -665,6 +730,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
 
     schema = load_schema(root, "work-item.schema.json")
     preflight_cfg = _preflight_config(root)
+    doc_impact_cfg = _documentation_impact_config(root)
     ev_prov = _evidence_provenance(root)
     seen: dict[str, Path] = {}
     for item in items:
@@ -716,6 +782,7 @@ def validate_work(root: Path, owner_scopes: set[str], enforce_disjoint: bool, pr
         validate_readme_checkbox_parity(item, problems)
         validate_work_preflight(item, manifest, preflight_cfg, problems)
         validate_provenance(item, ev_prov, manifest, problems)
+        validate_documentation_impact(item, manifest, doc_impact_cfg, evidence_ids, problems)
 
     all_ids = set(seen)
     status_by_id = {item.item_id: item.status for item in items}

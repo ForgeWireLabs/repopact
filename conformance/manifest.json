@@ -1,6 +1,6 @@
 {
   "$schema": "../repopact/schemas/conformance-manifest.schema.json",
-  "suite_version": "3.1.2",
+  "suite_version": "3.1.3",
   "spec_version_file": "../VERSION",
   "fixtures_root": "fixtures",
   "rules": [
@@ -153,6 +153,12 @@
       "source": "SPEC.md#4-validation-rules-semantics",
       "enforced_by": "repopact/validate_repo.py:validate_review_and_claims",
       "description": "Review freshness, framework-version staleness, deterministic reference/mapping drift, and documentation claim-basis diagnostics (decision 0055)."
+    },
+    {
+      "id": "SPEC-4-documentation-closure",
+      "source": "SPEC.md#4-validation-rules-semantics",
+      "enforced_by": "repopact/validate_repo.py:validate_documentation_impact",
+      "description": "Where enabled and at/after the configured epoch, a completed work item must carry a resolved documentation_impact ('affected' with surfaces+evidence, or 'none' with a rationale); linked evidence must resolve to a real evidence run (decision 0065)."
     }
   ],
   "cases": [
@@ -544,6 +550,28 @@
         "SPEC-4-assurance-review-drift-and-claims"
       ],
       "description": "A documentation reference declaring 'external_attestation_reference' claim basis without an attestation object is rejected (decision 0055 claim-safety model)."
+    },
+    {
+      "id": "documentation-impact-missing-on-completed",
+      "path": "invalid/documentation-impact-missing-on-completed",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "completed item requires a resolved documentation_impact",
+      "rules": [
+        "SPEC-4-documentation-closure"
+      ],
+      "description": "A completed item at/above the configured documentation_impact epoch with no documentation_impact field is rejected: silence does not satisfy closeout (decision 0065)."
+    },
+    {
+      "id": "documentation-impact-affected-unknown-evidence",
+      "path": "invalid/documentation-impact-affected-unknown-evidence",
+      "overlay_on": "valid",
+      "expect": "reject",
+      "expected_message": "documentation_impact references unknown evidence",
+      "rules": [
+        "SPEC-4-documentation-closure"
+      ],
+      "description": "A completed item declares documentation_impact.state 'affected' but links a nonexistent evidence run; a bare declaration is not evidence (decision 0065)."
     }
   ]
 }

@@ -85,6 +85,17 @@ pub struct PreflightMarker {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DocumentationImpact {
+    pub state: String,
+    #[serde(default)]
+    pub surfaces: Vec<String>,
+    #[serde(default)]
+    pub evidence: Vec<String>,
+    #[serde(default)]
+    pub rationale: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WorkItem {
     pub id: String,
     pub title: String,
@@ -98,6 +109,8 @@ pub struct WorkItem {
     pub provenance: String,
     #[serde(default)]
     pub preflight: Option<PreflightMarker>,
+    #[serde(default)]
+    pub documentation_impact: Option<DocumentationImpact>,
     pub acceptance_criteria: Vec<AcceptanceCriterion>,
     pub created: String,
     pub updated: String,

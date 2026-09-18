@@ -43,5 +43,10 @@
     "enabled": true,
     "required_from_id": 23,
     "note": "Mandatory preflight (decision 0021): work items 023+ must record a preflight marker (the item was created before implementation began). Items 000-022 predate the 2.0 mandate and are grandfathered."
+  },
+  "documentation_impact": {
+    "enabled": true,
+    "required_from_date": "2026-09-17",
+    "note": "Mandatory documentation-impact closure (decision 0065, WI047): work items created after 2026-09-17 cannot transition to completed without a resolved documentation_impact ('affected' with surfaces+evidence, or 'none' with a rationale). Every item created on/before that date, including WI047 itself and every already-completed item up to WI069, is grandfathered -- the mandate applies prospectively from this adoption epoch, not retroactively (decision 0065, AC-13)."
   }
 }

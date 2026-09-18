@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/work-item.schema.json",
+  "id": "900",
+  "title": "Completed without documentation impact",
+  "status": "completed",
+  "owner_scope": "governance",
+  "affected_scopes": [],
+  "depends_on": [],
+  "preflight": {
+    "created_before_work_started": true,
+    "created_at": "2026-09-18T00:00:00Z",
+    "note": "fixture"
+  },
+  "acceptance_criteria": [
+    {"id": "AC-1", "text": "The repository validates", "state": "satisfied", "evidence": ["20260101-seed"]}
+  ],
+  "created": "2026-09-18",
+  "updated": "2026-09-18"
+}

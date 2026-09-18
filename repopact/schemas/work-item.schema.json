@@ -35,6 +35,43 @@
         }
       }
     },
+    "documentation_impact": {
+      "type": "object",
+      "description": "Decision 0065 (WI047): resolves whether this work item's governed code change affects durable documentation. 'affected' surfaces must name concrete documentation surfaces and link evidence that they were created, updated, or regenerated; 'none' requires a reviewable rationale. Enforcement of *presence* is conditional (governance/owners.json documentation_impact.enabled), but the shape below is always validated when present.",
+      "required": ["state"],
+      "properties": {
+        "state": {"enum": ["affected", "none"]},
+        "surfaces": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "user_behavior", "api_cli", "configuration", "architecture",
+              "operations", "contributor_workflow", "maturity_status",
+              "examples", "generated"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "evidence": {"type": "array", "items": {"type": "string"}},
+        "rationale": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "affected"}}},
+          "then": {
+            "required": ["surfaces", "evidence"],
+            "properties": {
+              "surfaces": {"minItems": 1},
+              "evidence": {"minItems": 1}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"state": {"const": "none"}}},
+          "then": {"required": ["rationale"]}
+        }
+      ]
+    },
     "created": {"type": "string", "format": "date"},
     "updated": {"type": "string", "format": "date"}
   }

@@ -7,5 +7,6 @@
     {"id": "governance-owner", "description": "Maintains the pact and schemas.", "scopes": ["governance"]}
   ],
   "concurrency": {"enforce_disjoint_active_scopes": false},
-  "preflight": {"enabled": true, "required_from_id": 2}
+  "preflight": {"enabled": true, "required_from_id": 2},
+  "documentation_impact": {"enabled": true, "required_from_id": 900}
 }
